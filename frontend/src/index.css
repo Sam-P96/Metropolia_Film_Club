@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-red: #C7253E;
+  --color-brand-gold: #FABC3F;
+  --color-brand-maroon: #821131;
+  --color-brand-orange: #E85C0D;
+
+  --color-ink: #0B0710;
+  --color-ink-light: #1A1024;
+  --color-plum: #2D1B47;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #0B0710 0%, #1A1024 45%, #2D1B47 100%);
+  background-attachment: fixed;
+  color: #E8E3ED;
+}
