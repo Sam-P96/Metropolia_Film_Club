@@ -1,24 +1,24 @@
-import { useState } from 'react'
+
+import { Routes, Route } from 'react-router-dom'
 import NavigationBar from './components/NavigationBar'
 import Footer from './components/Footer'
-
-import './App.css'
+import Home from './pages/Home'
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       <NavigationBar />
-      {/* <main>
-        <Routes>
 
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
         </Routes>
-      </main> */}
+      </main>
+
       <Footer />
-    </>
+    </div>
   )
 }
 
