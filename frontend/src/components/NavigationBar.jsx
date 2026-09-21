@@ -32,10 +32,13 @@ function NavigationBar() {
           <NavLink to="/" className={linkClasses}>Home</NavLink>
         </li>
         <li>
-          <NavLink to="/screenings" className={linkClasses}>Club Events</NavLink>
+          <NavLink to="/club_events" className={linkClasses}>Club Events</NavLink>
         </li>
         <li>
-          <NavLink to="/about" className={linkClasses}>Screenings</NavLink>
+          <NavLink to="/screenings" className={linkClasses}>Screenings</NavLink>
+        </li>
+        <li>
+          <NavLink to="/movie_reviews" className={linkClasses}>Movie Reviews</NavLink>
         </li>
         <li>
           <NavLink to="/about" className={linkClasses}>About Us</NavLink>
@@ -46,7 +49,7 @@ function NavigationBar() {
         {isLoggedIn ? (
           <NavLink to="/account" className={buttonClasses}>Account</NavLink>
         ) : (
-          <NavLink to="/login" className={buttonClasses}>Login</NavLink>
+          <NavLink to="/login" className={buttonClasses}>Login / Sign Up</NavLink>
         )}
       </div>
     </nav>
