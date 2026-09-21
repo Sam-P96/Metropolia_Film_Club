@@ -3,7 +3,7 @@ const events = [
         _id: '1',
         title: "Club Meetup and Discussion: Inside North Korea's Dynasty",
         startsAt: '2026-09-25T19:00:00+03:00',
-        location: 'Sammkino, Pitäjänmäentie 35 K 92',
+        location: 'Sammkino, Pitäzamäntie 45 R 62, 00820',
         description: "Inside North Korea's Dynasty is a four-episode National Geographic documentary series available to stream on Disney+ that explores the history and family dynamics of the Kim dynasty.",
         film: null,
         gifUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRyy0Tf4I3qYFzgzlNe17gacZoX8mZbTRVt3laI5h099E-HqcB6UFcSYVZR&s=10',
