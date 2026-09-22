@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import ReviewCard from './ReviewCard'
 
-const SPEED = 42     // normal scrolling speed, in pixels per second
-const EASING = 20     // how quickly the speed changes; higher = quicker stop
+const SPEED = 42        // normal scrolling speed, in pixels per second
+const EASE_STOP = 3.5   // how quickly it slows down on hover (lower = longer, softer stop)
+const EASE_START = 2.5  // how quickly it speeds back up after hover (lower = gentler restart)
 
 function ReviewMarquee({ reviews }) {
   const looped = [...reviews, ...reviews]
@@ -27,8 +28,17 @@ function ReviewMarquee({ reviews }) {
       const seconds = Math.min((now - lastTime) / 1000, 0.1)
       lastTime = now
 
-      const targetSpeed = hoveredRef.current ? 0 : SPEED
-      speed += (targetSpeed - speed) * Math.min(1, EASING * seconds)
+      const hovered = hoveredRef.current
+      const targetSpeed = hovered ? 0 : SPEED
+      const easing = hovered ? EASE_STOP : EASE_START
+
+      // Move a fraction of the way toward the target speed each frame.
+      // Using exp() keeps the feel the same at 60Hz, 120Hz, 144Hz, etc.
+      const blend = 1 - Math.exp(-easing * seconds)
+      speed += (targetSpeed - speed) * blend
+
+      // Snap to a full stop once it's imperceptibly slow
+      if (hovered && speed < 0.05) speed = 0
 
       position -= speed * seconds
       if (-position >= halfWidth) position += halfWidth
