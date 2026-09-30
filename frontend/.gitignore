@@ -25,4 +25,4 @@ pnpm-debug.log*
 *.sw?
 
 # IGNORING GIFS
-*.gif
+# *.gif
