@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import useInView from "../../hooks/useInView";
 
+
 const points = [
   {
     title: "Open to everyone",
