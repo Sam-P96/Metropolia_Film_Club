@@ -1,4 +1,4 @@
-import aboutImage from '../../assets/purple_sparkle_1.gif'
+import aboutImage from '../../assets/kamen-1080.gif'
 
 function AboutIntro() {
   return (
