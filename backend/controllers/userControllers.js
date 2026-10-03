@@ -39,7 +39,7 @@ const signupUser = async (req, res) => {
         // Send back a token
         if (user) {
             const token = generateToken(user._id);
-            res.status(201).json({ email, token })
+            res.status(201).json({ _id: user._id, username: user.username, email, token })
         } else {
             res.status(400);
             throw new Error("Invalid user data");
@@ -59,14 +59,14 @@ const loginUser = async (req, res) => {
 
         if (user && (await bcrypt.compare(password, user.password))) {
             const token = generateToken(user._id);
-            res.status(200).json({email, token});
+            res.status(200).json({ _id: user._id, username: user.username, email, token });
         } else {
             res.status(400);
             throw new Error("Invalid credentials")
         }
     }
     catch (error) {
-        res.status(400).json({error: error.message})
+        res.status(400).json({ error: error.message })
     }
 }
 

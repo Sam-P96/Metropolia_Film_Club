@@ -7,6 +7,7 @@ import Home from './pages/Home'
 import About from './pages/About'
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -34,6 +35,10 @@ function App() {
           <Route path="/login" element={
             isAuthenticated ? (<Navigate to="/" />) : (<Login setIsAuthenticated={setIsAuthenticated} />)
           } />
+          <Route path="/account" element={
+            isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
+          } />
+          <Route path="/users/:userId" element={<Profile />} />
         </Routes>
       </main>
 
