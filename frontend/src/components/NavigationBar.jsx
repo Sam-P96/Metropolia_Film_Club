@@ -44,9 +44,9 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         <li>
           <NavLink to="/club_events" className={linkClasses}>Club Events</NavLink>
         </li>
-        <li>
-          <NavLink to="/screenings" className={linkClasses}>Screenings</NavLink>
-        </li>
+        {/* <li>
+          <NavLink to="/screenings" className={linkClasses}>The Wheel?</NavLink>
+        </li> */}
         <li>
           <NavLink to="/movie_reviews" className={linkClasses}>Movie Reviews</NavLink>
         </li>
