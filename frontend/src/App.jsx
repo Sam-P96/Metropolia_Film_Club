@@ -7,6 +7,7 @@ import Home from './pages/Home'
 import About from './pages/About'
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import ClubEvents from './pages/ClubEvents'
 import Profile from "./pages/Profile";
 import Wheel from './pages/Wheel';
 
@@ -30,6 +31,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
           <Route path="/about" element={<About isAuthenticated={isAuthenticated} />} />
+          <Route path="/club_events" element={<ClubEvents isAuthenticated={isAuthenticated} />} />
           <Route path="/signup" element={
             isAuthenticated ? (<Navigate to="/" />) : (<Signup setIsAuthenticated={setIsAuthenticated} />)
           } />
