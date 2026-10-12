@@ -33,7 +33,7 @@ const Signup = () => {
     }
 
     localStorage.setItem("user", JSON.stringify(user));
-    navigate("/");
+    window.location.href = "/";
   };
 
   const inputClasses =

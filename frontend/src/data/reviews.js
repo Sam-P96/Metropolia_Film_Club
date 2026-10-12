@@ -1,5 +1,3 @@
-// Placeholder reviews
-
 const reviews = [
   {
     _id: 'r1',
@@ -8,6 +6,7 @@ const reviews = [
     filmTitle: 'Perfect Blue',
     filmYear: 1997,
     posterPath: null,
+    genres: ['Animation', 'Thriller', 'Mystery'],
     rating: 4.5,
     text: 'Kon builds dread out of editing alone. Scenes cut back into themselves until you stop trusting what you just saw, and by the last act I was questioning every frame. Still feels ahead of its time.',
     containsSpoilers: false,
@@ -21,6 +20,7 @@ const reviews = [
     filmTitle: 'Paddington 2',
     filmYear: 2017,
     posterPath: null,
+    genres: ['Comedy', 'Family', 'Adventure'],
     rating: 5,
     text: 'I will not hear a bad word about this bear. Genuinely one of the kindest films ever made, and Hugh Grant is having the time of his life.',
     containsSpoilers: false,
@@ -34,6 +34,7 @@ const reviews = [
     filmTitle: 'The Thing',
     filmYear: 1982,
     posterPath: null,
+    genres: ['Horror', 'Sci-Fi', 'Mystery'],
     rating: 4,
     text: 'The ending hits so much harder once you realise who was infected at the dinner table scene. Watch the eyes and the breath in the last shot.',
     containsSpoilers: true,
@@ -47,6 +48,7 @@ const reviews = [
     filmTitle: 'Past Lives',
     filmYear: 2023,
     posterPath: null,
+    genres: ['Drama', 'Romance'],
     rating: null,
     text: 'Not rating this one, I just need to say that the bar scene broke me a little. Talked about it at the café for an hour afterwards.',
     containsSpoilers: false,
@@ -60,6 +62,7 @@ const reviews = [
     filmTitle: 'Parasite',
     filmYear: 2019,
     posterPath: null,
+    genres: ['Thriller', 'Drama', 'Comedy'],
     rating: 2.5,
     text: 'Controversial take for the club: brilliant first half, but I felt the tone shift more than I felt the story. Happy to be argued with at the next meetup.',
     containsSpoilers: false,

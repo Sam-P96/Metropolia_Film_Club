@@ -8,6 +8,7 @@ import About from './pages/About'
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import ClubEvents from './pages/ClubEvents'
+import Profile from "./pages/Profile";
 import Wheel from './pages/Wheel';
 
 
@@ -37,6 +38,10 @@ function App() {
           <Route path="/login" element={
             isAuthenticated ? (<Navigate to="/" />) : (<Login setIsAuthenticated={setIsAuthenticated} />)
           } />
+          <Route path="/account" element={
+            isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
+          } />
+          <Route path="/users/:userId" element={<Profile />} />
 
           <Route path="/wheel" element={<Wheel />} />
         </Routes>
