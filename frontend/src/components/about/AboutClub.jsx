@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import useInView from "../../hooks/useInView";
 
 
@@ -20,6 +20,8 @@ const points = [
 function AboutClub() {
   const isLoggedIn = false; // Modify this later for login thingies
   const [sectionRef, cardsVisible] = useInView(0.6);
+  const { pathname } = useLocation();
+  const isAboutPage = pathname === "/about";
 
   const primaryButton =
     "rounded-md bg-brand-red px-6 py-3 font-medium text-white transition-colors hover:bg-brand-orange";
@@ -86,13 +88,19 @@ function AboutClub() {
           </a>
         </div>
 
-        <div className="mt-8 text-center">
-          <Link
-            to="/about"
-            className="text-sm font-medium text-brand-gold transition-colors hover:text-white"
-          >
-            Read more about us
-          </Link>
+                <div className="mt-8 text-center">
+          {isAboutPage ? (
+            <p className="text-sm font-medium text-brand-gold">
+              Metropolia Film Club
+            </p>
+          ) : (
+            <Link
+              to="/about"
+              className="text-sm font-medium text-brand-gold transition-colors hover:text-white"
+            >
+              Read more about us
+            </Link>
+          )}
         </div>
       </div>
     </section>
