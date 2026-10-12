@@ -4,6 +4,7 @@ import users from '../data/users'
 import reviews from '../data/reviews'
 import ReviewCard from '../components/reviews/ReviewCard'
 import ReviewCardEditor from '../components/profile/ReviewCardEditor'
+import ProfileEditor from '../components/profile/ProfileEditor'
 import ProfileStats from '../components/profile/ProfileStats'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
 import { getProfileStats } from '../utils/profileStats'
@@ -145,12 +146,12 @@ function Profile() {
             )}
 
             {isOwner && editing === 'profile' && (
-              <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-5 text-sm text-white/50 backdrop-blur-sm">
-                <p>Profile editor coming next.</p>
-                <button onClick={handleCancel} className={`${buttonClasses} mt-4`}>
-                  Cancel
-                </button>
-              </div>
+              <ProfileEditor
+                draft={draft}
+                onChange={handleDraftChange}
+                onSave={handleSave}
+                onCancel={handleCancel}
+              />
             )}
           </div>
 
