@@ -2,18 +2,37 @@ import { Link } from 'react-router-dom'
 import StarRating from './StarRating'
 import { timeAgo } from '../../utils/timeAgo'
 
-function bannerStyle(banner) {
+const BANNER_ALPHA = {
+  opaque: 1,
+  translucent: 0.55,
+  glass: 0.35,
+}
+
+function bannerLayerStyle(banner) {
   if (!banner) return {}
 
-  if (banner.type === 'image') {
-    return {
-      backgroundImage: `url(${banner.value})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    }
-  }
+  const style = banner.style || 'opaque'
+  const alpha = BANNER_ALPHA[style] ?? 1
 
-  return { backgroundColor: banner.value }
+  const base =
+    banner.type === 'image' && banner.imageUrl
+      ? {
+          backgroundImage: `url(${banner.imageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : { backgroundColor: banner.color || '#2D1B47' }
+
+  const glassExtras =
+    style === 'glass'
+      ? {
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.18)',
+        }
+      : {}
+
+  return { ...base, opacity: alpha, ...glassExtras }
 }
 
 function ReviewCard({ review }) {
@@ -81,10 +100,12 @@ function ReviewCard({ review }) {
         </div>
       </div>
 
-      <div
-        className="relative border-t border-white/10"
-        style={bannerStyle(user.reviewCardBanner)}
-      >
+      <div className="relative border-t border-white/10">
+        <div
+          className="absolute inset-0"
+          style={bannerLayerStyle(user.reviewCardBanner)}
+        />
+
         <div className="absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80" />
 
         <div className="relative flex items-center justify-end gap-4 px-5 py-4">

@@ -5,7 +5,12 @@ const users = [
     memberTitle: 'Club Founder',
     bio: 'Mostly here for the arguments afterwards. Will defend Paddington 2 to anyone.',
     avatarUrl: null,
-    reviewCardBanner: { type: 'color', value: '#821131' },
+    reviewCardBanner: {
+      type: 'color',
+      color: '#821131',
+      imageUrl: null,
+      style: 'opaque',
+    },
     privacy: 'public',
     joinedAt: '2026-09-01T12:00:00+03:00',
     favouriteFilms: [
@@ -21,7 +26,12 @@ const users = [
     memberTitle: 'Member',
     bio: 'New to the club. Say hi.',
     avatarUrl: null,
-    reviewCardBanner: { type: 'color', value: '#2D1B47' },
+    reviewCardBanner: {
+      type: 'color',
+      color: '#2D1B47',
+      imageUrl: null,
+      style: 'glass',
+    },
     privacy: 'public',
     joinedAt: '2026-09-14T12:00:00+03:00',
     favouriteFilms: [],
@@ -32,7 +42,12 @@ const users = [
     memberTitle: 'Event Organiser',
     bio: '',
     avatarUrl: null,
-    reviewCardBanner: { type: 'image', value: '/banners/neon-city.gif' },
+    reviewCardBanner: {
+      type: 'image',
+      color: '#C7253E',
+      imageUrl: '/banners/neon-city.gif',
+      style: 'translucent',
+    },
     privacy: 'private',
     joinedAt: '2026-09-05T12:00:00+03:00',
     favouriteFilms: [
