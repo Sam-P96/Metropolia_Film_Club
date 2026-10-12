@@ -4,6 +4,7 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const tmdbRouter = require("./routes/tmdb")
 const userRouter = require("./routes/userRouter");
+const wheelRouter = require("./routes/wheel");
 
 const app = express();
 
@@ -15,6 +16,8 @@ connectDB();
 
 app.use("/api/tmdb", tmdbRouter);
 app.use("/api/users", userRouter);
+
+app.use("/api/wheel", wheelRouter);
 
 app.get("/api/health", (req, res) => {
     res.json({status: "ok"})

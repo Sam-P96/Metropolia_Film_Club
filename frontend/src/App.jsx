@@ -8,6 +8,7 @@ import About from './pages/About'
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import Wheel from './pages/Wheel';
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -39,6 +40,8 @@ function App() {
             isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
           } />
           <Route path="/users/:userId" element={<Profile />} />
+
+          <Route path="/wheel" element={<Wheel />} />
         </Routes>
       </main>
 
