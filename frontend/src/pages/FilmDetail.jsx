@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import users from '../data/users'
+import reviews from '../data/reviews'
+import filmList from '../data/filmList'
 import { getFilm } from '../services/tmdb'
-import { reviews } from '../data/reviews'
 import ReviewCard from '../components/reviews/ReviewCard'
+import StarRating from '../components/reviews/StarRating'
 import { getClubRating } from '../utils/clubFilmStats'
-import { getMembersWanting, describeOthersWanting } from '../utils/watchlist'
+import { getMembersWanting } from '../utils/watchlist'
 import { getCurrentUser } from '../utils/currentUser'
-import { getUserReviewForFilm } from '../utils/reviewLookup'
+import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
 
 const REVIEWS_PER_PAGE = 6
 
 function FilmDetail({ isAuthenticated }) {
-  const { id } = useParams()
+  // The route is /films/:tmdbId, so that is the name useParams gives back.
+  // It always arrives as a string, and the data files store numbers.
+  const { tmdbId } = useParams()
+  const id = Number(tmdbId)
 
   const [film, setFilm] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -26,50 +32,48 @@ function FilmDetail({ isAuthenticated }) {
 
     setLoading(true)
     setError(null)
+    setVisibleCount(REVIEWS_PER_PAGE)
 
     getFilm(id)
       .then((data) => {
-        if (cancelled) return
-        setFilm(data)
-        setLoading(false)
+        if (!cancelled) setFilm(data)
       })
       .catch(() => {
-        if (cancelled) return
-        setError("Couldn't load this film.")
-        setLoading(false)
+        if (!cancelled) setError("Couldn't load this film.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
       })
 
-    // If the user clicks through to another film before this finishes,
-    // the old response must not overwrite the new one.
+    // If you click through to another film before this finishes, the old
+    // response must not overwrite the new one.
     return () => {
       cancelled = true
     }
   }, [id])
 
-  // Reset the load-more counter when the film changes.
-  useEffect(() => {
-    setVisibleCount(REVIEWS_PER_PAGE)
-  }, [id])
+  const club = getClubRating(filmList, id)
 
-  const filmReviews = useMemo(
-    () =>
-      reviews
-        .filter((review) => review.tmdbId === Number(id))
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    [id]
-  )
+  const wanting = getMembersWanting(filmList, id).map((entry) => ({
+    entry,
+    user: users.find((user) => user._id === entry.userId),
+  }))
+
+  const filmReviews = reviews
+    .filter((review) => review.tmdbId === id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map((review) => ({
+      ...review,
+      user: users.find((user) => user._id === review.userId),
+    }))
+    .filter((review) => review.user)
 
   const visibleReviews = filmReviews.slice(0, visibleCount)
   const remaining = filmReviews.length - visibleReviews.length
 
   // Has this member already reviewed this film?
-  const myReview = useMemo(
-    () => getUserReviewForFilm(reviews, currentUser?._id, id),
-    [currentUser, id]
-  )
-
-  const clubRating = getClubRating(Number(id))
-  const membersWanting = getMembersWanting(Number(id))
+  const memberId = resolveMemberId(users, currentUser)
+  const myReview = getUserReviewForFilm(reviews, memberId, id)
 
   if (loading) {
     return (
@@ -92,7 +96,7 @@ function FilmDetail({ isAuthenticated }) {
 
       {/* backdrop, fading into the page background */}
       {film.backdropPath && (
-        <div className="relative h-[40vh] w-full overflow-hidden">
+        <div className="relative z-0 h-[40vh] w-full overflow-hidden">
           <img
             src={`https://image.tmdb.org/t/p/w1280${film.backdropPath}`}
             alt=""
@@ -102,9 +106,14 @@ function FilmDetail({ isAuthenticated }) {
         </div>
       )}
 
-      <div className="mx-auto max-w-5xl px-8 pb-24">
-        <div className={`flex flex-col gap-8 sm:flex-row ${film.backdropPath ? '-mt-32' : 'pt-16'}`}>
-
+      {/* relative + z-10 so this paints ABOVE the positioned backdrop above.
+          Without it the backdrop covers the poster and title. */}
+      <div className="relative z-10 mx-auto max-w-5xl px-8 pb-24">
+        <div
+          className={`flex flex-col gap-8 sm:flex-row ${
+            film.backdropPath ? '-mt-32' : 'pt-16'
+          }`}
+        >
           {film.posterPath && (
             <img
               src={`https://image.tmdb.org/t/p/w342${film.posterPath}`}
@@ -114,13 +123,24 @@ function FilmDetail({ isAuthenticated }) {
           )}
 
           <div className="min-w-0 flex-1">
-            <h1 className="text-4xl font-bold">{film.title}</h1>
+            <h1 className="text-4xl font-bold">
+              {film.title}{' '}
+              {film.year && (
+                <span className="font-normal text-white/40">({film.year})</span>
+              )}
+            </h1>
+
+            {film.tagline && (
+              <p className="mt-2 text-sm text-brand-gold italic">
+                {film.tagline}
+              </p>
+            )}
 
             <p className="mt-3 text-sm text-white/50">
               {[
-                film.releaseDate?.slice(0, 4),
                 film.runtime ? `${film.runtime} min` : null,
-                film.genres?.map((genre) => genre.name).join(', '),
+                film.genres?.length ? film.genres.join(', ') : null,
+                film.studios?.length ? film.studios[0] : null,
               ]
                 .filter(Boolean)
                 .join('  ·  ')}
@@ -135,28 +155,26 @@ function FilmDetail({ isAuthenticated }) {
             {/* ratings on the left, the review button pushed to the right */}
             <div className="mt-8 flex flex-wrap items-center gap-8">
               <div>
-                <p className="text-xs uppercase tracking-wider text-white/40">
+                <p className="text-xs tracking-wider text-white/40 uppercase">
                   Club rating
                 </p>
-                {clubRating?.count ? (
-                  <p className="mt-1 text-2xl font-bold text-brand-gold">
-                    {clubRating.average.toFixed(1)}
-                    <span className="ml-2 text-sm font-normal text-white/40">
-                      / 5 · {clubRating.count}{' '}
-                      {clubRating.count === 1 ? 'rating' : 'ratings'}
-                    </span>
+                <div className="mt-1">
+                  <StarRating rating={club.average} size="md" />
+                </div>
+                {club.count > 0 && (
+                  <p className="mt-1 text-xs text-white/40">
+                    {club.average.toFixed(1)} from {club.count}{' '}
+                    {club.count === 1 ? 'member' : 'members'}
                   </p>
-                ) : (
-                  <p className="mt-1 text-sm text-white/40">Not rated yet</p>
                 )}
               </div>
 
               <div>
-                <p className="text-xs uppercase tracking-wider text-white/40">
+                <p className="text-xs tracking-wider text-white/40 uppercase">
                   TMDB
                 </p>
                 <p className="mt-1 text-2xl font-bold">
-                  {film.voteAverage ? film.voteAverage.toFixed(1) : '—'}
+                  {film.tmdbRating ? film.tmdbRating.toFixed(1) : '—'}
                   <span className="ml-2 text-sm font-normal text-white/40">
                     / 10
                   </span>
@@ -174,16 +192,65 @@ function FilmDetail({ isAuthenticated }) {
         </div>
 
         {/* who wants to see this */}
-        {membersWanting?.length > 0 && (
-          <div className="mt-16 rounded-2xl border border-white/10 bg-ink/60 p-6 backdrop-blur-xl">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-white/40">
-              Plan to watch / rewatch
-            </h2>
-            <p className="mt-3 text-white/80">
-              {describeOthersWanting(membersWanting)}
+        <div className="mt-16">
+          <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
+            Who wants to see this
+          </h2>
+
+          {wanting.length === 0 ? (
+            <p className="text-sm text-white/40">
+              Nobody has this on their list right now.
             </p>
-          </div>
-        )}
+          ) : (
+            <ul className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+              {wanting.map(({ entry, user }) => {
+                if (!user) return null
+
+                const isRewatch = entry.status === 'completed'
+
+                return (
+                  <li key={entry._id}>
+                    <Link
+                      to={`/users/${user._id}`}
+                      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
+                    >
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.username}
+                          className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/20"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-red text-sm font-bold ring-2 ring-white/20">
+                          {user.username[0].toUpperCase()}
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
+                          {user.username}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          {user.memberTitle}
+                        </p>
+                      </div>
+
+                      <span
+                        className={
+                          isRewatch
+                            ? 'shrink-0 rounded border border-brand-orange/50 px-2 py-0.5 text-[10px] tracking-wide text-brand-orange uppercase'
+                            : 'shrink-0 rounded border border-brand-gold/50 px-2 py-0.5 text-[10px] tracking-wide text-brand-gold uppercase'
+                        }
+                      >
+                        {isRewatch ? 'Rewatch' : 'Watch'}
+                      </span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
 
         {/* club reviews */}
         <div className="mt-16">
@@ -202,7 +269,7 @@ function FilmDetail({ isAuthenticated }) {
             </p>
           ) : (
             <>
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {visibleReviews.map((review) => (
                   <ReviewCard key={review._id} review={review} />
                 ))}

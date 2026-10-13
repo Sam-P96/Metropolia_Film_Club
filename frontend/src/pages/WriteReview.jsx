@@ -1,36 +1,33 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import users from '../data/users'
+import reviews from '../data/reviews'
 import { getFilm } from '../services/tmdb'
-import { reviews } from '../data/reviews'
 import RatingInput from '../components/reviews/RatingInput'
 import { getCurrentUser } from '../utils/currentUser'
-import { getUserReviewForFilm } from '../utils/reviewLookup'
+import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
 
 const MAX_LENGTH = 4000
 
 function WriteReview() {
-  const { id } = useParams()
+  const { tmdbId } = useParams()
+  const id = Number(tmdbId)
 
-  // Lazy initialiser: the function runs once on mount, not on every render.
+  // Lazy initialiser: the function runs once on mount, not every render.
   const [currentUser] = useState(getCurrentUser)
 
-  // This member's existing review for this film, or null if they
-  // haven't written one yet. This one value decides everything below:
-  // the heading, the button text, and whether we POST or PATCH.
-  const existingReview = useMemo(
-    () => getUserReviewForFilm(reviews, currentUser?._id, id),
-    [currentUser, id]
-  )
-
+  // This member's existing review for this film, or null. This one value
+  // decides the heading, the button text, and whether we POST or PATCH.
+  const memberId = resolveMemberId(users, currentUser)
+  const existingReview = getUserReviewForFilm(reviews, memberId, id)
   const isEditing = existingReview !== null
 
-  // Pre-fill the form from the existing review when there is one.
-  // useState's initial value is only read on the first render, which is
-  // fine while reviews come from a local file (the lookup is instant).
-  // Once this is a fetch, these three will need a useEffect to sync.
+  // Pre-fill from the existing review. useState only reads its initial
+  // value on the first render, which is fine while reviews come from a
+  // local file. Once this is a fetch, these three need a useEffect to sync.
   const [rating, setRating] = useState(existingReview?.rating ?? 0)
-  const [body, setBody] = useState(existingReview?.body ?? '')
+  const [text, setText] = useState(existingReview?.text ?? '')
   const [containsSpoilers, setContainsSpoilers] = useState(
     existingReview?.containsSpoilers ?? false
   )
@@ -59,15 +56,15 @@ function WriteReview() {
     e.preventDefault()
     setError(null)
 
-    if (rating === 0 && body.trim() === '') {
+    if (rating === 0 && text.trim() === '') {
       setError('Give it a rating, write something, or both.')
       return
     }
 
     const payload = {
-      tmdbId: Number(id),
-      rating,
-      body: body.trim(),
+      tmdbId: id,
+      rating: rating === 0 ? null : rating,
+      text: text.trim(),
       containsSpoilers,
     }
 
@@ -95,7 +92,7 @@ function WriteReview() {
           to={`/films/${id}`}
           className="text-sm text-white/50 transition-colors hover:text-white"
         >
-          ← Back to film
+          ← Back to the film
         </Link>
 
         <h1 className="mt-6 text-3xl font-bold">
@@ -116,10 +113,8 @@ function WriteReview() {
             )}
             <div>
               <p className="font-medium">{film.title}</p>
-              {film.releaseDate && (
-                <p className="text-sm text-white/50">
-                  {film.releaseDate.slice(0, 4)}
-                </p>
+              {film.year && (
+                <p className="text-sm text-white/50">{film.year}</p>
               )}
             </div>
           </div>
@@ -133,20 +128,20 @@ function WriteReview() {
           </div>
 
           <div>
-            <label htmlFor="body" className={labelClasses}>
+            <label htmlFor="text" className={labelClasses}>
               Your review
             </label>
             <textarea
-              id="body"
+              id="text"
               rows={10}
               maxLength={MAX_LENGTH}
               placeholder="What did you think?"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
               className={`${inputClasses} resize-y`}
             />
             <p className="mt-2 text-right text-xs text-white/40">
-              {body.length} / {MAX_LENGTH}
+              {text.length} / {MAX_LENGTH}
             </p>
           </div>
 
