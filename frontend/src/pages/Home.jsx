@@ -22,13 +22,13 @@ function Home() {
       <NextEvent />
       <ReviewSection
         title="Recent Reviews"
-  reviews={recentReviews}
-  layout="marquee"
-  backgroundUrl={reviewsBg}
-  linkTo="/reviews"
+        reviews={recentReviews}
+        layout="marquee"
+        backgroundUrl={reviewsBg}
+        linkTo="/movie_reviews"
       />
       <AboutClub />
-      
+
     </>
   )
 }

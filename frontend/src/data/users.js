@@ -55,6 +55,77 @@ const users = [
       { tmdbId: 1091, title: 'The Thing', posterPath: null },
     ],
   },
+  {
+    _id: 'u4',
+    username: 'reetta_k',
+    memberTitle: 'Member',
+    bio: 'Horror apologist. I will make you watch the 1982 version.',
+    avatarUrl: null,
+    reviewCardBanner: {
+      type: 'color',
+      color: '#14532D',
+      imageUrl: null,
+      style: 'translucent',
+    },
+    privacy: 'public',
+    joinedAt: '2026-09-18T12:00:00+03:00',
+    favouriteFilms: [
+      { tmdbId: 1091, title: 'The Thing', posterPath: null },
+    ],
+  },
+  {
+    _id: 'u5',
+    username: 'tuomas.m',
+    memberTitle: 'Member',
+    bio: 'Three-hour runtimes are a feature, not a bug.',
+    avatarUrl: null,
+    reviewCardBanner: {
+      type: 'color',
+      color: '#1E3A5F',
+      imageUrl: null,
+      style: 'glass',
+    },
+    privacy: 'public',
+    joinedAt: '2026-09-20T12:00:00+03:00',
+    favouriteFilms: [
+      { tmdbId: 496243, title: 'Parasite', posterPath: null },
+      { tmdbId: 666277, title: 'Past Lives', posterPath: null },
+    ],
+  },
+  {
+    _id: 'u6',
+    username: 'nadia_reels',
+    memberTitle: 'Member',
+    bio: 'Here for the café bit, honestly.',
+    avatarUrl: null,
+    reviewCardBanner: {
+      type: 'color',
+      color: '#E85C0D',
+      imageUrl: null,
+      style: 'translucent',
+    },
+    privacy: 'public',
+    joinedAt: '2026-09-24T12:00:00+03:00',
+    favouriteFilms: [],
+  },
+  {
+    _id: 'u7',
+    username: 'oskari.t',
+    memberTitle: 'Member',
+    bio: '',
+    avatarUrl: null,
+    reviewCardBanner: {
+      type: 'color',
+      color: '#1A1024',
+      imageUrl: null,
+      style: 'opaque',
+    },
+    privacy: 'public',
+    joinedAt: '2026-10-01T12:00:00+03:00',
+    favouriteFilms: [
+      { tmdbId: 10494, title: 'Perfect Blue', posterPath: null },
+    ],
+  },
 ]
 
 export default users

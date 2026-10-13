@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import SearchBar from './search/SearchBar'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -59,9 +60,6 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
   const logoutClasses =
     'whitespace-nowrap rounded-md border border-white/20 bg-white/5 px-5 py-2 text-[0.95rem] font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10'
 
-  const searchClasses =
-    'w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-all placeholder:text-white/40 focus:border-brand-gold/60 focus:bg-white/10'
-
   return (
     <>
       <nav className="sticky top-0 z-100 flex items-center gap-8 border-b border-white/10 bg-ink/60 px-8 py-4 shadow-lg shadow-black/40 backdrop-blur-xl">
@@ -74,11 +72,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
 
         {/* Desktop only */}
         <div className="hidden flex-1 lg:block">
-          <input
-            type="search"
-            placeholder="Search upcoming club events..."
-            className={searchClasses}
-          />
+          <SearchBar to="/films" placeholder="Search for a film..." />
         </div>
 
         <ul className="hidden gap-7 lg:flex">
@@ -177,11 +171,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         </div>
 
         <div className="border-b border-white/10 px-5 py-4">
-          <input
-            type="search"
-            placeholder="Search upcoming club events..."
-            className={searchClasses}
-          />
+          <SearchBar to="/films" placeholder="Search for a film..." />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">

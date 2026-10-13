@@ -13,6 +13,10 @@ import Wheel from './pages/Wheel';
 import UserFilmList from "./pages/UserFilmList";
 import ReviewDetail from "./pages/ReviewDetail";
 import FilmDetail from "./pages/FilmDetail";
+import FilmBrowser from "./pages/FilmBrowser";
+import MovieReviews from "./pages/MovieReviews";
+import FilmReviews from "./pages/FilmReviews";
+import WriteReview from "./pages/WriteReview";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -49,7 +53,19 @@ function App() {
           <Route path="/wheel" element={<Wheel />} />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail />} />
-          <Route path="/films/:tmdbId" element={<FilmDetail />} />
+          <Route path="/movie_reviews" element={<MovieReviews />} />
+
+          {/* film routes — one route per path, all using :tmdbId */}
+          <Route path="/films" element={<FilmBrowser />} />
+          <Route
+            path="/films/:tmdbId"
+            element={<FilmDetail isAuthenticated={isAuthenticated} />}
+          />
+          <Route
+            path="/films/:tmdbId/review"
+            element={isAuthenticated ? <WriteReview /> : <Navigate to="/" />}
+          />
+          <Route path="/films/:tmdbId/reviews" element={<FilmReviews />} />
         </Routes>
       </main>
 
