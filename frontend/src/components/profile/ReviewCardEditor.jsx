@@ -13,44 +13,50 @@ function ReviewCardEditor({ draft, onChange, onSave, onCancel }) {
         Edit review card
       </h3>
 
-      <div className="space-y-5">
+      {/* 1 column on small screens, 2 columns from md (768px) up */}
+      <div className="grid gap-5 md:grid-cols-2 md:gap-6">
 
-        <div>
-          <label htmlFor="memberTitle" className={labelClasses}>
-            Member title
-          </label>
-          <input
-            id="memberTitle"
-            type="text"
-            maxLength={24}
-            placeholder="Member"
-            value={draft.memberTitle}
-            onChange={(e) => onChange('memberTitle', e.target.value)}
-            className={inputClasses}
-          />
-          <p className="mt-1 text-xs text-white/30">
-            {draft.memberTitle.length} / 24
-          </p>
+        {/* Left column: text inputs */}
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="memberTitle" className={labelClasses}>
+              Member title
+            </label>
+            <input
+              id="memberTitle"
+              type="text"
+              maxLength={24}
+              placeholder="Member"
+              value={draft.memberTitle}
+              onChange={(e) => onChange('memberTitle', e.target.value)}
+              className={inputClasses}
+            />
+            <p className="mt-1 text-xs text-white/30">
+              {draft.memberTitle.length} / 24
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="avatarUrl" className={labelClasses}>
+              Avatar image URL
+            </label>
+            <input
+              id="avatarUrl"
+              type="url"
+              placeholder="https://..."
+              value={draft.avatarUrl || ''}
+              onChange={(e) => onChange('avatarUrl', e.target.value || null)}
+              className={inputClasses}
+            />
+            <p className="mt-1 text-xs text-white/30">
+              Leave empty to use the letter circle.
+            </p>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="avatarUrl" className={labelClasses}>
-            Avatar image URL
-          </label>
-          <input
-            id="avatarUrl"
-            type="url"
-            placeholder="https://..."
-            value={draft.avatarUrl || ''}
-            onChange={(e) => onChange('avatarUrl', e.target.value || null)}
-            className={inputClasses}
-          />
-          <p className="mt-1 text-xs text-white/30">
-            Leave empty to use the letter circle.
-          </p>
-        </div>
-
-        <div className="border-t border-white/10 pt-5">
+        {/* Right column: banner picker.
+            Stacked = divider on top. Side by side = divider on the left. */}
+        <div className="border-t border-white/10 pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
           <BannerPicker
             banner={draft.reviewCardBanner}
             onChange={(banner) => onChange('reviewCardBanner', banner)}

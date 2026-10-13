@@ -108,9 +108,14 @@ function ReviewCard({ review }) {
 
         <div className="absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80" />
 
-        <div className="relative flex items-center justify-end gap-4 px-5 py-4">
+        <Link
+          to={`/users/${user._id}`}
+          className="group relative flex items-center justify-end gap-4 px-5 py-4"
+        >
           <div className="text-right">
-            <p className="font-semibold drop-shadow">{user.username}</p>
+            <p className="font-semibold drop-shadow transition-colors group-hover:text-brand-gold">
+              {user.username}
+            </p>
             <p className="text-sm text-white/60">{user.memberTitle}</p>
           </div>
 
@@ -125,7 +130,7 @@ function ReviewCard({ review }) {
               {user.username[0].toUpperCase()}
             </div>
           )}
-        </div>
+        </Link>
       </div>
 
     </article>
