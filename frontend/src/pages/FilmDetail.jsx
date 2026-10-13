@@ -118,7 +118,7 @@ function FilmDetail({ isAuthenticated }) {
             <img
               src={`https://image.tmdb.org/t/p/w342${film.posterPath}`}
               alt={film.title}
-              className="w-48 shrink-0 rounded-xl border border-white/10 shadow-xl shadow-black/50"
+              className="w-48 shrink-0 self-start rounded-xl border border-white/10 shadow-xl shadow-black/50"
             />
           )}
 
@@ -181,8 +181,11 @@ function FilmDetail({ isAuthenticated }) {
                 </p>
               </div>
 
+              {/* Logged out: go and log in, then Login sends you on to the
+                  review page via state.from. */}
               <Link
-                to={isAuthenticated ? `/films/${id}/review` : '/'}
+                to={isAuthenticated ? `/films/${id}/review` : '/login'}
+                state={isAuthenticated ? null : { from: `/films/${id}/review` }}
                 className="ml-auto rounded-md bg-brand-red px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-orange"
               >
                 {myReview ? 'Edit your review' : 'Write a review'}

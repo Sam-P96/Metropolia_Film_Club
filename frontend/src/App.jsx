@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useState } from 'react';
 import ScrollToTop from './components/ScrollToTop'
 import NavigationBar from './components/NavigationBar'
@@ -26,6 +26,11 @@ function App() {
     return user && user.token ? true : false;
   })
 
+  // Where to go once logged in: back to the page that asked for a login
+  // (e.g. "Write a review"), otherwise home.
+  const location = useLocation()
+  const afterLogin = location.state?.from ?? '/'
+
   return (
     <div className="flex min-h-screen flex-col">
       <ScrollToTop />
@@ -43,7 +48,7 @@ function App() {
             isAuthenticated ? (<Navigate to="/" />) : (<Signup setIsAuthenticated={setIsAuthenticated} />)
           } />
           <Route path="/login" element={
-            isAuthenticated ? (<Navigate to="/" />) : (<Login setIsAuthenticated={setIsAuthenticated} />)
+            isAuthenticated ? (<Navigate to={afterLogin} />) : (<Login setIsAuthenticated={setIsAuthenticated} />)
           } />
           <Route path="/account" element={
             isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
@@ -63,7 +68,7 @@ function App() {
           />
           <Route
             path="/films/:tmdbId/review"
-            element={isAuthenticated ? <WriteReview /> : <Navigate to="/" />}
+            element={isAuthenticated ? <WriteReview /> : <Navigate to="/login" />}
           />
           <Route path="/films/:tmdbId/reviews" element={<FilmReviews />} />
         </Routes>
