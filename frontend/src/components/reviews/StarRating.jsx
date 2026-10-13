@@ -1,13 +1,21 @@
-function StarRating({ rating }) {
-    if (rating == null) {
-        return <p className="text-sm text-white/40">Not rated</p>
-    }
+const SIZES = {
+  sm: 'text-sm',
+  md: 'text-base',
+  lg: 'text-xl',
+}
 
-    const percent = (rating / 5) * 100
+function StarRating({ rating, size = 'lg' }) {
+  const sizeClass = SIZES[size] || SIZES.lg
 
-    return(
-        <div
-      className="relative inline-block text-xl leading-none"
+  if (rating == null) {
+    return <p className={`${sizeClass} text-white/40`}>Not rated</p>
+  }
+
+  const percent = (rating / 5) * 100
+
+  return (
+    <div
+      className={`relative inline-block leading-none ${sizeClass}`}
       role="img"
       aria-label={`${rating} out of 5 stars`}
     >

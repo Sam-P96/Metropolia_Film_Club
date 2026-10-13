@@ -1,19 +1,26 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import users from '../data/users'
 import reviews from '../data/reviews'
+import filmList from '../data/filmList'
 import ReviewCard from '../components/reviews/ReviewCard'
 import ReviewCardEditor from '../components/profile/ReviewCardEditor'
 import ProfileEditor from '../components/profile/ProfileEditor'
 import ProfileStats from '../components/profile/ProfileStats'
+import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
+import FilmSearchPicker from '../components/profile/FilmSearchPicker'
+import Watchlist from '../components/profile/Watchlist'
 import { getProfileStats } from '../utils/profileStats'
 import { canViewProfile } from '../utils/profileVisibility'
+import { getUserWatchlist } from '../utils/watchlist'
 
 // PLACEHOLDER: real accounts come from MongoDB with ids like '68dca4f2...',
 // which will never match the 'u1' ids in data/users.js. Until profiles are
 // served by the backend, /account always shows the first placeholder user.
 const LOGGED_IN_USER_ID = users[0]._id
+
+const MAX_FAVOURITES = 4
 
 function formatJoined(isoString) {
   return new Date(isoString).toLocaleDateString('en-GB', {
@@ -76,6 +83,24 @@ function Profile() {
     setDraft({ ...draft, [field]: value })
   }
 
+  const handleAddFavourite = (film) => {
+    const current = draft.favouriteFilms || []
+
+    if (current.length >= MAX_FAVOURITES) return
+    if (current.some((existing) => existing.tmdbId === film.tmdbId)) return
+
+    setDraft({ ...draft, favouriteFilms: [...current, film] })
+  }
+
+  const handleRemoveFavourite = (tmdbId) => {
+    const current = draft.favouriteFilms || []
+
+    setDraft({
+      ...draft,
+      favouriteFilms: current.filter((film) => film.tmdbId !== tmdbId),
+    })
+  }
+
   const handleSave = () => {
     setAllUsers(allUsers.map((user) => (user._id === draft._id ? draft : user)))
     setDraft(null)
@@ -92,6 +117,10 @@ function Profile() {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
   const stats = getProfileStats(userReviews)
+
+  const watchlist = getUserWatchlist(filmList, profileUser._id).sort(
+    (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+  )
 
   const emptyShowcase = {
     _id: 'placeholder',
@@ -116,12 +145,16 @@ function Profile() {
   const buttonClasses =
     'rounded-md border border-white/20 bg-white/5 px-5 py-2 text-sm font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10'
 
+  const smallButtonClasses =
+    'rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10'
+
   return (
     <section className="text-white">
       <div className="mx-auto max-w-5xl px-8 py-20">
 
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start">
 
+          {/* Left column: card + edit buttons only */}
           <div className="w-120 max-w-full shrink-0">
             <ReviewCard review={showcaseReview} />
 
@@ -134,24 +167,6 @@ function Profile() {
                   Edit profile
                 </button>
               </div>
-            )}
-
-            {isOwner && editing === 'card' && (
-              <ReviewCardEditor
-                draft={draft}
-                onChange={handleDraftChange}
-                onSave={handleSave}
-                onCancel={handleCancel}
-              />
-            )}
-
-            {isOwner && editing === 'profile' && (
-              <ProfileEditor
-                draft={draft}
-                onChange={handleDraftChange}
-                onSave={handleSave}
-                onCancel={handleCancel}
-              />
             )}
           </div>
 
@@ -172,6 +187,25 @@ function Profile() {
 
         </div>
 
+        {/* Editors: moved out of the left column so they span the full width */}
+        {isOwner && editing === 'card' && (
+          <ReviewCardEditor
+            draft={draft}
+            onChange={handleDraftChange}
+            onSave={handleSave}
+            onCancel={handleCancel}
+          />
+        )}
+
+        {isOwner && editing === 'profile' && (
+          <ProfileEditor
+            draft={draft}
+            onChange={handleDraftChange}
+            onSave={handleSave}
+            onCancel={handleCancel}
+          />
+        )}
+
         <div className="mt-14">
           <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
             Stats
@@ -180,13 +214,70 @@ function Profile() {
         </div>
 
         <div className="mt-12">
-          <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
-            Favourite films
-          </h2>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
+              Recent reviews
+            </h2>
+
+            <Link
+              to={`/users/${profileUser._id}/films`}
+              className={smallButtonClasses}
+            >
+              Show more reviews by this user
+            </Link>
+          </div>
+
+          <RecentReviews
+            reviews={userReviews}
+            username={displayUser.username}
+            isOwner={isOwner}
+          />
+        </div>
+
+        <div className="mt-12">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
+              Favourite films
+            </h2>
+
+            {isOwner && editing === null && (
+              <button
+                onClick={() => startEditing('favourites')}
+                className={smallButtonClasses}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
           <FavouriteFilms
             films={displayUser.favouriteFilms}
             isOwner={isOwner}
             username={displayUser.username}
+            isEditing={editing === 'favourites'}
+            onRemove={handleRemoveFavourite}
+          />
+
+          {isOwner && editing === 'favourites' && (
+            <FilmSearchPicker
+              current={displayUser.favouriteFilms || []}
+              onAdd={handleAddFavourite}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
+          )}
+        </div>
+
+        <div className="mt-12">
+          <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
+            Plan to watch / rewatch
+          </h2>
+
+          <Watchlist
+            entries={watchlist}
+            profileUserId={profileUser._id}
+            username={displayUser.username}
+            isOwner={isOwner}
           />
         </div>
 

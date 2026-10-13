@@ -1,4 +1,4 @@
-function FavouriteFilms({ films, isOwner, username }) {
+function FavouriteFilms({ films, isOwner, username, isEditing, onRemove }) {
   const slots = [0, 1, 2, 3]
 
   const hasAny = films && films.length > 0
@@ -34,7 +34,7 @@ function FavouriteFilms({ films, isOwner, username }) {
         return (
           <div
             key={film.tmdbId}
-            className="aspect-2/3 overflow-hidden rounded-lg border border-white/10 bg-ink/60 shadow-lg shadow-black/40"
+            className="relative aspect-2/3 overflow-hidden rounded-lg border border-white/10 bg-ink/60 shadow-lg shadow-black/40"
           >
             {posterUrl ? (
               <img
@@ -47,6 +47,17 @@ function FavouriteFilms({ films, isOwner, username }) {
               <div className="flex h-full w-full items-center justify-center p-3 text-center text-xs text-white/50">
                 {film.title}
               </div>
+            )}
+
+            {isEditing && (
+              <button
+                type="button"
+                onClick={() => onRemove(film.tmdbId)}
+                aria-label={`Remove ${film.title}`}
+                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink/80 text-sm font-bold text-white ring-1 ring-white/20 transition-colors hover:bg-brand-red"
+              >
+                ×
+              </button>
             )}
           </div>
         )
