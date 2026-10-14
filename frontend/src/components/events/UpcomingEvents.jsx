@@ -26,8 +26,9 @@ function UpcomingEvents() {
   return (
     <section className="relative overflow-hidden border-b border-white/10 text-white">
       <GifBackground src={artLoveGif} />
-
+      <div className="pointer-events-none absolute inset-0 bg-black/60" />
       <div className="relative mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+        
 
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
 
