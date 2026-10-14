@@ -12,8 +12,9 @@ export function getTopRated(limit) {
   return api(`/films/top-rated?limit=${limit}`)
 }
 
-export function getMostWanted(limit) {
-  return api(`/films/most-wanted?limit=${limit}`)
+// { films, total }. offset skips that many, for "load more".
+export function getMostWanted(limit, offset = 0) {
+  return api(`/films/most-wanted?limit=${limit}&offset=${offset}`)
 }
 
 export function getRecentReviews(limit) {

@@ -34,6 +34,12 @@ function parseLimit(value, fallback, max) {
     return Number.isInteger(limit) && limit > 0 ? Math.min(limit, max) : fallback;
 }
 
+// How many to skip, for "load more". Anything odd counts as 0.
+function parseOffset(value) {
+    const offset = Number(value);
+    return Number.isInteger(offset) && offset > 0 ? offset : 0;
+}
+
 // The title, year, poster and genres copied onto log entries and reviews.
 // Sends the error response itself and returns null if TMDB can't help.
 async function filmDetailsOr404(tmdbId, res) {
@@ -139,11 +145,13 @@ async function getTopRated(req, res) {
 }
 
 // The films the most members want to see. First watches and rewatches count
-// the same.
+// the same. A page at a time: ?limit=20&offset=20 is the second page of 20.
+// Resolves to { films, total }, where total is how many films are wanted at all.
 async function getMostWanted(req, res) {
     const limit = parseLimit(req.query.limit, 10, 50);
+    const offset = parseOffset(req.query.offset);
 
-    const films = await FilmLog.aggregate([
+    const [result] = await FilmLog.aggregate([
         { $match: WANTED },
         {
             $group: {
@@ -154,12 +162,23 @@ async function getMostWanted(req, res) {
                 count: { $sum: 1 },
             },
         },
-        { $sort: { count: -1, title: 1 } },
-        { $limit: limit },
-        { $project: { _id: 0, tmdbId: "$_id", title: 1, year: 1, posterPath: 1, count: 1 } },
+        // _id last so films with the same count and title still come back in
+        // the same order every time, and no film is skipped or repeated
+        // between pages.
+        { $sort: { count: -1, title: 1, _id: 1 } },
+        {
+            $facet: {
+                films: [
+                    { $skip: offset },
+                    { $limit: limit },
+                    { $project: { _id: 0, tmdbId: "$_id", title: 1, year: 1, posterPath: 1, count: 1 } },
+                ],
+                total: [{ $count: "n" }],
+            },
+        },
     ]);
 
-    res.json(films);
+    res.json({ films: result.films, total: result.total[0]?.n ?? 0 });
 }
 
 // The newest reviews from anyone, for the homepage and reviews page.
