@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import events from '../../data/events'
+import { getEvents } from '../../services/events'
+import useApi from '../../hooks/useApi'
 
 function getNextEvent(allEvents) {
   const now = new Date()
@@ -29,6 +30,7 @@ function formatTime(isoString) {
 // showMoreLink defaults to true so the homepage keeps working untouched.
 // The club events page turns it off, since it would link to itself.
 function NextEvent({ showMoreLink = true }) {
+  const { data: events = [], loading, error } = useApi(getEvents, [])
   const event = getNextEvent(events)
 
   if (!event) {
@@ -38,7 +40,13 @@ function NextEvent({ showMoreLink = true }) {
           <h2 className="mb-2 text-sm font-semibold tracking-widest text-brand-red uppercase">
             Next Event
           </h2>
-          <p className="text-ink/60">No upcoming events yet. Check back soon.</p>
+          <p className="text-ink/60">
+            {loading
+              ? 'Loading…'
+              : error
+                ? "Couldn't load events. Try refreshing the page."
+                : 'No upcoming events yet. Check back soon.'}
+          </p>
         </div>
       </section>
     )

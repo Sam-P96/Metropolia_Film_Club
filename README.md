@@ -1,6 +1,6 @@
-# Metropolia Film Club
+# Kino Kaverit
 
-Website for the Metropolia Film Club. Members can see trending films, read
+Website for Kino Kaverit, a film club at Metropolia. Members can see trending films, read
 reviews, check upcoming events, and create an account.
 
 The repo has two parts:

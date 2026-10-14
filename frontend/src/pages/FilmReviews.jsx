@@ -1,51 +1,20 @@
-import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import users from '../data/users'
-import reviews from '../data/reviews'
-import filmList from '../data/filmList'
 import ReviewCard from '../components/reviews/ReviewCard'
 import StarRating from '../components/reviews/StarRating'
 import { getFilm } from '../services/tmdb'
-import { getClubRating } from '../utils/clubFilmStats'
+import { getFilmClub, getFilmReviews } from '../services/films'
+import useApi from '../hooks/useApi'
 
 function FilmReviews() {
   const { tmdbId } = useParams()
   const id = Number(tmdbId)
 
-  const [film, setFilm] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { data: film, loading } = useApi(() => getFilm(id), [id])
+  const clubResult = useApi(() => getFilmClub(id), [id])
+  const reviewsResult = useApi(() => getFilmReviews(id), [id])
 
-  useEffect(() => {
-    let cancelled = false
-
-    setLoading(true)
-
-    getFilm(id)
-      .then((data) => {
-        if (!cancelled) setFilm(data)
-      })
-      .catch(() => {
-        if (!cancelled) setFilm(null)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  const club = getClubRating(filmList, id)
-
-  const filmReviews = reviews
-    .filter((review) => review.tmdbId === id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map((review) => ({
-      ...review,
-      user: users.find((user) => user._id === review.userId),
-    }))
-    .filter((review) => review.user)
+  const club = clubResult.data?.rating ?? { average: null, count: 0 }
+  const filmReviews = reviewsResult.data ?? []
 
   const posterUrl = film?.posterPath
     ? `https://image.tmdb.org/t/p/w185${film.posterPath}`
@@ -77,10 +46,12 @@ function FilmReviews() {
               )}
             </h1>
 
-            <p className="mt-2 text-sm text-white/50">
-              {filmReviews.length}{' '}
-              {filmReviews.length === 1 ? 'club review' : 'club reviews'}
-            </p>
+            {!reviewsResult.loading && (
+              <p className="mt-2 text-sm text-white/50">
+                {filmReviews.length}{' '}
+                {filmReviews.length === 1 ? 'club review' : 'club reviews'}
+              </p>
+            )}
 
             {club.average != null && (
               <div className="mt-3">
@@ -97,7 +68,11 @@ function FilmReviews() {
         <div className="mt-12">
           {filmReviews.length === 0 ? (
             <p className="text-sm text-white/40">
-              No one has reviewed this yet.
+              {reviewsResult.loading
+                ? 'Loading reviews…'
+                : reviewsResult.error
+                  ? "Couldn't load reviews. Try refreshing the page."
+                  : 'No one has reviewed this yet.'}
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

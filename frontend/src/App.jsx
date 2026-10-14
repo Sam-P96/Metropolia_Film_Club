@@ -20,6 +20,7 @@ import WriteReview from "./pages/WriteReview";
 import AllEvents from "./pages/AllEvents";
 import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
+import EditEvent from "./pages/EditEvent";
 import Members from "./pages/Members";
 import SearchResults from "./pages/SearchResults";
 
@@ -81,6 +82,7 @@ function App() {
           <Route path="/club_events/all" element={<AllEvents />} />
           <Route path="/club_events/new" element={<CreateEvent />} />
           <Route path="/club_events/:eventId" element={<EventDetail />} />
+          <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
         </Routes>
       </main>
 

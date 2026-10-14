@@ -3,28 +3,44 @@ import { searchFilms } from '../../services/tmdb'
 
 const MAX_FAVOURITES = 4
 
+// The backend's film search returns nothing for one letter, so don't ask.
+const MIN_QUERY = 2
+
 function FilmSearchPicker({ current, onAdd, onSave, onCancel }) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [searching, setSearching] = useState(false)
+  const trimmed = query.trim()
+
+  // Remembers which query these results are for, so "still searching" is
+  // just "the last answer was for a different query".
+  const [found, setFound] = useState({ query: '', films: [], error: false })
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([])
-      return
-    }
+    if (trimmed.length < MIN_QUERY) return
 
-    setSearching(true)
+    let cancelled = false
 
+    // Wait for a pause in typing before asking TMDB.
     const timer = setTimeout(() => {
-      searchFilms(query)
-        .then((films) => setResults(films))
-        .catch(() => setResults([]))
-        .finally(() => setSearching(false))
+      // searchFilms resolves to { films, page, totalPages, totalResults }.
+      searchFilms(trimmed)
+        .then((data) => {
+          if (!cancelled) setFound({ query: trimmed, films: data.films ?? [], error: false })
+        })
+        .catch(() => {
+          if (!cancelled) setFound({ query: trimmed, films: [], error: true })
+        })
     }, 400)
 
-    return () => clearTimeout(timer)
-  }, [query])
+    // A slow answer for "per" must not replace the one for "perfect blue".
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [trimmed])
+
+  const tooShort = trimmed.length < MIN_QUERY
+  const searching = !tooShort && found.query !== trimmed
+  const results = !tooShort && !searching ? found.films : []
 
   const isFull = current.length >= MAX_FAVOURITES
 
@@ -55,6 +71,12 @@ function FilmSearchPicker({ current, onAdd, onSave, onCancel }) {
 
       {searching && !isFull && (
         <p className="mt-3 text-xs text-white/40">Searching…</p>
+      )}
+
+      {!tooShort && !searching && results.length === 0 && !isFull && (
+        <p className="mt-3 text-xs text-white/40">
+          {found.error ? "Couldn't reach the film search. Try again." : 'No films match that.'}
+        </p>
       )}
 
       {!searching && results.length > 0 && !isFull && (

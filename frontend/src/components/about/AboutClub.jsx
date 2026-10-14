@@ -40,7 +40,7 @@ function AboutClub() {
             About the Club
           </h2>
           <p className="text-lg leading-relaxed text-white/70">
-            Metropolia Film Club is a place to talk movies, meet people, and
+            Kino Kaverit is a place to talk movies, meet people, and
             find someone to watch the next one with. We go to screenings
             together, head to a café afterwards to discuss what we saw, and run
             movie-themed game nights and other get-togethers.
@@ -91,7 +91,7 @@ function AboutClub() {
                 <div className="mt-8 text-center">
           {isAboutPage ? (
             <p className="text-sm font-medium text-brand-gold">
-              Metropolia Film Club
+              Kino Kaverit
             </p>
           ) : (
             <Link

@@ -1,14 +1,15 @@
 import { useSearchParams } from 'react-router-dom'
 
-import users from '../data/users'
 import MemberCard from '../components/profile/MemberCard'
 import { searchUsers } from '../utils/search'
+import { getUsers } from '../services/users'
+import useApi from '../hooks/useApi'
 
-// PLACEHOLDER: lists data/users.js until the backend has a members endpoint.
 function Members() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get('q') ?? ''
 
+  const { data: users = [], loading, error } = useApi(getUsers, [])
   const matches = searchUsers(users, query)
 
   // The URL is the source of truth, so a filtered list can be shared or
@@ -37,14 +38,22 @@ function Members() {
           className="w-full max-w-md rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10"
         />
 
-        <p className="mt-4 text-sm text-white/50">
-          {query.trim()
-            ? `${matches.length} of ${users.length} members match “${query.trim()}”`
-            : `${users.length} members`}
-        </p>
+        {!loading && !error && (
+          <p className="mt-4 text-sm text-white/50">
+            {query.trim()
+              ? `${matches.length} of ${users.length} members match “${query.trim()}”`
+              : `${users.length} members`}
+          </p>
+        )}
 
-        {matches.length === 0 ? (
-          <p className="mt-10 text-white/50">No members match that search.</p>
+        {loading || error || matches.length === 0 ? (
+          <p className="mt-10 text-white/50">
+            {loading
+              ? 'Loading members…'
+              : error
+                ? "Couldn't load members. Try refreshing the page."
+                : 'No members match that search.'}
+          </p>
         ) : (
           <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {matches.map((user) => (

@@ -18,8 +18,13 @@ function RatingInput({ value, onChange }) {
 
           return (
             <div key={star} className="relative h-8 w-8">
+              {/* Both glyphs are centred in the box. The ★ is narrower than
+                  the box, so left-aligned it would sit in the left part and a
+                  50% clip of the box would show most of it — 3.5 looked like 4.
+                  Centred, the box's halfway line is the star's halfway line. */}
+
               {/* the empty star underneath */}
-              <span className="absolute inset-0 text-2xl leading-8 text-white/15">
+              <span className="absolute inset-0 text-center text-2xl leading-8 text-white/15">
                 ★
               </span>
 
@@ -28,7 +33,7 @@ function RatingInput({ value, onChange }) {
                 className="absolute top-0 left-0 h-8 overflow-hidden"
                 style={{ width: `${fill * 100}%` }}
               >
-                <span className="block w-8 text-2xl leading-8 text-brand-gold">
+                <span className="block w-8 text-center text-2xl leading-8 text-brand-gold">
                   ★
                 </span>
               </div>

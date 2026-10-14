@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
-import filmList from '../../data/filmList'
-import { getMembersWanting, describeOthersWanting } from '../../utils/watchlist'
+import { getFilmStats } from '../../services/films'
+import useApi from '../../hooks/useApi'
+import { describeOthersWanting } from '../../utils/watchlist'
 
-function Watchlist({ entries, profileUserId, username, isOwner }) {
+// Every entry here is a film this member wants, so they're one of the
+// `wanting` count. Everyone else is the rest.
+function Watchlist({ entries, username, isOwner }) {
+  const { data: stats } = useApi(getFilmStats, [])
   if (!entries || entries.length === 0) {
     return (
       <p className="text-sm text-white/40">
@@ -16,7 +20,7 @@ function Watchlist({ entries, profileUserId, username, isOwner }) {
   return (
     <ul className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
       {entries.map((entry) => {
-        const others = getMembersWanting(filmList, entry.tmdbId, profileUserId).length
+        const others = Math.max((stats?.[entry.tmdbId]?.wanting ?? 1) - 1, 0)
         const isRewatch = entry.status === 'completed'
 
         return (
@@ -28,7 +32,7 @@ function Watchlist({ entries, profileUserId, username, isOwner }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-white transition-colors group-hover:text-brand-gold">
                   {entry.title}{' '}
-                  <span className="font-normal text-white/40">({entry.year})</span>
+                  {entry.year && <span className="font-normal text-white/40">({entry.year})</span>}
                 </p>
                 <p className="mt-0.5 text-xs text-white/40">
                   {describeOthersWanting(others)}

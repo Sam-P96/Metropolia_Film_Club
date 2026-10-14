@@ -2,20 +2,14 @@ import Hero from '../components/hero/Hero'
 import NextEvent from '../components/events/NextEvent'
 import AboutClub from '../components/about/AboutClub'
 import ReviewSection from '../components/reviews/ReviewSection'
-import users from '../data/users'
-import reviews from '../data/reviews'
+import { getRecentReviews } from '../services/films'
+import useApi from '../hooks/useApi'
 import reviewsBg from '../assets/giphy.gif'
 
-// Temporary: the backend will sort and attach users later
-const recentReviews = [...reviews]
-  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  .slice(0, 15)
-  .map((review) => ({
-    ...review,
-    user: users.find((user) => user._id === review.userId),
-  }))
-
 function Home() {
+  // Newest first, each with its author attached by the server.
+  const { data: recentReviews = [], loading } = useApi(() => getRecentReviews(15), [])
+
   return (
     <>
       <Hero />
@@ -26,6 +20,7 @@ function Home() {
         layout="marquee"
         backgroundUrl={reviewsBg}
         linkTo="/movie_reviews"
+        emptyMessage={loading ? 'Loading reviews…' : undefined}
       />
       <AboutClub />
 

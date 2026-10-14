@@ -14,7 +14,7 @@ const PER_SECTION = 6
 // dropdown, with room for more of each.
 function SearchResults() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { query, upcoming, past, members, films } = useSearchResults(
+  const { query, upcoming, past, members, films, eventsLoading, usersLoading } = useSearchResults(
     searchParams.get('q') ?? ''
   )
 
@@ -54,9 +54,9 @@ function SearchResults() {
           <div className="mt-12 space-y-14">
             <ResultSection
               title="Upcoming events"
-              total={upcoming.length}
+              total={eventsLoading ? null : upcoming.length}
               showAllTo={eventsPageUrl(query)}
-              emptyText="No upcoming events match."
+              emptyText={eventsLoading ? 'Searching...' : 'No upcoming events match.'}
             >
               <ul className="grid gap-5 sm:grid-cols-2">
                 {upcoming.slice(0, PER_SECTION).map((event) => (
@@ -80,9 +80,9 @@ function SearchResults() {
 
             <ResultSection
               title="Users"
-              total={members.length}
+              total={usersLoading ? null : members.length}
               showAllTo={membersPageUrl(query)}
-              emptyText="No members match."
+              emptyText={usersLoading ? 'Searching...' : 'No members match.'}
             >
               <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {members.slice(0, PER_SECTION).map((user) => (
@@ -96,9 +96,9 @@ function SearchResults() {
             <ResultSection
               title="Past events"
               muted
-              total={past.length}
+              total={eventsLoading ? null : past.length}
               showAllTo={eventsPageUrl(query, '#past')}
-              emptyText="No past events match."
+              emptyText={eventsLoading ? 'Searching...' : 'No past events match.'}
             >
               <ul className="grid gap-5 sm:grid-cols-2">
                 {past.slice(0, PER_SECTION).map((event) => (

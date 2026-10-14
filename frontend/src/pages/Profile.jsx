@@ -1,8 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import users from '../data/users'
-import reviews from '../data/reviews'
-import filmList from '../data/filmList'
 import ReviewCard from '../components/reviews/ReviewCard'
 import ReviewCardEditor from '../components/profile/ReviewCardEditor'
 import ProfileEditor from '../components/profile/ProfileEditor'
@@ -11,16 +8,23 @@ import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
 import FilmSearchPicker from '../components/profile/FilmSearchPicker'
 import Watchlist from '../components/profile/Watchlist'
+import { getUser, getUserFilms, getUserReviews, updateMe } from '../services/users'
+import useApi from '../hooks/useApi'
+import { getCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
-import { canViewProfile } from '../utils/profileVisibility'
-import { getUserWatchlist } from '../utils/watchlist'
-
-// PLACEHOLDER: real accounts come from MongoDB with ids like '68dca4f2...',
-// which will never match the 'u1' ids in data/users.js. Until profiles are
-// served by the backend, /account always shows the first placeholder user.
-const LOGGED_IN_USER_ID = users[0]._id
+import { isWanted } from '../utils/watchlist'
 
 const MAX_FAVOURITES = 4
+
+// What a member can change about themselves. The server only accepts these.
+const EDITABLE_FIELDS = [
+  'bio',
+  'privacy',
+  'memberTitle',
+  'avatarUrl',
+  'reviewCardBanner',
+  'favouriteFilms',
+]
 
 function formatJoined(isoString) {
   return new Date(isoString).toLocaleDateString('en-GB', {
@@ -32,43 +36,69 @@ function formatJoined(isoString) {
 
 function Profile() {
   const { userId } = useParams()
+  const [currentUser] = useState(getCurrentUser)
 
-  // PLACEHOLDER: a mutable copy of the static data file, so Save has somewhere
-  // to write. Replaced by a fetch + PATCH once the backend serves profiles.
-  const [allUsers, setAllUsers] = useState(users)
+  // /account has no id in the URL: it's whoever is logged in.
+  const profileId = userId ?? currentUser?._id
 
-  const [draft, setDraft] = useState(null)
-  const [editing, setEditing] = useState(null)
+  const profile = useApi(() => getUser(profileId), [profileId], {
+    enabled: Boolean(profileId),
+  })
 
-  // Leaving a profile while editing should throw the draft away
-  useEffect(() => {
-    setDraft(null)
-    setEditing(null)
-  }, [userId])
-
-  const profileUser = userId
-    ? allUsers.find((user) => user._id === userId)
-    : allUsers.find((user) => user._id === LOGGED_IN_USER_ID)
-
-  if (!profileUser) {
+  if (profile.loading) {
     return (
-      <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <h1 className="text-3xl font-bold">Member not found</h1>
-        <p className="mt-3 text-white/60">There is no member with that id.</p>
+      <section className="px-8 py-24 text-center text-white/50">
+        Loading…
       </section>
     )
   }
 
-  const isOwner = profileUser._id === LOGGED_IN_USER_ID
+  if (!profile.data) {
+    const notFound = !profileId || profile.error?.status === 404
 
-  if (!canViewProfile(profileUser, isOwner)) {
     return (
       <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <h1 className="text-3xl font-bold">{profileUser.username}</h1>
+        <h1 className="text-3xl font-bold">
+          {notFound ? 'Member not found' : "Couldn't load this profile"}
+        </h1>
+        <p className="mt-3 text-white/60">
+          {notFound
+            ? 'There is no member with that id.'
+            : 'Something went wrong on our end. Try refreshing the page.'}
+        </p>
+      </section>
+    )
+  }
+
+  // The server leaves the details out of someone else's private profile.
+  if (profile.data.restricted) {
+    return (
+      <section className="mx-auto max-w-3xl px-8 py-24 text-white">
+        <h1 className="text-3xl font-bold">{profile.data.username}</h1>
         <p className="mt-3 text-white/60">This profile is private.</p>
       </section>
     )
   }
+
+  // Keyed by member, so leaving a profile mid-edit throws the draft away.
+  return (
+    <ProfileView
+      key={profile.data._id}
+      profileUser={profile.data}
+      isOwner={profile.data._id === currentUser?._id}
+      onSaved={profile.setData}
+    />
+  )
+}
+
+function ProfileView({ profileUser, isOwner, onSaved }) {
+  const [draft, setDraft] = useState(null)
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+
+  const reviewsResult = useApi(() => getUserReviews(profileUser._id), [profileUser._id])
+  const filmsResult = useApi(() => getUserFilms(profileUser._id), [profileUser._id])
 
   // While editing, everything renders from the draft instead of the saved user.
   // This is what makes the preview live.
@@ -77,6 +107,7 @@ function Profile() {
   const startEditing = (panel) => {
     setDraft({ ...profileUser })
     setEditing(panel)
+    setSaveError(null)
   }
 
   const handleDraftChange = (field, value) => {
@@ -101,26 +132,41 @@ function Profile() {
     })
   }
 
-  const handleSave = () => {
-    setAllUsers(allUsers.map((user) => (user._id === draft._id ? draft : user)))
-    setDraft(null)
-    setEditing(null)
+  const handleSave = async () => {
+    const changes = {}
+    EDITABLE_FIELDS.forEach((field) => {
+      changes[field] = draft[field]
+    })
+
+    setSaving(true)
+    setSaveError(null)
+
+    try {
+      const saved = await updateMe(changes)
+      onSaved(saved)
+      setDraft(null)
+      setEditing(null)
+    } catch (err) {
+      // Keep the draft so nothing typed is lost.
+      setSaveError(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
     setDraft(null)
     setEditing(null)
+    setSaveError(null)
   }
 
-  const userReviews = reviews
-    .filter((review) => review.userId === profileUser._id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const userReviews = reviewsResult.data ?? []
 
   const stats = getProfileStats(userReviews)
 
-  const watchlist = getUserWatchlist(filmList, profileUser._id).sort(
-    (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-  )
+  const watchlist = (filmsResult.data ?? [])
+    .filter(isWanted)
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
 
   const emptyShowcase = {
     _id: 'placeholder',
@@ -187,6 +233,16 @@ function Profile() {
 
         </div>
 
+        {saveError && (
+          <p className="mt-5 rounded-md border border-brand-red/40 bg-brand-red/10 px-4 py-3 text-sm text-white">
+            {saveError}
+          </p>
+        )}
+
+        {saving && (
+          <p className="mt-5 text-sm text-white/50">Saving…</p>
+        )}
+
         {/* Editors: moved out of the left column so they span the full width */}
         {isOwner && editing === 'card' && (
           <ReviewCardEditor
@@ -227,11 +283,15 @@ function Profile() {
             </Link>
           </div>
 
-          <RecentReviews
-            reviews={userReviews}
-            username={displayUser.username}
-            isOwner={isOwner}
-          />
+          {reviewsResult.loading ? (
+            <p className="text-sm text-white/40">Loading…</p>
+          ) : (
+            <RecentReviews
+              reviews={userReviews}
+              username={displayUser.username}
+              isOwner={isOwner}
+            />
+          )}
         </div>
 
         <div className="mt-12">
@@ -273,12 +333,15 @@ function Profile() {
             Plan to watch / rewatch
           </h2>
 
-          <Watchlist
-            entries={watchlist}
-            profileUserId={profileUser._id}
-            username={displayUser.username}
-            isOwner={isOwner}
-          />
+          {filmsResult.loading ? (
+            <p className="text-sm text-white/40">Loading…</p>
+          ) : (
+            <Watchlist
+              entries={watchlist}
+              username={displayUser.username}
+              isOwner={isOwner}
+            />
+          )}
         </div>
 
       </div>

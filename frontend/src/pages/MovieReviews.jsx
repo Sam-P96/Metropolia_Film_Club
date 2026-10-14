@@ -1,25 +1,15 @@
 import { Link } from 'react-router-dom'
-import users from '../data/users'
-import reviews from '../data/reviews'
-import filmList from '../data/filmList'
 import SearchBar from '../components/search/SearchBar'
 import TopRatedFilms from '../components/films/TopRatedFilms'
 import ReviewSection from '../components/reviews/ReviewSection'
-import { getTopRatedFilms } from '../utils/clubFilmStats'
+import { getRecentReviews, getTopRated } from '../services/films'
+import useApi from '../hooks/useApi'
 import reviewsBg from '../assets/giphy.gif'
 
 
 function MovieReviews() {
-  const topRated = getTopRatedFilms(filmList, 12)
-
-  const recentReviews = [...reviews]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 6)
-    .map((review) => ({
-      ...review,
-      user: users.find((user) => user._id === review.userId),
-    }))
-    .filter((review) => review.user)
+  const top = useApi(() => getTopRated(12), [])
+  const recent = useApi(() => getRecentReviews(6), [])
 
   return (
     <section className="text-white">
@@ -52,12 +42,17 @@ function MovieReviews() {
           Top rated by the club
         </h2>
 
-        <TopRatedFilms films={topRated} />
+        {top.loading ? (
+          <p className="text-sm text-white/40">Loading…</p>
+        ) : (
+          <TopRatedFilms films={top.data ?? []} />
+        )}
       </div>
 
       <ReviewSection
         title="Recent Reviews"
-        reviews={recentReviews}
+        reviews={recent.data ?? []}
+        emptyMessage={recent.loading ? 'Loading reviews…' : undefined}
         layout="marquee"
         backgroundUrl={reviewsBg}
         linkTo="/films?mode=browse&sort=release_date.desc"

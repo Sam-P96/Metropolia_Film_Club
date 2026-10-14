@@ -66,7 +66,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
 
         <div>
           <NavLink to="/" className="whitespace-nowrap text-xl font-bold text-white">
-            Metropolia <span className="text-brand-gold">Film Club</span>
+            Kino <span className="text-brand-gold">Kaverit</span>
           </NavLink>
         </div>
 

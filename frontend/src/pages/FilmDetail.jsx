@@ -1,38 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import users from '../data/users'
-import reviews from '../data/reviews'
-import filmList from '../data/filmList'
 import { getFilm } from '../services/tmdb'
+import { getFilmClub, getFilmReviews, getMyFilm, setPlanned } from '../services/films'
+import useApi from '../hooks/useApi'
 import ReviewCard from '../components/reviews/ReviewCard'
 import StarRating from '../components/reviews/StarRating'
-import { getClubRating } from '../utils/clubFilmStats'
-import { getMembersWanting, isWanted } from '../utils/watchlist'
+import { isWanted } from '../utils/watchlist'
 import { getCurrentUser } from '../utils/currentUser'
-import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
-import { getUserFilmEntry } from '../utils/filmListLookup'
 
 const REVIEWS_PER_PAGE = 4
 
 function FilmDetail({ isAuthenticated }) {
   // The route is /films/:tmdbId, so that is the name useParams gives back.
-  // It always arrives as a string, and the data files store numbers.
+  // It always arrives as a string, and the API stores numbers.
   const { tmdbId } = useParams()
   const id = Number(tmdbId)
 
-  const [film, setFilm] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [visibleCount, setVisibleCount] = useState(REVIEWS_PER_PAGE)
-
   const [currentUser] = useState(getCurrentUser)
+  const myId = currentUser?._id ?? null
 
-  const memberId = resolveMemberId(users, currentUser)
-  const me = users.find((user) => user._id === memberId) ?? null
+  // TMDB's side of the film, the club's side, and the logged-in member's own
+  // entry and review. Each refetches when you click through to another film.
+  const filmResult = useApi(() => getFilm(id), [id])
+  const club = useApi(() => getFilmClub(id), [id])
+  const reviews = useApi(() => getFilmReviews(id), [id])
+  const mine = useApi(() => getMyFilm(id), [id], { enabled: Boolean(isAuthenticated) })
 
-  const myEntry = getUserFilmEntry(filmList, memberId, id)
-  const myReview = getUserReviewForFilm(reviews, memberId, id)
+  const film = filmResult.data
+  const myEntry = mine.data?.entry ?? null
+  const myReview = mine.data?.review ?? null
 
   // "Has seen it" — any of the three counts. This is what turns
   // "Plan to watch" into "Plan to rewatch".
@@ -41,95 +38,46 @@ function FilmDetail({ isAuthenticated }) {
     myEntry?.rating != null ||
     myEntry?.status === 'completed'
 
-  // Local until the backend exists. Starts from whatever the data file says.
-  const [planned, setPlanned] = useState(false)
+  const planned = myEntry ? isWanted(myEntry) : false
 
-  useEffect(() => {
-    const entry = getUserFilmEntry(filmList, memberId, id)
-    setPlanned(entry ? isWanted(entry) : false)
-  }, [id, memberId])
+  const [savingPlan, setSavingPlan] = useState(false)
+  const [planError, setPlanError] = useState(null)
 
-  useEffect(() => {
-    let cancelled = false
+  // Tied to the film it was for, so clicking through to another film starts
+  // back at the first page of reviews without an effect to reset it.
+  const [shown, setShown] = useState({ id, count: REVIEWS_PER_PAGE })
+  const visibleCount = shown.id === id ? shown.count : REVIEWS_PER_PAGE
 
-    setLoading(true)
-    setError(null)
-    setVisibleCount(REVIEWS_PER_PAGE)
+  // The server works out what the click means (add, rewatch, or remove),
+  // because that depends on whether they've already seen the film.
+  const handlePlanToggle = async () => {
+    setSavingPlan(true)
+    setPlanError(null)
 
-    getFilm(id)
-      .then((data) => {
-        if (!cancelled) setFilm(data)
-      })
-      .catch(() => {
-        if (!cancelled) setError("Couldn't load this film.")
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    // If you click through to another film before this finishes, the old
-    // response must not overwrite the new one.
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  const handlePlanToggle = () => {
-    const next = !planned
-    setPlanned(next)
-
-    // Three different writes, because the meaning of the click depends on
-    // whether they've already seen the film.
-    if (hasWatched) {
-      // Seen it — only the rewatch flag changes, the entry stays 'completed'.
-      console.log('PATCH', `/api/films/${id}/log`, { wantsRewatch: next })
-    } else if (next) {
-      console.log('PUT', `/api/films/${id}/log`, { status: 'plan_to_watch' })
-    } else {
-      // Never watched and no longer planned — nothing left to keep.
-      console.log('DELETE', `/api/films/${id}/log`)
+    try {
+      const { entry } = await setPlanned(id, !planned)
+      mine.setData((previous) => ({ ...previous, entry }))
+      club.reload() // "who wants to see this" just changed
+    } catch (err) {
+      setPlanError(err.message)
+    } finally {
+      setSavingPlan(false)
     }
   }
 
-  const club = getClubRating(filmList, id)
+  const clubRating = club.data?.rating ?? { average: null, count: 0 }
 
-  // Everyone except me, straight from the data file...
-  const others = getMembersWanting(filmList, id)
-    .map((entry) => ({
-      entry,
-      user: users.find((user) => user._id === entry.userId),
-    }))
-    .filter(({ entry, user }) => user && entry.userId !== memberId)
-
-  // ...then me, from local state, so the list reacts to the button instantly.
-  const youRow =
-    planned && me
-      ? {
-          entry: {
-            _id: 'you',
-            userId: memberId,
-            status: hasWatched ? 'completed' : 'plan_to_watch',
-            wantsRewatch: hasWatched,
-          },
-          user: me,
-        }
-      : null
-
-  const wanting = youRow ? [youRow, ...others] : others
-
-  const filmReviews = reviews
-    .filter((review) => review.tmdbId === id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map((review) => ({
-      ...review,
-      user: users.find((user) => user._id === review.userId),
-    }))
-    .filter((review) => review.user)
+  // TMDB scores out of 10. Halved (to one decimal) it sits on the same five
+  // stars as the club rating, so the two can be compared at a glance.
+  // A film with no votes has a score of 0, which means "not rated".
+  const tmdbOutOfFive = film?.tmdbRating ? Math.round(film.tmdbRating * 5) / 10 : null
+  const wanting = club.data?.wanting ?? []
+  const filmReviews = reviews.data ?? []
 
   const visibleReviews = filmReviews.slice(0, visibleCount)
   const remaining = filmReviews.length - visibleReviews.length
 
-  if (loading) {
+  if (filmResult.loading) {
     return (
       <section className="px-8 py-24 text-center text-white/50">
         Loading…
@@ -137,10 +85,10 @@ function FilmDetail({ isAuthenticated }) {
     )
   }
 
-  if (error || !film) {
+  if (!film) {
     return (
       <section className="px-8 py-24 text-center text-white/50">
-        {error ?? 'Film not found.'}
+        {filmResult.error ? "Couldn't load this film." : 'Film not found.'}
       </section>
     )
   }
@@ -215,31 +163,39 @@ function FilmDetail({ isAuthenticated }) {
 
             {/* ratings on the left, the two actions pushed to the right */}
             <div className="mt-8 flex flex-wrap items-center gap-8">
-              <div>
+              {/* self-start: the two ratings line up by their labels even
+                  when one says "Not rated" and is shorter than the other */}
+              <div className="self-start">
                 <p className="text-xs tracking-wider text-white/40 uppercase">
                   Club rating
                 </p>
                 <div className="mt-1">
-                  <StarRating rating={club.average} size="md" />
+                  <StarRating rating={clubRating.average} size="md" />
                 </div>
-                {club.count > 0 && (
+                {clubRating.count > 0 && (
                   <p className="mt-1 text-xs text-white/40">
-                    {club.average.toFixed(1)} from {club.count}{' '}
-                    {club.count === 1 ? 'member' : 'members'}
+                    {clubRating.average.toFixed(1)} from {clubRating.count}{' '}
+                    {clubRating.count === 1 ? 'member' : 'members'}
                   </p>
                 )}
               </div>
 
-              <div>
+              <div className="self-start">
                 <p className="text-xs tracking-wider text-white/40 uppercase">
                   TMDB
                 </p>
-                <p className="mt-1 text-2xl font-bold">
-                  {film.tmdbRating ? film.tmdbRating.toFixed(1) : '—'}
-                  <span className="ml-2 text-sm font-normal text-white/40">
-                    / 10
-                  </span>
-                </p>
+                <div className="mt-1">
+                  <StarRating rating={tmdbOutOfFive} size="md" />
+                </div>
+                {tmdbOutOfFive != null && (
+                  <p className="mt-1 text-xs text-white/40">
+                    {tmdbOutOfFive.toFixed(1)}
+                    {film.tmdbVotes > 0 &&
+                      ` from ${film.tmdbVotes.toLocaleString('en-GB')} ${
+                        film.tmdbVotes === 1 ? 'vote' : 'votes'
+                      }`}
+                  </p>
+                )}
               </div>
 
               <div className="ml-auto flex flex-wrap items-center gap-3">
@@ -250,7 +206,8 @@ function FilmDetail({ isAuthenticated }) {
                     type="button"
                     onClick={handlePlanToggle}
                     aria-pressed={planned}
-                    className={planClasses}
+                    disabled={savingPlan || mine.loading}
+                    className={`${planClasses} disabled:cursor-wait disabled:opacity-60`}
                   >
                     {planned ? `✓ ${planLabel}` : planLabel}
                   </button>
@@ -276,6 +233,12 @@ function FilmDetail({ isAuthenticated }) {
           </div>
         </div>
 
+        {planError && (
+          <p className="mt-4 rounded-md border border-brand-red/40 bg-brand-red/10 px-4 py-3 text-sm text-white">
+            {planError}
+          </p>
+        )}
+
         {/* who wants to see this */}
         <div className="mt-16">
           <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
@@ -284,13 +247,14 @@ function FilmDetail({ isAuthenticated }) {
 
           {wanting.length === 0 ? (
             <p className="text-sm text-white/40">
-              Nobody has this on their list right now.
+              {club.loading ? 'Loading…' : 'Nobody has this on their list right now.'}
             </p>
           ) : (
             <ul className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-              {wanting.map(({ entry, user }) => {
+              {wanting.map((entry) => {
+                const { user } = entry
                 const isRewatch = entry.status === 'completed'
-                const isYou = entry.userId === memberId
+                const isYou = entry.userId === myId
 
                 return (
                   <li key={entry._id}>
@@ -354,7 +318,9 @@ function FilmDetail({ isAuthenticated }) {
 
           {filmReviews.length === 0 ? (
             <p className="text-white/50">
-              Nobody has reviewed this one yet. Be the first.
+              {reviews.loading
+                ? 'Loading reviews…'
+                : 'Nobody has reviewed this one yet. Be the first.'}
             </p>
           ) : (
             <>
@@ -367,7 +333,7 @@ function FilmDetail({ isAuthenticated }) {
               {remaining > 0 && (
                 <button
                   onClick={() =>
-                    setVisibleCount((count) => count + REVIEWS_PER_PAGE)
+                    setShown({ id, count: visibleCount + REVIEWS_PER_PAGE })
                   }
                   className="mt-8 rounded-md border border-white/10 bg-white/5 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
                 >

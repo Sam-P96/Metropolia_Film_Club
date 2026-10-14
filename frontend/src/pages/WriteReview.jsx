@@ -1,31 +1,55 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import users from '../data/users'
-import reviews from '../data/reviews'
-import filmList from '../data/filmList'
 import { getFilm } from '../services/tmdb'
+import { getMyFilm, saveReview } from '../services/films'
+import useApi from '../hooks/useApi'
 import RatingInput from '../components/reviews/RatingInput'
-import { getCurrentUser } from '../utils/currentUser'
-import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
-import { getUserFilmEntry } from '../utils/filmListLookup'
 
 const MAX_LENGTH = 4000
 
+// Loads what's needed to pre-fill the form, then hands over to it. The form
+// can't start from data that hasn't arrived yet, so it waits here.
 function WriteReview() {
   const { tmdbId } = useParams()
   const id = Number(tmdbId)
 
-  // Lazy initialiser: the function runs once on mount, not every render.
-  const [currentUser] = useState(getCurrentUser)
+  const { data: film } = useApi(() => getFilm(id), [id])
+  const mine = useApi(() => getMyFilm(id), [id])
 
-  const memberId = resolveMemberId(users, currentUser)
+  if (mine.loading) {
+    return (
+      <section className="px-8 py-24 text-center text-white/50">
+        Loading…
+      </section>
+    )
+  }
+
+  if (mine.error) {
+    return (
+      <section className="px-8 py-24 text-center text-white/50">
+        {mine.error.message}
+      </section>
+    )
+  }
+
+  // Keyed by film, so moving to another film's review page starts fresh.
+  return (
+    <ReviewForm
+      key={id}
+      id={id}
+      film={film}
+      myEntry={mine.data.entry}
+      existingReview={mine.data.review}
+    />
+  )
+}
+
+function ReviewForm({ id, film, myEntry, existingReview }) {
+  const navigate = useNavigate()
 
   // Two separate records. The entry holds the rating, the review holds the
   // text. A member can have the first without the second.
-  const myEntry = getUserFilmEntry(filmList, memberId, id)
-  const existingReview = getUserReviewForFilm(reviews, memberId, id)
-
   const isUpdate = existingReview !== null || myEntry?.rating != null
 
   // Pre-fill. The rating comes from the entry, falling back to the review's
@@ -38,32 +62,15 @@ function WriteReview() {
     existingReview?.containsSpoilers ?? false
   )
 
-  const [film, setFilm] = useState(null)
   const [error, setError] = useState(null)
-  const [saved, setSaved] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-
-    getFilm(id)
-      .then((data) => {
-        if (!cancelled) setFilm(data)
-      })
-      .catch(() => {
-        if (!cancelled) setFilm(null)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [id])
+  const [saving, setSaving] = useState(false)
 
   // Derived once, used by the hint, the button label and the submit.
   const trimmed = text.trim()
   const hasText = trimmed.length > 0
   const ratingValue = rating === 0 ? null : rating
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
 
@@ -76,21 +83,20 @@ function WriteReview() {
     // written review — the server saves the rating on the film list entry and
     // deletes any review that was there before.
     const payload = {
-      tmdbId: id,
-      status: 'completed',
       rating: ratingValue,
       text: hasText ? trimmed : null,
       containsSpoilers: hasText ? containsSpoilers : false,
     }
 
-    console.log(myEntry ? 'UPDATE LOG' : 'CREATE LOG', payload)
+    setSaving(true)
 
-    if (hasText) {
-      setSaved('Review saved.')
-    } else if (existingReview) {
-      setSaved('Your written review was removed. The rating stays on the film.')
-    } else {
-      setSaved('Rating saved. No review card will be created.')
+    try {
+      await saveReview(id, payload)
+      // Back to the film, where the review (or the new club rating) shows up.
+      navigate(`/films/${id}`)
+    } catch (err) {
+      setError(err.message)
+      setSaving(false)
     }
   }
 
@@ -198,8 +204,11 @@ function WriteReview() {
           )}
 
           <div className="flex items-center gap-4">
-            <button className="rounded-md bg-brand-red px-6 py-3 font-medium text-white transition-colors hover:bg-brand-orange">
-              {submitLabel}
+            <button
+              disabled={saving}
+              className="rounded-md bg-brand-red px-6 py-3 font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60"
+            >
+              {saving ? 'Saving…' : submitLabel}
             </button>
 
             <Link
@@ -213,13 +222,6 @@ function WriteReview() {
           {error && (
             <p className="rounded-md border border-brand-red/40 bg-brand-red/10 px-4 py-3 text-sm text-white">
               {error}
-            </p>
-          )}
-
-          {saved && (
-            <p className="rounded-md border border-brand-gold/40 bg-brand-gold/10 px-4 py-3 text-sm text-white">
-              {saved} Nothing was actually written — the backend isn't built
-              yet. Check the console for the payload.
             </p>
           )}
 
