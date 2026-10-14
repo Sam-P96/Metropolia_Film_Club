@@ -5,8 +5,7 @@ function TopRatedFilms({ films, onLight = false }) {
   if (!films || films.length === 0) {
     return (
       <p className={`text-sm ${onLight ? 'text-ink/50' : 'text-white/40'}`}>
-        Not enough ratings yet. Once a few members have rated the same film, it
-        will show up here.
+        No ratings yet. Rate a film and it will show up here.
       </p>
     )
   }
@@ -56,7 +55,7 @@ function TopRatedFilms({ films, onLight = false }) {
             </div>
 
             <p className={`mt-0.5 text-xs ${onLight ? 'text-ink/50' : 'text-white/40'}`}>
-              {film.average.toFixed(1)} · {film.count} ratings
+              {film.average.toFixed(1)} · {film.count} {film.count === 1 ? 'rating' : 'ratings'}
             </p>
           </Link>
         )

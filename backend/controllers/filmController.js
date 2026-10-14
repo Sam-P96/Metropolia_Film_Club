@@ -4,9 +4,13 @@ const Review = require("../models/reviewModel");
 const { getMovie } = require("../services/tmdbService");
 const { userSummary, reviewWithUser } = require("../utils/serialize");
 
-// How many members must have rated a film before it can appear in
-// "top rated by the club". One 5-star rating is not a ranking.
-const MIN_RATINGS_FOR_RANKING = 2;
+// "Top rated by the club" shows every rated film, but ranks them as if each
+// also had this many extra ratings at the club's overall average. A film only
+// one member has rated is pulled towards that average, so a film several
+// members rated highly usually ranks above one lone 5-star rating; the more
+// members rate a film, the less the pull matters. (A hard minimum of two
+// ratings hid every film while the club was small.)
+const RANKING_PRIOR_WEIGHT = 3;
 
 const MAX_REVIEW_LENGTH = 4000;
 
@@ -96,17 +100,42 @@ async function getTopRated(req, res) {
                 title: { $first: "$title" },
                 year: { $first: "$year" },
                 posterPath: { $first: "$posterPath" },
-                average: { $avg: "$rating" },
+                total: { $sum: "$rating" },
                 count: { $sum: 1 },
             },
         },
-        { $match: { count: { $gte: MIN_RATINGS_FOR_RANKING } } },
-        { $sort: { average: -1, count: -1, title: 1 } },
-        { $limit: limit },
-        { $project: { _id: 0, tmdbId: "$_id", title: 1, year: 1, posterPath: 1, average: 1, count: 1 } },
     ]);
 
-    res.json(films);
+    if (films.length === 0) {
+        return res.json([]);
+    }
+
+    // The club's average across every rating of every film.
+    const ratingCount = films.reduce((sum, film) => sum + film.count, 0);
+    const clubAverage = films.reduce((sum, film) => sum + film.total, 0) / ratingCount;
+
+    const ranked = films
+        .map((film) => ({
+            film,
+            score: (film.total + RANKING_PRIOR_WEIGHT * clubAverage) / (film.count + RANKING_PRIOR_WEIGHT),
+        }))
+        .sort((a, b) =>
+            b.score - a.score ||
+            b.film.count - a.film.count ||
+            a.film.title.localeCompare(b.film.title)
+        )
+        .slice(0, limit)
+        // The score only decides the order. The stars show the real average.
+        .map(({ film }) => ({
+            tmdbId: film._id,
+            title: film.title,
+            year: film.year,
+            posterPath: film.posterPath,
+            average: film.total / film.count,
+            count: film.count,
+        }));
+
+    res.json(ranked);
 }
 
 // The films the most members want to see. First watches and rewatches count
