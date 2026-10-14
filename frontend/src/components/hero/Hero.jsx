@@ -36,7 +36,7 @@ function Hero() {
 
       <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
         <h1 className="mb-4 text-5xl font-bold text-white">
-          Welcome to Metropolia <span className="text-brand-gold">Film Club</span>
+          Welcome to Kino <span className="text-brand-gold">Kaverit</span>
         </h1>
         <p className="max-w-xl text-lg text-white/70">
           Find club events and screenings near you.

@@ -9,7 +9,7 @@ function Footer() {
 
         <div>
           <h3 className="mb-3 text-lg font-bold text-white">
-            Metropolia <span className="text-brand-gold">Film Club</span>
+            Kino <span className="text-brand-gold">Kaverit</span>
           </h3>
           <p className="text-sm leading-relaxed text-white/50">
             Student-run social gatherings for movie lovers.
@@ -66,7 +66,7 @@ function Footer() {
 
       <div className="border-t border-white/5 px-8 py-6">
         <p className="mx-auto max-w-6xl text-xs text-white/40">
-          © {new Date().getFullYear()} Metropolia Film Club
+          © {new Date().getFullYear()} Kino Kaverit
         </p>
       </div>
     </footer>

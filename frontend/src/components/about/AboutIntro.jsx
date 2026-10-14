@@ -23,7 +23,7 @@ function AboutIntro() {
 
           <div className="space-y-6">
             <p className="text-xl leading-relaxed text-white/80">
-              Metropolia Film Club is a student-run club for people who like watching
+              Kino Kaverit is a student-run club for people who like watching
               films and talking about them afterwards. We meet a few times a month,
               go to screenings together, and hang around long enough to argue about
               what we just saw.
