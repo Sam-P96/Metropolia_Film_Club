@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import events from '../../data/events'
-import users from '../../data/users'
 import EventCalendar from './EventCalendar'
 import EventListItem from './EventListItem'
 import { getUpcomingEvents } from '../../utils/eventDates'
 import { getCurrentUser } from '../../utils/currentUser'
 import { canCreateEvents } from '../../utils/permissions'
+import { getEvents } from '../../services/events'
+import useApi from '../../hooks/useApi'
 
 const MAX_LISTED = 3
 
 function UpcomingEvents() {
   const [currentUser] = useState(getCurrentUser)
-  const canCreate = canCreateEvents(users, currentUser)
+  const canCreate = canCreateEvents(currentUser)
+
+  const { data: events = [], loading, error } = useApi(getEvents, [])
 
   const upcoming = getUpcomingEvents(events)
   const listed = upcoming.slice(0, MAX_LISTED)
@@ -46,7 +48,11 @@ function UpcomingEvents() {
 
             {listed.length === 0 ? (
               <p className="text-white/50">
-                Nothing on the calendar yet. We're working on it.
+                {loading
+                  ? 'Loading events…'
+                  : error
+                    ? "Couldn't load events. Try refreshing the page."
+                    : "Nothing on the calendar yet. We're working on it."}
               </p>
             ) : (
               <ul className="space-y-5">

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 
-import events from '../data/events'
-import users from '../data/users'
+import useApi from './useApi'
+import { getEvents } from '../services/events'
+import { getUsers } from '../services/users'
 import { searchFilms } from '../services/tmdb'
 import { getPastEvents, getUpcomingEvents } from '../utils/eventDates'
 import { searchEvents, searchUsers } from '../utils/search'
@@ -14,6 +15,15 @@ export const MIN_FILM_QUERY = 2
 // isn't hit on every keystroke; the page only changes query on submit.
 function useSearchResults(query, delayMs = 0) {
   const trimmed = query.trim()
+
+  // Events and members are small lists, so they're fetched whole (once, then
+  // shared) and filtered here. Not until someone actually types, though —
+  // the nav search is on every page.
+  const searching = trimmed.length > 0
+  const eventsResult = useApi(getEvents, [], { enabled: searching })
+  const usersResult = useApi(getUsers, [], { enabled: searching })
+  const events = eventsResult.data ?? []
+  const users = usersResult.data ?? []
 
   // Remembers which query these films are for, so "still loading" is just
   // "the last answer was for a different query" — no extra state to sync.
@@ -58,6 +68,9 @@ function useSearchResults(query, delayMs = 0) {
 
   return {
     query: trimmed,
+    // True only the first time; after that the lists come from the cache.
+    eventsLoading: eventsResult.loading,
+    usersLoading: usersResult.loading,
     upcoming: trimmed ? searchEvents(getUpcomingEvents(events), trimmed) : [],
     past: trimmed ? searchEvents(getPastEvents(events), trimmed) : [],
     members: trimmed ? searchUsers(users, trimmed) : [],

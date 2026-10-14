@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import users from '../data/users'
-import reviews from '../data/reviews'
+import { getReview } from '../services/films'
+import useApi from '../hooks/useApi'
 import StarRating from '../components/reviews/StarRating'
 import { timeAgo } from '../utils/timeAgo'
 
@@ -18,14 +18,26 @@ function ReviewDetail() {
   const { reviewId } = useParams()
   const [showSpoilers, setShowSpoilers] = useState(false)
 
-  const review = reviews.find((item) => item._id === reviewId)
+  const { data: review, loading, error } = useApi(() => getReview(reviewId), [reviewId])
+
+  if (loading) {
+    return (
+      <section className="px-8 py-24 text-center text-white/50">
+        Loading…
+      </section>
+    )
+  }
 
   if (!review) {
     return (
       <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <h1 className="text-3xl font-bold">Review not found</h1>
+        <h1 className="text-3xl font-bold">
+          {error?.status === 404 ? 'Review not found' : "Couldn't load this review"}
+        </h1>
         <p className="mt-3 text-white/60">
-          This review may have been deleted, or the link is wrong.
+          {error?.status === 404
+            ? 'This review may have been deleted, or the link is wrong.'
+            : 'Something went wrong on our end. Try refreshing the page.'}
         </p>
         <Link
           to="/"
@@ -37,7 +49,8 @@ function ReviewDetail() {
     )
   }
 
-  const author = users.find((user) => user._id === review.userId)
+  // Attached by the server. Null if the member has since been deleted.
+  const author = review.user
 
   const posterUrl = review.posterPath
     ? `https://image.tmdb.org/t/p/w342${review.posterPath}`
@@ -82,7 +95,9 @@ function ReviewDetail() {
               >
                 {review.filmTitle}
               </Link>{' '}
-              <span className="font-normal text-white/40">({review.filmYear})</span>
+              {review.filmYear && (
+                <span className="font-normal text-white/40">({review.filmYear})</span>
+              )}
             </h1>
 
             {review.genres && review.genres.length > 0 && (

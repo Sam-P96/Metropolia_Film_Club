@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
 
-import filmList from '../../data/filmList'
-import { getMostWanted } from '../../utils/watchlist'
+import { getMostWanted } from '../../services/films'
+import useApi from '../../hooks/useApi'
 
 const TOP_N = 4
 
 function PlanToWatchLeaderboard() {
-  const films = getMostWanted(filmList, TOP_N)
+  const { data: films = [], loading, error } = useApi(() => getMostWanted(TOP_N), [])
 
   // The leader sets the scale for every bar below it.
   const topCount = films[0]?.count ?? 0
@@ -27,7 +27,11 @@ function PlanToWatchLeaderboard() {
 
         {films.length === 0 ? (
           <p className="text-white/50">
-            Nobody has planned anything yet. Add something to your list.
+            {loading
+              ? 'Loading…'
+              : error
+                ? "Couldn't load the leaderboard. Try refreshing the page."
+                : 'Nobody has planned anything yet. Add something to your list.'}
           </p>
         ) : (
           <ol className="space-y-2">

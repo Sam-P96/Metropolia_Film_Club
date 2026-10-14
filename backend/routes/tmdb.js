@@ -1,13 +1,9 @@
 const express = require('express')
+const { TMDB_BASE, tmdbHeaders: buildHeaders, getMovie } = require('../services/tmdbService')
 
 const router = express.Router()
 
-const TMDB_BASE = 'https://api.themoviedb.org/3'
-
-const tmdbHeaders = {
-  Authorization: `Bearer ${process.env.TMDB_TOKEN}`,
-  accept: 'application/json',
-}
+const tmdbHeaders = buildHeaders()
 
 // The genre list never changes, so fetch it once and keep it.
 let genreCache = null
@@ -217,37 +213,14 @@ router.get('/companies', async (req, res) => {
 })
 
 router.get('/movie/:id', async (req, res) => {
-  const { id } = req.params
-
   try {
-    const response = await fetch(`${TMDB_BASE}/movie/${id}?language=en-US`, {
-      headers: tmdbHeaders,
-    })
+    const film = await getMovie(Number(req.params.id))
 
-    if (response.status === 404) {
+    if (!film) {
       return res.status(404).json({ error: 'Film not found' })
     }
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'TMDB request failed' })
-    }
-
-    const film = await response.json()
-
-    res.json({
-      tmdbId: film.id,
-      title: film.title,
-      tagline: film.tagline || null,
-      year: film.release_date ? film.release_date.slice(0, 4) : null,
-      posterPath: film.poster_path,
-      backdropPath: film.backdrop_path,
-      overview: film.overview,
-      runtime: film.runtime,
-      genres: (film.genres || []).map((genre) => genre.name),
-      studios: (film.production_companies || []).map((company) => company.name),
-      tmdbRating: film.vote_average,
-      tmdbVotes: film.vote_count,
-    })
+    res.json(film)
 
   } catch (error) {
     console.error('TMDB movie error:', error)

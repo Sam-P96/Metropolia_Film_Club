@@ -1,15 +1,18 @@
 import { Link } from 'react-router-dom'
-import filmList from '../../data/filmList'
-import { getClubRating } from '../../utils/clubFilmStats'
-import { getMembersWanting } from '../../utils/watchlist'
+import { getFilmStats } from '../../services/films'
+import useApi from '../../hooks/useApi'
+
+const NO_ACTIVITY = { average: null, count: 0, wanting: 0 }
 
 function FilmCard({ film }) {
   const posterUrl = film.posterPath
     ? `https://image.tmdb.org/t/p/w342${film.posterPath}`
     : null
 
-  const club = getClubRating(filmList, film.tmdbId)
-  const wanting = getMembersWanting(filmList, film.tmdbId).length
+  // One request for the whole grid: every card shares the cached stats.
+  const { data: stats } = useApi(getFilmStats, [])
+  const club = stats?.[film.tmdbId] ?? NO_ACTIVITY
+  const wanting = club.wanting
 
   return (
     <Link to={`/films/${film.tmdbId}`} className="group block">

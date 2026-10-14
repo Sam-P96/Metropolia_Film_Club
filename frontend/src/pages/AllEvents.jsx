@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 
-import events from '../data/events'
-import users from '../data/users'
 import EventListItem from '../components/events/EventListItem'
 import EventCalendar from '../components/events/EventCalendar'
 import { getPastEvents, getUpcomingEvents } from '../utils/eventDates'
 import { getCurrentUser } from '../utils/currentUser'
 import { canCreateEvents } from '../utils/permissions'
 import { searchEvents } from '../utils/search'
+import { getEvents } from '../services/events'
+import useApi from '../hooks/useApi'
 
 function AllEvents() {
   const [currentUser] = useState(getCurrentUser)
-  const canCreate = canCreateEvents(users, currentUser)
+  const canCreate = canCreateEvents(currentUser)
+
+  const { data: events = [], loading, error } = useApi(getEvents, [])
 
   // ?q= comes from "Show all results" in the nav search.
   const [searchParams] = useSearchParams()
@@ -22,13 +24,14 @@ function AllEvents() {
   const past = searchEvents(getPastEvents(events), query)
 
   // "Show all results in Past events" links to #past. The router doesn't
-  // scroll to hashes on its own, so do it once the list has rendered.
+  // scroll to hashes on its own, so do it once the events have loaded and
+  // the list above has its real height.
   const { hash } = useLocation()
   useEffect(() => {
-    if (hash === '#past') {
+    if (hash === '#past' && !loading) {
       document.getElementById('past')?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [hash])
+  }, [hash, loading])
 
   return (
     <section className="text-white">
@@ -80,7 +83,13 @@ function AllEvents() {
 
               {upcoming.length === 0 ? (
                 <p className="text-white/50">
-                  {query ? 'No upcoming events match.' : 'Nothing planned right now.'}
+                  {loading
+                    ? 'Loading events…'
+                    : error
+                      ? "Couldn't load events. Try refreshing the page."
+                      : query
+                        ? 'No upcoming events match.'
+                        : 'Nothing planned right now.'}
                 </p>
               ) : (
                 <ul className="space-y-5">

@@ -26,7 +26,7 @@ function GlobalSearch({ inline = false }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
 
-  const { query: trimmed, upcoming, past, members, films } = useSearchResults(
+  const { query: trimmed, upcoming, past, members, films, eventsLoading, usersLoading } = useSearchResults(
     query,
     DEBOUNCE_MS
   )
@@ -114,7 +114,7 @@ function GlobalSearch({ inline = false }) {
             title="Upcoming events"
             total={upcoming.length}
             showAllTo={eventsPageUrl(trimmed)}
-            emptyText="No upcoming events match."
+            emptyText={eventsLoading ? 'Searching...' : 'No upcoming events match.'}
           >
             {upcoming.slice(0, PER_SECTION).map((event) => (
               <EventResult key={event._id} event={event} />
@@ -136,7 +136,7 @@ function GlobalSearch({ inline = false }) {
             title="Users"
             total={members.length}
             showAllTo={membersPageUrl(trimmed)}
-            emptyText="No members match."
+            emptyText={usersLoading ? 'Searching...' : 'No members match.'}
           >
             {members.slice(0, PER_SECTION).map((user) => (
               <UserResult key={user._id} user={user} />
@@ -148,7 +148,7 @@ function GlobalSearch({ inline = false }) {
             muted
             total={past.length}
             showAllTo={eventsPageUrl(trimmed, '#past')}
-            emptyText="No past events match."
+            emptyText={eventsLoading ? 'Searching...' : 'No past events match.'}
           >
             {past.slice(0, PER_SECTION).map((event) => (
               <EventResult key={event._id} event={event} past />

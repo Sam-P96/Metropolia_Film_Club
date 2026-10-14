@@ -65,7 +65,9 @@ function ReviewCard({ review }) {
           <div className="mb-1 flex items-start justify-between gap-3">
             <h3 className="text-lg leading-tight font-semibold">
               {review.filmTitle}{' '}
-              <span className="font-normal text-white/40">({review.filmYear})</span>
+              {review.filmYear && (
+                <span className="font-normal text-white/40">({review.filmYear})</span>
+              )}
             </h3>
             <span className="shrink-0 text-xs text-white/40">
               {timeAgo(review.createdAt)}

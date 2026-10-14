@@ -1,13 +1,9 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import users from '../data/users'
-import filmList from '../data/filmList'
 import StarRating from '../components/reviews/StarRating'
-import { canViewProfile } from '../utils/profileVisibility'
+import { getUser, getUserFilms } from '../services/users'
+import useApi from '../hooks/useApi'
 import { isWanted } from '../utils/watchlist'
-
-// PLACEHOLDER: same stand-in as Profile.jsx until the backend serves profiles.
-const LOGGED_IN_USER_ID = users[0]._id
 
 const TABS = [
   { id: 'all', label: 'All Films' },
@@ -97,20 +93,37 @@ function UserFilmList() {
   const [sortBy, setSortBy] = useState('title')
   const [sortDir, setSortDir] = useState('asc')
 
-  const profileUser = users.find((user) => user._id === userId)
+  const profile = useApi(() => getUser(userId), [userId])
+  const films = useApi(() => getUserFilms(userId), [userId])
 
-  if (!profileUser) {
+  const profileUser = profile.data
+
+  if (profile.loading) {
     return (
-      <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <h1 className="text-3xl font-bold">Member not found</h1>
-        <p className="mt-3 text-white/60">There is no member with that id.</p>
+      <section className="px-8 py-24 text-center text-white/50">
+        Loading…
       </section>
     )
   }
 
-  const isOwner = profileUser._id === LOGGED_IN_USER_ID
+  if (!profileUser) {
+    return (
+      <section className="mx-auto max-w-3xl px-8 py-24 text-white">
+        <h1 className="text-3xl font-bold">
+          {profile.error?.status === 404 ? 'Member not found' : "Couldn't load this member"}
+        </h1>
+        <p className="mt-3 text-white/60">
+          {profile.error?.status === 404
+            ? 'There is no member with that id.'
+            : 'Something went wrong on our end. Try refreshing the page.'}
+        </p>
+      </section>
+    )
+  }
 
-  if (!canViewProfile(profileUser, isOwner)) {
+  // The server leaves the details out of someone else's private profile,
+  // and refuses their film list.
+  if (profileUser.restricted) {
     return (
       <section className="mx-auto max-w-3xl px-8 py-24 text-white">
         <h1 className="text-3xl font-bold">{profileUser.username}</h1>
@@ -128,7 +141,7 @@ function UserFilmList() {
     }
   }
 
-  const userEntries = filmList.filter((entry) => entry.userId === profileUser._id)
+  const userEntries = films.data ?? []
 
   const visible = userEntries.filter((entry) => matchesTab(entry, tab))
 
@@ -176,7 +189,13 @@ function UserFilmList() {
         </div>
 
         {entries.length === 0 ? (
-          <p className="text-sm text-white/40">Nothing in this list yet.</p>
+          <p className="text-sm text-white/40">
+            {films.loading
+              ? 'Loading…'
+              : films.error
+                ? "Couldn't load this list. Try refreshing the page."
+                : 'Nothing in this list yet.'}
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
             <table className="w-full min-w-xl border-collapse text-left">
@@ -245,7 +264,7 @@ function UserFilmList() {
                       <td className="px-4 py-3">
                         <p className="font-medium text-white">
                           {entry.title}{' '}
-                          <span className="font-normal text-white/40">({entry.year})</span>
+                          {entry.year && <span className="font-normal text-white/40">({entry.year})</span>}
                           {entry.wantsRewatch && (
                             <span className="ml-2 rounded border border-brand-gold/40 px-1.5 py-0.5 align-middle text-[10px] tracking-wide text-brand-gold uppercase">
                               Rewatch
