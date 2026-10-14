@@ -249,21 +249,32 @@ function UserFilmList() {
                       <td className="px-4 py-3 text-sm text-white/40">{index + 1}</td>
 
                       <td className="px-4 py-3">
-                        <div className="h-16 w-11 overflow-hidden rounded bg-ink/60">
+                        {/* Out of the tab order: the title link next to it goes to the same place. */}
+                        <Link
+                          to={`/films/${entry.tmdbId}`}
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          className="block h-16 w-11 overflow-hidden rounded bg-ink/60 transition-opacity hover:opacity-80"
+                        >
                           {posterUrl && (
                             <img
                               src={posterUrl}
-                              alt={entry.title}
+                              alt=""
                               loading="lazy"
                               className="h-full w-full object-cover"
                             />
                           )}
-                        </div>
+                        </Link>
                       </td>
 
                       <td className="px-4 py-3">
                         <p className="font-medium text-white">
-                          {entry.title}{' '}
+                          <Link
+                            to={`/films/${entry.tmdbId}`}
+                            className="transition-colors hover:text-brand-gold"
+                          >
+                            {entry.title}
+                          </Link>{' '}
                           {entry.year && <span className="font-normal text-white/40">({entry.year})</span>}
                           {entry.wantsRewatch && (
                             <span className="ml-2 rounded border border-brand-gold/40 px-1.5 py-0.5 align-middle text-[10px] tracking-wide text-brand-gold uppercase">
