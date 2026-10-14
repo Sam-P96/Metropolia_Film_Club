@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import backgroundImage from '../assets/purple_sparkle_1.gif'
 
 const Login = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -27,7 +28,8 @@ const Login = ({ setIsAuthenticated }) => {
 
     localStorage.setItem("user", JSON.stringify(user));
     setIsAuthenticated(true);
-    navigate("/");
+    // Back to wherever sent you here (e.g. "Write a review"), else home.
+    navigate(location.state?.from ?? "/");
   };
 
   const inputClasses =

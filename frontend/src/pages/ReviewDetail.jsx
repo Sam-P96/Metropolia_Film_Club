@@ -76,7 +76,12 @@ function ReviewDetail() {
 
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl font-bold">
-              {review.filmTitle}{' '}
+              <Link
+                to={`/films/${review.tmdbId}`}
+                className="transition-colors hover:text-brand-gold"
+              >
+                {review.filmTitle}
+              </Link>{' '}
               <span className="font-normal text-white/40">({review.filmYear})</span>
             </h1>
 

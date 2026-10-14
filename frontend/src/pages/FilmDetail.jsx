@@ -1,105 +1,297 @@
-import { useParams, Link } from 'react-router-dom'
-import users from '../data/users'
-import filmList from '../data/filmList'
-import { getMembersWanting } from '../utils/watchlist'
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 
-// MINIMAL: this page currently shows only what the club's own data knows —
-// the title, and who wants to see it. TMDB details, the review list and the
-// average rating come later.
-function FilmDetail() {
+import users from '../data/users'
+import reviews from '../data/reviews'
+import filmList from '../data/filmList'
+import { getFilm } from '../services/tmdb'
+import ReviewCard from '../components/reviews/ReviewCard'
+import StarRating from '../components/reviews/StarRating'
+import { getClubRating } from '../utils/clubFilmStats'
+import { getMembersWanting } from '../utils/watchlist'
+import { getCurrentUser } from '../utils/currentUser'
+import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
+
+const REVIEWS_PER_PAGE = 6
+
+function FilmDetail({ isAuthenticated }) {
+  // The route is /films/:tmdbId, so that is the name useParams gives back.
+  // It always arrives as a string, and the data files store numbers.
   const { tmdbId } = useParams()
   const id = Number(tmdbId)
 
-  const anyEntry = filmList.find((entry) => entry.tmdbId === id)
+  const [film, setFilm] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [visibleCount, setVisibleCount] = useState(REVIEWS_PER_PAGE)
 
-  if (!anyEntry) {
-    return (
-      <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <h1 className="text-3xl font-bold">Film not found</h1>
-        <p className="mt-3 text-white/60">
-          No one in the club has logged this film yet.
-        </p>
-      </section>
-    )
-  }
+  const [currentUser] = useState(getCurrentUser)
+
+  useEffect(() => {
+    let cancelled = false
+
+    setLoading(true)
+    setError(null)
+    setVisibleCount(REVIEWS_PER_PAGE)
+
+    getFilm(id)
+      .then((data) => {
+        if (!cancelled) setFilm(data)
+      })
+      .catch(() => {
+        if (!cancelled) setError("Couldn't load this film.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    // If you click through to another film before this finishes, the old
+    // response must not overwrite the new one.
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  const club = getClubRating(filmList, id)
 
   const wanting = getMembersWanting(filmList, id).map((entry) => ({
     entry,
     user: users.find((user) => user._id === entry.userId),
   }))
 
+  const filmReviews = reviews
+    .filter((review) => review.tmdbId === id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map((review) => ({
+      ...review,
+      user: users.find((user) => user._id === review.userId),
+    }))
+    .filter((review) => review.user)
+
+  const visibleReviews = filmReviews.slice(0, visibleCount)
+  const remaining = filmReviews.length - visibleReviews.length
+
+  // Has this member already reviewed this film?
+  const memberId = resolveMemberId(users, currentUser)
+  const myReview = getUserReviewForFilm(reviews, memberId, id)
+
+  if (loading) {
+    return (
+      <section className="px-8 py-24 text-center text-white/50">
+        Loading…
+      </section>
+    )
+  }
+
+  if (error || !film) {
+    return (
+      <section className="px-8 py-24 text-center text-white/50">
+        {error ?? 'Film not found.'}
+      </section>
+    )
+  }
+
   return (
     <section className="text-white">
-      <div className="mx-auto max-w-3xl px-8 py-20">
 
-        <h1 className="text-3xl font-bold">
-          {anyEntry.title}{' '}
-          <span className="font-normal text-white/40">({anyEntry.year})</span>
-        </h1>
+      {/* backdrop, fading into the page background */}
+      {film.backdropPath && (
+        <div className="relative z-0 h-[40vh] w-full overflow-hidden">
+          <img
+            src={`https://image.tmdb.org/t/p/w1280${film.backdropPath}`}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-linear-to-b from-ink/40 to-ink" />
+        </div>
+      )}
 
-        <div className="mt-4 mb-10 h-1 w-10 rounded-full bg-brand-gold" />
+      {/* relative + z-10 so this paints ABOVE the positioned backdrop above.
+          Without it the backdrop covers the poster and title. */}
+      <div className="relative z-10 mx-auto max-w-5xl px-8 pb-24">
+        <div
+          className={`flex flex-col gap-8 sm:flex-row ${
+            film.backdropPath ? '-mt-32' : 'pt-16'
+          }`}
+        >
+          {film.posterPath && (
+            <img
+              src={`https://image.tmdb.org/t/p/w342${film.posterPath}`}
+              alt={film.title}
+              className="w-48 shrink-0 self-start rounded-xl border border-white/10 shadow-xl shadow-black/50"
+            />
+          )}
 
-        <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
-          Who wants to see this
-        </h2>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-4xl font-bold">
+              {film.title}{' '}
+              {film.year && (
+                <span className="font-normal text-white/40">({film.year})</span>
+              )}
+            </h1>
 
-        {wanting.length === 0 ? (
-          <p className="text-sm text-white/40">
-            Nobody has this on their list right now.
-          </p>
-        ) : (
-          <ul className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-            {wanting.map(({ entry, user }) => {
-              if (!user) return null
+            {film.tagline && (
+              <p className="mt-2 text-sm text-brand-gold italic">
+                {film.tagline}
+              </p>
+            )}
 
-              const isRewatch = entry.status === 'completed'
+            <p className="mt-3 text-sm text-white/50">
+              {[
+                film.runtime ? `${film.runtime} min` : null,
+                film.genres?.length ? film.genres.join(', ') : null,
+                film.studios?.length ? film.studios[0] : null,
+              ]
+                .filter(Boolean)
+                .join('  ·  ')}
+            </p>
 
-              return (
-                <li key={entry._id}>
-                  <Link
-                    to={`/users/${user._id}`}
-                    className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
-                  >
-                    {user.avatarUrl ? (
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.username}
-                        className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/20"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-red text-sm font-bold ring-2 ring-white/20">
-                        {user.username[0].toUpperCase()}
-                      </div>
-                    )}
+            {film.overview && (
+              <p className="mt-6 leading-relaxed text-white/80">
+                {film.overview}
+              </p>
+            )}
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
-                        {user.username}
-                      </p>
-                      <p className="text-xs text-white/40">{user.memberTitle}</p>
-                    </div>
+            {/* ratings on the left, the review button pushed to the right */}
+            <div className="mt-8 flex flex-wrap items-center gap-8">
+              <div>
+                <p className="text-xs tracking-wider text-white/40 uppercase">
+                  Club rating
+                </p>
+                <div className="mt-1">
+                  <StarRating rating={club.average} size="md" />
+                </div>
+                {club.count > 0 && (
+                  <p className="mt-1 text-xs text-white/40">
+                    {club.average.toFixed(1)} from {club.count}{' '}
+                    {club.count === 1 ? 'member' : 'members'}
+                  </p>
+                )}
+              </div>
 
-                    <span
-                      className={
-                        isRewatch
-                          ? 'shrink-0 rounded border border-brand-orange/50 px-2 py-0.5 text-[10px] tracking-wide text-brand-orange uppercase'
-                          : 'shrink-0 rounded border border-brand-gold/50 px-2 py-0.5 text-[10px] tracking-wide text-brand-gold uppercase'
-                      }
+              <div>
+                <p className="text-xs tracking-wider text-white/40 uppercase">
+                  TMDB
+                </p>
+                <p className="mt-1 text-2xl font-bold">
+                  {film.tmdbRating ? film.tmdbRating.toFixed(1) : '—'}
+                  <span className="ml-2 text-sm font-normal text-white/40">
+                    / 10
+                  </span>
+                </p>
+              </div>
+
+              {/* Logged out: go and log in, then Login sends you on to the
+                  review page via state.from. */}
+              <Link
+                to={isAuthenticated ? `/films/${id}/review` : '/login'}
+                state={isAuthenticated ? null : { from: `/films/${id}/review` }}
+                className="ml-auto rounded-md bg-brand-red px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-orange"
+              >
+                {myReview ? 'Edit your review' : 'Write a review'}
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* who wants to see this */}
+        <div className="mt-16">
+          <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
+            Who wants to see this
+          </h2>
+
+          {wanting.length === 0 ? (
+            <p className="text-sm text-white/40">
+              Nobody has this on their list right now.
+            </p>
+          ) : (
+            <ul className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+              {wanting.map(({ entry, user }) => {
+                if (!user) return null
+
+                const isRewatch = entry.status === 'completed'
+
+                return (
+                  <li key={entry._id}>
+                    <Link
+                      to={`/users/${user._id}`}
+                      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
                     >
-                      {isRewatch ? 'Rewatch' : 'Watch'}
-                    </span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.username}
+                          className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/20"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-red text-sm font-bold ring-2 ring-white/20">
+                          {user.username[0].toUpperCase()}
+                        </div>
+                      )}
 
-        <p className="mt-10 rounded-xl border border-dashed border-white/15 px-5 py-4 text-sm text-white/30">
-          Film details, member reviews and the club's average rating are coming to
-          this page later.
-        </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
+                          {user.username}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          {user.memberTitle}
+                        </p>
+                      </div>
 
+                      <span
+                        className={
+                          isRewatch
+                            ? 'shrink-0 rounded border border-brand-orange/50 px-2 py-0.5 text-[10px] tracking-wide text-brand-orange uppercase'
+                            : 'shrink-0 rounded border border-brand-gold/50 px-2 py-0.5 text-[10px] tracking-wide text-brand-gold uppercase'
+                        }
+                      >
+                        {isRewatch ? 'Rewatch' : 'Watch'}
+                      </span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* club reviews */}
+        <div className="mt-16">
+          <h2 className="text-2xl font-bold">
+            Club <span className="text-brand-gold">reviews</span>
+            <span className="ml-3 text-base font-normal text-white/40">
+              {filmReviews.length}
+            </span>
+          </h2>
+
+          <div className="mt-4 mb-8 h-1 w-10 rounded-full bg-brand-gold" />
+
+          {filmReviews.length === 0 ? (
+            <p className="text-white/50">
+              Nobody has reviewed this one yet. Be the first.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {visibleReviews.map((review) => (
+                  <ReviewCard key={review._id} review={review} />
+                ))}
+              </div>
+
+              {remaining > 0 && (
+                <button
+                  onClick={() =>
+                    setVisibleCount((count) => count + REVIEWS_PER_PAGE)
+                  }
+                  className="mt-8 rounded-md border border-white/10 bg-white/5 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+                >
+                  Load {Math.min(remaining, REVIEWS_PER_PAGE)} more
+                  {remaining > REVIEWS_PER_PAGE && ` of ${remaining}`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </section>
   )
