@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import SearchBar from './search/SearchBar'
+import GlobalSearch from './search/GlobalSearch'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -72,7 +72,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
 
         {/* Desktop only */}
         <div className="hidden flex-1 lg:block">
-          <SearchBar to="/films" placeholder="Search for a film..." />
+          <GlobalSearch />
         </div>
 
         <ul className="hidden gap-7 lg:flex">
@@ -171,7 +171,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         </div>
 
         <div className="border-b border-white/10 px-5 py-4">
-          <SearchBar to="/films" placeholder="Search for a film..." />
+          <GlobalSearch inline />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">

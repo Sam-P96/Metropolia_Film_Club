@@ -17,6 +17,11 @@ import FilmBrowser from "./pages/FilmBrowser";
 import MovieReviews from "./pages/MovieReviews";
 import FilmReviews from "./pages/FilmReviews";
 import WriteReview from "./pages/WriteReview";
+import AllEvents from "./pages/AllEvents";
+import CreateEvent from "./pages/CreateEvent";
+import EventDetail from "./pages/EventDetail";
+import Members from "./pages/Members";
+import SearchResults from "./pages/SearchResults";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -53,6 +58,8 @@ function App() {
           <Route path="/account" element={
             isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
           } />
+          <Route path="/search" element={<SearchResults />} />
+          <Route path="/members" element={<Members />} />
           <Route path="/users/:userId" element={<Profile />} />
 
           <Route path="/wheel" element={<Wheel />} />
@@ -71,6 +78,9 @@ function App() {
             element={isAuthenticated ? <WriteReview /> : <Navigate to="/login" />}
           />
           <Route path="/films/:tmdbId/reviews" element={<FilmReviews />} />
+          <Route path="/club_events/all" element={<AllEvents />} />
+          <Route path="/club_events/new" element={<CreateEvent />} />
+          <Route path="/club_events/:eventId" element={<EventDetail />} />
         </Routes>
       </main>
 

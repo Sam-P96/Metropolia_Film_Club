@@ -1,7 +1,10 @@
+// `role` controls permissions. `memberTitle` is just a label people see —
+// keep them separate, or someone renaming their title grants themselves powers.
 const users = [
   {
     _id: 'u1',
     username: 'sam_p',
+    role: 'admin',
     memberTitle: 'Club Founder',
     bio: 'Mostly here for the arguments afterwards. Will defend Paddington 2 to anyone.',
     avatarUrl: null,
@@ -23,6 +26,7 @@ const users = [
   {
     _id: 'u2',
     username: 'aino.watches',
+    role: 'user',
     memberTitle: 'Member',
     bio: 'New to the club. Say hi.',
     avatarUrl: null,
@@ -39,6 +43,7 @@ const users = [
   {
     _id: 'u3',
     username: 'kasper_frames',
+    role: 'moderator',
     memberTitle: 'Event Organiser',
     bio: '',
     avatarUrl: null,
@@ -58,6 +63,7 @@ const users = [
   {
     _id: 'u4',
     username: 'reetta_k',
+    role: 'user',
     memberTitle: 'Member',
     bio: 'Horror apologist. I will make you watch the 1982 version.',
     avatarUrl: null,
@@ -76,6 +82,7 @@ const users = [
   {
     _id: 'u5',
     username: 'tuomas.m',
+    role: 'user',
     memberTitle: 'Member',
     bio: 'Three-hour runtimes are a feature, not a bug.',
     avatarUrl: null,
@@ -95,6 +102,7 @@ const users = [
   {
     _id: 'u6',
     username: 'nadia_reels',
+    role: 'user',
     memberTitle: 'Member',
     bio: 'Here for the café bit, honestly.',
     avatarUrl: null,
@@ -111,6 +119,7 @@ const users = [
   {
     _id: 'u7',
     username: 'oskari.t',
+    role: 'user',
     memberTitle: 'Member',
     bio: '',
     avatarUrl: null,

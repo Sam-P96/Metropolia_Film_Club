@@ -22,3 +22,30 @@ export function describeOthersWanting(count) {
   if (count === 1) return '1 other member wants to see this'
   return `${count} other members want to see this`
 }
+
+// The films the most members want to see. First-time watches and rewatches
+// count the same, because isWanted() already treats them as one question.
+export function getMostWanted(filmList, limit = 10) {
+  const byFilm = new Map()
+
+  filmList.filter(isWanted).forEach((entry) => {
+    const existing = byFilm.get(entry.tmdbId)
+
+    if (existing) {
+      existing.count += 1
+      return
+    }
+
+    byFilm.set(entry.tmdbId, {
+      tmdbId: entry.tmdbId,
+      title: entry.title,
+      year: entry.year,
+      posterPath: entry.posterPath,
+      count: 1,
+    })
+  })
+
+  return [...byFilm.values()]
+    .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title))
+    .slice(0, limit)
+}
