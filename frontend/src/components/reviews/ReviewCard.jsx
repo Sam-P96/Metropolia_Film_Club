@@ -61,9 +61,11 @@ function ReviewCard({ review }) {
           )}
         </div>
 
-        <div className="flex min-h-56 min-w-0 flex-1 flex-col p-5">
+        {/* min-h-64 fits the tallest case (two-line title, four lines of review),
+            so every card is the same height and short titles leave the slack above "Read more" */}
+        <div className="flex min-h-64 min-w-0 flex-1 flex-col p-5">
           <div className="mb-1 flex items-start justify-between gap-3">
-            <h3 className="text-lg leading-tight font-semibold">
+            <h3 className="line-clamp-2 text-lg leading-tight font-semibold">
               {review.filmTitle}{' '}
               {review.filmYear && (
                 <span className="font-normal text-white/40">({review.filmYear})</span>
