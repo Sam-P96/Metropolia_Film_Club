@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 
 import MostWantedList from './MostWantedList'
+import GifBackground from '../GifBackground'
+import artLoveGif from '../../assets/3207.jpg'
 import { getMostWanted } from '../../services/films'
 import useApi from '../../hooks/useApi'
 
@@ -13,8 +15,10 @@ function PlanToWatchLeaderboard() {
   const total = data?.total ?? 0
 
   return (
-    <section className="border-b border-white/10 text-white">
-      <div className="mx-auto max-w-4xl px-5 py-14 sm:px-8 sm:py-20">
+    <section className="relative overflow-hidden border-b border-white/10 text-white">
+      <GifBackground src={artLoveGif} />
+
+      <div className="relative mx-auto max-w-4xl px-5 py-14 sm:px-8 sm:py-20">
 
         <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
           Plan to watch list leaderboard

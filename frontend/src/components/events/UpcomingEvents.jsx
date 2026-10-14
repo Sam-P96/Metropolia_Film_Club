@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import EventCalendar from './EventCalendar'
+import GifBackground from '../GifBackground'
+import artLoveGif from '../../assets/Pink Glow GIF by xponentialdesign.gif'
 import EventListItem from './EventListItem'
 import { getUpcomingEvents } from '../../utils/eventDates'
 import { getCurrentUser } from '../../utils/currentUser'
@@ -22,8 +24,10 @@ function UpcomingEvents() {
   const hasMore = upcoming.length > MAX_LISTED
 
   return (
-    <section className="border-b border-white/10 text-white">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+    <section className="relative overflow-hidden border-b border-white/10 text-white">
+      <GifBackground src={artLoveGif} />
+
+      <div className="relative mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
 
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
 
