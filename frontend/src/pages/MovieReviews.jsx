@@ -4,7 +4,9 @@ import TopRatedFilms from '../components/films/TopRatedFilms'
 import ReviewSection from '../components/reviews/ReviewSection'
 import { getRecentReviews, getTopRated } from '../services/films'
 import useApi from '../hooks/useApi'
+import GifBackground from '../components/GifBackground'
 import reviewsBg from '../assets/giphy.gif'
+import artLoveGif from '../assets/Art Glow GIF by Lucie Mullen.gif'
 
 
 function MovieReviews() {
@@ -14,8 +16,10 @@ function MovieReviews() {
   return (
     <section className="text-white">
 
-      <div className="border-b border-white/10 bg-ink/40 backdrop-blur-xl">
-        <div className="mx-auto max-w-4xl px-8 py-20 text-center">
+      <div className="relative overflow-hidden border-b border-white/10">
+        <GifBackground src={artLoveGif} />
+
+        <div className="relative mx-auto max-w-4xl px-8 py-20 text-center">
           <h1 className="text-4xl font-bold">
             Movie <span className="text-brand-gold">Reviews</span>
           </h1>

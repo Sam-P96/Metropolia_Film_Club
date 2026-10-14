@@ -21,6 +21,7 @@ import AllEvents from "./pages/AllEvents";
 import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
 import EditEvent from "./pages/EditEvent";
+import PlanToWatchAll from "./pages/PlanToWatchAll";
 import Members from "./pages/Members";
 import SearchResults from "./pages/SearchResults";
 
@@ -80,6 +81,7 @@ function App() {
           />
           <Route path="/films/:tmdbId/reviews" element={<FilmReviews />} />
           <Route path="/club_events/all" element={<AllEvents />} />
+          <Route path="/club_events/plan_to_watch" element={<PlanToWatchAll />} />
           <Route path="/club_events/new" element={<CreateEvent />} />
           <Route path="/club_events/:eventId" element={<EventDetail />} />
           <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
