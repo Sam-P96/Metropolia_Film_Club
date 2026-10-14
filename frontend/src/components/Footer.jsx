@@ -22,8 +22,7 @@ function Footer() {
           </h4>
           <ul className="space-y-2">
             <li><NavLink to="/" className={linkClasses}>Home</NavLink></li>
-            <li><NavLink to="/screenings" className={linkClasses}>Club Events</NavLink></li>
-            <li><NavLink to="/about" className={linkClasses}>Screenings</NavLink></li>
+            <li><NavLink to="/club_events" className={linkClasses}>Club Events</NavLink></li>
             <li><NavLink to="/about" className={linkClasses}>About Us</NavLink></li>
           </ul>
         </div>
@@ -33,9 +32,9 @@ function Footer() {
             Find Us
           </h4>
           <address className="text-sm leading-relaxed text-white/60 not-italic">
-            Metropolia UAS, Karamalmi Campus<br />
-            Karaportti 2<br />
-            02610 Espoo, Finland
+            Metropolia UAS, Myyrmäki Campus<br />
+            Leiritie 1<br />
+            01600 Vantaa, Finland
           </address>
         </div>
 
@@ -44,11 +43,7 @@ function Footer() {
             Contact
           </h4>
           <ul className="space-y-2">
-            <li>
-              <a href="mailto:filmclub@metropolia.fi" className={linkClasses}>
-                filmclub@metropolia.fi
-              </a>
-            </li>
+            <li className="text-sm text-white/60">Email coming soon</li>
             <li>
               <a href="https://instagram.com/" target="_blank" rel="noopener noreferrer" className={linkClasses}>
                 Instagram

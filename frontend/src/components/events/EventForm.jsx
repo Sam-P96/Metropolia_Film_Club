@@ -136,7 +136,7 @@ function EventForm({ initialEvent = null, submitLabel, savingLabel, onSubmit, ca
           id="location"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="Karamalmi Campus, Auditorium A"
+          placeholder="Myyrmäki Campus, Auditorium A"
           className={inputClasses}
         />
       </div>
