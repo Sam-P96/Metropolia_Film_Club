@@ -8,11 +8,12 @@ import { getFilm } from '../services/tmdb'
 import ReviewCard from '../components/reviews/ReviewCard'
 import StarRating from '../components/reviews/StarRating'
 import { getClubRating } from '../utils/clubFilmStats'
-import { getMembersWanting } from '../utils/watchlist'
+import { getMembersWanting, isWanted } from '../utils/watchlist'
 import { getCurrentUser } from '../utils/currentUser'
 import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
+import { getUserFilmEntry } from '../utils/filmListLookup'
 
-const REVIEWS_PER_PAGE = 6
+const REVIEWS_PER_PAGE = 4
 
 function FilmDetail({ isAuthenticated }) {
   // The route is /films/:tmdbId, so that is the name useParams gives back.
@@ -26,6 +27,27 @@ function FilmDetail({ isAuthenticated }) {
   const [visibleCount, setVisibleCount] = useState(REVIEWS_PER_PAGE)
 
   const [currentUser] = useState(getCurrentUser)
+
+  const memberId = resolveMemberId(users, currentUser)
+  const me = users.find((user) => user._id === memberId) ?? null
+
+  const myEntry = getUserFilmEntry(filmList, memberId, id)
+  const myReview = getUserReviewForFilm(reviews, memberId, id)
+
+  // "Has seen it" — any of the three counts. This is what turns
+  // "Plan to watch" into "Plan to rewatch".
+  const hasWatched =
+    myReview !== null ||
+    myEntry?.rating != null ||
+    myEntry?.status === 'completed'
+
+  // Local until the backend exists. Starts from whatever the data file says.
+  const [planned, setPlanned] = useState(false)
+
+  useEffect(() => {
+    const entry = getUserFilmEntry(filmList, memberId, id)
+    setPlanned(entry ? isWanted(entry) : false)
+  }, [id, memberId])
 
   useEffect(() => {
     let cancelled = false
@@ -52,12 +74,48 @@ function FilmDetail({ isAuthenticated }) {
     }
   }, [id])
 
+  const handlePlanToggle = () => {
+    const next = !planned
+    setPlanned(next)
+
+    // Three different writes, because the meaning of the click depends on
+    // whether they've already seen the film.
+    if (hasWatched) {
+      // Seen it — only the rewatch flag changes, the entry stays 'completed'.
+      console.log('PATCH', `/api/films/${id}/log`, { wantsRewatch: next })
+    } else if (next) {
+      console.log('PUT', `/api/films/${id}/log`, { status: 'plan_to_watch' })
+    } else {
+      // Never watched and no longer planned — nothing left to keep.
+      console.log('DELETE', `/api/films/${id}/log`)
+    }
+  }
+
   const club = getClubRating(filmList, id)
 
-  const wanting = getMembersWanting(filmList, id).map((entry) => ({
-    entry,
-    user: users.find((user) => user._id === entry.userId),
-  }))
+  // Everyone except me, straight from the data file...
+  const others = getMembersWanting(filmList, id)
+    .map((entry) => ({
+      entry,
+      user: users.find((user) => user._id === entry.userId),
+    }))
+    .filter(({ entry, user }) => user && entry.userId !== memberId)
+
+  // ...then me, from local state, so the list reacts to the button instantly.
+  const youRow =
+    planned && me
+      ? {
+          entry: {
+            _id: 'you',
+            userId: memberId,
+            status: hasWatched ? 'completed' : 'plan_to_watch',
+            wantsRewatch: hasWatched,
+          },
+          user: me,
+        }
+      : null
+
+  const wanting = youRow ? [youRow, ...others] : others
 
   const filmReviews = reviews
     .filter((review) => review.tmdbId === id)
@@ -70,10 +128,6 @@ function FilmDetail({ isAuthenticated }) {
 
   const visibleReviews = filmReviews.slice(0, visibleCount)
   const remaining = filmReviews.length - visibleReviews.length
-
-  // Has this member already reviewed this film?
-  const memberId = resolveMemberId(users, currentUser)
-  const myReview = getUserReviewForFilm(reviews, memberId, id)
 
   if (loading) {
     return (
@@ -90,6 +144,13 @@ function FilmDetail({ isAuthenticated }) {
       </section>
     )
   }
+
+  const planLabel = hasWatched ? 'Plan to rewatch' : 'Plan to watch'
+
+  // Filled gold when it's on your list, outlined when it isn't.
+  const planClasses = planned
+    ? 'rounded-md bg-brand-gold px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-brand-gold/85'
+    : 'rounded-md border border-brand-gold/60 px-5 py-2.5 text-sm font-medium text-brand-gold transition-colors hover:bg-brand-gold/10'
 
   return (
     <section className="text-white">
@@ -152,7 +213,7 @@ function FilmDetail({ isAuthenticated }) {
               </p>
             )}
 
-            {/* ratings on the left, the review button pushed to the right */}
+            {/* ratings on the left, the two actions pushed to the right */}
             <div className="mt-8 flex flex-wrap items-center gap-8">
               <div>
                 <p className="text-xs tracking-wider text-white/40 uppercase">
@@ -181,15 +242,36 @@ function FilmDetail({ isAuthenticated }) {
                 </p>
               </div>
 
-              {/* Logged out: go and log in, then Login sends you on to the
-                  review page via state.from. */}
-              <Link
-                to={isAuthenticated ? `/films/${id}/review` : '/login'}
-                state={isAuthenticated ? null : { from: `/films/${id}/review` }}
-                className="ml-auto rounded-md bg-brand-red px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-orange"
-              >
-                {myReview ? 'Edit your review' : 'Write a review'}
-              </Link>
+              <div className="ml-auto flex flex-wrap items-center gap-3">
+                {/* Logged out: both buttons go and log you in first, then
+                    Login sends you on to where you were headed. */}
+                {isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={handlePlanToggle}
+                    aria-pressed={planned}
+                    className={planClasses}
+                  >
+                    {planned ? `✓ ${planLabel}` : planLabel}
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    state={{ from: `/films/${id}` }}
+                    className={planClasses}
+                  >
+                    {planLabel}
+                  </Link>
+                )}
+
+                <Link
+                  to={isAuthenticated ? `/films/${id}/review` : '/login'}
+                  state={isAuthenticated ? null : { from: `/films/${id}/review` }}
+                  className="rounded-md bg-brand-red px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-orange"
+                >
+                  {myReview ? 'Edit your review' : 'Write a review'}
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -207,9 +289,8 @@ function FilmDetail({ isAuthenticated }) {
           ) : (
             <ul className="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
               {wanting.map(({ entry, user }) => {
-                if (!user) return null
-
                 const isRewatch = entry.status === 'completed'
+                const isYou = entry.userId === memberId
 
                 return (
                   <li key={entry._id}>
@@ -232,6 +313,11 @@ function FilmDetail({ isAuthenticated }) {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
                           {user.username}
+                          {isYou && (
+                            <span className="ml-2 text-xs font-normal text-white/40">
+                              you
+                            </span>
+                          )}
                         </p>
                         <p className="text-xs text-white/40">
                           {user.memberTitle}

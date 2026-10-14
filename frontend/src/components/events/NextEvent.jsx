@@ -26,13 +26,15 @@ function formatTime(isoString) {
   })
 }
 
-function NextEvent() {
+// showMoreLink defaults to true so the homepage keeps working untouched.
+// The club events page turns it off, since it would link to itself.
+function NextEvent({ showMoreLink = true }) {
   const event = getNextEvent(events)
 
   if (!event) {
     return (
       <section className="bg-white text-ink">
-        <div className="mx-auto max-w-6xl px-8 py-16">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
           <h2 className="mb-2 text-sm font-semibold tracking-widest text-brand-red uppercase">
             Next Event
           </h2>
@@ -44,7 +46,7 @@ function NextEvent() {
 
   return (
     <section className="bg-white text-ink">
-      <div className="mx-auto max-w-6xl px-8 py-16">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
 
         <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
 
@@ -53,7 +55,14 @@ function NextEvent() {
               Next Event
             </h2>
 
-            <h3 className="mb-6 text-3xl font-bold">{event.title}</h3>
+            <h3 className="mb-6 text-3xl font-bold">
+              <Link
+                to={`/club_events/${event._id}`}
+                className="transition-colors hover:text-brand-red"
+              >
+                {event.title}
+              </Link>
+            </h3>
 
             <div className="mb-6 space-y-1 text-ink/80">
               <p className="font-medium">
@@ -82,14 +91,16 @@ function NextEvent() {
 
         </div>
 
-        <div className="mt-10 flex justify-end">
-          <Link
-            to="/club_events"
-            className="font-medium text-brand-red transition-colors hover:text-brand-orange"
-          >
-            See more events...
-          </Link>
-        </div>
+        {showMoreLink && (
+          <div className="mt-10 flex justify-end">
+            <Link
+              to="/club_events"
+              className="font-medium text-brand-red transition-colors hover:text-brand-orange"
+            >
+              See more events...
+            </Link>
+          </div>
+        )}
 
       </div>
     </section>

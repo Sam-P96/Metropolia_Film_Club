@@ -3,10 +3,12 @@ import { Link, useParams } from 'react-router-dom'
 
 import users from '../data/users'
 import reviews from '../data/reviews'
+import filmList from '../data/filmList'
 import { getFilm } from '../services/tmdb'
 import RatingInput from '../components/reviews/RatingInput'
 import { getCurrentUser } from '../utils/currentUser'
 import { resolveMemberId, getUserReviewForFilm } from '../utils/reviewLookup'
+import { getUserFilmEntry } from '../utils/filmListLookup'
 
 const MAX_LENGTH = 4000
 
@@ -17,16 +19,20 @@ function WriteReview() {
   // Lazy initialiser: the function runs once on mount, not every render.
   const [currentUser] = useState(getCurrentUser)
 
-  // This member's existing review for this film, or null. This one value
-  // decides the heading, the button text, and whether we POST or PATCH.
   const memberId = resolveMemberId(users, currentUser)
-  const existingReview = getUserReviewForFilm(reviews, memberId, id)
-  const isEditing = existingReview !== null
 
-  // Pre-fill from the existing review. useState only reads its initial
-  // value on the first render, which is fine while reviews come from a
-  // local file. Once this is a fetch, these three need a useEffect to sync.
-  const [rating, setRating] = useState(existingReview?.rating ?? 0)
+  // Two separate records. The entry holds the rating, the review holds the
+  // text. A member can have the first without the second.
+  const myEntry = getUserFilmEntry(filmList, memberId, id)
+  const existingReview = getUserReviewForFilm(reviews, memberId, id)
+
+  const isUpdate = existingReview !== null || myEntry?.rating != null
+
+  // Pre-fill. The rating comes from the entry, falling back to the review's
+  // copy of it, because a rating can exist with no review at all.
+  const [rating, setRating] = useState(
+    myEntry?.rating ?? existingReview?.rating ?? 0
+  )
   const [text, setText] = useState(existingReview?.text ?? '')
   const [containsSpoilers, setContainsSpoilers] = useState(
     existingReview?.containsSpoilers ?? false
@@ -34,7 +40,7 @@ function WriteReview() {
 
   const [film, setFilm] = useState(null)
   const [error, setError] = useState(null)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -52,32 +58,53 @@ function WriteReview() {
     }
   }, [id])
 
+  // Derived once, used by the hint, the button label and the submit.
+  const trimmed = text.trim()
+  const hasText = trimmed.length > 0
+  const ratingValue = rating === 0 ? null : rating
+
   const handleSubmit = (e) => {
     e.preventDefault()
     setError(null)
 
-    if (rating === 0 && text.trim() === '') {
+    if (ratingValue === null && !hasText) {
       setError('Give it a rating, write something, or both.')
       return
     }
 
+    // One request, one payload. `text: null` is the signal that there is no
+    // written review — the server saves the rating on the film list entry and
+    // deletes any review that was there before.
     const payload = {
       tmdbId: id,
-      rating: rating === 0 ? null : rating,
-      text: text.trim(),
-      containsSpoilers,
+      status: 'completed',
+      rating: ratingValue,
+      text: hasText ? trimmed : null,
+      containsSpoilers: hasText ? containsSpoilers : false,
     }
 
-    if (isEditing) {
-      // PATCH /api/reviews/:reviewId
-      console.log('UPDATE', existingReview._id, payload)
+    console.log(myEntry ? 'UPDATE LOG' : 'CREATE LOG', payload)
+
+    if (hasText) {
+      setSaved('Review saved.')
+    } else if (existingReview) {
+      setSaved('Your written review was removed. The rating stays on the film.')
     } else {
-      // POST /api/reviews
-      console.log('CREATE', payload)
+      setSaved('Rating saved. No review card will be created.')
     }
-
-    setSaved(true)
   }
+
+  const [headingLead, headingAccent] = existingReview
+    ? ['Edit your ', 'review']
+    : myEntry?.rating != null
+      ? ['Update your ', 'rating']
+      : ['Write a ', 'review']
+
+  const submitLabel = isUpdate
+    ? 'Save changes'
+    : hasText
+      ? 'Post review'
+      : 'Save rating'
 
   const inputClasses =
     'w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10'
@@ -96,8 +123,8 @@ function WriteReview() {
         </Link>
 
         <h1 className="mt-6 text-3xl font-bold">
-          {isEditing ? 'Edit your ' : 'Write a '}
-          <span className="text-brand-gold">review</span>
+          {headingLead}
+          <span className="text-brand-gold">{headingAccent}</span>
         </h1>
 
         <div className="mt-4 mb-8 h-1 w-10 rounded-full bg-brand-gold" />
@@ -108,7 +135,7 @@ function WriteReview() {
               <img
                 src={`https://image.tmdb.org/t/p/w154${film.posterPath}`}
                 alt=""
-                className="w-16 rounded-md"
+                className="w-16 self-start rounded-md"
               />
             )}
             <div>
@@ -129,13 +156,14 @@ function WriteReview() {
 
           <div>
             <label htmlFor="text" className={labelClasses}>
-              Your review
+              Your review{' '}
+              <span className="font-normal text-white/40">(optional)</span>
             </label>
             <textarea
               id="text"
               rows={10}
               maxLength={MAX_LENGTH}
-              placeholder="What did you think?"
+              placeholder="What did you think? Leave this empty to log a rating only."
               value={text}
               onChange={(e) => setText(e.target.value)}
               className={`${inputClasses} resize-y`}
@@ -145,19 +173,33 @@ function WriteReview() {
             </p>
           </div>
 
-          <label className="flex items-center gap-3 text-sm text-white/70">
+          <label
+            className={`flex items-center gap-3 text-sm ${
+              hasText ? 'text-white/70' : 'cursor-not-allowed text-white/30'
+            }`}
+          >
             <input
               type="checkbox"
-              checked={containsSpoilers}
+              disabled={!hasText}
+              checked={hasText && containsSpoilers}
               onChange={(e) => setContainsSpoilers(e.target.checked)}
               className="h-4 w-4 accent-brand-red"
             />
             This review contains spoilers
           </label>
 
+          {/* Tells the member what the empty textarea actually means. */}
+          {!hasText && ratingValue !== null && (
+            <p className="rounded-md border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
+              {existingReview
+                ? 'Clearing the text removes your written review. Your rating stays on the film and still counts towards the club average.'
+                : 'Rating only. This goes on your film list and counts towards the club average, but it will not appear as a review anywhere.'}
+            </p>
+          )}
+
           <div className="flex items-center gap-4">
             <button className="rounded-md bg-brand-red px-6 py-3 font-medium text-white transition-colors hover:bg-brand-orange">
-              {isEditing ? 'Save changes' : 'Post review'}
+              {submitLabel}
             </button>
 
             <Link
@@ -176,8 +218,8 @@ function WriteReview() {
 
           {saved && (
             <p className="rounded-md border border-brand-gold/40 bg-brand-gold/10 px-4 py-3 text-sm text-white">
-              {isEditing ? 'Changes' : 'Review'} not saved — the backend isn't
-              built yet. Check the console to see what would have been sent.
+              {saved} Nothing was actually written — the backend isn't built
+              yet. Check the console for the payload.
             </p>
           )}
 
