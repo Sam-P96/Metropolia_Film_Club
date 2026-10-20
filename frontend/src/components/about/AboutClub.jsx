@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import useInView from "../../hooks/useInView";
 
 
-const points = [
+const getPoints = (isLoggedIn) => [
   {
     title: "Open to everyone",
     text: "Metropolia students and anyone else who loves film. No expertise needed, and film snobbery and elitism is frowned upon.",
@@ -13,12 +13,12 @@ const points = [
   },
   {
     title: "Stay in the loop",
-    text: "Create an account to follow club events, show other members your favourite films, and share your reviews. Or join our Discord to chat with everyone between meetups.",
+    text: `${isLoggedIn ? "Use your account" : "Create an account"} to follow club events, show other members your favourite films, and share your reviews. Or join our Discord to chat with everyone between meetups.`,
   },
 ];
 
-function AboutClub() {
-  const isLoggedIn = false; // Modify this later for login thingies
+function AboutClub({ isAuthenticated: isLoggedIn = false }) {
+  const points = getPoints(isLoggedIn);
   const [sectionRef, cardsVisible] = useInView(0.6);
   const { pathname } = useLocation();
   const isAboutPage = pathname === "/about";
@@ -68,18 +68,14 @@ function AboutClub() {
         </div>
 
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          {isLoggedIn ? (
-            <Link to="/account" className={primaryButton}>
-              View your profile
-            </Link>
-          ) : (
+          {!isLoggedIn && (
             <Link to="/signup" className={primaryButton}>
               Create an account
             </Link>
           )}
 
           <a
-            href="https://discord.com/"
+            href="https://discord.gg/FFna7RBA3"
             target="_blank"
             rel="noopener noreferrer"
             className={secondaryButton}
