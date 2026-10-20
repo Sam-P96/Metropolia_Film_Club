@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 function FavouriteFilms({ films, isOwner, username, isEditing, onRemove }) {
   const slots = [0, 1, 2, 3]
 
@@ -31,22 +33,33 @@ function FavouriteFilms({ films, isOwner, username, isEditing, onRemove }) {
           ? `https://image.tmdb.org/t/p/w342${film.posterPath}`
           : null
 
+        const poster = posterUrl ? (
+          <img
+            src={posterUrl}
+            alt={film.title}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center p-3 text-center text-xs text-white/50">
+            {film.title}
+          </div>
+        )
+
         return (
           <div
             key={film.tmdbId}
-            className="relative aspect-2/3 overflow-hidden rounded-lg border border-white/10 bg-ink/60 shadow-lg shadow-black/40"
+            className={`relative aspect-2/3 overflow-hidden rounded-lg border border-white/10 bg-ink/60 shadow-lg shadow-black/40 transition-colors ${
+              isEditing ? '' : 'hover:border-brand-gold/60'
+            }`}
           >
-            {posterUrl ? (
-              <img
-                src={posterUrl}
-                alt={film.title}
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
+            {/* Not a link while editing: leaving the page would lose the draft. */}
+            {isEditing ? (
+              poster
             ) : (
-              <div className="flex h-full w-full items-center justify-center p-3 text-center text-xs text-white/50">
-                {film.title}
-              </div>
+              <Link to={`/films/${film.tmdbId}`} title={film.title} className="block h-full w-full">
+                {poster}
+              </Link>
             )}
 
             {isEditing && (
