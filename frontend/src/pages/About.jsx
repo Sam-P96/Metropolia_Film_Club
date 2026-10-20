@@ -1,12 +1,12 @@
 import AboutClub from '../components/about/AboutClub';
 import AboutIntro from '../components/about/AboutIntro';
 
-function About() {
+function About({ isAuthenticated }) {
     return (
         <div>
             
             <AboutIntro />
-            <AboutClub />
+            <AboutClub isAuthenticated={isAuthenticated} />
         </div>
     )
 };

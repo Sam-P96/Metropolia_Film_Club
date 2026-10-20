@@ -6,7 +6,7 @@ import { getRecentReviews } from '../services/films'
 import useApi from '../hooks/useApi'
 import reviewsBg from '../assets/giphy.gif'
 
-function Home() {
+function Home({ isAuthenticated }) {
   // Newest first, each with its author attached by the server.
   const { data: recentReviews = [], loading } = useApi(() => getRecentReviews(15), [])
 
@@ -22,7 +22,7 @@ function Home() {
         linkTo="/movie_reviews"
         emptyMessage={loading ? 'Loading reviews…' : undefined}
       />
-      <AboutClub />
+      <AboutClub isAuthenticated={isAuthenticated} />
 
     </>
   )

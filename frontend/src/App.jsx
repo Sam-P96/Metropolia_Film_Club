@@ -66,7 +66,7 @@ function App() {
 
           <Route path="/wheel" element={<Wheel />} />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
-          <Route path="/reviews/:reviewId" element={<ReviewDetail />} />
+          <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
           <Route path="/movie_reviews" element={<MovieReviews />} />
 
           {/* film routes — one route per path, all using :tmdbId */}

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getReview } from '../services/films'
+import { getReview, setReviewLiked, setReviewSpoilers } from '../services/films'
 import useApi from '../hooks/useApi'
 import StarRating from '../components/reviews/StarRating'
 import { timeAgo } from '../utils/timeAgo'
+import { getCurrentUser } from '../utils/currentUser'
+import { canMarkSpoilers } from '../utils/permissions'
 
 function formatFullDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-GB', {
@@ -14,11 +16,12 @@ function formatFullDate(isoString) {
   })
 }
 
-function ReviewDetail() {
+function ReviewDetail({ isAuthenticated }) {
   const { reviewId } = useParams()
   const [showSpoilers, setShowSpoilers] = useState(false)
+  const [currentUser] = useState(getCurrentUser)
 
-  const { data: review, loading, error } = useApi(() => getReview(reviewId), [reviewId])
+  const { data: review, loading, error, setData } = useApi(() => getReview(reviewId), [reviewId])
 
   if (loading) {
     return (
@@ -62,12 +65,22 @@ function ReviewDetail() {
     <section className="text-white">
       <div className="mx-auto max-w-4xl px-8 py-20">
 
-        <Link
-          to={author ? `/users/${author._id}` : '/'}
-          className="text-sm font-medium text-brand-gold transition-colors hover:text-white"
-        >
-          ← {author ? `Back to ${author.username}` : 'Back to the homepage'}
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Link
+            to={author ? `/users/${author._id}` : '/'}
+            className="text-sm font-medium text-brand-gold transition-colors hover:text-white"
+          >
+            ← {author ? `Back to ${author.username}` : 'Back to the homepage'}
+          </Link>
+
+          {canMarkSpoilers(currentUser) && (
+            <SpoilerToggle
+              reviewId={review._id}
+              containsSpoilers={review.containsSpoilers}
+              onChange={(containsSpoilers) => setData((prev) => ({ ...prev, containsSpoilers }))}
+            />
+          )}
+        </div>
 
         <div className="mt-8 flex flex-col gap-8 sm:flex-row sm:items-start">
 
@@ -171,13 +184,118 @@ function ReviewDetail() {
               <p className="text-sm text-white/40">Unknown member</p>
             )}
 
-            <p className="ml-auto text-sm text-white/40">♥ {review.likeCount}</p>
+            <div className="ml-auto">
+              <LikeButton
+                reviewId={review._id}
+                likeCount={review.likeCount}
+                likedByMe={review.likedByMe}
+                isAuthenticated={isAuthenticated}
+                onChange={(likes) => setData((prev) => ({ ...prev, ...likes }))}
+              />
+            </div>
           </div>
 
         </div>
 
       </div>
     </section>
+  )
+}
+
+// For moderators and admins, when the author didn't tick the spoiler box
+// themselves (or ticked it when they didn't need to).
+function SpoilerToggle({ reviewId, containsSpoilers, onChange }) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleClick = async () => {
+    setSaving(true)
+    setError(null)
+
+    try {
+      const result = await setReviewSpoilers(reviewId, !containsSpoilers)
+      onChange(result.containsSpoilers)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={saving}
+        className="rounded-md border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+      >
+        {containsSpoilers ? 'Remove spoiler mark' : 'Mark as spoilers'}
+      </button>
+
+      {error && <p className="text-sm text-brand-red">{error}</p>}
+    </div>
+  )
+}
+
+// Everyone sees the count. Logged-out visitors are sent to log in, then
+// brought back here.
+function LikeButton({ reviewId, likeCount, likedByMe, isAuthenticated, onChange }) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const label = `${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`
+
+  const classes = `flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${
+    likedByMe
+      ? 'border-brand-red/60 bg-brand-red/15 text-white hover:bg-brand-red/25'
+      : 'border-white/20 bg-white/5 text-white/70 hover:border-brand-red/60 hover:text-white'
+  }`
+
+  if (!isAuthenticated) {
+    return (
+      <Link
+        to="/login"
+        state={{ from: `/reviews/${reviewId}` }}
+        title="Log in to like this review"
+        className={classes}
+      >
+        <span aria-hidden="true">♡</span> {label}
+      </Link>
+    )
+  }
+
+  const handleClick = async () => {
+    setSaving(true)
+    setError(null)
+
+    try {
+      onChange(await setReviewLiked(reviewId, !likedByMe))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={saving}
+        aria-pressed={likedByMe}
+        title={likedByMe ? 'Unlike this review' : 'Like this review'}
+        className={classes}
+      >
+        <span aria-hidden="true" className={likedByMe ? 'text-brand-red' : undefined}>
+          {likedByMe ? '♥' : '♡'}
+        </span>{' '}
+        {label}
+      </button>
+
+      {error && <p className="text-xs text-brand-red">{error}</p>}
+    </div>
   )
 }
 

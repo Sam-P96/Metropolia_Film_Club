@@ -7,6 +7,8 @@ const bcrypt = require("bcryptjs");
 const { userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
 
 const MAX_FAVOURITES = 4;
+const MAX_USERNAME_LENGTH = 30;
+const MAX_BIO_LENGTH = 300;
 const BANNER_TYPES = ["color", "image"];
 const BANNER_STYLES = ["glass", "translucent", "opaque"];
 const PRIVACY_OPTIONS = ["public", "friends", "private"];
@@ -168,12 +170,25 @@ function isHttpUrl(value) {
 
 // Turns the request body into a $set, keeping only the fields a member may
 // change about themselves. Returns { error } for the first bad value.
-function profileChanges(body) {
+function profileChanges(body, me) {
     const set = {};
+
+    // Only checked when it actually changes, so a name picked before these
+    // rules existed doesn't stop the member saving anything else.
+    if ("username" in body) {
+        const username = String(body.username ?? "").trim();
+
+        if (username !== me.username) {
+            if (!username || username.length > MAX_USERNAME_LENGTH) {
+                return { error: `Your username must be 1 to ${MAX_USERNAME_LENGTH} characters.` };
+            }
+            set.username = username;
+        }
+    }
 
     if ("bio" in body) {
         const bio = String(body.bio ?? "").trim();
-        if (bio.length > 500) return { error: "Your bio can be at most 500 characters." };
+        if (bio.length > MAX_BIO_LENGTH) return { error: `Your bio can be at most ${MAX_BIO_LENGTH} characters.` };
         set.bio = bio;
     }
 
@@ -232,10 +247,21 @@ function profileChanges(body) {
 }
 
 const updateMe = async (req, res) => {
-    const { set, error } = profileChanges(req.body ?? {});
+    const { set, error } = profileChanges(req.body ?? {}, req.user);
 
     if (error) {
         return res.status(400).json({ error });
+    }
+
+    // Two members with the same name would be impossible to tell apart, so
+    // case doesn't count: "sam" can't take "Sam".
+    if (set.username) {
+        const taken = await User.exists({ username: set.username, _id: { $ne: req.user._id } })
+            .collation({ locale: "en", strength: 2 });
+
+        if (taken) {
+            return res.status(400).json({ error: "That username is already taken." });
+        }
     }
 
     // $unset clears the flattened banner colour older accounts still carry.

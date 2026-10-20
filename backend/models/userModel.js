@@ -25,7 +25,7 @@ const userSchema = new Schema(
         },
 
         memberTitle: {type: String, default: "Human"},
-        bio: {type: String, default: "", maxlength: 500},
+        bio: {type: String, default: "", maxlength: 300},
         avatarUrl: {type: String, default: null},
 
         // Mongoose treats a key called `type` as a type declaration, which is

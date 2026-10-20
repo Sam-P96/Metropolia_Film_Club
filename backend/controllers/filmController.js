@@ -203,7 +203,59 @@ async function getReview(req, res) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    res.json(reviewWithUser(review));
+    const likedByMe = req.user
+        ? Boolean(await Review.exists({ _id: review._id, likedBy: req.user._id }))
+        : false;
+
+    res.json({ ...reviewWithUser(review), likedByMe });
+}
+
+// The like button. The filter only matches when the like really changes
+// something, so a double click can't count someone twice or push the count
+// below zero. Likes don't touch updatedAt, which means "last edited".
+async function setReviewLiked(req, res) {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    const liked = Boolean(req.body?.liked);
+    const me = req.user._id;
+
+    await Review.updateOne(
+        liked
+            ? { _id: req.params.id, likedBy: { $ne: me } }
+            : { _id: req.params.id, likedBy: me },
+        liked
+            ? { $push: { likedBy: me }, $inc: { likeCount: 1 } }
+            : { $pull: { likedBy: me }, $inc: { likeCount: -1 } },
+        { timestamps: false }
+    );
+
+    const review = await Review.findById(req.params.id).select("likeCount").lean();
+
+    if (!review) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    res.json({ likeCount: review.likeCount, likedByMe: liked });
+}
+
+// Moderators marking someone else's review as containing spoilers, or
+// taking the mark off. The author can still change it by editing the review.
+async function setReviewSpoilers(req, res) {
+    const review = mongoose.isValidObjectId(req.params.id)
+        ? await Review.findByIdAndUpdate(
+            req.params.id,
+            { $set: { containsSpoilers: Boolean(req.body?.containsSpoilers) } },
+            { returnDocument: "after", timestamps: false }
+        ).select("containsSpoilers").lean()
+        : null;
+
+    if (!review) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    res.json({ containsSpoilers: review.containsSpoilers });
 }
 
 // ---------- one film ----------
@@ -407,6 +459,8 @@ module.exports = {
     getMostWanted,
     getRecentReviews,
     getReview,
+    setReviewLiked,
+    setReviewSpoilers,
     getFilmReviews,
     getFilmClub,
     getMyFilm,
