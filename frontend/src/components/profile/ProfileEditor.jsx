@@ -1,4 +1,6 @@
-const BIO_LIMIT = 280
+// Match the limits in backend/controllers/userControllers.js.
+const USERNAME_LIMIT = 30
+const BIO_LIMIT = 300
 
 const PRIVACY_OPTIONS = [
   {
@@ -31,6 +33,21 @@ function ProfileEditor({ draft, onChange, onSave, onCancel }) {
       </h3>
 
       <div className="space-y-6">
+
+        <div>
+          <label htmlFor="username" className={labelClasses}>
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            autoComplete="username"
+            maxLength={USERNAME_LIMIT}
+            value={draft.username || ''}
+            onChange={(e) => onChange('username', e.target.value)}
+            className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10"
+          />
+        </div>
 
         <div>
           <label htmlFor="bio" className={labelClasses}>

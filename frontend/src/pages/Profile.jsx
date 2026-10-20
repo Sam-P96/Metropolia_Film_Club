@@ -18,6 +18,7 @@ const MAX_FAVOURITES = 4
 
 // What a member can change about themselves. The server only accepts these.
 const EDITABLE_FIELDS = [
+  'username',
   'bio',
   'privacy',
   'memberTitle',
@@ -101,8 +102,11 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
   const filmsResult = useApi(() => getUserFilms(profileUser._id), [profileUser._id])
 
   // While editing, everything renders from the draft instead of the saved user.
-  // This is what makes the preview live.
-  const displayUser = draft || profileUser
+  // This is what makes the preview live. A cleared username previews as the
+  // saved one, since avatars without a picture show its first letter.
+  const displayUser = draft
+    ? { ...draft, username: draft.username.trim() || profileUser.username }
+    : profileUser
 
   const startEditing = (panel) => {
     setDraft({ ...profileUser })
