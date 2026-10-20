@@ -19,6 +19,10 @@ const reviewSchema = new Schema(
         text: {type: String, required: true, trim: true, maxlength: 4000},
         containsSpoilers: {type: Boolean, default: false},
         likeCount: {type: Number, default: 0},
+        // Who liked it, so nobody can like twice. Left out of every query
+        // unless asked for: cards only need the count, and the list of names
+        // isn't anyone else's business.
+        likedBy: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: [], select: false},
     },
     {timestamps: true}
 );

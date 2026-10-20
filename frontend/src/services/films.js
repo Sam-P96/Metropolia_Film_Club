@@ -25,6 +25,19 @@ export function getReview(id) {
   return api(`/reviews/${encodeURIComponent(id)}`)
 }
 
+// The like button. Resolves to { likeCount, likedByMe }.
+export function setReviewLiked(id, liked) {
+  return api(`/reviews/${encodeURIComponent(id)}/like`, { method: 'PUT', body: { liked } })
+}
+
+// Moderators only. Resolves to { containsSpoilers }.
+export function setReviewSpoilers(id, containsSpoilers) {
+  return api(`/reviews/${encodeURIComponent(id)}/spoilers`, {
+    method: 'PUT',
+    body: { containsSpoilers },
+  })
+}
+
 export function getFilmReviews(tmdbId) {
   return api(`/films/${tmdbId}/reviews`)
 }

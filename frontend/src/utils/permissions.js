@@ -48,6 +48,11 @@ export function canEditAnyReview(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
+// Marking someone else's review as containing spoilers.
+export function canMarkSpoilers(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
 export function canManageMembers(currentUser) {
   return hasAtLeast(currentUser, 'admin')
 }
