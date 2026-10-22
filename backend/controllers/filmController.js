@@ -191,7 +191,8 @@ async function getRecentReviews(req, res) {
         .populate("user", AUTHOR_FIELDS)
         .lean();
 
-    res.json(reviews.filter((review) => review.user).map(reviewWithUser));
+    const shown = reviews.filter((review) => review.user).map(reviewWithUser);
+    res.json(await Review.withLikedByMe(shown, req.user));
 }
 
 async function getReview(req, res) {
@@ -269,7 +270,8 @@ async function getFilmReviews(req, res) {
         .populate("user", AUTHOR_FIELDS)
         .lean();
 
-    res.json(reviews.filter((review) => review.user).map(reviewWithUser));
+    const shown = reviews.filter((review) => review.user).map(reviewWithUser);
+    res.json(await Review.withLikedByMe(shown, req.user));
 }
 
 // The club rating for one film, and who wants to see it. Members with a

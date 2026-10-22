@@ -9,6 +9,14 @@
   --color-ink: #0B0710;
   --color-ink-light: #1A1024;
   --color-plum: #2D1B47;
+
+  /* The heart on a review card's like button, when it's liked */
+  --animate-like-pop: like-pop 0.38s ease-out;
+
+  @keyframes like-pop {
+    0%, 100% { transform: scale(1); }
+    40%      { transform: scale(1.4); }
+  }
 }
 
 body {

@@ -9,8 +9,8 @@ const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth")
 
 const router = express.Router();
 
-router.get("/", getRecentReviews);
-// Anyone can read a review. A logged-in member also learns if they've liked it.
+// Anyone can read reviews. A logged-in member also learns which they've liked.
+router.get("/", optionalAuth, getRecentReviews);
 router.get("/:id", optionalAuth, getReview);
 
 router.put("/:id/like", requireAuth, setReviewLiked);

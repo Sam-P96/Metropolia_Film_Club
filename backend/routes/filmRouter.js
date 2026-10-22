@@ -18,8 +18,8 @@ router.get("/stats", getFilmStats);
 router.get("/top-rated", getTopRated);
 router.get("/most-wanted", getMostWanted);
 
-// One film.
-router.get("/:tmdbId/reviews", getFilmReviews);
+// One film. optionalAuth: a logged-in member learns which reviews they've liked.
+router.get("/:tmdbId/reviews", optionalAuth, getFilmReviews);
 router.get("/:tmdbId/club", optionalAuth, getFilmClub);
 
 // The logged-in member and one film.

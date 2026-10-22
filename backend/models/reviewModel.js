@@ -32,4 +32,18 @@ reviewSchema.index({user: 1, tmdbId: 1}, {unique: true});
 reviewSchema.index({tmdbId: 1, createdAt: -1});
 reviewSchema.index({createdAt: -1});
 
+// Adds likedByMe to each review in a list (plain .lean() objects): whether
+// `user`, the member asking or null, has liked it. One query for the list.
+reviewSchema.statics.withLikedByMe = async function (reviews, user) {
+    const liked = user && reviews.length > 0
+        ? await this.find({_id: {$in: reviews.map((review) => review._id)}, likedBy: user._id})
+            .select("_id")
+            .lean()
+        : [];
+
+    const likedIds = new Set(liked.map((review) => String(review._id)));
+
+    return reviews.map((review) => ({...review, likedByMe: likedIds.has(String(review._id))}));
+};
+
 module.exports = mongoose.model("Review", reviewSchema);

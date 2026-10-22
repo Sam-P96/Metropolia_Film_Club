@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReviewCard from './ReviewCard'
 
 const SPEED = 42        // normal scrolling speed, in pixels per second
@@ -7,6 +7,9 @@ const EASE_START = 2.5  // how quickly it speeds back up after hover (lower = ge
 
 function ReviewMarquee({ reviews }) {
   const looped = [...reviews, ...reviews]
+  // { [reviewId]: { likeCount, likedByMe } } after a like. Every review is on
+  // the track twice, and both copies should show it.
+  const [likes, setLikes] = useState({})
   const trackRef = useRef(null)
   const hoveredRef = useRef(false)
 
@@ -62,7 +65,12 @@ function ReviewMarquee({ reviews }) {
               onMouseLeave={() => { hoveredRef.current = false }}
               className="relative w-120 transition-transform duration-200 ease-out hover:z-10 hover:scale-105 hover:duration-1000 hover:ease-[cubic-bezier(0.33,1,0.68,1)]"
             >
-              <ReviewCard review={review} />
+              <ReviewCard
+                review={{ ...review, ...likes[review._id] }}
+                onLikeChange={(change) =>
+                  setLikes((prev) => ({ ...prev, [review._id]: change }))
+                }
+              />
             </div>
           </div>
         ))}

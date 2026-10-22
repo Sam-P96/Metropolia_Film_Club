@@ -127,7 +127,8 @@ const getUserReviews = async (req, res) => {
     }
 
     const reviews = await Review.find({ user: id }).sort({ createdAt: -1 }).lean();
-    res.json(reviews.map((review) => ({ ...review, userId: review.user })));
+    const withLikes = await Review.withLikedByMe(reviews, req.user);
+    res.json(withLikes.map((review) => ({ ...review, userId: review.user })));
 }
 
 // Their film list is part of the profile, so it follows the privacy setting.
