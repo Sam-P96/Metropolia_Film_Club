@@ -59,7 +59,7 @@ function ReviewCard({ review, onLikeChange }) {
     <article className="overflow-hidden rounded-2xl border border-white/10 bg-plum/40 text-white shadow-xl shadow-black/40 backdrop-blur-md">
 
       <div className="flex">
-        <div className="relative w-36 shrink-0 bg-ink/60 sm:w-44">
+        <div className="relative aspect-2/3 w-40 shrink-0 bg-ink/60 sm:w-44">
           {posterUrl ? (
             <img
               src={posterUrl}
@@ -74,9 +74,11 @@ function ReviewCard({ review, onLikeChange }) {
           )}
         </div>
 
-        {/* min-h-64 fits the tallest case (two-line title, four lines of review),
-            so every card is the same height and short titles leave the slack above "Read more" */}
-        <div className="flex min-h-64 min-w-0 flex-1 flex-col p-5">
+        {/* The poster sets the card's height (2:3 at its width), so it's never
+            cropped and every card is the same height. contain-size keeps the text
+            from making the row taller; the tallest case (two-line title, full
+            review preview) still fits, and short titles leave the slack above "Read more" */}
+        <div className="flex min-w-0 flex-1 flex-col p-5 contain-size">
           <div className="mb-1 flex items-start justify-between gap-3">
             <h3 className="line-clamp-2 text-lg leading-tight font-semibold">
               {isPlaceholder ? review.filmTitle : (
@@ -102,7 +104,7 @@ function ReviewCard({ review, onLikeChange }) {
 
           {review.containsSpoilers ? (
             <div className="relative">
-              <p className="line-clamp-4 text-sm leading-relaxed text-white/70 blur-sm select-none">
+              <p className="line-clamp-3 text-sm leading-relaxed text-white/70 blur-sm select-none sm:line-clamp-4">
                 {review.text}
               </p>
               <p className="absolute inset-0 flex items-center justify-center text-sm font-medium text-brand-gold">
@@ -110,7 +112,7 @@ function ReviewCard({ review, onLikeChange }) {
               </p>
             </div>
           ) : (
-            <p className="line-clamp-4 text-sm leading-relaxed text-white/70">
+            <p className="line-clamp-3 text-sm leading-relaxed text-white/70 sm:line-clamp-4">
               {review.text}
             </p>
           )}
