@@ -21,3 +21,13 @@ export function getCurrentUser() {
 export function getCurrentUserId() {
   return getCurrentUser()?._id ?? null
 }
+
+// Logins expire after 3 days, but the stored one stays until it's removed.
+// When the server turns it down, forget it and tell App.jsx, so the whole
+// site shows the member as logged out instead of failing every request.
+export const LOGIN_EXPIRED_EVENT = 'login-expired'
+
+export function forgetExpiredLogin() {
+  localStorage.removeItem('user')
+  window.dispatchEvent(new Event(LOGIN_EXPIRED_EVENT))
+}
