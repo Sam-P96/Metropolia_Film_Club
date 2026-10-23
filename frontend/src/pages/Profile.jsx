@@ -8,7 +8,7 @@ import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
 import FilmSearchPicker from '../components/profile/FilmSearchPicker'
 import Watchlist from '../components/profile/Watchlist'
-import { getUser, getUserFilms, getUserReviews, updateMe } from '../services/users'
+import { getUser, getUserFilms, getUserReviews, updateMe, exportMyData, deleteMe } from '../services/users'
 import useApi from '../hooks/useApi'
 import { getCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
@@ -162,6 +162,45 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
     setDraft(null)
     setEditing(null)
     setSaveError(null)
+  }
+
+  const [dataError, setDataError] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // GDPR export: download everything the server holds as a JSON file.
+  const handleExport = async () => {
+    setDataError(null)
+    try {
+      const data = await exportMyData()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'metropolia-film-club-data.json'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setDataError(err.message)
+    }
+  }
+
+  // GDPR erasure: delete the account, then log out and go home.
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      'Delete your account? This removes your profile, reviews and film logs for good. This cannot be undone.'
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    setDataError(null)
+    try {
+      await deleteMe()
+      localStorage.removeItem('user')
+      window.location.href = '/'
+    } catch (err) {
+      setDataError(err.message)
+      setDeleting(false)
+    }
   }
 
   const userReviews = reviewsResult.data ?? []
@@ -347,6 +386,37 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
             />
           )}
         </div>
+
+        {isOwner && (
+          <div className="mt-14 border-t border-white/10 pt-10">
+            <h2 className="mb-2 text-sm font-semibold tracking-widest text-brand-gold uppercase">
+              Privacy and data
+            </h2>
+            <p className="mb-5 text-sm text-white/50">
+              Download everything we hold about you, or delete your account for good.
+              See our <Link to="/privacy" className="text-brand-gold hover:text-white">privacy policy</Link>.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <button onClick={handleExport} className={buttonClasses}>
+                Export my data
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-md border border-brand-red/40 bg-brand-red/10 px-5 py-2 text-sm font-medium text-white transition-colors hover:border-brand-red hover:bg-brand-red/20 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete my account'}
+              </button>
+            </div>
+
+            {dataError && (
+              <p className="mt-4 rounded-md border border-brand-red/40 bg-brand-red/10 px-4 py-3 text-sm text-white">
+                {dataError}
+              </p>
+            )}
+          </div>
+        )}
 
       </div>
     </section>

@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import backgroundImage from '../assets/purple_sparkle_1.gif'
 
 const Signup = () => {
-  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState(null);
 
   const handleFormSubmit = async (e) => {
@@ -19,10 +19,15 @@ const Signup = () => {
       return;
     }
 
+    if (!accepted) {
+      setError("Please accept the privacy policy to sign up.");
+      return;
+    }
+
     const response = await fetch("/api/users/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, acceptedPrivacyPolicy: accepted }),
     });
 
     const user = await response.json();
@@ -116,6 +121,26 @@ const Signup = () => {
               className={inputClasses}
             />
           </div>
+
+          <label className="flex items-start gap-3 text-sm text-white/60">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-brand-gold"
+            />
+            <span>
+              I agree to the{" "}
+              <Link
+                to="/privacy"
+                target="_blank"
+                className="font-medium text-brand-gold transition-colors hover:text-white"
+              >
+                privacy policy
+              </Link>
+              .
+            </span>
+          </label>
 
           <button className="w-full rounded-md bg-brand-red px-6 py-3 font-medium text-white transition-colors hover:bg-brand-orange">
             Sign up

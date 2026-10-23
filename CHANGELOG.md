@@ -52,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - With that filter on, a "Sort by club ratings" box beside it sorts the
   films from the highest club rating to the lowest, in place of "Sort by"
   (`GET /api/films/reviewed?byClubRating=1`).
+- GDPR: members must agree to the privacy policy to sign up, and that
+  consent is recorded on the account.
+- GDPR: members can download everything held about them as JSON from their
+  profile (`GET /api/users/me/export`).
+- GDPR: members can delete their account from their profile. This removes
+  their profile, reviews and film logs, and their likes on other reviews
+  (`DELETE /api/users/me`).
+- A privacy policy page at `/privacy`, linked from the footer and signup.
 
 ### Changed
 - The bio limit is 300 characters (was 280 in the form, 500 on the server).

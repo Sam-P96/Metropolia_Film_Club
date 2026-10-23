@@ -25,6 +25,7 @@ import EditEvent from "./pages/EditEvent";
 import PlanToWatchAll from "./pages/PlanToWatchAll";
 import Members from "./pages/Members";
 import SearchResults from "./pages/SearchResults";
+import Privacy from "./pages/Privacy";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -69,6 +70,7 @@ function App() {
             isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
           } />
           <Route path="/search" element={<SearchResults />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/members" element={<Members />} />
           <Route path="/users/:userId" element={<Profile />} />
 

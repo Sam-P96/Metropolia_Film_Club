@@ -52,6 +52,14 @@ const userSchema = new Schema(
             default: "public",
         },
 
+        // Recorded at signup so we can show, if ever asked, that the member
+        // agreed to the privacy policy and which version they saw.
+        consent: {
+            acceptedPrivacyPolicy: {type: Boolean, default: false},
+            acceptedAt: {type: Date, default: null},
+            policyVersion: {type: String, default: null},
+        },
+
         favouriteFilms: [favouriteFilmSchema],
     },
     {timestamps: {createdAt: "joinedAt", updatedAt: "updatedAt"}}
