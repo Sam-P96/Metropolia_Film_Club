@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page lists who's attending and who's interested
   (`PUT /api/events/:id/rsvp`). Members with a private profile are counted
   but not named.
+- Member screenings: any member can host an event of their own, listed in a
+  new Member screenings section on the club events page (and with every
+  other event on the All events page). The member who made one can edit and delete it until
+  it's made official. Moderators and admins can promote a member screening
+  to an official club event and demote it back
+  (`PUT /api/events/:id/official`). On calendars, member screenings are
+  outlined in the same gold that fills official event days, which look as
+  before. A selected calendar day tags each event as a club activity or a
+  member screening. "See all events" counts member screenings too.
 - Members can change their username from Edit profile. Names are 1–30
   characters and must be unique, ignoring case.
 
