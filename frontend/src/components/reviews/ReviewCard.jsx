@@ -117,12 +117,23 @@ function ReviewCard({ review, onLikeChange }) {
             </p>
           )}
 
-          <Link
-            to={`/reviews/${review._id}`}
-            className="mt-auto self-end pt-4 text-sm font-medium text-brand-gold transition-colors hover:text-white"
-          >
-            Read more...
-          </Link>
+          <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+            {!isPlaceholder && (
+              <LikeButton
+                reviewId={review._id}
+                likeCount={likes.likeCount ?? 0}
+                likedByMe={likes.likedByMe ?? false}
+                onChange={onLikeChange ?? setOwnLikes}
+              />
+            )}
+
+            <Link
+              to={`/reviews/${review._id}`}
+              className="ml-auto text-sm font-medium text-brand-gold transition-colors hover:text-white"
+            >
+              Read more...
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -134,54 +145,43 @@ function ReviewCard({ review, onLikeChange }) {
 
         <div className="absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80" />
 
-        <div className="relative flex items-center gap-4 px-5 py-4">
-          {!isPlaceholder && (
-            <LikeButton
-              reviewId={review._id}
-              likeCount={likes.likeCount ?? 0}
-              likedByMe={likes.likedByMe ?? false}
-              onChange={onLikeChange ?? setOwnLikes}
+        <Link
+          to={`/users/${user._id}`}
+          className="group relative flex items-center justify-end gap-4 px-5 py-4"
+        >
+          <div className="text-right">
+            <p className="font-semibold drop-shadow transition-colors group-hover:text-brand-gold">
+              {user.username}
+            </p>
+            <p className="text-sm text-white/60">{user.memberTitle}</p>
+          </div>
+
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.username}
+              className="h-12 w-12 rounded-full object-cover ring-2 ring-white/20"
             />
-          )}
-
-          <Link
-            to={`/users/${user._id}`}
-            className="group ml-auto flex items-center gap-4"
-          >
-            <div className="text-right">
-              <p className="font-semibold drop-shadow transition-colors group-hover:text-brand-gold">
-                {user.username}
-              </p>
-              <p className="text-sm text-white/60">{user.memberTitle}</p>
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-red font-bold ring-2 ring-white/20">
+              {user.username[0].toUpperCase()}
             </div>
-
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.username}
-                className="h-12 w-12 rounded-full object-cover ring-2 ring-white/20"
-              />
-            ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-red font-bold ring-2 ring-white/20">
-                {user.username[0].toUpperCase()}
-              </div>
-            )}
-          </Link>
-        </div>
+          )}
+        </Link>
       </div>
 
     </article>
   )
 }
 
-// 999, then 1k, 1.2k, 12.5k… so the pill stays small.
+// 999, then 1k, 1.2k, 12.5k… so the button stays small.
 const compactNumber = new Intl.NumberFormat('en', {
   notation: 'compact',
   maximumFractionDigits: 1,
 })
 
-// Sits on the author banner, which can be any image, so it brings its own
-// dark frosted backing. Logged-out visitors are sent to log in, then back.
+// A small dark glass pill beside "Read more", no taller than that link.
+// Logged-out visitors are sent to log in, then back.
 function LikeButton({ reviewId, likeCount, likedByMe, onChange }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -223,15 +223,15 @@ function LikeButton({ reviewId, likeCount, likedByMe, onChange }) {
       onClick={handleClick}
       aria-pressed={likedByMe}
       aria-label={`Like this review, ${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`}
-      className={`flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-base font-semibold tabular-nums backdrop-blur-md transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold active:scale-95 ${
+      className={`flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold active:scale-95 ${
         likedByMe
           ? 'border-white/55 bg-[rgba(14,8,20,0.74)] text-white hover:border-white/75'
           : 'border-white/20 bg-[rgba(14,8,20,0.62)] text-[#d8cfe3] hover:border-white/35 hover:text-white'
       }`}
     >
       <svg
-        width="20"
-        height="20"
+        width="12"
+        height="12"
         viewBox="0 0 24 24"
         fill={likedByMe ? 'currentColor' : 'none'}
         stroke="currentColor"
