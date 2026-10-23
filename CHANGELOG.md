@@ -40,12 +40,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   member screening. "See all events" counts member screenings too.
 - Members can change their username from Edit profile. Names are 1–30
   characters and must be unique, ignoring case.
+- The scrolling reviews on the home and Movie Reviews pages have round ← and
+  → buttons at the bottom left. A click skips two reviews; pressing and
+  holding scrolls that way at 5× the usual speed until let go. The first
+  review starts in the middle of the screen.
+- A Recent / Top toggle beside the reviews title. Top shows the most liked
+  reviews first (`GET /api/reviews?sort=top`).
+- A "Movies with club reviews only" filter on Browse films. It works with
+  every other filter and sort (`GET /api/films/reviewed`, which takes the
+  same filters as `/api/tmdb/discover`).
+- With that filter on, a "Sort by club ratings" box beside it sorts the
+  films from the highest club rating to the lowest, in place of "Sort by"
+  (`GET /api/films/reviewed?byClubRating=1`).
 
 ### Changed
 - The bio limit is 300 characters (was 280 in the form, 500 on the server).
 - Favourite films on a profile link to their film pages.
 - The film title on a review card links to the film's page.
 - The About section hides "Create an account" for logged-in members.
+- "See all reviews" on the Movie Reviews page opens Browse films with
+  "Movies with club reviews only" turned on.
+- Browse films' rating filter is now "Minimum TMDB rating" and goes in stars
+  out of 5, like club ratings (★ 2.5 to ★ 4.0 and up), instead of out of 10.
 
 ### Fixed
 - An expired login (after 3 days) logs the member out, instead of the site
