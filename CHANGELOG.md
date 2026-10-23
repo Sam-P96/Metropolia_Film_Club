@@ -20,11 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `WheelEntry.js`) to store the wheel entries. No login required for now.
 - Members can like reviews on the review page, and everyone sees the like
   count (`PUT /api/reviews/:id/like`). Each member can like a review once.
-- Review cards have a like button on the author banner. The review lists
+- Review cards have a like button next to "Read more". The review lists
   (`GET /api/reviews`, `/api/films/:tmdbId/reviews`, `/api/users/:id/reviews`)
   now include `likedByMe` for a logged-in member.
 - Moderators and admins can mark a review as containing spoilers, or remove
   the mark, from the review page (`PUT /api/reviews/:id/spoilers`).
+- Members can mark an upcoming event as Attend or Interested, and the event
+  page lists who's attending and who's interested
+  (`PUT /api/events/:id/rsvp`). Members with a private profile are counted
+  but not named.
 - Members can change their username from Edit profile. Names are 1–30
   characters and must be unique, ignoring case.
 
