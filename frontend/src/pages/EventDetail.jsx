@@ -1,19 +1,18 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { deleteEvent, getEvent, setEventRsvp } from '../services/events'
+import { deleteEvent, getEvent, setEventOfficial, setEventRsvp } from '../services/events'
 import useApi from '../hooks/useApi'
 import { getCurrentUser } from '../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../utils/eventDates'
 import { googleCalendarUrl } from '../utils/googleCalendar'
-import { canManageEvents } from '../utils/permissions'
+import { canMakeEventsOfficial, canManageEvent } from '../utils/permissions'
 
 function EventDetail({ isAuthenticated }) {
   const { eventId } = useParams()
   const { data: event, loading, error, setData } = useApi(() => getEvent(eventId), [eventId])
 
   const [currentUser] = useState(getCurrentUser)
-  const canManage = canManageEvents(currentUser)
 
   // A broken gif link shouldn't leave an empty frame on the page.
   const [imageFailed, setImageFailed] = useState(false)
@@ -64,7 +63,14 @@ function EventDetail({ isAuthenticated }) {
             ← Back to club events
           </Link>
 
-          {canManage && <ManageEvent eventId={event._id} />}
+          {canManageEvent(currentUser, event) && (
+            <ManageEvent
+              eventId={event._id}
+              official={event.official}
+              canPromote={canMakeEventsOfficial(currentUser)}
+              onOfficialChange={(official) => setData((prev) => ({ ...prev, official }))}
+            />
+          )}
         </div>
 
         <div className="mt-8 grid items-start gap-12 md:grid-cols-2">
@@ -74,7 +80,7 @@ function EventDetail({ isAuthenticated }) {
                 isPast ? 'text-white/40' : 'text-brand-gold'
               }`}
             >
-              {isPast ? 'Past event' : 'Upcoming event'}
+              {isPast ? 'Past' : 'Upcoming'} {event.official ? 'event' : 'member screening'}
             </p>
 
             <h1 className="mt-3 text-4xl font-bold sm:text-5xl">{event.title}</h1>
@@ -110,6 +116,21 @@ function EventDetail({ isAuthenticated }) {
                     ) : (
                       event.film.title
                     )}
+                  </dd>
+                </div>
+              )}
+
+              {/* A member screening is someone's own; say whose. */}
+              {!event.official && event.host && (
+                <div>
+                  <dt className="text-xs tracking-wider text-white/40 uppercase">Hosted by</dt>
+                  <dd className="mt-1 font-medium">
+                    <Link
+                      to={`/users/${event.host._id}`}
+                      className="text-brand-gold transition-colors hover:text-white"
+                    >
+                      {event.host.username}
+                    </Link>
                   </dd>
                 </div>
               )}
@@ -327,13 +348,29 @@ function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
   )
 }
 
-// Edit and Delete, for moderators and admins. Delete asks first, right where
-// the button was, so a stray click can't remove an event.
-function ManageEvent({ eventId }) {
+// Edit and Delete, for moderators and admins, and for the member who made a
+// member screening. Delete asks first, right where the button was, so a stray
+// click can't remove an event. Moderators and admins also get Promote/Demote.
+function ManageEvent({ eventId, official, canPromote, onOfficialChange }) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [promoting, setPromoting] = useState(false)
   const [error, setError] = useState(null)
+
+  const handlePromote = async () => {
+    setPromoting(true)
+    setError(null)
+
+    try {
+      const result = await setEventOfficial(eventId, !official)
+      onOfficialChange(result.official)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setPromoting(false)
+    }
+  }
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -380,6 +417,16 @@ function ManageEvent({ eventId }) {
         </>
       ) : (
         <>
+          {canPromote && (
+            <button
+              type="button"
+              onClick={handlePromote}
+              disabled={promoting}
+              className={`${buttonClasses} disabled:cursor-wait disabled:opacity-60`}
+            >
+              {official ? 'Demote to member screening' : 'Promote to official'}
+            </button>
+          )}
           <Link to={`/club_events/${eventId}/edit`} className={buttonClasses}>
             Edit
           </Link>

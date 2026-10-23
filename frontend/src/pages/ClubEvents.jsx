@@ -22,6 +22,8 @@ function ClubEvents() {
 
       <PlanToWatchLeaderboard />
 
+      <UpcomingEvents screenings />
+
       <section className="text-white">
         <MovieWheel
           title="The Wheel"

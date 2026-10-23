@@ -5,10 +5,12 @@ import {
   formatShortDate,
 } from '../../utils/eventDates'
 import { googleCalendarUrl } from '../../utils/googleCalendar'
+import EventTypeTag from './EventTypeTag'
 
 // Shared by the club events page and the all-events page, so the two can't
-// drift apart.
-function EventListItem({ event, past = false }) {
+// drift apart. showScreeningTag is off where everything listed is a member
+// screening anyway.
+function EventListItem({ event, past = false, showScreeningTag = true }) {
   return (
     <li
       className={`border-l-2 pl-4 ${
@@ -30,6 +32,7 @@ function EventListItem({ event, past = false }) {
         >
           {event.title}
         </Link>
+        {showScreeningTag && !event.official && <EventTypeTag official={false} className="ml-2" />}
       </p>
 
       <p className="mt-1 text-sm text-white/50">{event.location}</p>

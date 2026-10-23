@@ -4,15 +4,20 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import EventForm from '../components/events/EventForm'
 import { createEvent } from '../services/events'
 import { getCurrentUser } from '../utils/currentUser'
-import { canCreateEvents } from '../utils/permissions'
+import { canCreateEvents, canMakeEventsOfficial } from '../utils/permissions'
 
 function CreateEvent() {
   const [currentUser] = useState(getCurrentUser)
   const navigate = useNavigate()
 
-  // Anyone below moderator who types the URL in gets bounced. The real guard is the
-  // backend refusing POST /api/events without a moderator/admin token.
-  if (!canCreateEvents(currentUser)) return <Navigate to="/club_events" replace />
+  // Logged-out visitors log in first, then come back here. The real guard is
+  // the backend refusing POST /api/events without a login.
+  if (!canCreateEvents(currentUser)) {
+    return <Navigate to="/login" state={{ from: '/club_events/new' }} replace />
+  }
+
+  // Members host member screenings. Moderators and admins choose.
+  const canMakeOfficial = canMakeEventsOfficial(currentUser)
 
   const handleCreate = async (payload) => {
     const created = await createEvent(payload)
@@ -31,16 +36,28 @@ function CreateEvent() {
         </Link>
 
         <h1 className="mt-6 text-3xl font-bold">
-          Create an <span className="text-brand-gold">event</span>
+          {canMakeOfficial ? (
+            <>Create an <span className="text-brand-gold">event</span></>
+          ) : (
+            <>Host a <span className="text-brand-gold">screening</span></>
+          )}
         </h1>
 
         <div className="mt-4 mb-8 h-1 w-10 rounded-full bg-brand-gold" />
 
+        {!canMakeOfficial && (
+          <p className="-mt-2 mb-8 text-sm text-white/60">
+            It'll be listed under Member screenings on the club events page. A
+            moderator may promote it to an official club event.
+          </p>
+        )}
+
         <EventForm
-          submitLabel="Create event"
+          submitLabel={canMakeOfficial ? 'Create event' : 'Create screening'}
           savingLabel="Creating…"
           onSubmit={handleCreate}
           cancelTo="/club_events"
+          canMakeOfficial={canMakeOfficial}
         />
       </div>
     </section>

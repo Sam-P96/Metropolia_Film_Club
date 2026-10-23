@@ -5,7 +5,7 @@ import EventListItem from '../components/events/EventListItem'
 import EventCalendar from '../components/events/EventCalendar'
 import { getPastEvents, getUpcomingEvents } from '../utils/eventDates'
 import { getCurrentUser } from '../utils/currentUser'
-import { canCreateEvents } from '../utils/permissions'
+import { canCreateEvents, canMakeEventsOfficial } from '../utils/permissions'
 import { searchEvents } from '../utils/search'
 import { getEvents } from '../services/events'
 import useApi from '../hooks/useApi'
@@ -54,7 +54,7 @@ function AllEvents() {
               to="/club_events/new"
               className="rounded-md border border-brand-gold/60 px-4 py-2 text-sm font-medium text-brand-gold transition-colors hover:bg-brand-gold/10"
             >
-              + Create event
+              {canMakeEventsOfficial(currentUser) ? '+ Create event' : '+ Host a screening'}
             </Link>
           )}
         </div>

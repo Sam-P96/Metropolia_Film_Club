@@ -18,13 +18,16 @@ export function setEventRsvp(id, rsvp) {
   return api(`/events/${encodeURIComponent(id)}/rsvp`, { method: 'PUT', body: { rsvp } })
 }
 
-// Moderators and admins only for these three; the server checks.
+// Any logged-in member. A member's event is a member screening; a
+// moderator's is official if `official` is true. The server decides.
 export async function createEvent(event) {
   const created = await api('/events', { method: 'POST', body: event })
   clearCache('/events')
   return created
 }
 
+// Editing and deleting: moderators and admins, or the member who made it
+// while it's a member screening. The server checks.
 // Sends the whole event, the same shape as createEvent.
 export async function updateEvent(id, event) {
   const updated = await api(`/events/${encodeURIComponent(id)}`, { method: 'PUT', body: event })
@@ -35,4 +38,15 @@ export async function updateEvent(id, event) {
 export async function deleteEvent(id) {
   await api(`/events/${encodeURIComponent(id)}`, { method: 'DELETE' })
   clearCache('/events')
+}
+
+// Moderators and admins: promote a member screening to an official club
+// event (true), or demote it back (false). Resolves to { official }.
+export async function setEventOfficial(id, official) {
+  const result = await api(`/events/${encodeURIComponent(id)}/official`, {
+    method: 'PUT',
+    body: { official },
+  })
+  clearCache('/events')
+  return result
 }

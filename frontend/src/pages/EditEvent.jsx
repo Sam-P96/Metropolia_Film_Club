@@ -5,21 +5,23 @@ import EventForm from '../components/events/EventForm'
 import { getEvent, updateEvent } from '../services/events'
 import useApi from '../hooks/useApi'
 import { getCurrentUser } from '../utils/currentUser'
-import { canManageEvents } from '../utils/permissions'
+import { canManageEvent } from '../utils/permissions'
 
 function EditEvent() {
   const { eventId } = useParams()
   const [currentUser] = useState(getCurrentUser)
   const navigate = useNavigate()
 
-  const allowed = canManageEvents(currentUser)
   const { data: event, loading, error } = useApi(() => getEvent(eventId), [eventId], {
-    enabled: allowed,
+    enabled: Boolean(currentUser),
   })
 
-  // Same as the create page: bounce anyone below moderator. The backend
-  // refuses their PUT regardless.
-  if (!allowed) return <Navigate to={`/club_events/${eventId}`} replace />
+  // Bounce anyone who can't edit this event back to it: logged out, or not a
+  // moderator and not the member who made it (while it's a member screening).
+  // The backend refuses their PUT regardless.
+  if (!currentUser || (event && !canManageEvent(currentUser, event))) {
+    return <Navigate to={`/club_events/${eventId}`} replace />
+  }
 
   if (loading) {
     return (

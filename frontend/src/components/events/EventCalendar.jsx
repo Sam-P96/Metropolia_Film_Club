@@ -9,6 +9,7 @@ import {
   getMonthCells,
 } from '../../utils/eventDates'
 import { googleCalendarUrl } from '../../utils/googleCalendar'
+import EventTypeTag from './EventTypeTag'
 
 function EventCalendar({ events }) {
   const today = new Date()
@@ -38,6 +39,7 @@ function EventCalendar({ events }) {
   }
 
   const selectedEvents = selected ? (byDay[selected] ?? []) : []
+  const hasScreenings = events.some((event) => !event.official)
 
   const arrowClasses =
     'flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white'
@@ -91,6 +93,17 @@ function EventCalendar({ events }) {
             )
           }
 
+          // Club events are filled with the muted gold, member screenings
+          // outlined in that same gold. A day with both is filled.
+          const hasOfficial = dayEvents.some((event) => event.official)
+          const hasScreening = dayEvents.some((event) => !event.official)
+
+          const dayClasses = isSelected
+            ? 'bg-brand-gold text-ink'
+            : `text-brand-gold ${
+                hasOfficial ? 'bg-brand-gold/15 hover:bg-brand-gold/30' : 'hover:bg-brand-gold/15'
+              } ${hasScreening ? 'ring-2 ring-brand-gold/15 ring-inset' : ''}`
+
           return (
             <button
               key={cell.key}
@@ -98,11 +111,7 @@ function EventCalendar({ events }) {
               onClick={() => setSelected(isSelected ? null : cell.key)}
               aria-pressed={isSelected}
               title={dayEvents.map((event) => event.title).join(', ')}
-              className={`flex aspect-square items-center justify-center rounded-md text-sm font-semibold transition-colors ${
-                isSelected
-                  ? 'bg-brand-gold text-ink'
-                  : 'bg-brand-gold/15 text-brand-gold hover:bg-brand-gold/30'
-              }`}
+              className={`flex aspect-square items-center justify-center rounded-md text-sm font-semibold transition-colors ${dayClasses}`}
             >
               {cell.day}
             </button>
@@ -120,6 +129,7 @@ function EventCalendar({ events }) {
               >
                 {event.title}
               </Link>
+              <EventTypeTag official={event.official} className="ml-2" />
               <p className="mt-1 text-xs text-white/50">
                 {formatEventTime(event.startsAt)} · {event.location}
               </p>
@@ -138,7 +148,9 @@ function EventCalendar({ events }) {
 
       {!selected && (
         <p className="mt-5 border-t border-white/10 pt-4 text-xs text-white/30">
-          Gold days have something on. Tap one for the details.
+          {hasScreenings
+            ? 'Filled days are club events, outlined days are member screenings. Tap one for the details.'
+            : 'Gold days have something on. Tap one for the details.'}
         </p>
       )}
     </div>
