@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { deleteEvent, getEvent } from '../services/events'
+import { deleteEvent, getEvent, setEventRsvp } from '../services/events'
 import useApi from '../hooks/useApi'
 import { getCurrentUser } from '../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../utils/eventDates'
 import { googleCalendarUrl } from '../utils/googleCalendar'
 import { canManageEvents } from '../utils/permissions'
 
-function EventDetail() {
+function EventDetail({ isAuthenticated }) {
   const { eventId } = useParams()
-  const { data: event, loading, error } = useApi(() => getEvent(eventId), [eventId])
+  const { data: event, loading, error, setData } = useApi(() => getEvent(eventId), [eventId])
 
   const [currentUser] = useState(getCurrentUser)
   const canManage = canManageEvents(currentUser)
@@ -67,11 +67,7 @@ function EventDetail() {
           {canManage && <ManageEvent eventId={event._id} />}
         </div>
 
-        <div
-          className={`mt-8 grid gap-12 ${
-            showImage ? 'items-start md:grid-cols-2' : ''
-          }`}
-        >
+        <div className="mt-8 grid items-start gap-12 md:grid-cols-2">
           <div>
             <p
               className={`text-sm font-semibold tracking-widest uppercase ${
@@ -137,22 +133,197 @@ function EventDetail() {
             )}
           </div>
 
-          {showImage && (
-            <div className="-skew-x-6 overflow-hidden rounded-2xl shadow-xl shadow-black/40">
-              <img
-                src={event.gifUrl}
-                alt=""
-                onError={() => setImageFailed(true)}
-                className={`aspect-4/3 w-full skew-x-6 scale-115 object-cover ${
-                  isPast ? 'opacity-60 grayscale' : ''
-                }`}
-              />
-            </div>
-          )}
+          {/* Always here, so the buttons and who's coming show without an image too */}
+          <div>
+            {showImage && (
+              <div className="mb-10 -skew-x-6 overflow-hidden rounded-2xl shadow-xl shadow-black/40">
+                <img
+                  src={event.gifUrl}
+                  alt=""
+                  onError={() => setImageFailed(true)}
+                  className={`aspect-4/3 w-full skew-x-6 scale-115 object-cover ${
+                    isPast ? 'opacity-60 grayscale' : ''
+                  }`}
+                />
+              </div>
+            )}
+
+            <Attendance
+              event={event}
+              isPast={isPast}
+              isAuthenticated={isAuthenticated}
+              myId={currentUser?._id ?? null}
+              onChange={(attendance) => setData((prev) => ({ ...prev, ...attendance }))}
+            />
+          </div>
         </div>
 
       </div>
     </section>
+  )
+}
+
+const RSVPS = [
+  {
+    key: 'attending',
+    countKey: 'attendingCount',
+    button: 'Attend',
+    chosen: '✓ Attending',
+    tab: 'Attending',
+    none: 'Nobody is going yet.',
+    nonePast: 'Nobody said they were going.',
+  },
+  {
+    key: 'interested',
+    countKey: 'interestedCount',
+    button: 'Interested',
+    chosen: '✓ Interested',
+    tab: 'Interested',
+    none: "Nobody has said they're interested yet.",
+    nonePast: 'Nobody said they were interested.',
+  },
+]
+
+// Attend and Interested, and a box listing who picked which. A member picks
+// one or neither; clicking their pick again takes it back. Logged-out
+// visitors are sent to log in first, then back here.
+function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
+  const [shown, setShown] = useState('attending')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const myRsvp = event.myRsvp ?? null
+  const current = RSVPS.find((option) => option.key === shown)
+  const people = event[current.key] ?? []
+  // Members with a private profile are counted but not listed.
+  const hidden = (event[current.countKey] ?? 0) - people.length
+
+  const handleClick = async (rsvp) => {
+    const next = myRsvp === rsvp ? null : rsvp
+    setSaving(true)
+    setError(null)
+
+    try {
+      onChange(await setEventRsvp(event._id, next))
+      // Show them the list they just joined.
+      if (next) setShown(next)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Filled gold for their pick, outlined otherwise, like "Plan to watch".
+  const buttonClasses = (chosen) =>
+    `rounded-md border px-5 py-2.5 text-center text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+      chosen
+        ? 'border-brand-gold bg-brand-gold text-ink hover:bg-brand-gold/85'
+        : 'border-brand-gold/60 text-brand-gold hover:bg-brand-gold/10'
+    }`
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 gap-3">
+        {RSVPS.map((option) => {
+          const chosen = myRsvp === option.key
+
+          return isAuthenticated || isPast ? (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => handleClick(option.key)}
+              disabled={saving || isPast}
+              aria-pressed={chosen}
+              className={buttonClasses(chosen)}
+            >
+              {chosen ? option.chosen : option.button}
+            </button>
+          ) : (
+            <Link
+              key={option.key}
+              to="/login"
+              state={{ from: `/club_events/${event._id}` }}
+              className={buttonClasses(false)}
+            >
+              {option.button}
+            </Link>
+          )
+        })}
+      </div>
+
+      {isPast && (
+        <p className="mt-3 text-sm text-white/40">This event has already happened.</p>
+      )}
+
+      {error && <p className="mt-3 text-sm text-brand-red">{error}</p>}
+
+      <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+        <div className="flex border-b border-white/10">
+          {RSVPS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setShown(option.key)}
+              aria-pressed={shown === option.key}
+              className={`-mb-px flex-1 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                shown === option.key
+                  ? 'border-brand-gold text-white'
+                  : 'border-transparent text-white/50 hover:text-white'
+              }`}
+            >
+              {option.tab}
+              <span className="ml-2 text-white/40">{event[option.countKey] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+
+        {people.length === 0 && hidden === 0 ? (
+          <p className="px-5 py-6 text-sm text-white/40">
+            {isPast ? current.nonePast : current.none}
+          </p>
+        ) : (
+          <ul className="max-h-96 divide-y divide-white/5 overflow-y-auto">
+            {people.map((user) => (
+              <li key={user._id}>
+                <Link
+                  to={`/users/${user._id}`}
+                  className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.username}
+                      className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/20"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-red text-sm font-bold ring-2 ring-white/20">
+                      {user.username[0].toUpperCase()}
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
+                      {user.username}
+                      {user._id === myId && (
+                        <span className="ml-2 text-xs font-normal text-white/40">you</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-white/40">{user.memberTitle}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+
+            {hidden > 0 && (
+              <li className="px-5 py-3 text-xs text-white/40">
+                + {hidden} {hidden === 1 ? 'member' : 'members'} with a private profile
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
+    </div>
   )
 }
 

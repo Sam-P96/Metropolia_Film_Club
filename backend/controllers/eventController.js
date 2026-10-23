@@ -1,7 +1,13 @@
 const mongoose = require("mongoose");
 const Event = require("../models/eventModel");
+const {userSummary} = require("../utils/serialize");
 
 const FIELDS = "title startsAt location description film gifUrl";
+
+// What userSummary needs to draw a member, plus privacy to decide who's named.
+const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy";
+
+const RSVPS = ["attending", "interested"];
 
 // All of them, soonest first. The frontend splits upcoming from past, because
 // "now" is a moment on the viewer's clock.
@@ -10,18 +16,99 @@ async function getEvents(req, res) {
     res.json(events);
 }
 
+// One event with the members attending and interested filled in.
+function findWithPeople(id) {
+    return Event.findById(id)
+        .select(`${FIELDS} attending interested`)
+        .populate("attending interested", MEMBER_FIELDS)
+        .lean();
+}
+
+// Who's going and who's interested, for `viewer` (the member asking, or null).
+// Members with a private profile count but aren't named, unless it's the
+// viewer: the same rule as "Who wants to see this" on a film.
+function attendance(event, viewer) {
+    const viewerId = viewer ? String(viewer._id) : null;
+    const isViewer = (member) => String(member._id) === viewerId;
+
+    // Deleted accounts populate as null. Events from before RSVPs have no lists.
+    const attending = (event.attending ?? []).filter(Boolean);
+    const interested = (event.interested ?? []).filter(Boolean);
+
+    const named = (members) =>
+        members
+            .filter((member) => isViewer(member) || (member.privacy ?? "public") === "public")
+            // The viewer first, then in the order they joined.
+            .sort((a, b) => isViewer(b) - isViewer(a))
+            .map(userSummary);
+
+    let myRsvp = null;
+    if (attending.some(isViewer)) myRsvp = "attending";
+    if (interested.some(isViewer)) myRsvp = "interested";
+
+    return {
+        attending: named(attending),
+        interested: named(interested),
+        attendingCount: attending.length,
+        interestedCount: interested.length,
+        myRsvp,
+    };
+}
+
 async function getEvent(req, res) {
     const {id} = req.params;
+    const event = mongoose.isValidObjectId(id) ? await findWithPeople(id) : null;
+
+    if (!event) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    res.json({...event, ...attendance(event, req.user)});
+}
+
+// The Attend and Interested buttons. Picking one takes the member out of the
+// other; null takes them out of both. Only for events that haven't happened
+// yet. Doesn't touch updatedAt, which means "last edited".
+async function setEventRsvp(req, res) {
+    const {id} = req.params;
+    const rsvp = req.body?.rsvp ?? null;
+
+    if (rsvp !== null && !RSVPS.includes(rsvp)) {
+        return res.status(400).json({error: "Choose attending, interested, or neither."});
+    }
 
     const event = mongoose.isValidObjectId(id)
-        ? await Event.findById(id).select(FIELDS).lean()
+        ? await Event.findById(id).select("startsAt").lean()
         : null;
 
     if (!event) {
         return res.status(404).json({error: "Event not found."});
     }
 
-    res.json(event);
+    if (event.startsAt <= new Date()) {
+        return res.status(400).json({error: "This event has already happened."});
+    }
+
+    const me = req.user._id;
+    let update;
+
+    if (rsvp === "attending") {
+        update = {$addToSet: {attending: me}, $pull: {interested: me}};
+    } else if (rsvp === "interested") {
+        update = {$addToSet: {interested: me}, $pull: {attending: me}};
+    } else {
+        update = {$pull: {attending: me, interested: me}};
+    }
+
+    await Event.updateOne({_id: id}, update, {timestamps: false});
+
+    const updated = await findWithPeople(id);
+
+    if (!updated) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    res.json(attendance(updated, req.user));
 }
 
 function isHttpUrl(value) {
@@ -124,4 +211,4 @@ async function deleteEvent(req, res) {
     res.json({ok: true});
 }
 
-module.exports = {getEvents, getEvent, createEvent, updateEvent, deleteEvent};
+module.exports = {getEvents, getEvent, setEventRsvp, createEvent, updateEvent, deleteEvent};

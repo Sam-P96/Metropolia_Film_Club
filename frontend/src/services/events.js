@@ -6,8 +6,16 @@ export function getEvents() {
   return cachedApi('/events')
 }
 
+// The event, plus who's attending and interested:
+// { ..., attending: [user], interested: [user], attendingCount, interestedCount, myRsvp }
 export function getEvent(id) {
   return api(`/events/${encodeURIComponent(id)}`)
+}
+
+// The Attend / Interested buttons. rsvp is 'attending', 'interested' or null.
+// Resolves to the new { attending, interested, attendingCount, interestedCount, myRsvp }.
+export function setEventRsvp(id, rsvp) {
+  return api(`/events/${encodeURIComponent(id)}/rsvp`, { method: 'PUT', body: { rsvp } })
 }
 
 // Moderators and admins only for these three; the server checks.

@@ -25,6 +25,11 @@ const eventSchema = new Schema(
 
         gifUrl: {type: String, default: null},
         createdBy: {type: Schema.Types.ObjectId, ref: "User", required: true},
+
+        // The Attend and Interested buttons. A member is in at most one of
+        // the two. Only the event page asks for these; lists leave them out.
+        attending: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
+        interested: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
     },
     {timestamps: true}
 );

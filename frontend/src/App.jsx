@@ -91,7 +91,10 @@ function App() {
           <Route path="/club_events/all" element={<AllEvents />} />
           <Route path="/club_events/plan_to_watch" element={<PlanToWatchAll />} />
           <Route path="/club_events/new" element={<CreateEvent />} />
-          <Route path="/club_events/:eventId" element={<EventDetail />} />
+          <Route
+            path="/club_events/:eventId"
+            element={<EventDetail isAuthenticated={isAuthenticated} />}
+          />
           <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
         </Routes>
       </main>
