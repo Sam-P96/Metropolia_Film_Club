@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import FilmFilters from '../components/films/FilmFilters'
 import FilmGrid from '../components/films/FilmGrid'
 import { searchFilms, discoverFilms, getGenres } from '../services/tmdb'
+import { getReviewedFilms } from '../services/films'
 
 const DEFAULT_FILTERS = {
   studio: '420',
@@ -10,6 +11,8 @@ const DEFAULT_FILTERS = {
 }
 
 const FILTER_KEYS = [
+  'reviewed',
+  'byClubRating',
   'studio',
   'genres',
   'excludeGenres',
@@ -46,6 +49,14 @@ function FilmBrowser() {
     filters[key] = searchParams.get(key) || ''
   })
   if (!filters.sort) filters.sort = 'popularity.desc'
+
+  // "Movies with club reviews only" asks our server, which filters the
+  // club's reviewed films itself. Everything else asks TMDB.
+  const fetchPage = (pageNumber) => {
+    if (mode === 'search') return searchFilms(query, pageNumber)
+    if (filters.reviewed) return getReviewedFilms(filters, pageNumber)
+    return discoverFilms(filters, pageNumber)
+  }
 
   // A bare /films lands on the default browse view, written into the URL so it
   // is shareable and the controls match what is on screen.
@@ -85,10 +96,7 @@ function FilmBrowser() {
     setLoading(true)
     setError(null)
 
-    const request =
-      mode === 'search' ? searchFilms(query, 1) : discoverFilms(filters, 1)
-
-    request
+    fetchPage(1)
       .then((data) => {
         if (cancelled) return
         setFilms(data.films)
@@ -129,6 +137,9 @@ function FilmBrowser() {
       next.delete(key)
     }
 
+    // Sorting by club rating goes with "Movies with club reviews only".
+    if (key === 'reviewed' && !value) next.delete('byClubRating')
+
     setSearchParams(next)
   }
 
@@ -160,10 +171,7 @@ function FilmBrowser() {
 
     setLoadingMore(true)
 
-    const request =
-      mode === 'search' ? searchFilms(query, nextPage) : discoverFilms(filters, nextPage)
-
-    request
+    fetchPage(nextPage)
       .then((data) => {
         setFilms((previous) => [...previous, ...data.films])
         setPage(data.page)

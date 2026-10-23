@@ -25,12 +25,14 @@ const SORTS = [
   { value: 'title.asc', label: 'Title A–Z' },
 ]
 
+// Shown in stars out of 5, like club ratings (and TMDB's score on a film's
+// page). The values stay TMDB's out of 10, which is what gets filtered on.
 const MIN_RATINGS = [
   { value: '', label: 'Any rating' },
-  { value: '5', label: '5.0 and up' },
-  { value: '6', label: '6.0 and up' },
-  { value: '7', label: '7.0 and up' },
-  { value: '8', label: '8.0 and up' },
+  { value: '5', label: '★ 2.5 and up' },
+  { value: '6', label: '★ 3.0 and up' },
+  { value: '7', label: '★ 3.5 and up' },
+  { value: '8', label: '★ 4.0 and up' },
 ]
 
 const MIN_VOTES = [
@@ -113,8 +115,30 @@ function FilmFilters({ filters, genres, onChange, onToggleGenre, onClear }) {
     ? filters.excludeGenres.split(',')
     : []
 
+  const reviewedOnly = Boolean(filters.reviewed)
+  // Only the club's reviewed films have club ratings to sort by.
+  const byClubRating = reviewedOnly && Boolean(filters.byClubRating)
+
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        <CheckChip
+          checked={reviewedOnly}
+          onToggle={() => onChange('reviewed', reviewedOnly ? '' : '1')}
+        >
+          Movies with club reviews only
+        </CheckChip>
+
+        {reviewedOnly && (
+          <CheckChip
+            checked={byClubRating}
+            onToggle={() => onChange('byClubRating', byClubRating ? '' : '1')}
+          >
+            Sort by club ratings
+          </CheckChip>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <FilterSelect
@@ -141,11 +165,13 @@ function FilmFilters({ filters, genres, onChange, onToggleGenre, onClear }) {
           onChange={(value) => onChange('certification', value)}
           options={CERTIFICATIONS}
         />
+        {/* "Sort by club ratings" takes over while it's ticked. */}
         <FilterSelect
           label="Sort by"
           value={filters.sort}
           onChange={(value) => onChange('sort', value)}
           options={SORTS}
+          disabled={byClubRating}
         />
       </div>
 
@@ -173,7 +199,7 @@ function FilmFilters({ filters, genres, onChange, onToggleGenre, onClear }) {
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <FilterSelect
-              label="Minimum rating"
+              label="Minimum TMDB rating"
               value={filters.minRating}
               onChange={(value) => onChange('minRating', value)}
               options={MIN_RATINGS}
@@ -241,6 +267,36 @@ function FilmFilters({ filters, genres, onChange, onToggleGenre, onClear }) {
       </div>
 
     </div>
+  )
+}
+
+// A pill with a tick box, for the on/off filters at the top.
+function CheckChip({ checked, onToggle, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={checked}
+      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+        checked
+          ? 'border-brand-gold/60 bg-brand-gold/15 text-brand-gold'
+          : 'border-white/10 bg-white/5 text-white/50 hover:border-white/25 hover:text-white'
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border ${
+          checked ? 'border-brand-gold bg-brand-gold text-ink' : 'border-current'
+        }`}
+      >
+        {checked && (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        )}
+      </span>
+      {children}
+    </button>
   )
 }
 

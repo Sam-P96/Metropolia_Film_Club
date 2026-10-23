@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const FilmLog = require("../models/filmLogModel");
 const Review = require("../models/reviewModel");
-const { getMovie } = require("../services/tmdbService");
+const { getMovie, getMovies } = require("../services/tmdbService");
 const { userSummary, reviewWithUser } = require("../utils/serialize");
 
 // "Top rated by the club" shows every rated film, but ranks them as if each
@@ -181,12 +181,125 @@ async function getMostWanted(req, res) {
     res.json({ films: result.films, total: result.total[0]?.n ?? 0 });
 }
 
-// The newest reviews from anyone, for the homepage and reviews page.
-async function getRecentReviews(req, res) {
+// The browse page's "Movies with club reviews only". TMDB can't be asked for
+// "only these films", so this looks up every reviewed film (cached for a day)
+// and applies the same filters and sorts as TMDB's Discover (routes/tmdb.js)
+// itself. A filter added there needs adding here too.
+const BROWSE_PAGE_SIZE = 20;
+
+// "28,12" -> [28, 12]
+function idList(value) {
+    return value ? String(value).split(",").map(Number).filter(Boolean) : [];
+}
+
+function matchesBrowseFilters(query) {
+    const studios = idList(query.studio);
+    const genres = idList(query.genres);
+    const excludeGenres = idList(query.excludeGenres);
+    const yearFrom = Number(query.yearFrom) || null;
+    const yearTo = Number(query.yearTo) || null;
+    const minRating = Number(query.minRating) || null;
+    const minVotes = Number(query.minVotes) || null;
+    const runtimeMin = Number(query.runtimeMin) || null;
+    const runtimeMax = Number(query.runtimeMax) || null;
+
+    return (film) => {
+        const year = film.releaseDate ? Number(film.releaseDate.slice(0, 4)) : null;
+
+        return (
+            studios.every((id) => film.studioIds.includes(id)) &&
+            genres.every((id) => film.genreIds.includes(id)) &&
+            !excludeGenres.some((id) => film.genreIds.includes(id)) &&
+            (!yearFrom || (year !== null && year >= yearFrom)) &&
+            (!yearTo || (year !== null && year <= yearTo)) &&
+            (!query.certification || film.usCertifications.includes(query.certification)) &&
+            (!minRating || film.tmdbRating >= minRating) &&
+            (!minVotes || film.tmdbVotes >= minVotes) &&
+            (!runtimeMin || film.runtime >= runtimeMin) &&
+            (!runtimeMax || (film.runtime > 0 && film.runtime <= runtimeMax)) &&
+            (!query.language || film.originalLanguage === query.language)
+        );
+    };
+}
+
+// Films with no release date go last either way.
+const BROWSE_SORTS = {
+    "popularity.desc": (a, b) => b.popularity - a.popularity,
+    "release_date.desc": (a, b) => (b.releaseDate || "").localeCompare(a.releaseDate || ""),
+    "release_date.asc": (a, b) => (a.releaseDate || "9999").localeCompare(b.releaseDate || "9999"),
+    "vote_average.desc": (a, b) => b.tmdbRating - a.tmdbRating,
+    "vote_count.desc": (a, b) => b.tmdbVotes - a.tmdbVotes,
+    "revenue.desc": (a, b) => b.revenue - a.revenue,
+    "title.asc": () => 0,
+};
+
+// "Sort by club ratings": the average on each film's card (getFilmStats),
+// highest first, then the film more members rated. Reviewed films nobody
+// has rated go last.
+async function byClubRating(tmdbIds) {
+    const rows = await FilmLog.aggregate([
+        { $match: { tmdbId: { $in: tmdbIds }, rating: { $ne: null } } },
+        { $group: { _id: "$tmdbId", average: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ]);
+
+    const club = new Map(rows.map((row) => [row._id, row]));
+    const average = (film) => club.get(film.tmdbId)?.average ?? 0;
+    const count = (film) => club.get(film.tmdbId)?.count ?? 0;
+
+    return (a, b) => average(b) - average(a) || count(b) - count(a);
+}
+
+// Same shape as a film from /api/tmdb/discover. A page at a time, like TMDB:
+// resolves to { films, page, totalPages, totalResults }.
+async function getReviewedFilms(req, res) {
+    const page = parseLimit(req.query.page, 1, 500);
+
+    const tmdbIds = await Review.distinct("tmdbId");
+
+    // ?byClubRating=1 takes over from ?sort.
+    const compare = req.query.byClubRating
+        ? await byClubRating(tmdbIds)
+        : BROWSE_SORTS[req.query.sort] ?? BROWSE_SORTS["popularity.desc"];
+
+    let films;
+    try {
+        films = (await getMovies(tmdbIds)).filter(Boolean);
+    } catch (error) {
+        console.error("TMDB lookup failed:", error);
+        return res.status(502).json({ error: "Couldn't reach TMDB to look the films up. Try again." });
+    }
+
+    const matching = films
+        .filter(matchesBrowseFilters(req.query))
+        .sort((a, b) => compare(a, b) || a.title.localeCompare(b.title));
+
+    const start = (page - 1) * BROWSE_PAGE_SIZE;
+
+    res.json({
+        films: matching.slice(start, start + BROWSE_PAGE_SIZE).map((film) => ({
+            tmdbId: film.tmdbId,
+            title: film.title,
+            posterPath: film.posterPath,
+            year: film.year,
+            overview: film.overview,
+            tmdbRating: film.tmdbRating,
+            tmdbVotes: film.tmdbVotes,
+            genreIds: film.genreIds,
+        })),
+        page,
+        totalPages: Math.ceil(matching.length / BROWSE_PAGE_SIZE),
+        totalResults: matching.length,
+    });
+}
+
+// Reviews from anyone, for the homepage and reviews page: the newest, or with
+// ?sort=top the most liked (newest first among equals).
+async function getReviews(req, res) {
     const limit = parseLimit(req.query.limit, 15, 50);
+    const order = req.query.sort === "top" ? { likeCount: -1, createdAt: -1 } : { createdAt: -1 };
 
     const reviews = await Review.find()
-        .sort({ createdAt: -1 })
+        .sort(order)
         .limit(limit)
         .populate("user", AUTHOR_FIELDS)
         .lean();
@@ -459,7 +572,8 @@ module.exports = {
     getFilmStats,
     getTopRated,
     getMostWanted,
-    getRecentReviews,
+    getReviewedFilms,
+    getReviews,
     getReview,
     setReviewLiked,
     setReviewSpoilers,

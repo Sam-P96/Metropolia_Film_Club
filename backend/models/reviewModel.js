@@ -31,6 +31,8 @@ const reviewSchema = new Schema(
 reviewSchema.index({user: 1, tmdbId: 1}, {unique: true});
 reviewSchema.index({tmdbId: 1, createdAt: -1});
 reviewSchema.index({createdAt: -1});
+// "Top reviews": most liked first.
+reviewSchema.index({likeCount: -1, createdAt: -1});
 
 // Adds likedByMe to each review in a list (plain .lean() objects): whether
 // `user`, the member asking or null, has liked it. One query for the list.

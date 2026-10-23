@@ -17,8 +17,21 @@ export function getMostWanted(limit, offset = 0) {
   return api(`/films/most-wanted?limit=${limit}&offset=${offset}`)
 }
 
-export function getRecentReviews(limit) {
-  return api(`/reviews?limit=${limit}`)
+// Films with at least one club review, narrowed by the same filters as
+// discoverFilms in tmdb.js. Resolves to { films, page, totalPages, totalResults }.
+export function getReviewedFilms(filters, page = 1) {
+  const params = new URLSearchParams({ page })
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.set(key, value)
+  })
+
+  return api(`/films/reviewed?${params}`)
+}
+
+// sort: 'recent' (newest first) or 'top' (most liked first).
+export function getReviews(limit, sort = 'recent') {
+  return api(`/reviews?limit=${limit}&sort=${sort}`)
 }
 
 export function getReview(id) {

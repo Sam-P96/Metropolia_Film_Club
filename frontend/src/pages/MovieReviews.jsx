@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import SearchBar from '../components/search/SearchBar'
 import TopRatedFilms from '../components/films/TopRatedFilms'
 import ReviewSection from '../components/reviews/ReviewSection'
-import { getRecentReviews, getTopRated } from '../services/films'
+import { getReviews, getTopRated } from '../services/films'
 import useApi from '../hooks/useApi'
 import GifBackground from '../components/GifBackground'
 import reviewsBg from '../assets/giphy.gif'
@@ -11,7 +12,12 @@ import artLoveGif from '../assets/Art Glow GIF by Lucie Mullen.gif'
 
 function MovieReviews() {
   const top = useApi(() => getTopRated(12), [])
-  const recent = useApi(() => getRecentReviews(6), [])
+
+  // Both lists load up front, so the Recent / Top toggle switches straight away.
+  const [reviewSort, setReviewSort] = useState('recent')
+  const recentReviews = useApi(() => getReviews(30), [])
+  const topReviews = useApi(() => getReviews(30, 'top'), [])
+  const reviews = reviewSort === 'top' ? topReviews : recentReviews
 
   return (
     <section className="text-white">
@@ -53,13 +59,17 @@ function MovieReviews() {
         )}
       </div>
 
+      {/* "See all reviews" goes to Browse films, showing only films the
+          club has reviewed. */}
       <ReviewSection
-        title="Recent Reviews"
-        reviews={recent.data ?? []}
-        emptyMessage={recent.loading ? 'Loading reviews…' : undefined}
+        title={reviewSort === 'top' ? 'Top Reviews' : 'Recent Reviews'}
+        reviews={reviews.data ?? []}
+        sort={reviewSort}
+        onSortChange={setReviewSort}
+        emptyMessage={reviews.loading ? 'Loading reviews…' : undefined}
         layout="marquee"
         backgroundUrl={reviewsBg}
-        linkTo="/films?mode=browse&sort=release_date.desc"
+        linkTo="/films?mode=browse&reviewed=1&sort=release_date.desc"
       />
     </section>
   )
