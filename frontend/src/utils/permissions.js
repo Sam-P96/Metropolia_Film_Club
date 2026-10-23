@@ -35,13 +35,28 @@ export function hasAtLeast(currentUser, minimum) {
 
 // Name the permission, not the role. If moderators lose event creation one
 // day, this file changes and none of the components do.
+
+// Anyone logged in can host a member screening.
 export function canCreateEvents(currentUser) {
+  return Boolean(currentUser)
+}
+
+// Creating official club events, and promoting member screenings to official
+// (or demoting them back).
+export function canMakeEventsOfficial(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
 // Editing and deleting any event, not only ones they made.
 export function canManageEvents(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
+}
+
+// Editing and deleting this one event: moderators and admins, or the member
+// who made it while it's still a member screening. Matches the backend.
+export function canManageEvent(currentUser, event) {
+  if (canManageEvents(currentUser)) return true
+  return Boolean(currentUser) && !event.official && event.createdBy === currentUser._id
 }
 
 export function canEditAnyReview(currentUser) {

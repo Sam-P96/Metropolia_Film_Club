@@ -1,4 +1,4 @@
-import { getCurrentUser } from '../utils/currentUser'
+import { getCurrentUser, forgetExpiredLogin } from '../utils/currentUser'
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -26,6 +26,8 @@ export async function api(path, { method = 'GET', body } = {}) {
   const data = await response.json().catch(() => null)
 
   if (!response.ok) {
+    if (response.status === 401 && token) forgetExpiredLogin()
+
     throw new ApiError(data?.error ?? `Request failed (${response.status})`, response.status)
   }
 

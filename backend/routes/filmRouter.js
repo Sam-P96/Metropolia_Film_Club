@@ -3,6 +3,7 @@ const {
     getFilmStats,
     getTopRated,
     getMostWanted,
+    getReviewedFilms,
     getFilmReviews,
     getFilmClub,
     getMyFilm,
@@ -17,9 +18,12 @@ const router = express.Router();
 router.get("/stats", getFilmStats);
 router.get("/top-rated", getTopRated);
 router.get("/most-wanted", getMostWanted);
+// Films with a club review, filtered like /api/tmdb/discover.
+// ?byClubRating=1 sorts by club rating instead.
+router.get("/reviewed", getReviewedFilms);
 
-// One film.
-router.get("/:tmdbId/reviews", getFilmReviews);
+// One film. optionalAuth: a logged-in member learns which reviews they've liked.
+router.get("/:tmdbId/reviews", optionalAuth, getFilmReviews);
 router.get("/:tmdbId/club", optionalAuth, getFilmClub);
 
 // The logged-in member and one film.

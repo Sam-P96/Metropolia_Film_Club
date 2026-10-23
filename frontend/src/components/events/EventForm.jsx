@@ -18,8 +18,16 @@ function toInputValues(iso) {
 
 // Shared by the create and edit pages. With `initialEvent` it starts filled
 // in. `onSubmit` gets the payload and returns a promise; if that rejects, its
-// message is shown and the form stays as it was.
-function EventForm({ initialEvent = null, submitLabel, savingLabel, onSubmit, cancelTo }) {
+// message is shown and the form stays as it was. `canMakeOfficial` adds the
+// "Official club event" box (moderators and admins creating an event).
+function EventForm({
+  initialEvent = null,
+  submitLabel,
+  savingLabel,
+  onSubmit,
+  cancelTo,
+  canMakeOfficial = false,
+}) {
   const initialWhen = initialEvent ? toInputValues(initialEvent.startsAt) : null
 
   const [title, setTitle] = useState(initialEvent?.title ?? '')
@@ -32,6 +40,7 @@ function EventForm({ initialEvent = null, submitLabel, savingLabel, onSubmit, ca
     initialEvent?.film?.tmdbId ? String(initialEvent.film.tmdbId) : ''
   )
   const [gifUrl, setGifUrl] = useState(initialEvent?.gifUrl ?? '')
+  const [official, setOfficial] = useState(true)
 
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -64,6 +73,7 @@ function EventForm({ initialEvent = null, submitLabel, savingLabel, onSubmit, ca
         ? { title: filmTitle.trim(), tmdbId: tmdbId ? Number(tmdbId) : null }
         : null,
       gifUrl: gifUrl.trim() || null,
+      ...(canMakeOfficial && { official }),
     }
 
     setSaving(true)
@@ -192,6 +202,23 @@ function EventForm({ initialEvent = null, submitLabel, savingLabel, onSubmit, ca
           className={inputClasses}
         />
       </div>
+
+      {canMakeOfficial && (
+        <label className="flex items-start gap-3 text-sm text-white/70">
+          <input
+            type="checkbox"
+            checked={official}
+            onChange={(e) => setOfficial(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-brand-gold"
+          />
+          <span>
+            Official club event
+            <span className="mt-1 block text-white/40">
+              Untick to post it as a member screening instead.
+            </span>
+          </span>
+        </label>
+      )}
 
       <div className="flex items-center gap-4">
         <button

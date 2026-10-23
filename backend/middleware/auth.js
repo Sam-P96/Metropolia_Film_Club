@@ -37,12 +37,15 @@ async function optionalAuth(req, res, next) {
     next();
 }
 
-// Use after requireAuth. Each role can do everything the ones below it can.
+// Each role can do everything the ones below it can.
+function hasRole(user, minimum) {
+    return (ROLE_RANK[user?.role] ?? 0) >= ROLE_RANK[minimum];
+}
+
+// Use after requireAuth.
 function requireRole(minimum) {
     return (req, res, next) => {
-        const rank = ROLE_RANK[req.user?.role] ?? 0;
-
-        if (rank < ROLE_RANK[minimum]) {
+        if (!hasRole(req.user, minimum)) {
             return res.status(403).json({ error: "You don't have permission to do that." });
         }
 
@@ -50,4 +53,4 @@ function requireRole(minimum) {
     };
 }
 
-module.exports = { requireAuth, optionalAuth, requireRole };
+module.exports = { requireAuth, optionalAuth, requireRole, hasRole };

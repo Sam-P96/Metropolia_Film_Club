@@ -212,6 +212,7 @@ function EventResult({ event, past = false }) {
           </p>
           <p className="truncate text-xs text-white/40">
             {formatShortDate(event.startsAt)} · {formatEventTime(event.startsAt)}
+            {!event.official && ' · Member screening'}
           </p>
         </div>
       </Link>

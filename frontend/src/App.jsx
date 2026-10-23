@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { LOGIN_EXPIRED_EVENT } from './utils/currentUser';
 import ScrollToTop from './components/ScrollToTop'
 import NavigationBar from './components/NavigationBar'
 import Footer from './components/Footer'
@@ -32,6 +33,13 @@ function App() {
     const user = JSON.parse(localStorage.getItem("user"));
     return user && user.token ? true : false;
   })
+
+  // The server turned down an expired login (see services/api.js).
+  useEffect(() => {
+    const loggedOut = () => setIsAuthenticated(false)
+    window.addEventListener(LOGIN_EXPIRED_EVENT, loggedOut)
+    return () => window.removeEventListener(LOGIN_EXPIRED_EVENT, loggedOut)
+  }, [])
 
   // Where to go once logged in: back to the page that asked for a login
   // (e.g. "Write a review"), otherwise home.
@@ -83,7 +91,10 @@ function App() {
           <Route path="/club_events/all" element={<AllEvents />} />
           <Route path="/club_events/plan_to_watch" element={<PlanToWatchAll />} />
           <Route path="/club_events/new" element={<CreateEvent />} />
-          <Route path="/club_events/:eventId" element={<EventDetail />} />
+          <Route
+            path="/club_events/:eventId"
+            element={<EventDetail isAuthenticated={isAuthenticated} />}
+          />
           <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
         </Routes>
       </main>

@@ -1,6 +1,6 @@
 const express = require("express");
 const {
-    getRecentReviews,
+    getReviews,
     getReview,
     setReviewLiked,
     setReviewSpoilers,
@@ -9,8 +9,9 @@ const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth")
 
 const router = express.Router();
 
-router.get("/", getRecentReviews);
-// Anyone can read a review. A logged-in member also learns if they've liked it.
+// Anyone can read reviews. A logged-in member also learns which they've liked.
+// ?sort=top lists the most liked first instead of the newest.
+router.get("/", optionalAuth, getReviews);
 router.get("/:id", optionalAuth, getReview);
 
 router.put("/:id/like", requireAuth, setReviewLiked);

@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom'
 import { getEvents } from '../../services/events'
 import useApi from '../../hooks/useApi'
 
+// The next official club event. Member screenings have their own section.
 function getNextEvent(allEvents) {
   const now = new Date()
 
   return [...allEvents]
-    .filter((event) => new Date(event.startsAt) > now)
+    .filter((event) => event.official && new Date(event.startsAt) > now)
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))[0]
 }
 

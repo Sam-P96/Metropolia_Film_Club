@@ -22,7 +22,8 @@ async function getMovie(tmdbId) {
     const hit = cache.get(tmdbId);
     if (hit && Date.now() - hit.at < CACHE_MS) return hit.film;
 
-    const response = await fetch(`${TMDB_BASE}/movie/${tmdbId}?language=en-US`, {
+    // release_dates carries the age ratings, which browsing by "Age rating" needs.
+    const response = await fetch(`${TMDB_BASE}/movie/${tmdbId}?language=en-US&append_to_response=release_dates`, {
         headers: tmdbHeaders(),
     });
 
@@ -33,6 +34,8 @@ async function getMovie(tmdbId) {
     }
 
     const film = await response.json();
+
+    const usReleases = (film.release_dates?.results || []).find((entry) => entry.iso_3166_1 === "US");
 
     const result = {
         tmdbId: film.id,
@@ -47,10 +50,40 @@ async function getMovie(tmdbId) {
         studios: (film.production_companies || []).map((company) => company.name),
         tmdbRating: film.vote_average,
         tmdbVotes: film.vote_count,
+
+        // What the browse page's filters and sorts ask about, so a list of
+        // films can be filtered here the way TMDB's Discover would.
+        releaseDate: film.release_date || null,
+        genreIds: (film.genres || []).map((genre) => genre.id),
+        studioIds: (film.production_companies || []).map((company) => company.id),
+        originalLanguage: film.original_language || null,
+        usCertifications: (usReleases?.release_dates || [])
+            .map((release) => release.certification)
+            .filter(Boolean),
+        popularity: film.popularity ?? 0,
+        revenue: film.revenue ?? 0,
     };
 
     cache.set(tmdbId, { at: Date.now(), film: result });
     return result;
 }
 
-module.exports = { TMDB_BASE, tmdbHeaders, getMovie };
+// Several films, a few requests at a time so a long list doesn't trip TMDB's
+// rate limit. Films TMDB doesn't know come back as null.
+async function getMovies(tmdbIds, concurrency = 8) {
+    const films = new Array(tmdbIds.length);
+    let next = 0;
+
+    async function worker() {
+        while (next < tmdbIds.length) {
+            const index = next++;
+            films[index] = await getMovie(tmdbIds[index]);
+        }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, tmdbIds.length) }, worker);
+    await Promise.all(workers);
+    return films;
+}
+
+module.exports = { TMDB_BASE, tmdbHeaders, getMovie, getMovies };

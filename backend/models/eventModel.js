@@ -25,6 +25,17 @@ const eventSchema = new Schema(
 
         gifUrl: {type: String, default: null},
         createdBy: {type: Schema.Types.ObjectId, ref: "User", required: true},
+
+        // An official club event, or a member screening: one a member is
+        // hosting themselves. Moderators can promote and demote between the
+        // two. Events from before member screenings have no value and are
+        // official (only moderators could make them).
+        official: {type: Boolean, default: true},
+
+        // The Attend and Interested buttons. A member is in at most one of
+        // the two. Only the event page asks for these; lists leave them out.
+        attending: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
+        interested: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
     },
     {timestamps: true}
 );
