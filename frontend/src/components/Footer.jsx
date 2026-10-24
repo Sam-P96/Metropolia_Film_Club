@@ -24,6 +24,7 @@ function Footer() {
             <li><NavLink to="/" className={linkClasses}>Home</NavLink></li>
             <li><NavLink to="/club_events" className={linkClasses}>Club Events</NavLink></li>
             <li><NavLink to="/about" className={linkClasses}>About Us</NavLink></li>
+            <li><NavLink to="/privacy" className={linkClasses}>Privacy</NavLink></li>
           </ul>
         </div>
 

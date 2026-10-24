@@ -26,3 +26,14 @@ export async function updateMe(changes) {
   clearCache('/users')
   return profile
 }
+
+// Everything we hold about the logged-in member: account, reviews, film logs.
+export function exportMyData() {
+  return api('/users/me/export')
+}
+
+// Delete the account and all of its data. Cannot be undone.
+export async function deleteMe() {
+  await api('/users/me', { method: 'DELETE' })
+  clearCache('/users')
+}

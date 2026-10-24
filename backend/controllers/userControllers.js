@@ -13,6 +13,10 @@ const BANNER_TYPES = ["color", "image"];
 const BANNER_STYLES = ["glass", "translucent", "opaque"];
 const PRIVACY_OPTIONS = ["public", "friends", "private"];
 
+// Bump this when the privacy policy text changes, so a member's stored
+// consent records which version they agreed to. Matches frontend/src/pages/Privacy.jsx.
+const PRIVACY_POLICY_VERSION = "2026-10-23";
+
 const generateToken = (_id) => {
     return jwt.sign({ _id }, process.env.SECRET, {
         expiresIn: "3d"
@@ -20,12 +24,18 @@ const generateToken = (_id) => {
 }
 
 const signupUser = async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, acceptedPrivacyPolicy } = req.body;
     try {
         //Check missing info
         if (!username || !email || !password) {
             res.status(400);
             throw new Error("Please add all fields");
+        }
+
+        // GDPR: no account without explicit agreement to the privacy policy.
+        if (!acceptedPrivacyPolicy) {
+            res.status(400);
+            throw new Error("Please accept the privacy policy to sign up.");
         }
 
         // Is the email taken?
@@ -45,6 +55,11 @@ const signupUser = async (req, res) => {
             username,
             email,
             password: hashedPassword,
+            consent: {
+                acceptedPrivacyPolicy: true,
+                acceptedAt: new Date(),
+                policyVersion: PRIVACY_POLICY_VERSION,
+            },
         });
 
         // Send back a token
@@ -278,6 +293,51 @@ const updateMe = async (req, res) => {
     res.json(userProfile(user));
 }
 
+// GDPR right of access / portability: everything we hold about the member,
+// as a JSON download. Includes their email (it's their own data); never the
+// password hash.
+const exportMe = async (req, res) => {
+    const userId = req.user._id;
+
+    const [account, reviews, filmLogs] = await Promise.all([
+        User.findById(userId).select("-password").lean(),
+        Review.find({ user: userId }).lean(),
+        FilmLog.find({ user: userId }).lean(),
+    ]);
+
+    if (!account) {
+        return res.status(404).json({ error: "Account not found." });
+    }
+
+    res.json({
+        exportedAt: new Date().toISOString(),
+        account,
+        reviews,
+        filmLogs,
+    });
+}
+
+// GDPR right to erasure: delete the account and everything tied to it. Also
+// removes the member's likes from other people's reviews so the counts stay
+// right. Irreversible.
+const deleteMe = async (req, res) => {
+    const userId = req.user._id;
+
+    try {
+        await Review.updateMany(
+            { likedBy: userId },
+            { $pull: { likedBy: userId }, $inc: { likeCount: -1 } }
+        );
+        await Review.deleteMany({ user: userId });
+        await FilmLog.deleteMany({ user: userId });
+        await User.deleteOne({ _id: userId });
+
+        res.json({ deleted: true });
+    } catch (error) {
+        res.status(500).json({ error: "Could not delete your account. Please try again." });
+    }
+}
+
 module.exports = {
     signupUser,
     loginUser,
@@ -286,4 +346,6 @@ module.exports = {
     getUserReviews,
     getUserFilms,
     updateMe,
+    exportMe,
+    deleteMe,
 }
