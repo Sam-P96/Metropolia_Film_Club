@@ -1,3 +1,5 @@
+import SettingRow from './SettingRow'
+
 // Match the limits in backend/controllers/userControllers.js.
 const USERNAME_LIMIT = 30
 const BIO_LIMIT = 300
@@ -101,6 +103,30 @@ function ProfileEditor({ draft, onChange, onSave, onCancel }) {
               )
             })}
           </div>
+        </div>
+
+        <div className="space-y-5 border-t border-white/10 pt-5">
+          <SettingRow
+            label="PVP"
+            description={
+              draft.pvp
+                ? 'You can like and dislike. Other members with PVP on can dislike your reviews and comments.'
+                : "You can only like, and dislikes you've given stop counting. Nobody can dislike your reviews or comments, and dislikes you already have don't count."
+            }
+            on={draft.pvp}
+            onChange={(on) => onChange('pvp', on)}
+          />
+
+          <SettingRow
+            label="Comments on your reviews"
+            description={
+              draft.allowComments
+                ? 'Members can comment on your reviews. You can still turn them off for one review from its page.'
+                : 'Comments under all your reviews are hidden, not deleted. Turning this back on brings them back.'
+            }
+            on={draft.allowComments}
+            onChange={(on) => onChange('allowComments', on)}
+          />
         </div>
 
       </div>

@@ -1,12 +1,19 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { deleteEvent, getEvent, setEventOfficial, setEventRsvp } from '../services/events'
+import {
+  deleteEvent,
+  getEvent,
+  removeSeat,
+  setEventOfficial,
+  setEventRsvp,
+  setMySeat,
+} from '../services/events'
 import useApi from '../hooks/useApi'
 import { getCurrentUser } from '../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../utils/eventDates'
 import { googleCalendarUrl } from '../utils/googleCalendar'
-import { canMakeEventsOfficial, canManageEvent } from '../utils/permissions'
+import { canMakeEventsOfficial, canManageEvent, canRemoveSeats } from '../utils/permissions'
 
 function EventDetail({ isAuthenticated }) {
   const { eventId } = useParams()
@@ -143,14 +150,27 @@ function EventDetail({ isAuthenticated }) {
             )}
 
             {!isPast && (
-              <a
-                href={googleCalendarUrl(event)}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-10 inline-block rounded-md border border-brand-gold/60 px-4 py-2 text-sm font-medium text-brand-gold transition-colors hover:bg-brand-gold/10"
-              >
-                + Add to Google Calendar
-              </a>
+              <div className="mt-10 flex flex-wrap gap-3">
+                {event.ticketUrl && (
+                  <a
+                    href={event.ticketUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-orange"
+                  >
+                    Purchase Tickets
+                  </a>
+                )}
+
+                <a
+                  href={googleCalendarUrl(event)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md border border-brand-gold/60 px-4 py-2 text-sm font-medium text-brand-gold transition-colors hover:bg-brand-gold/10"
+                >
+                  + Add to Google Calendar
+                </a>
+              </div>
             )}
           </div>
 
@@ -174,6 +194,7 @@ function EventDetail({ isAuthenticated }) {
               isPast={isPast}
               isAuthenticated={isAuthenticated}
               myId={currentUser?._id ?? null}
+              canRemoveSeats={canRemoveSeats(currentUser)}
               onChange={(attendance) => setData((prev) => ({ ...prev, ...attendance }))}
             />
           </div>
@@ -207,8 +228,9 @@ const RSVPS = [
 
 // Attend and Interested, and a box listing who picked which. A member picks
 // one or neither; clicking their pick again takes it back. Logged-out
-// visitors are sent to log in first, then back here.
-function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
+// visitors are sent to log in first, then back here. At a theatre screening
+// (one with a ticket link), the Attending list shows where people are sitting.
+function Attendance({ event, isPast, isAuthenticated, myId, canRemoveSeats, onChange }) {
   const [shown, setShown] = useState('attending')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -218,6 +240,7 @@ function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
   const people = event[current.key] ?? []
   // Members with a private profile are counted but not listed.
   const hidden = (event[current.countKey] ?? 0) - people.length
+  const showSeats = Boolean(event.ticketUrl) && shown === 'attending'
 
   const handleClick = async (rsvp) => {
     const next = myRsvp === rsvp ? null : rsvp
@@ -306,10 +329,13 @@ function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
         ) : (
           <ul className="max-h-96 divide-y divide-white/5 overflow-y-auto">
             {people.map((user) => (
-              <li key={user._id}>
+              <li
+                key={user._id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 transition-colors hover:bg-white/5"
+              >
                 <Link
                   to={`/users/${user._id}`}
-                  className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
+                  className="group flex min-w-0 flex-1 items-center gap-4"
                 >
                   {user.avatarUrl ? (
                     <img
@@ -333,6 +359,16 @@ function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
                     <p className="text-xs text-white/40">{user.memberTitle}</p>
                   </div>
                 </Link>
+
+                {showSeats && (
+                  <SeatControls
+                    eventId={event._id}
+                    member={user}
+                    canEdit={user._id === myId && !isPast}
+                    canRemove={canRemoveSeats}
+                    onChange={onChange}
+                  />
+                )}
               </li>
             ))}
 
@@ -344,6 +380,154 @@ function Attendance({ event, isPast, isAuthenticated, myId, onChange }) {
           </ul>
         )}
       </div>
+    </div>
+  )
+}
+
+// A member's seat at a theatre screening, beside their name. Your own row has
+// "Enter seat", and once entered, your seat opens the editor again. Others'
+// seats are just shown. Moderators and admins can remove anyone's, after
+// confirming. `onChange` gets the new attendance from the server.
+function SeatControls({ eventId, member, canEdit, canRemove, onChange }) {
+  // null, 'editing' or 'confirming' (a removal).
+  const [mode, setMode] = useState(null)
+  const [row, setRow] = useState('')
+  const [seatNumber, setSeatNumber] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const seat = member.seat
+  const label = seat ? `Row ${seat.row} · Seat ${seat.seat}` : null
+
+  const send = async (request) => {
+    setSaving(true)
+    setError(null)
+
+    try {
+      onChange(await request())
+      setMode(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const startEditing = () => {
+    setRow(seat?.row ?? '')
+    setSeatNumber(seat?.seat ?? '')
+    setError(null)
+    setMode('editing')
+  }
+
+  const smallButton =
+    'rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10 disabled:cursor-wait disabled:opacity-60'
+
+  const smallInput =
+    'w-20 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10'
+
+  const errorText = error && <p className="w-full text-xs text-brand-red">{error}</p>
+
+  if (mode === 'editing') {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          send(() => setMySeat(eventId, row, seatNumber))
+        }}
+        className="flex w-full flex-wrap items-center gap-2"
+      >
+        <input
+          aria-label="Row"
+          placeholder="Row"
+          maxLength={10}
+          value={row}
+          onChange={(e) => setRow(e.target.value)}
+          autoFocus
+          className={smallInput}
+        />
+        <input
+          aria-label="Seat"
+          placeholder="Seat"
+          maxLength={10}
+          value={seatNumber}
+          onChange={(e) => setSeatNumber(e.target.value)}
+          className={smallInput}
+        />
+        <button
+          disabled={saving}
+          className="rounded-md bg-brand-red px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" onClick={() => setMode(null)} disabled={saving} className={smallButton}>
+          Cancel
+        </button>
+        {errorText}
+      </form>
+    )
+  }
+
+  if (mode === 'confirming') {
+    return (
+      <div className="flex w-full flex-wrap items-center justify-end gap-2">
+        <span className="text-xs text-white/70">Remove {member.username}'s seat?</span>
+        <button
+          type="button"
+          onClick={() => send(() => removeSeat(eventId, member._id))}
+          disabled={saving}
+          className="rounded-md bg-brand-red px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60"
+        >
+          {saving ? 'Removing…' : 'Yes, remove'}
+        </button>
+        <button type="button" onClick={() => setMode(null)} disabled={saving} className={smallButton}>
+          Cancel
+        </button>
+        {errorText}
+      </div>
+    )
+  }
+
+  if (!canEdit && !seat) return null
+
+  return (
+    <div className="flex items-center gap-2">
+      {canEdit ? (
+        <button
+          type="button"
+          onClick={startEditing}
+          title={seat ? 'Change your seat' : undefined}
+          className={
+            seat
+              ? 'rounded-md border border-brand-gold/40 bg-brand-gold/10 px-3 py-1.5 text-xs font-medium text-brand-gold transition-colors hover:border-brand-gold hover:bg-brand-gold/20'
+              : smallButton
+          }
+        >
+          {label ?? 'Enter seat'}
+        </button>
+      ) : (
+        // The same pill as your own seat, in the member title's grey.
+        <span className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/40">
+          {label}
+        </span>
+      )}
+
+      {canRemove && seat && (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null)
+            setMode('confirming')
+          }}
+          aria-label={`Remove ${member.username}'s seat`}
+          title="Remove seat"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-brand-red/60 text-sm text-brand-red transition-colors hover:bg-brand-red/10"
+        >
+          ×
+        </button>
+      )}
+
+      {errorText}
     </div>
   )
 }

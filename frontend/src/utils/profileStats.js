@@ -17,6 +17,7 @@ export function getProfileStats(reviews) {
 
   return {
     reviewCount: reviews.length,
+    likesReceived: reviews.reduce((sum, review) => sum + (review.likeCount ?? 0), 0),
     averageRating,
     topGenre: ranked.length ? ranked[0][0] : null,
   }

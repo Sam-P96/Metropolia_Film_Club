@@ -1,10 +1,11 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import SearchBar from '../components/search/SearchBar'
 import TopRatedFilms from '../components/films/TopRatedFilms'
 import ReviewSection from '../components/reviews/ReviewSection'
-import { getReviews, getTopRated } from '../services/films'
+import CriticsLeaderboard from '../components/reviews/CriticsLeaderboard'
+import { getTopRated } from '../services/films'
 import useApi from '../hooks/useApi'
+import useReviewSorts from '../hooks/useReviewSorts'
 import GifBackground from '../components/GifBackground'
 import reviewsBg from '../assets/giphy.gif'
 import artLoveGif from '../assets/Art Glow GIF by Lucie Mullen.gif'
@@ -12,12 +13,7 @@ import artLoveGif from '../assets/Art Glow GIF by Lucie Mullen.gif'
 
 function MovieReviews() {
   const top = useApi(() => getTopRated(12), [])
-
-  // Both lists load up front, so the Recent / Top toggle switches straight away.
-  const [reviewSort, setReviewSort] = useState('recent')
-  const recentReviews = useApi(() => getReviews(30), [])
-  const topReviews = useApi(() => getReviews(30, 'top'), [])
-  const reviews = reviewSort === 'top' ? topReviews : recentReviews
+  const reviews = useReviewSorts(30)
 
   return (
     <section className="text-white">
@@ -62,15 +58,17 @@ function MovieReviews() {
       {/* "See all reviews" goes to Browse films, showing only films the
           club has reviewed. */}
       <ReviewSection
-        title={reviewSort === 'top' ? 'Top Reviews' : 'Recent Reviews'}
-        reviews={reviews.data ?? []}
-        sort={reviewSort}
-        onSortChange={setReviewSort}
+        title={reviews.title}
+        reviews={reviews.reviews}
+        sort={reviews.sort}
+        onSortChange={reviews.setSort}
         emptyMessage={reviews.loading ? 'Loading reviews…' : undefined}
         layout="marquee"
         backgroundUrl={reviewsBg}
         linkTo="/films?mode=browse&reviewed=1&sort=release_date.desc"
       />
+
+      <CriticsLeaderboard />
     </section>
   )
 }

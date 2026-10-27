@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const {votable} = require("./votable");
 
 const Schema = mongoose.Schema;
 
@@ -18,34 +19,23 @@ const reviewSchema = new Schema(
         rating: {type: Number, default: null, min: 0.5, max: 5},
         text: {type: String, required: true, trim: true, maxlength: 4000},
         containsSpoilers: {type: Boolean, default: false},
-        likeCount: {type: Number, default: 0},
-        // Who liked it, so nobody can like twice. Left out of every query
-        // unless asked for: cards only need the count, and the list of names
-        // isn't anyone else's business.
-        likedBy: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: [], select: false},
+
+        // The author can turn comments off for this one review. They're
+        // hidden, not deleted. See also allowComments on the user.
+        allowComments: {type: Boolean, default: true},
     },
     {timestamps: true}
 );
+
+// likeCount, dislikeCount, and who voted. See votable.js.
+reviewSchema.plugin(votable);
 
 // A member gets one review per film. Writing again edits the same one.
 reviewSchema.index({user: 1, tmdbId: 1}, {unique: true});
 reviewSchema.index({tmdbId: 1, createdAt: -1});
 reviewSchema.index({createdAt: -1});
-// "Top reviews": most liked first.
+// "Top" reviews: most liked first. "Controversial": most disliked first.
 reviewSchema.index({likeCount: -1, createdAt: -1});
-
-// Adds likedByMe to each review in a list (plain .lean() objects): whether
-// `user`, the member asking or null, has liked it. One query for the list.
-reviewSchema.statics.withLikedByMe = async function (reviews, user) {
-    const liked = user && reviews.length > 0
-        ? await this.find({_id: {$in: reviews.map((review) => review._id)}, likedBy: user._id})
-            .select("_id")
-            .lean()
-        : [];
-
-    const likedIds = new Set(liked.map((review) => String(review._id)));
-
-    return reviews.map((review) => ({...review, likedByMe: likedIds.has(String(review._id))}));
-};
+reviewSchema.index({dislikeCount: -1, createdAt: -1});
 
 module.exports = mongoose.model("Review", reviewSchema);

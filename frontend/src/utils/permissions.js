@@ -59,12 +59,28 @@ export function canManageEvent(currentUser, event) {
   return Boolean(currentUser) && !event.official && event.createdBy === currentUser._id
 }
 
+// The "Theatre Screening Link" box on the event form, which becomes the
+// "Purchase Tickets" button.
+export function canSetTicketLinks(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
+// Removing anyone's seat entry at a theatre screening.
+export function canRemoveSeats(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
 export function canEditAnyReview(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
 // Marking someone else's review as containing spoilers.
 export function canMarkSpoilers(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
+// Deleting anyone's comment. Everyone can delete their own.
+export function canDeleteAnyComment(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 

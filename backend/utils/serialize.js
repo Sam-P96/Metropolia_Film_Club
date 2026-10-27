@@ -2,6 +2,14 @@
 // takes a plain object (a .lean() result), never a Mongoose document.
 
 const DEFAULT_BANNER = { type: "color", color: "#2D1B47", imageUrl: null, style: "opaque" };
+const DEFAULT_LEVEL_STYLE = {
+    textColor: "#FFFFFF",
+    effect: "shadow",
+    effectColor: "#000000",
+    backing: "none",
+    shape: "round",
+    font: "default",
+};
 
 // Accounts created before the banner became an object stored it flattened:
 // reviewCardBanner: "color", value: "#2D1B47". Read both shapes.
@@ -13,6 +21,12 @@ function bannerOf(user) {
     }
 
     return { ...DEFAULT_BANNER, color: user.value || DEFAULT_BANNER.color };
+}
+
+// Saves from before backings had shapes say `glass: true` instead.
+function levelStyleOf(user) {
+    const { glass, ...style } = user.levelStyle ?? {};
+    return { ...DEFAULT_LEVEL_STYLE, ...(glass ? { backing: "glass" } : {}), ...style };
 }
 
 // Older accounts have no joinedAt either, but every ObjectId carries the
@@ -32,6 +46,10 @@ function userSummary(user) {
         memberTitle: user.memberTitle ?? "Member",
         avatarUrl: user.avatarUrl ?? null,
         reviewCardBanner: bannerOf(user),
+        levelStyle: levelStyleOf(user),
+        pvp: user.pvp ?? false,
+        allowComments: user.allowComments ?? true,
+        showRank: user.showRank ?? true,
     };
 }
 
@@ -60,7 +78,12 @@ function restrictedProfile(user) {
 function reviewWithUser(review) {
     const { user, ...rest } = review;
 
-    return { ...rest, userId: user?._id ?? null, user: userSummary(user) };
+    return {
+        ...rest,
+        allowComments: rest.allowComments ?? true,
+        userId: user?._id ?? null,
+        user: userSummary(user),
+    };
 }
 
 module.exports = {

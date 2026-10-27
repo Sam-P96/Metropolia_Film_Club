@@ -29,7 +29,9 @@ export function getReviewedFilms(filters, page = 1) {
   return api(`/films/reviewed?${params}`)
 }
 
-// sort: 'recent' (newest first) or 'top' (most liked first).
+// sort: 'recent' (newest first), 'top' (most liked first) or
+// 'controversial' (most disliked first, members with PVP on only). Each
+// review has likeCount, dislikeCount and myVote ('like', 'dislike' or null).
 export function getReviews(limit, sort = 'recent') {
   return api(`/reviews?limit=${limit}&sort=${sort}`)
 }
@@ -38,9 +40,17 @@ export function getReview(id) {
   return api(`/reviews/${encodeURIComponent(id)}`)
 }
 
-// The like button. Resolves to { likeCount, likedByMe }.
-export function setReviewLiked(id, liked) {
-  return api(`/reviews/${encodeURIComponent(id)}/like`, { method: 'PUT', body: { liked } })
+// The thumbs up / down. vote is 'like', 'dislike' or null.
+// Resolves to { likeCount, dislikeCount, myVote }.
+export function setReviewVote(id, vote) {
+  return api(`/reviews/${encodeURIComponent(id)}/vote`, { method: 'PUT', body: { vote } })
+}
+
+// The Critics Leaderboard: the top 10 members by the likes ('top') or
+// dislikes ('controversial') on their reviews.
+// [{ user, likes, dislikes, reviews }]
+export function getCritics(sort) {
+  return api(`/reviews/critics?sort=${sort}&limit=10`)
 }
 
 // Moderators only. Resolves to { containsSpoilers }.
@@ -48,6 +58,15 @@ export function setReviewSpoilers(id, containsSpoilers) {
   return api(`/reviews/${encodeURIComponent(id)}/spoilers`, {
     method: 'PUT',
     body: { containsSpoilers },
+  })
+}
+
+// The review's author only. Off hides its comments without deleting them.
+// Resolves to { allowComments }.
+export function setReviewAllowComments(id, allowComments) {
+  return api(`/reviews/${encodeURIComponent(id)}/allow-comments`, {
+    method: 'PUT',
+    body: { allowComments },
   })
 }
 
