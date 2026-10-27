@@ -46,6 +46,33 @@ const userSchema = new Schema(
             },
         },
 
+        // How "Level: X" looks on their review card when someone hovers over
+        // their avatar. The fonts match frontend/src/utils/levelStyle.js.
+        levelStyle: {
+            textColor: {type: String, default: "#FFFFFF"},
+            effect: {type: String, enum: ["none", "shadow", "glow"], default: "shadow"},
+            effectColor: {type: String, default: "#000000"},
+            backing: {type: String, enum: ["none", "glass", "frosted"], default: "none"},
+            shape: {type: String, enum: ["round", "rounded", "sharp"], default: "round"},
+            font: {
+                type: String,
+                enum: ["default", "bebas", "cinzel", "playfair", "orbitron", "pixel", "monoton", "pacifico", "marker"],
+                default: "default",
+            },
+        },
+
+        // PVP on: they can dislike, and be disliked by others with it on.
+        // Off: likes only, their dislikes are hidden and don't count.
+        pvp: {type: Boolean, default: false},
+
+        // Off hides the comments under all their reviews (without deleting
+        // them). Each review can also turn its own off.
+        allowComments: {type: Boolean, default: true},
+
+        // A gold, silver or bronze ring around their avatar on review cards
+        // while they're in the top 3 on the Critics Leaderboard.
+        showRank: {type: Boolean, default: true},
+
         privacy: {
             type: String,
             enum: ["public", "friends", "private"],

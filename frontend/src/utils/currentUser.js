@@ -22,6 +22,13 @@ export function getCurrentUserId() {
   return getCurrentUser()?._id ?? null
 }
 
+// Keeps the stored login in step when the member changes a setting it
+// carries, like PVP.
+export function updateCurrentUser(changes) {
+  const user = getCurrentUser()
+  if (user) localStorage.setItem('user', JSON.stringify({ ...user, ...changes }))
+}
+
 // Logins expire after 3 days, but the stored one stays until it's removed.
 // When the server turns it down, forget it and tell App.jsx, so the whole
 // site shows the member as logged out instead of failing every request.

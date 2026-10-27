@@ -12,7 +12,7 @@ async function userFromRequest(req) {
 
     try {
         const { _id } = jwt.verify(token, process.env.SECRET);
-        return await User.findById(_id).select("_id username role privacy").lean();
+        return await User.findById(_id).select("_id username role privacy pvp").lean();
     } catch {
         return null;
     }

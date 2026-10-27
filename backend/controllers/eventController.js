@@ -3,12 +3,14 @@ const Event = require("../models/eventModel");
 const {userSummary} = require("../utils/serialize");
 const {hasRole} = require("../middleware/auth");
 
-const FIELDS = "title startsAt location description film gifUrl official createdBy";
+const FIELDS = "title startsAt location description film gifUrl ticketUrl official createdBy";
 
 // What userSummary needs to draw a member, plus privacy to decide who's named.
 const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy";
 
 const RSVPS = ["attending", "interested"];
+
+const MAX_SEAT_LENGTH = 10;
 
 // Events from before member screenings have no `official` value. Only
 // moderators could make events then, so they're official.
@@ -33,7 +35,7 @@ async function getEvents(req, res) {
 // One event with its host and the members attending and interested filled in.
 function findWithPeople(id) {
     return Event.findById(id)
-        .select(`${FIELDS} attending interested`)
+        .select(`${FIELDS} attending interested seats`)
         .populate("createdBy attending interested", MEMBER_FIELDS)
         .lean();
 }
@@ -60,8 +62,17 @@ function attendance(event, viewer) {
     if (attending.some(isViewer)) myRsvp = "attending";
     if (interested.some(isViewer)) myRsvp = "interested";
 
+    // At a theatre screening, each attending member's seat goes beside their
+    // name, so a private member's seat is hidden along with them.
+    const seats = new Map(
+        (event.seats ?? []).map((entry) => [String(entry.user), {row: entry.row, seat: entry.seat}])
+    );
+
     return {
-        attending: named(attending),
+        attending: named(attending).map((member) => ({
+            ...member,
+            seat: seats.get(String(member._id)) ?? null,
+        })),
         interested: named(interested),
         attendingCount: attending.length,
         interestedCount: interested.length,
@@ -78,11 +89,13 @@ async function getEvent(req, res) {
     }
 
     // createdBy stays an id, as in the list; host is who to show. Null if
-    // their account has since been deleted.
+    // their account has since been deleted. The seats come back on the
+    // attending members instead (see attendance).
+    const {seats: _seats, ...details} = event;
     const host = event.createdBy;
 
     res.json({
-        ...withDefaults(event),
+        ...withDefaults(details),
         createdBy: host?._id ?? null,
         host: userSummary(host),
         ...attendance(event, req.user),
@@ -90,8 +103,9 @@ async function getEvent(req, res) {
 }
 
 // The Attend and Interested buttons. Picking one takes the member out of the
-// other; null takes them out of both. Only for events that haven't happened
-// yet. Doesn't touch updatedAt, which means "last edited".
+// other; null takes them out of both. No longer attending also clears their
+// seat. Only for events that haven't happened yet. Doesn't touch updatedAt,
+// which means "last edited".
 async function setEventRsvp(req, res) {
     const {id} = req.params;
     const rsvp = req.body?.rsvp ?? null;
@@ -118,12 +132,95 @@ async function setEventRsvp(req, res) {
     if (rsvp === "attending") {
         update = {$addToSet: {attending: me}, $pull: {interested: me}};
     } else if (rsvp === "interested") {
-        update = {$addToSet: {interested: me}, $pull: {attending: me}};
+        update = {$addToSet: {interested: me}, $pull: {attending: me, seats: {user: me}}};
     } else {
-        update = {$pull: {attending: me, interested: me}};
+        update = {$pull: {attending: me, interested: me, seats: {user: me}}};
     }
 
     await Event.updateOne({_id: id}, update, {timestamps: false});
+
+    const updated = await findWithPeople(id);
+
+    if (!updated) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    res.json(attendance(updated, req.user));
+}
+
+// "Enter seat" at a theatre screening: a row and seat for the member asking.
+// Only members attending can, and only before it starts. Saving again
+// changes their entry. Answers like setEventRsvp. Doesn't touch updatedAt.
+async function setMySeat(req, res) {
+    const {id} = req.params;
+    const row = String(req.body?.row ?? "").trim();
+    const seat = String(req.body?.seat ?? "").trim();
+
+    if (!row || !seat || row.length > MAX_SEAT_LENGTH || seat.length > MAX_SEAT_LENGTH) {
+        return res.status(400).json({error: `Enter a row and a seat, up to ${MAX_SEAT_LENGTH} characters each.`});
+    }
+
+    const event = mongoose.isValidObjectId(id)
+        ? await Event.findById(id).select("startsAt ticketUrl attending").lean()
+        : null;
+
+    if (!event) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    if (!event.ticketUrl) {
+        return res.status(400).json({error: "Seats are only for theatre screenings."});
+    }
+
+    if (event.startsAt <= new Date()) {
+        return res.status(400).json({error: "This event has already happened."});
+    }
+
+    const me = req.user._id;
+
+    if (!(event.attending ?? []).some((member) => String(member) === String(me))) {
+        return res.status(400).json({error: "Mark yourself as attending first."});
+    }
+
+    // Change their entry if they have one, otherwise add one. The $ne stops
+    // a double click adding two.
+    const changed = await Event.updateOne(
+        {_id: id, "seats.user": me},
+        {$set: {"seats.$.row": row, "seats.$.seat": seat}},
+        {timestamps: false}
+    );
+
+    if (changed.matchedCount === 0) {
+        await Event.updateOne(
+            {_id: id, "seats.user": {$ne: me}},
+            {$push: {seats: {user: me, row, seat}}},
+            {timestamps: false}
+        );
+    }
+
+    const updated = await findWithPeople(id);
+
+    if (!updated) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    res.json(attendance(updated, req.user));
+}
+
+// Moderators and admins removing someone's seat entry; the router checks.
+// They stay attending. Answers like setEventRsvp.
+async function removeSeat(req, res) {
+    const {id, userId} = req.params;
+
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(userId)) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    await Event.updateOne(
+        {_id: id},
+        {$pull: {seats: {user: new mongoose.Types.ObjectId(userId)}}},
+        {timestamps: false}
+    );
 
     const updated = await findWithPeople(id);
 
@@ -145,7 +242,8 @@ function isHttpUrl(value) {
 
 // Turns a request body into event fields, or { error } for the first bad
 // value. Creating and editing send the same complete form, so they share it.
-function eventFields(body) {
+// `user` is who's saving: only moderators and admins set the ticket link.
+function eventFields(body, user) {
     const title = String(body.title ?? "").trim();
     const startsAt = new Date(body.startsAt);
     const location = String(body.location ?? "").trim();
@@ -171,7 +269,21 @@ function eventFields(body) {
         ? {title: filmTitle, tmdbId: Number.isInteger(filmTmdbId) && filmTmdbId > 0 ? filmTmdbId : null}
         : null;
 
-    return {fields: {title, startsAt, location, description, film, gifUrl}};
+    const fields = {title, startsAt, location, description, film, gifUrl};
+
+    // Anyone else's form doesn't have the box. Leaving it out of `fields`
+    // keeps the link as it was when they edit.
+    if (hasRole(user, "moderator")) {
+        const ticketUrl = String(body.ticketUrl ?? "").trim() || null;
+
+        if (ticketUrl && (!isHttpUrl(ticketUrl) || ticketUrl.length > 1000)) {
+            return {error: "The theatre screening link must be a web address starting with http:// or https://."};
+        }
+
+        fields.ticketUrl = ticketUrl;
+    }
+
+    return {fields};
 }
 
 function validationMessage(error) {
@@ -183,7 +295,7 @@ const NOT_YOURS = "Only moderators can change this event. Members can change the
 // Any logged-in member. What a member makes is a member screening; a
 // moderator's or admin's event is official unless they untick the box.
 async function createEvent(req, res) {
-    const {fields, error} = eventFields(req.body ?? {});
+    const {fields, error} = eventFields(req.body ?? {}, req.user);
 
     if (error) {
         return res.status(400).json({error});
@@ -215,7 +327,7 @@ async function updateEvent(req, res) {
         return res.status(403).json({error: NOT_YOURS});
     }
 
-    const {fields, error} = eventFields(req.body ?? {});
+    const {fields, error} = eventFields(req.body ?? {}, req.user);
 
     if (error) {
         return res.status(400).json({error});
@@ -276,6 +388,8 @@ module.exports = {
     getEvents,
     getEvent,
     setEventRsvp,
+    setMySeat,
+    removeSeat,
     setEventOfficial,
     createEvent,
     updateEvent,

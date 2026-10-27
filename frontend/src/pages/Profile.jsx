@@ -10,7 +10,7 @@ import FilmSearchPicker from '../components/profile/FilmSearchPicker'
 import Watchlist from '../components/profile/Watchlist'
 import { getUser, getUserFilms, getUserReviews, updateMe, exportMyData, deleteMe } from '../services/users'
 import useApi from '../hooks/useApi'
-import { getCurrentUser } from '../utils/currentUser'
+import { getCurrentUser, updateCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
 import { isWanted } from '../utils/watchlist'
 
@@ -21,9 +21,13 @@ const EDITABLE_FIELDS = [
   'username',
   'bio',
   'privacy',
+  'pvp',
+  'allowComments',
   'memberTitle',
   'avatarUrl',
   'reviewCardBanner',
+  'levelStyle',
+  'showRank',
   'favouriteFilms',
 ]
 
@@ -147,6 +151,8 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
 
     try {
       const saved = await updateMe(changes)
+      // The like and dislike buttons read PVP from the stored login.
+      updateCurrentUser({ pvp: saved.pvp })
       onSaved(saved)
       setDraft(null)
       setEditing(null)
@@ -205,7 +211,9 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
 
   const userReviews = reviewsResult.data ?? []
 
-  const stats = getProfileStats(userReviews)
+  // The level comes from the server, which works it out the same way for
+  // every review card.
+  const stats = { ...getProfileStats(userReviews), level: profileUser.level }
 
   const watchlist = (filmsResult.data ?? [])
     .filter(isWanted)
@@ -223,6 +231,7 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
       : `${profileUser.username} hasn't written a review yet.`,
     containsSpoilers: false,
     likeCount: 0,
+    dislikeCount: 0,
     createdAt: new Date().toISOString(),
   }
 
@@ -245,7 +254,8 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
 
           {/* Left column: card + edit buttons only */}
           <div className="w-120 max-w-full shrink-0">
-            <ReviewCard review={showcaseReview} />
+            {/* While the card is being edited, its level text stays visible as a preview. */}
+            <ReviewCard review={showcaseReview} showLevel={editing === 'card'} />
 
             {isOwner && editing === null && (
               <div className="mt-5 flex flex-wrap gap-3">

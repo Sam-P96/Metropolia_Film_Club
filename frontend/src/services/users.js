@@ -20,7 +20,8 @@ export function getUserFilms(id) {
 }
 
 // Only the fields a member may change: bio, privacy, memberTitle, avatarUrl,
-// reviewCardBanner, favouriteFilms. Resolves to the saved profile.
+// reviewCardBanner, levelStyle, pvp, allowComments, favouriteFilms. Resolves
+// to the saved profile.
 export async function updateMe(changes) {
   const profile = await api('/users/me', { method: 'PATCH', body: changes })
   clearCache('/users')

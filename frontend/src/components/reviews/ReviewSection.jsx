@@ -3,13 +3,16 @@ import { Link } from "react-router-dom";
 import ReviewCard from "./ReviewCard";
 import ReviewMarquee from "./ReviewMarquee";
 import MarqueeArrows from "./MarqueeArrows";
+import PillToggle from "../PillToggle";
 
 const SORTS = [
   { value: "recent", label: "Recent" },
   { value: "top", label: "Top" },
+  { value: "controversial", label: "Controversial" },
 ];
 
-// Pass sort and onSortChange to show a Recent / Top toggle beside the title.
+// Pass sort and onSortChange to show a Recent / Top / Controversial toggle
+// beside the title.
 function ReviewSection({
   title,
   reviews,
@@ -17,7 +20,7 @@ function ReviewSection({
   backgroundUrl,
   linkTo,
   linkText = "See all reviews",
-  emptyMessage = "No reviews yet. Be the first to write one.",
+  emptyMessage = "No reviews here.",
   sort,
   onSortChange,
 }) {
@@ -43,7 +46,9 @@ function ReviewSection({
             {title}
           </h2>
 
-          {onSortChange && <SortToggle sort={sort} onChange={onSortChange} />}
+          {onSortChange && (
+            <PillToggle options={SORTS} value={sort} onChange={onSortChange} label="Sort reviews" />
+          )}
         </div>
 
         {reviews.length === 0 && (
@@ -83,35 +88,6 @@ function ReviewSection({
         )}
       </div>
     </section>
-  );
-}
-
-// A small dark glass pill: "Recent | Top".
-function SortToggle({ sort, onChange }) {
-  return (
-    <div
-      role="group"
-      aria-label="Sort reviews"
-      className="flex rounded-full border border-white/15 bg-ink/60 p-0.5 backdrop-blur-md"
-    >
-      {SORTS.map((option) => {
-        const active = sort === option.value;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            aria-pressed={active}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${
-              active ? "bg-brand-gold text-ink" : "text-white/60 hover:text-white"
-            }`}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

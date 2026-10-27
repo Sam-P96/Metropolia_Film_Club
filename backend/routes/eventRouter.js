@@ -3,6 +3,8 @@ const {
     getEvents,
     getEvent,
     setEventRsvp,
+    setMySeat,
+    removeSeat,
     setEventOfficial,
     createEvent,
     updateEvent,
@@ -17,8 +19,13 @@ router.get("/", getEvents);
 // in the lists even with a private profile.
 router.get("/:id", optionalAuth, getEvent);
 
-// Any logged-in member.
+// Any logged-in member. Seats are for members attending a theatre screening;
+// the controller checks that.
 router.put("/:id/rsvp", requireAuth, setEventRsvp);
+router.put("/:id/seat", requireAuth, setMySeat);
+
+// Moderators and admins: remove anyone's seat entry.
+router.delete("/:id/seats/:userId", requireAuth, requireRole("moderator"), removeSeat);
 
 // Any logged-in member can make an event (a member screening). Who may edit
 // or delete one depends on the event, so the controller checks that. The

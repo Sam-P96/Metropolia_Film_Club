@@ -24,6 +24,12 @@ const eventSchema = new Schema(
         },
 
         gifUrl: {type: String, default: null},
+
+        // The "Purchase Tickets" button, for a screening at a theatre. Only
+        // moderators and admins set it. An event with one is a theatre
+        // screening, where attending members can say where they're sitting.
+        ticketUrl: {type: String, default: null},
+
         createdBy: {type: Schema.Types.ObjectId, ref: "User", required: true},
 
         // An official club event, or a member screening: one a member is
@@ -36,6 +42,22 @@ const eventSchema = new Schema(
         // the two. Only the event page asks for these; lists leave them out.
         attending: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
         interested: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
+
+        // Where attending members are sitting at a theatre screening, one
+        // entry each. Like the lists above, only the event page asks.
+        seats: {
+            type: [
+                new Schema(
+                    {
+                        user: {type: Schema.Types.ObjectId, ref: "User", required: true},
+                        row: {type: String, required: true, trim: true, maxlength: 10},
+                        seat: {type: String, required: true, trim: true, maxlength: 10},
+                    },
+                    {_id: false}
+                ),
+            ],
+            default: [],
+        },
     },
     {timestamps: true}
 );

@@ -3,6 +3,9 @@
 @theme {
   --color-brand-red: #C7253E;
   --color-brand-gold: #FABC3F;
+  /* With brand gold, the rank rings for the top 3 critics */
+  --color-brand-silver: #C9D1DB;
+  --color-brand-bronze: #CD7F32;
   --color-brand-maroon: #821131;
   --color-brand-orange: #E85C0D;
 
@@ -10,7 +13,7 @@
   --color-ink-light: #1A1024;
   --color-plum: #2D1B47;
 
-  /* The heart on a review card's like button, when it's liked */
+  /* A thumb on the like and dislike buttons, when it's picked */
   --animate-like-pop: like-pop 0.38s ease-out;
 
   @keyframes like-pop {

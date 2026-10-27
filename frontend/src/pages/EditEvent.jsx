@@ -5,7 +5,7 @@ import EventForm from '../components/events/EventForm'
 import { getEvent, updateEvent } from '../services/events'
 import useApi from '../hooks/useApi'
 import { getCurrentUser } from '../utils/currentUser'
-import { canManageEvent } from '../utils/permissions'
+import { canManageEvent, canSetTicketLinks } from '../utils/permissions'
 
 function EditEvent() {
   const { eventId } = useParams()
@@ -77,6 +77,7 @@ function EditEvent() {
           savingLabel="Saving…"
           onSubmit={handleSave}
           cancelTo={`/club_events/${eventId}`}
+          canSetTicketLink={canSetTicketLinks(currentUser)}
         />
       </div>
     </section>

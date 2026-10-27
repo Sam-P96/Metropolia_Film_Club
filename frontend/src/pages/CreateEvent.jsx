@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import EventForm from '../components/events/EventForm'
 import { createEvent } from '../services/events'
 import { getCurrentUser } from '../utils/currentUser'
-import { canCreateEvents, canMakeEventsOfficial } from '../utils/permissions'
+import { canCreateEvents, canMakeEventsOfficial, canSetTicketLinks } from '../utils/permissions'
 
 function CreateEvent() {
   const [currentUser] = useState(getCurrentUser)
@@ -58,6 +58,7 @@ function CreateEvent() {
           onSubmit={handleCreate}
           cancelTo="/club_events"
           canMakeOfficial={canMakeOfficial}
+          canSetTicketLink={canSetTicketLinks(currentUser)}
         />
       </div>
     </section>

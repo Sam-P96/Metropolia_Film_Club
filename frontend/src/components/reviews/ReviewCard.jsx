@@ -1,55 +1,31 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import StarRating from './StarRating'
-import { setReviewLiked } from '../../services/films'
+import VoteButtons, { VoteBar } from './VoteButtons'
+import { setReviewVote } from '../../services/films'
 import { timeAgo } from '../../utils/timeAgo'
-import { getCurrentUser } from '../../utils/currentUser'
+import { levelTextStyle } from '../../utils/levelStyle'
+import { bannerLayerStyle } from '../../utils/bannerStyle'
+import { RANK_TITLES, rankRing } from '../../utils/rankRings'
 
-const BANNER_ALPHA = {
-  opaque: 1,
-  translucent: 0.55,
-  glass: 0.35,
-}
-
-function bannerLayerStyle(banner) {
-  if (!banner) return {}
-
-  const style = banner.style || 'opaque'
-  const alpha = BANNER_ALPHA[style] ?? 1
-
-  const base =
-    banner.type === 'image' && banner.imageUrl
-      ? {
-          backgroundImage: `url(${banner.imageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }
-      : { backgroundColor: banner.color || '#2D1B47' }
-
-  const glassExtras =
-    style === 'glass'
-      ? {
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.18)',
-        }
-      : {}
-
-  return { ...base, opacity: alpha, ...glassExtras }
-}
-
-function ReviewCard({ review, onLikeChange }) {
+// showLevel keeps "Level: X" on screen, for the preview while editing the card.
+function ReviewCard({ review, onVoteChange, showLevel = false }) {
   const { user } = review
 
   // The profile's "No reviews yet" stand-in has no film, so there's nothing
-  // to link to or like.
+  // to link to or vote on.
   const isPlaceholder = !review.tmdbId
 
-  // A list that shows the same review twice (the marquee) keeps the likes
-  // itself and passes onLikeChange, so both copies agree. Otherwise the card
+  // A list that shows the same review twice (the marquee) keeps the votes
+  // itself and passes onVoteChange, so both copies agree. Otherwise the card
   // remembers them.
-  const [ownLikes, setOwnLikes] = useState(null)
-  const likes = onLikeChange ? review : (ownLikes ?? review)
+  const [ownVotes, setOwnVotes] = useState(null)
+  const votes = onVoteChange ? review : (ownVotes ?? review)
+
+  // The top 3 on the Critics Leaderboard (Top), unless they've turned
+  // "Ranking" off.
+  const rank = user.showRank ? user.rank : null
+  const ring = rankRing(rank)
 
   const posterUrl = review.posterPath
     ? `https://image.tmdb.org/t/p/w342${review.posterPath}`
@@ -77,8 +53,9 @@ function ReviewCard({ review, onLikeChange }) {
         {/* The poster sets the card's height (2:3 at its width), so it's never
             cropped and every card is the same height. contain-size keeps the text
             from making the row taller; the tallest case (two-line title, full
-            review preview) still fits, and short titles leave the slack above "Read more" */}
-        <div className="flex min-w-0 flex-1 flex-col p-5 contain-size">
+            review preview) still fits, and short titles leave the slack above "Read more".
+            It's also a container, so the vote percentages hide when it's narrow. */}
+        <div className="@container flex min-w-0 flex-1 flex-col p-5 contain-size">
           <div className="mb-1 flex items-start justify-between gap-3">
             <h3 className="line-clamp-2 text-lg leading-tight font-semibold">
               {isPlaceholder ? review.filmTitle : (
@@ -117,14 +94,29 @@ function ReviewCard({ review, onLikeChange }) {
             </p>
           )}
 
-          <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pt-4">
             {!isPlaceholder && (
-              <LikeButton
-                reviewId={review._id}
-                likeCount={likes.likeCount ?? 0}
-                likedByMe={likes.likedByMe ?? false}
-                onChange={onLikeChange ?? setOwnLikes}
-              />
+              // The share of likes to dislikes, just under the buttons and as
+              // wide as them. Positioned so it doesn't make the card taller.
+              // Dislikes count as 0 when the author has PVP off.
+              <div className="relative">
+                <VoteButtons
+                  likeCount={votes.likeCount ?? 0}
+                  dislikeCount={votes.dislikeCount ?? 0}
+                  myVote={votes.myVote ?? null}
+                  send={(vote) => setReviewVote(review._id, vote)}
+                  onChange={onVoteChange ?? setOwnVotes}
+                  sharesClassName="hidden @3xs:inline"
+                  allowDislikes={user.pvp}
+                />
+
+                <VoteBar
+                  likeCount={votes.likeCount ?? 0}
+                  dislikeCount={votes.dislikeCount ?? 0}
+                  allowDislikes={user.pvp}
+                  className="absolute inset-x-0 -bottom-1.5 overflow-hidden rounded-full"
+                />
+              </div>
             )}
 
             <Link
@@ -136,13 +128,15 @@ function ReviewCard({ review, onLikeChange }) {
           </div>
         </div>
       </div>
+      
 
       <div className="relative border-t border-white/10">
+      
         <div
           className="absolute inset-0"
           style={bannerLayerStyle(user.reviewCardBanner)}
         />
-
+      
         <div className="absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80" />
 
         <Link
@@ -160,93 +154,34 @@ function ReviewCard({ review, onLikeChange }) {
             <img
               src={user.avatarUrl}
               alt={user.username}
-              className="h-12 w-12 rounded-full object-cover ring-2 ring-white/20"
+              title={RANK_TITLES[rank]}
+              className={`peer h-12 w-12 rounded-full object-cover ${ring}`}
             />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-red font-bold ring-2 ring-white/20">
+            <div
+              title={RANK_TITLES[rank]}
+              className={`peer flex h-12 w-12 items-center justify-center rounded-full bg-brand-red font-bold ${ring}`}
+            >
               {user.username[0].toUpperCase()}
             </div>
+          )}
+
+          {/* On the left of the banner, fading in while the avatar (the peer
+              just before it) is hovered. */}
+          {user.level != null && (
+            <span
+              className={`pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-lg leading-snug whitespace-nowrap transition-opacity duration-300 ${
+                showLevel ? 'opacity-100' : 'opacity-0 peer-hover:opacity-100'
+              }`}
+              style={levelTextStyle(user.levelStyle)}
+            >
+              Level: {user.level}
+            </span>
           )}
         </Link>
       </div>
 
     </article>
-  )
-}
-
-// 999, then 1k, 1.2k, 12.5k… so the button stays small.
-const compactNumber = new Intl.NumberFormat('en', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
-
-// A small dark glass pill beside "Read more", no taller than that link.
-// Logged-out visitors are sent to log in, then back.
-function LikeButton({ reviewId, likeCount, likedByMe, onChange }) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [saving, setSaving] = useState(false)
-  const [popping, setPopping] = useState(false)
-
-  const goToLogin = () =>
-    navigate('/login', { state: { from: location.pathname + location.search } })
-
-  const handleClick = async () => {
-    if (!getCurrentUser()) {
-      goToLogin()
-      return
-    }
-
-    if (saving) return
-
-    const before = { likeCount, likedByMe }
-    const liked = !likedByMe
-
-    // Show it straight away, then settle on what the server says.
-    onChange({ likeCount: likeCount + (liked ? 1 : -1), likedByMe: liked })
-    setPopping(liked)
-    setSaving(true)
-
-    try {
-      onChange(await setReviewLiked(reviewId, liked))
-    } catch (err) {
-      onChange(before)
-      if (err.status === 401) goToLogin()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-pressed={likedByMe}
-      aria-label={`Like this review, ${likeCount} ${likeCount === 1 ? 'like' : 'likes'}`}
-      className={`flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md transition duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold active:scale-95 ${
-        likedByMe
-          ? 'border-white/55 bg-[rgba(14,8,20,0.74)] text-white hover:border-white/75'
-          : 'border-white/20 bg-[rgba(14,8,20,0.62)] text-[#d8cfe3] hover:border-white/35 hover:text-white'
-      }`}
-    >
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 24 24"
-        fill={likedByMe ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        className={popping ? 'motion-safe:animate-like-pop' : undefined}
-        onAnimationEnd={() => setPopping(false)}
-      >
-        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-      </svg>
-
-      {likeCount > 0 && <span>{compactNumber.format(likeCount).toLowerCase()}</span>}
-    </button>
   )
 }
 

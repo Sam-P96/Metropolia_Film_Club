@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import FilmTitleInput from './FilmTitleInput'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
 
 // A stored UTC time as the '2026-11-07' and '19:00' the inputs want, in the
@@ -19,7 +20,8 @@ function toInputValues(iso) {
 // Shared by the create and edit pages. With `initialEvent` it starts filled
 // in. `onSubmit` gets the payload and returns a promise; if that rejects, its
 // message is shown and the form stays as it was. `canMakeOfficial` adds the
-// "Official club event" box (moderators and admins creating an event).
+// "Official club event" box (moderators and admins creating an event), and
+// `canSetTicketLink` the "Theatre Screening Link" box (moderators and admins).
 function EventForm({
   initialEvent = null,
   submitLabel,
@@ -27,6 +29,7 @@ function EventForm({
   onSubmit,
   cancelTo,
   canMakeOfficial = false,
+  canSetTicketLink = false,
 }) {
   const initialWhen = initialEvent ? toInputValues(initialEvent.startsAt) : null
 
@@ -40,6 +43,7 @@ function EventForm({
     initialEvent?.film?.tmdbId ? String(initialEvent.film.tmdbId) : ''
   )
   const [gifUrl, setGifUrl] = useState(initialEvent?.gifUrl ?? '')
+  const [ticketUrl, setTicketUrl] = useState(initialEvent?.ticketUrl ?? '')
   const [official, setOfficial] = useState(true)
 
   const [error, setError] = useState(null)
@@ -73,6 +77,7 @@ function EventForm({
         ? { title: filmTitle.trim(), tmdbId: tmdbId ? Number(tmdbId) : null }
         : null,
       gifUrl: gifUrl.trim() || null,
+      ...(canSetTicketLink && { ticketUrl: ticketUrl.trim() || null }),
       ...(canMakeOfficial && { official }),
     }
 
@@ -168,11 +173,15 @@ function EventForm({
           <label htmlFor="filmTitle" className={labelClasses}>
             Film <span className="font-normal text-white/40">(optional)</span>
           </label>
-          <input
+          {/* Picking a suggestion fills in the TMDB id too. It stays editable. */}
+          <FilmTitleInput
             id="filmTitle"
             value={filmTitle}
-            onChange={(e) => setFilmTitle(e.target.value)}
-            placeholder="Perfect Blue"
+            onChange={setFilmTitle}
+            onPick={(film) => {
+              setFilmTitle(film.title)
+              setTmdbId(String(film.tmdbId))
+            }}
             className={inputClasses}
           />
         </div>
@@ -189,6 +198,26 @@ function EventForm({
           />
         </div>
       </div>
+
+      {canSetTicketLink && (
+        <div>
+          <label htmlFor="ticketUrl" className={labelClasses}>
+            Theatre Screening Link <span className="font-normal text-white/40">(optional)</span>
+          </label>
+          <input
+            id="ticketUrl"
+            inputMode="url"
+            value={ticketUrl}
+            onChange={(e) => setTicketUrl(e.target.value)}
+            placeholder="https://..."
+            className={inputClasses}
+          />
+          <p className="mt-2 text-xs text-white/40">
+            Where to buy tickets. The event page shows it as a "Purchase Tickets"
+            button, and members attending can add their seats.
+          </p>
+        </div>
+      )}
 
       <div>
         <label htmlFor="gifUrl" className={labelClasses}>

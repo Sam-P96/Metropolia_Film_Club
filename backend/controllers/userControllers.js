@@ -1,16 +1,24 @@
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
+const Comment = require("../models/commentModel");
 const FilmLog = require("../models/filmLogModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
+const { withStanding } = require("../utils/level");
+const { recountDislikes } = require("../utils/pvp");
 
 const MAX_FAVOURITES = 4;
 const MAX_USERNAME_LENGTH = 30;
 const MAX_BIO_LENGTH = 300;
 const BANNER_TYPES = ["color", "image"];
 const BANNER_STYLES = ["glass", "translucent", "opaque"];
+const LEVEL_EFFECTS = ["none", "shadow", "glow"];
+const LEVEL_BACKINGS = ["none", "glass", "frosted"];
+const LEVEL_SHAPES = ["round", "rounded", "sharp"];
+// Matches frontend/src/utils/levelStyle.js.
+const LEVEL_FONTS = ["default", "bebas", "cinzel", "playfair", "orbitron", "pixel", "monoton", "pacifico", "marker"];
 const PRIVACY_OPTIONS = ["public", "friends", "private"];
 
 // Bump this when the privacy policy text changes, so a member's stored
@@ -65,7 +73,7 @@ const signupUser = async (req, res) => {
         // Send back a token
         if (user) {
             const token = generateToken(user._id);
-            res.status(201).json({ _id: user._id, username: user.username, email, role: user.role, token })
+            res.status(201).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp, token })
         } else {
             res.status(400);
             throw new Error("Invalid user data");
@@ -85,7 +93,7 @@ const loginUser = async (req, res) => {
 
         if (user && (await bcrypt.compare(password, user.password))) {
             const token = generateToken(user._id);
-            res.status(200).json({ _id: user._id, username: user.username, email, role: user.role, token });
+            res.status(200).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp ?? false, token });
         } else {
             res.status(400);
             throw new Error("Invalid credentials")
@@ -129,7 +137,7 @@ const getUser = async (req, res) => {
         return res.status(404).json({ error: "There is no member with that id." });
     }
 
-    res.json(visible ? userProfile(user) : restrictedProfile(user));
+    res.json(visible ? await withStanding(userProfile(user)) : restrictedProfile(user));
 }
 
 // Reviews show up around the site whatever the profile's privacy setting,
@@ -142,8 +150,8 @@ const getUserReviews = async (req, res) => {
     }
 
     const reviews = await Review.find({ user: id }).sort({ createdAt: -1 }).lean();
-    const withLikes = await Review.withLikedByMe(reviews, req.user);
-    res.json(withLikes.map((review) => ({ ...review, userId: review.user })));
+    const withVotes = await Review.withMyVote(reviews, req.user);
+    res.json(withVotes.map((review) => ({ ...review, userId: review.user })));
 }
 
 // Their film list is part of the profile, so it follows the privacy setting.
@@ -242,6 +250,33 @@ function profileChanges(body, me) {
         };
     }
 
+    for (const field of ["pvp", "allowComments", "showRank"]) {
+        if (field in body) {
+            if (typeof body[field] !== "boolean") return { error: `${field} must be true or false.` };
+            set[field] = body[field];
+        }
+    }
+
+    if ("levelStyle" in body) {
+        const style = body.levelStyle ?? {};
+
+        if (!/^#[0-9a-f]{6}$/i.test(style.textColor ?? "")) return { error: "The level text colour must look like #FFFFFF." };
+        if (!/^#[0-9a-f]{6}$/i.test(style.effectColor ?? "")) return { error: "The level effect colour must look like #000000." };
+        if (!LEVEL_EFFECTS.includes(style.effect)) return { error: "Unknown level effect." };
+        if (!LEVEL_FONTS.includes(style.font)) return { error: "Unknown level font." };
+        if (!LEVEL_BACKINGS.includes(style.backing)) return { error: "Unknown level backing." };
+        if (!LEVEL_SHAPES.includes(style.shape)) return { error: "Unknown level backing shape." };
+
+        set.levelStyle = {
+            textColor: style.textColor,
+            effect: style.effect,
+            effectColor: style.effectColor,
+            backing: style.backing,
+            shape: style.shape,
+            font: style.font,
+        };
+    }
+
     if ("favouriteFilms" in body) {
         const films = Array.isArray(body.favouriteFilms) ? body.favouriteFilms : [];
         if (films.length > MAX_FAVOURITES) return { error: `Pick at most ${MAX_FAVOURITES} favourite films.` };
@@ -289,8 +324,13 @@ const updateMe = async (req, res) => {
         { runValidators: true, strict: false }
     );
 
+    // Their dislikes only count while PVP is on.
+    if ("pvp" in set && set.pvp !== Boolean(req.user.pvp)) {
+        await recountDislikes({ dislikedBy: req.user._id });
+    }
+
     const user = await User.findById(req.user._id).select("-password -email").lean();
-    res.json(userProfile(user));
+    res.json(await withStanding(userProfile(user)));
 }
 
 // GDPR right of access / portability: everything we hold about the member,
@@ -299,9 +339,10 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, filmLogs] = await Promise.all([
+    const [account, reviews, comments, filmLogs] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
+        Comment.find({ user: userId }).lean(),
         FilmLog.find({ user: userId }).lean(),
     ]);
 
@@ -313,21 +354,26 @@ const exportMe = async (req, res) => {
         exportedAt: new Date().toISOString(),
         account,
         reviews,
+        comments,
         filmLogs,
     });
 }
 
-// GDPR right to erasure: delete the account and everything tied to it. Also
-// removes the member's likes from other people's reviews so the counts stay
-// right. Irreversible.
+// GDPR right to erasure: delete the account and everything tied to it: their
+// reviews (with the comments under them), their comments, and their likes
+// and dislikes on everyone else's, so the counts stay right. Irreversible.
 const deleteMe = async (req, res) => {
     const userId = req.user._id;
 
     try {
-        await Review.updateMany(
-            { likedBy: userId },
-            { $pull: { likedBy: userId }, $inc: { likeCount: -1 } }
-        );
+        await Review.removeVotesBy(req.user);
+        await Comment.removeVotesBy(req.user);
+
+        const ownReviews = await Review.find({ user: userId }).select("_id").lean();
+        await Comment.deleteMany({
+            $or: [{ user: userId }, { review: { $in: ownReviews.map((review) => review._id) } }],
+        });
+
         await Review.deleteMany({ user: userId });
         await FilmLog.deleteMany({ user: userId });
         await User.deleteOne({ _id: userId });

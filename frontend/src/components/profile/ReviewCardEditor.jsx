@@ -1,4 +1,8 @@
 import BannerPicker from './BannerPicker'
+import LevelStylePicker from './LevelStylePicker'
+import SettingRow from './SettingRow'
+
+const RANK_NAMES = { 1: 'gold', 2: 'silver', 3: 'bronze' }
 
 function ReviewCardEditor({ draft, onChange, onSave, onCancel }) {
   const inputClasses =
@@ -52,6 +56,17 @@ function ReviewCardEditor({ draft, onChange, onSave, onCancel }) {
               Leave empty to use the letter circle.
             </p>
           </div>
+
+          <SettingRow
+            label="Ranking"
+            description={`A gold, silver or bronze ring around your avatar while you're in the top 3 on the Critics Leaderboard. ${
+              draft.rank
+                ? `You're #${draft.rank} right now, so yours is ${RANK_NAMES[draft.rank]}.`
+                : "You're not in the top 3 right now."
+            }`}
+            on={draft.showRank}
+            onChange={(on) => onChange('showRank', on)}
+          />
         </div>
 
         {/* Right column: banner picker.
@@ -63,6 +78,13 @@ function ReviewCardEditor({ draft, onChange, onSave, onCancel }) {
           />
         </div>
 
+      </div>
+
+      <div className="mt-6 border-t border-white/10 pt-6">
+        <LevelStylePicker
+          levelStyle={draft.levelStyle}
+          onChange={(levelStyle) => onChange('levelStyle', levelStyle)}
+        />
       </div>
 
       <div className="mt-6 flex gap-3">

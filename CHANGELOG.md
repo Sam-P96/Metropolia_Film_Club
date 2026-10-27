@@ -18,11 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   confetti for the winner.
 - Added a `/api/wheel` endpoint (`routes/wheel.js`, `wheelController.js`,
   `WheelEntry.js`) to store the wheel entries. No login required for now.
-- Members can like reviews on the review page, and everyone sees the like
-  count (`PUT /api/reviews/:id/like`). Each member can like a review once.
-- Review cards have a like button next to "Read more". The review lists
-  (`GET /api/reviews`, `/api/films/:tmdbId/reviews`, `/api/users/:id/reviews`)
-  now include `likedByMe` for a logged-in member.
+- Members can like or dislike a review (one or the other, not both) with
+  thumbs up and thumbs down buttons beside "Read more" on review cards and on
+  the review page. Each shows its count and share of the votes, and a thin
+  green and red line just under the buttons shows the ratio
+  (`PUT /api/reviews/:id/vote`). The review lists (`GET /api/reviews`,
+  `/api/films/:tmdbId/reviews`, `/api/users/:id/reviews`) include
+  `likeCount`, `dislikeCount` and, for a logged-in member, `myVote`.
+- Comments on the review page. Any member can comment, and like or dislike
+  comments the same way as reviews. A Recent / Oldest toggle sorts them. The
+  author, and moderators and admins, can delete a comment after confirming
+  (`GET`/`POST /api/reviews/:id/comments`, `PUT /api/comments/:id/vote`,
+  `DELETE /api/comments/:id`). Deleting a review deletes its comments.
+- A Critics Leaderboard at the bottom of the Movie Reviews page: the top 4
+  members by likes on their reviews (Top) or by dislikes (Controversial),
+  and "Show top 10" lengthens it to 10 (`GET /api/reviews/critics`).
 - Moderators and admins can mark a review as containing spoilers, or remove
   the mark, from the review page (`PUT /api/reviews/:id/spoilers`).
 - Members can mark an upcoming event as Attend or Interested, and the event
@@ -44,8 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   → buttons at the bottom left. A click skips two reviews; pressing and
   holding scrolls that way at 5× the usual speed until let go. The first
   review starts in the middle of the screen.
-- A Recent / Top toggle beside the reviews title. Top shows the most liked
-  reviews first (`GET /api/reviews?sort=top`).
+- A Recent / Top / Controversial toggle beside the reviews title. Top shows
+  the most liked reviews first, and Controversial the most disliked
+  (`GET /api/reviews?sort=top`, `?sort=controversial`).
 - A "Movies with club reviews only" filter on Browse films. It works with
   every other filter and sort (`GET /api/films/reviewed`, which takes the
   same filters as `/api/tmdb/discover`).
@@ -57,9 +68,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GDPR: members can download everything held about them as JSON from their
   profile (`GET /api/users/me/export`).
 - GDPR: members can delete their account from their profile. This removes
-  their profile, reviews and film logs, and their likes on other reviews
-  (`DELETE /api/users/me`).
+  their profile, reviews (with the comments under them), comments and film
+  logs, and their likes and dislikes on other reviews and comments
+  (`DELETE /api/users/me`). The data download includes their comments.
 - A privacy policy page at `/privacy`, linked from the footer and signup.
+- Moderators and admins can add a "Theatre Screening Link" when creating or
+  editing an event. The event page shows it as a "Purchase Tickets" button
+  until the event starts.
+- At an event with a ticket link, members attending can enter their row and
+  seat beside their name in the Attending list, and change it by clicking it
+  (`PUT /api/events/:id/seat`). Moderators and admins can remove anyone's
+  seat, after confirming (`DELETE /api/events/:id/seats/:userId`). Leaving
+  the Attending list clears the member's seat.
+- The Film box on the event form suggests films from TMDB as you type.
+  Picking one fills in the TMDB id, which can still be edited.
+- Member levels: reviews / 20 + likes / 5 − dislikes / 3 on their reviews,
+  with reviews making up at most 75% of the total, rounded down and never
+  below 0. Hovering over the avatar on a review card fades in "Level: X" on
+  the left of the banner. Profiles and review lists include `level`.
+- Edit review card has a Level text section: font, text colour, a shadow or
+  glow in any colour, and a backing (none, glass or frosted glass) that's
+  round, rounded or sharp, all mixed freely
+  (`levelStyle` on `PATCH /api/users/me`). The fonts are bundled with the
+  site through Fontsource rather than loaded from Google.
+- Profile stats have a second row with Likes received and Level.
+- The top 3 on the Critics Leaderboard (Top) get a gold, silver or bronze
+  ring around their avatar on their review cards. A Ranking switch in Edit
+  review card turns it off, and says where they stand. Review lists and
+  profiles include `rank` (1–3 or null) and `showRank`.
+- The Critics Leaderboard shows each member's level after their title, with
+  their review card banner behind the left of their row, as long as a card
+  (15% longer on desktop) and fading out to the right.
+- A PVP switch in Edit profile, off by default. Disliking reviews and
+  comments only works between members who both have it on; otherwise the
+  thumbs down shows an alert saying why. Every review card keeps both
+  buttons and the bar, but with PVP off a member's dislikes count as 0 (so
+  their bar is all green), don't count towards their level, and leave them
+  off the Controversial reviews and Controversial critics lists. The server
+  refuses those dislikes too (403).
+- A dislike only counts while the member who gave it has PVP on. Turning PVP
+  off takes their dislikes out of every total (review cards, levels, the
+  Critics Leaderboard, Controversial); they're kept, and count again if PVP
+  goes back on. The server recounts dislikes when it starts, so ones given
+  before PVP existed stop counting until their giver turns PVP on.
+- A "Comments on your reviews" switch in Edit profile, and a Turn off
+  comments button on the author's own review page for one review
+  (`PUT /api/reviews/:id/allow-comments`). Turned-off comments are hidden,
+  not deleted, and can't be added to; the comments endpoints answer 403.
 
 ### Changed
 - The bio limit is 300 characters (was 280 in the form, 500 on the server).

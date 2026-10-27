@@ -18,6 +18,20 @@ export function setEventRsvp(id, rsvp) {
   return api(`/events/${encodeURIComponent(id)}/rsvp`, { method: 'PUT', body: { rsvp } })
 }
 
+// "Enter seat" at a theatre screening, for the member asking (who must be
+// attending). Each attending member in the result has `seat`: { row, seat }
+// or null. Resolves to the new attendance, like setEventRsvp.
+export function setMySeat(id, row, seat) {
+  return api(`/events/${encodeURIComponent(id)}/seat`, { method: 'PUT', body: { row, seat } })
+}
+
+// Moderators and admins. Resolves to the new attendance.
+export function removeSeat(id, userId) {
+  return api(`/events/${encodeURIComponent(id)}/seats/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  })
+}
+
 // Any logged-in member. A member's event is a member screening; a
 // moderator's is official if `official` is true. The server decides.
 export async function createEvent(event) {

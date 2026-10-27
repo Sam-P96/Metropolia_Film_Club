@@ -6,7 +6,7 @@ const EASE_STOP = 3.5   // how quickly it slows down on hover (lower = longer, s
 const EASE_START = 2.5  // how quickly it speeds back up after hover (lower = gentler restart)
 
 // The arrow buttons under it (MarqueeArrows)
-const CARDS_PER_JUMP = 2        // how far one click moves it
+const CARDS_PER_JUMP = 1        // how far one click moves it
 const EASE_JUMP = 5             // how quickly a click's move plays out (lower = longer glide)
 const HOLD_SPEED = SPEED * 5  // while an arrow is held down
 const EASE_HOLD = 2             // how quickly it gets up to that speed
@@ -15,9 +15,9 @@ const EASE_HOLD = 2             // how quickly it gets up to that speed
 // direction is 1 (onwards, the way it drifts) or -1 (back). hold(0) lets go.
 function ReviewMarquee({ reviews, ref }) {
   const looped = [...reviews, ...reviews]
-  // { [reviewId]: { likeCount, likedByMe } } after a like. Every review is on
+  // { [reviewId]: { likeCount, dislikeCount, myVote } } after a vote. Every review is on
   // the track twice, and both copies should show it.
-  const [likes, setLikes] = useState({})
+  const [votes, setVotes] = useState({})
   const trackRef = useRef(null)
   const hoveredRef = useRef(false)
   const holdRef = useRef(0)   // -1, 0 or 1
@@ -112,9 +112,9 @@ function ReviewMarquee({ reviews, ref }) {
               className="relative w-120 transition-transform duration-200 ease-out hover:z-10 hover:scale-105 hover:duration-1000 hover:ease-[cubic-bezier(0.33,1,0.68,1)]"
             >
               <ReviewCard
-                review={{ ...review, ...likes[review._id] }}
-                onLikeChange={(change) =>
-                  setLikes((prev) => ({ ...prev, [review._id]: change }))
+                review={{ ...review, ...votes[review._id] }}
+                onVoteChange={(change) =>
+                  setVotes((prev) => ({ ...prev, [review._id]: change }))
                 }
               />
             </div>

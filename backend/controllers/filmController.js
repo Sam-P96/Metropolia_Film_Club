@@ -1,8 +1,14 @@
 const mongoose = require("mongoose");
 const FilmLog = require("../models/filmLogModel");
 const Review = require("../models/reviewModel");
+const Comment = require("../models/commentModel");
+const User = require("../models/userModel");
+const { parseVote } = require("../models/votable");
 const { getMovie, getMovies } = require("../services/tmdbService");
 const { userSummary, reviewWithUser } = require("../utils/serialize");
+const { levelOf, withAuthorStanding } = require("../utils/level");
+const { rankCritics } = require("../utils/critics");
+const { dislikeRefusal } = require("../utils/pvp");
 
 // "Top rated by the club" shows every rated film, but ranks them as if each
 // also had this many extra ratings at the club's overall average. A film only
@@ -15,7 +21,7 @@ const RANKING_PRIOR_WEIGHT = 3;
 const MAX_REVIEW_LENGTH = 4000;
 
 // The fields a review card needs from its author.
-const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy";
+const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner levelStyle pvp allowComments showRank value privacy";
 
 // "This member wants to see this film": never seen it, or seen it and
 // flagged a rewatch. The same rule as frontend/src/utils/watchlist.js.
@@ -292,20 +298,53 @@ async function getReviewedFilms(req, res) {
     });
 }
 
+const REVIEW_SORTS = {
+    recent: { createdAt: -1 },
+    top: { likeCount: -1, createdAt: -1 },
+    controversial: { dislikeCount: -1, createdAt: -1 },
+};
+
 // Reviews from anyone, for the homepage and reviews page: the newest, or with
-// ?sort=top the most liked (newest first among equals).
+// ?sort=top the most liked, or ?sort=controversial the most disliked (newest
+// first among equals). Controversial leaves out members with PVP off, whose
+// dislikes are hidden.
 async function getReviews(req, res) {
     const limit = parseLimit(req.query.limit, 15, 50);
-    const order = req.query.sort === "top" ? { likeCount: -1, createdAt: -1 } : { createdAt: -1 };
+    const controversial = req.query.sort === "controversial";
+    const order = REVIEW_SORTS[req.query.sort] ?? REVIEW_SORTS.recent;
 
-    const reviews = await Review.find()
+    const filter = controversial
+        ? { user: { $in: await User.find({ pvp: true }).distinct("_id") } }
+        : {};
+
+    const reviews = await Review.find(filter)
         .sort(order)
         .limit(limit)
         .populate("user", AUTHOR_FIELDS)
         .lean();
 
     const shown = reviews.filter((review) => review.user).map(reviewWithUser);
-    res.json(await Review.withLikedByMe(shown, req.user));
+    res.json(await Review.withMyVote(await withAuthorStanding(shown), req.user));
+}
+
+// The Critics Leaderboard: members by how many likes (?sort=top) or dislikes
+// (?sort=controversial) their reviews have collected, at most 10, with their
+// level. Members with none yet aren't on it, and members with PVP off are
+// never on Controversial.
+async function getCritics(req, res) {
+    const rows = await rankCritics({
+        controversial: req.query.sort === "controversial",
+        limit: parseLimit(req.query.limit, 10, 10),
+    });
+
+    res.json(
+        rows.map((row) => ({
+            user: { ...userSummary(row.user[0]), level: levelOf(row.user[0], row) },
+            likes: row.likes,
+            dislikes: row.dislikes,
+            reviews: row.reviews,
+        }))
+    );
 }
 
 async function getReview(req, res) {
@@ -317,41 +356,61 @@ async function getReview(req, res) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    const likedByMe = req.user
-        ? Boolean(await Review.exists({ _id: review._id, likedBy: req.user._id }))
-        : false;
-
-    res.json({ ...reviewWithUser(review), likedByMe });
+    const [withVote] = await Review.withMyVote(await withAuthorStanding([reviewWithUser(review)]), req.user);
+    res.json(withVote);
 }
 
-// The like button. The filter only matches when the like really changes
-// something, so a double click can't count someone twice or push the count
-// below zero. Likes don't touch updatedAt, which means "last edited".
-async function setReviewLiked(req, res) {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-        return res.status(404).json({ error: "Review not found." });
+// The thumbs up and thumbs down. { vote: "like" | "dislike" | null }; a
+// member has at most one. Resolves to { likeCount, dislikeCount, myVote }.
+async function setReviewVote(req, res) {
+    const vote = parseVote(req.body?.vote);
+
+    if (vote === undefined) {
+        return res.status(400).json({ error: "Vote like, dislike, or neither." });
     }
 
-    const liked = Boolean(req.body?.liked);
-    const me = req.user._id;
-
-    await Review.updateOne(
-        liked
-            ? { _id: req.params.id, likedBy: { $ne: me } }
-            : { _id: req.params.id, likedBy: me },
-        liked
-            ? { $push: { likedBy: me }, $inc: { likeCount: 1 } }
-            : { $pull: { likedBy: me }, $inc: { likeCount: -1 } },
-        { timestamps: false }
-    );
-
-    const review = await Review.findById(req.params.id).select("likeCount").lean();
+    const review = mongoose.isValidObjectId(req.params.id)
+        ? await Review.findById(req.params.id).select("user").lean()
+        : null;
 
     if (!review) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    res.json({ likeCount: review.likeCount, likedByMe: liked });
+    const refusal = vote === "dislike" && (await dislikeRefusal(req.user, review.user, "review"));
+
+    if (refusal) {
+        return res.status(403).json({ error: refusal });
+    }
+
+    const result = await Review.castVote(review._id, req.user, vote);
+
+    if (!result) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    res.json(result);
+}
+
+// The author turning comments under one of their reviews off or on.
+// { allowComments }. Turning them off hides them; nothing is deleted.
+async function setReviewAllowComments(req, res) {
+    const review = mongoose.isValidObjectId(req.params.id)
+        ? await Review.findById(req.params.id).select("user").lean()
+        : null;
+
+    if (!review) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    if (String(review.user) !== String(req.user._id)) {
+        return res.status(403).json({ error: "Only the author can turn comments on or off." });
+    }
+
+    const allowComments = Boolean(req.body?.allowComments);
+    await Review.updateOne({ _id: review._id }, { $set: { allowComments } }, { timestamps: false });
+
+    res.json({ allowComments });
 }
 
 // Moderators marking someone else's review as containing spoilers, or
@@ -384,7 +443,7 @@ async function getFilmReviews(req, res) {
         .lean();
 
     const shown = reviews.filter((review) => review.user).map(reviewWithUser);
-    res.json(await Review.withLikedByMe(shown, req.user));
+    res.json(await Review.withMyVote(await withAuthorStanding(shown), req.user));
 }
 
 // The club rating for one film, and who wants to see it. Members with a
@@ -562,7 +621,9 @@ async function saveReview(req, res) {
             { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
         ).lean();
     } else {
-        await Review.deleteOne({ user: req.user._id, tmdbId });
+        // Its comments go with it.
+        const removed = await Review.findOneAndDelete({ user: req.user._id, tmdbId }).select("_id").lean();
+        if (removed) await Comment.deleteMany({ review: removed._id });
     }
 
     res.json({ entry: entry.toObject(), review });
@@ -575,7 +636,9 @@ module.exports = {
     getReviewedFilms,
     getReviews,
     getReview,
-    setReviewLiked,
+    getCritics,
+    setReviewAllowComments,
+    setReviewVote,
     setReviewSpoilers,
     getFilmReviews,
     getFilmClub,
