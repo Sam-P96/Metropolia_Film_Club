@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getEvents } from '../../services/events'
 import useApi from '../../hooks/useApi'
@@ -26,6 +27,42 @@ function formatTime(isoString) {
     minute: '2-digit',
     timeZone: 'Europe/Helsinki',
   })
+}
+
+// The description, cut to a few lines so a long one can't stretch the
+// section: it stays about as tall as the event's picture beside it. When
+// it's cut short, "Read more..." opens the event page, where it's whole.
+// Checked again whenever its width changes (the window resizing, say).
+function EventDescription({ text, to }) {
+  const ref = useRef(null)
+  const [cut, setCut] = useState(false)
+
+  useEffect(() => {
+    const paragraph = ref.current
+    if (!paragraph) return
+
+    const observer = new ResizeObserver(() => {
+      setCut(paragraph.scrollHeight > paragraph.clientHeight + 1)
+    })
+    observer.observe(paragraph)
+    return () => observer.disconnect()
+  }, [text])
+
+  return (
+    <>
+      <p ref={ref} className="line-clamp-5 leading-relaxed text-ink/70">
+        {text}
+      </p>
+      {cut && (
+        <Link
+          to={to}
+          className="mt-3 inline-block font-medium text-brand-red transition-colors hover:text-brand-orange"
+        >
+          Read more...
+        </Link>
+      )}
+    </>
+  )
 }
 
 // showMoreLink defaults to true so the homepage keeps working untouched.
@@ -85,7 +122,7 @@ function NextEvent({ showMoreLink = true }) {
               )}
             </div>
 
-            <p className="leading-relaxed text-ink/70">{event.description}</p>
+            <EventDescription text={event.description} to={`/club_events/${event._id}`} />
           </div>
 
           {event.gifUrl && (
