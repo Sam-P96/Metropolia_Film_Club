@@ -29,6 +29,7 @@ import Privacy from "./pages/Privacy";
 import Feed from "./pages/Feed";
 import FollowList from "./pages/FollowList";
 import BannedList from "./pages/BannedList";
+import SecretPfp from "./pages/SecretPfp";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -74,6 +75,8 @@ function App() {
           } />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/privacy" element={<Privacy />} />
+          {/* Not linked from anywhere on purpose. */}
+          <Route path="/SECRETpfp" element={<SecretPfp />} />
           <Route path="/members" element={<Members />} />
           <Route path="/users/:userId" element={<Profile />} />
           <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />
