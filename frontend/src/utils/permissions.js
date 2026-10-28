@@ -70,6 +70,12 @@ export function canRemoveSeats(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
+// Seeing reports at the top of Notifications, and the Banned List. Who can
+// ban whom is the server's call (it sends `canBan` with a profile).
+export function canModerate(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
 // Deleting someone else's review (after confirming twice). Authors delete
 // their own by clearing the text when editing it. Matches the backend.
 export function canDeleteAnyReview(currentUser) {

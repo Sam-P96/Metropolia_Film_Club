@@ -84,6 +84,16 @@ const userSchema = new Schema(
             default: "default",
         },
 
+        // What moderators and admins have stopped them doing with the Ban
+        // Hammer, each on its own (utils/bans.js).
+        bans: {
+            reviews: {type: Boolean, default: false},
+            dislikeReviews: {type: Boolean, default: false},
+            comments: {type: Boolean, default: false},
+            dislikeComments: {type: Boolean, default: false},
+            reports: {type: Boolean, default: false},
+        },
+
         followPrivacy: {
             type: String,
             enum: ["public", "friends", "nobody"],

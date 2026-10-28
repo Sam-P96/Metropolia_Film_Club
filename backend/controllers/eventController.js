@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Event = require("../models/eventModel");
 const {userSummary} = require("../utils/serialize");
 const {hasRole} = require("../middleware/auth");
+const {noteNewEvent, notePromotedEvent, forgetEvent} = require("../utils/notify");
 
 const FIELDS = "title startsAt location description film gifUrl ticketUrl official createdBy";
 
@@ -293,7 +294,8 @@ function validationMessage(error) {
 const NOT_YOURS = "Only moderators can change this event. Members can change their own member screenings.";
 
 // Any logged-in member. What a member makes is a member screening; a
-// moderator's or admin's event is official unless they untick the box.
+// moderator's or admin's event is official unless they untick the box. It
+// goes into members' Notifications (see utils/notify.js).
 async function createEvent(req, res) {
     const {fields, error} = eventFields(req.body ?? {}, req.user);
 
@@ -305,6 +307,7 @@ async function createEvent(req, res) {
 
     try {
         const event = await Event.create({...fields, official, createdBy: req.user._id});
+        await noteNewEvent(event);
         res.status(201).json(withDefaults(event.toObject()));
     } catch (err) {
         const message = validationMessage(err);
@@ -360,28 +363,34 @@ async function deleteEvent(req, res) {
     }
 
     await Event.deleteOne({_id: id});
+    await forgetEvent(id);
     res.json({ok: true});
 }
 
 // "Promote to official" and "Demote to member screening". Moderators and
 // admins only; the router checks. Doesn't touch updatedAt, which means
-// "last edited".
+// "last edited". Promoting tells the members who haven't heard about it yet.
 async function setEventOfficial(req, res) {
     const {id} = req.params;
+    const official = Boolean(req.body?.official);
 
-    const event = mongoose.isValidObjectId(id)
+    const before = mongoose.isValidObjectId(id)
         ? await Event.findByIdAndUpdate(
             id,
-            {$set: {official: Boolean(req.body?.official)}},
-            {returnDocument: "after", timestamps: false}
-        ).select("official").lean()
+            {$set: {official}},
+            {returnDocument: "before", timestamps: false}
+        ).select("official createdBy").lean()
         : null;
 
-    if (!event) {
+    if (!before) {
         return res.status(404).json({error: "Event not found."});
     }
 
-    res.json({official: event.official});
+    if (official && before.official === false) {
+        await notePromotedEvent(before);
+    }
+
+    res.json({official});
 }
 
 module.exports = {

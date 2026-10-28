@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
-import FeedItem from '../components/feed/FeedItem'
+import FeedItem, { ReportNotice } from '../components/feed/FeedItem'
 import GifBackground from '../components/GifBackground'
 import usePagedList from '../hooks/usePagedList'
 import { getFeed } from '../services/feed'
@@ -53,6 +53,14 @@ function Feed() {
   }, [key])
 
   const items = feed.data?.items ?? []
+  // Moderators and admins only: open reports, pinned above everything else.
+  const reports = feed.data?.reports ?? []
+
+  const handleResolved = (reviewId) =>
+    feed.setData((previous) => ({
+      ...previous,
+      reports: previous.reports.filter((report) => report._id !== reviewId),
+    }))
 
   // The server's answer once it's in; until then the copy kept with the
   // login, so the page doesn't flash from one background to another.
@@ -67,9 +75,20 @@ function Feed() {
       <div className="mx-auto max-w-5xl px-8 py-20">
         <h1 className={`text-3xl font-bold ${tone.title}`}>Notifications</h1>
         <p className={`mt-2 text-sm ${tone.text}`}>
-          Likes, dislikes and replies on your reviews, new followers, new reviews from members
-          you follow, and what's trending. Your last 100, kept for three months.
+          Likes, dislikes and replies on your reviews, new followers, new reviews and member
+          screenings from members you follow, new club events, and what's trending. Your last
+          100, kept for three months.
         </p>
+
+        {reports.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Reported reviews">
+            {reports.map((report) => (
+              <li key={report._id}>
+                <ReportNotice report={report} light={light} onResolved={handleResolved} />
+              </li>
+            ))}
+          </ul>
+        )}
 
         {feed.loading ? (
           <p className={`mt-10 text-sm ${tone.muted}`}>Loading…</p>

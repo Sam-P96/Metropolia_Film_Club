@@ -6,6 +6,7 @@ const { userSummary } = require("../utils/serialize");
 const { hasRole } = require("../middleware/auth");
 const { dislikeRefusal } = require("../utils/pvp");
 const { noteReply, forgetComment } = require("../utils/notify");
+const { banRefusal } = require("../utils/bans");
 
 const MAX_COMMENT_LENGTH = 1000;
 
@@ -75,6 +76,11 @@ async function addComment(req, res) {
         return res.status(400).json({ error: `Comments are 1 to ${MAX_COMMENT_LENGTH} characters.` });
     }
 
+    const banned = banRefusal(req.user, "comments");
+    if (banned) {
+        return res.status(403).json({ error: banned });
+    }
+
     const review = await findForComments(id);
 
     if (!review) {
@@ -117,7 +123,9 @@ async function setCommentVote(req, res) {
         return res.status(404).json({ error: "Comment not found." });
     }
 
-    const refusal = vote === "dislike" && (await dislikeRefusal(req.user, comment.user, "comment"));
+    const refusal =
+        vote === "dislike" &&
+        (banRefusal(req.user, "dislikeComments") || (await dislikeRefusal(req.user, comment.user, "comment")));
 
     if (refusal) {
         return res.status(403).json({ error: refusal });

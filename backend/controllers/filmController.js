@@ -11,6 +11,8 @@ const { rankCritics } = require("../utils/critics");
 const { parseOffset } = require("../utils/paging");
 const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
 const { dislikeRefusal } = require("../utils/pvp");
+const { banRefusal } = require("../utils/bans");
+const Report = require("../models/reportModel");
 
 // "Top rated by the club" shows every rated film, but ranks them as if each
 // also had this many extra ratings at the club's overall average. A film only
@@ -371,7 +373,9 @@ async function setReviewVote(req, res) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    const refusal = vote === "dislike" && (await dislikeRefusal(req.user, review.user, "review"));
+    const refusal =
+        vote === "dislike" &&
+        (banRefusal(req.user, "dislikeReviews") || (await dislikeRefusal(req.user, review.user, "review")));
 
     if (refusal) {
         return res.status(403).json({ error: refusal });
@@ -391,7 +395,7 @@ async function setReviewVote(req, res) {
 }
 
 // Deletes the review matching `filter` with everything hanging off it: its
-// comments and the notifications about it. The author's film log entry (their
+// comments, the notifications about it, and any reports of it. The author's film log entry (their
 // rating and "watched") stays. Resolves to the deleted review's id, or null.
 async function removeReview(filter) {
     const removed = await Review.findOneAndDelete(filter).select("_id").lean();
@@ -399,6 +403,7 @@ async function removeReview(filter) {
 
     await Comment.deleteMany({ review: removed._id });
     await forgetReview(removed._id);
+    await Report.deleteMany({ review: removed._id });
     return removed._id;
 }
 
@@ -601,6 +606,12 @@ async function saveReview(req, res) {
 
     if (text.length > MAX_REVIEW_LENGTH) {
         return res.status(400).json({ error: `Reviews can be at most ${MAX_REVIEW_LENGTH} characters.` });
+    }
+
+    // Banned from posting reviews: they can still rate, or clear their text.
+    const banned = text && banRefusal(req.user, "reviews");
+    if (banned) {
+        return res.status(403).json({ error: banned });
     }
 
     const details = await filmDetailsOr404(tmdbId, res);

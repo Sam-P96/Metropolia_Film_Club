@@ -45,6 +45,18 @@ export function getFollowList(id, kind, skip = 0) {
   return api(`/users/${encodeURIComponent(id)}/${kind}?skip=${skip}`)
 }
 
+// The Ban Hammer: moderators and admins switching a member's bans, e.g.
+// { comments: true }. Resolves to { bans }.
+export function setBans(id, changes) {
+  return api(`/users/${encodeURIComponent(id)}/bans`, { method: 'PUT', body: changes })
+}
+
+// Moderators and admins: everyone with a ban, A to Z, 10 at a time.
+// { users, total, hasMore, next }; each user has `bans`.
+export function getBanned(skip = 0) {
+  return api(`/users/banned?skip=${skip}`)
+}
+
 // Everything we hold about the logged-in member: account, reviews, film logs.
 export function exportMyData() {
   return api('/users/me/export')

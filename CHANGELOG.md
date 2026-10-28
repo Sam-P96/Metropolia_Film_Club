@@ -33,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A Critics Leaderboard at the bottom of the Movie Reviews page: the top 4
   members by likes on their reviews (Top) or by dislikes (Controversial),
   and "Show top 10" lengthens it to 10 (`GET /api/reviews/critics`).
+- A Report button on review pages, with a confirmation. Members can report
+  5 reviews a day, not their own and not twice while open. Open reports
+  sit at the top of every moderator's and admin's Notifications with the
+  review and who reported it, until one of them clicks Addressed or
+  Dismiss (`POST /api/reviews/:id/report`, `PUT /api/reviews/:id/reports`).
+- The Ban Hammer: moderators and admins can stop a member posting
+  reviews, disliking reviews, commenting, disliking comments, or
+  reporting, each on its own, from a button beside their name. Moderators
+  can ban members; admins can ban members and moderators
+  (`PUT /api/users/:id/bans`).
+- A Banned list for moderators and admins, beside Edit profile on their
+  own profile: everyone with a ban, A to Z, with the rights they've lost
+  (`GET /api/users/banned`).
 - Admins can delete someone else's review from its page, after confirming
   twice. Its comments and notifications go with it; the author's rating
   stays in their film list (`DELETE /api/reviews/:id`).
@@ -137,6 +150,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Someone following you shows too, with a Follow back button; unfollowing
   quietly removes it. Clicking the bell while on the page loads it again
   from the top.
+- New events on the Notifications page, laid out like the homepage's Next
+  Event. A club event goes to every member, its poster included, as a
+  white card with a glowing brand gold border; a member screening goes to
+  its host, their followers, and every moderator and admin, on black glass
+  with a brand gold border. They show the event as it is now, a promoted
+  screening reaches everyone who hadn't heard yet, and deleting an event
+  removes them.
 - A Notifications background setting in Edit profile: Default (the Upcoming
   events glow under dark glass, fixed while the page scrolls), White, or
   Dark (the site's usual purple).
