@@ -8,6 +8,9 @@ const bcrypt = require("bcryptjs");
 const { userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
 const { withStanding } = require("../utils/level");
 const { recountDislikes } = require("../utils/pvp");
+const Follow = require("../models/followModel");
+const { areFriends, followState } = require("../utils/follows");
+const { forgetMember } = require("../utils/notify");
 
 const MAX_FAVOURITES = 4;
 const MAX_USERNAME_LENGTH = 30;
@@ -20,6 +23,8 @@ const LEVEL_SHAPES = ["round", "rounded", "sharp"];
 // Matches frontend/src/utils/levelStyle.js.
 const LEVEL_FONTS = ["default", "bebas", "cinzel", "playfair", "orbitron", "pixel", "monoton", "pacifico", "marker"];
 const PRIVACY_OPTIONS = ["public", "friends", "private"];
+const FOLLOW_PRIVACY_OPTIONS = ["public", "friends", "nobody"];
+const FEED_BACKGROUNDS = ["default", "white", "dark"];
 
 // Bump this when the privacy policy text changes, so a member's stored
 // consent records which version they agreed to. Matches frontend/src/pages/Privacy.jsx.
@@ -73,7 +78,7 @@ const signupUser = async (req, res) => {
         // Send back a token
         if (user) {
             const token = generateToken(user._id);
-            res.status(201).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp, token })
+            res.status(201).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp, feedBackground: user.feedBackground, token })
         } else {
             res.status(400);
             throw new Error("Invalid user data");
@@ -93,7 +98,7 @@ const loginUser = async (req, res) => {
 
         if (user && (await bcrypt.compare(password, user.password))) {
             const token = generateToken(user._id);
-            res.status(200).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp ?? false, token });
+            res.status(200).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp ?? false, feedBackground: user.feedBackground ?? "default", token });
         } else {
             res.status(400);
             throw new Error("Invalid credentials")
@@ -116,7 +121,8 @@ const getUsers = async (req, res) => {
 }
 
 // Finds the profile in the URL, and works out whether the person asking may
-// see all of it. "friends" behaves like "private" until a friends system exists.
+// see all of it: its owner, anyone if it's public, and friends (members who
+// follow each other) if it's friends only.
 async function loadProfile(req) {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return { user: null };
@@ -125,7 +131,11 @@ async function loadProfile(req) {
     if (!user) return { user: null };
 
     const isOwner = req.user && String(req.user._id) === String(user._id);
-    const visible = isOwner || (user.privacy ?? "public") === "public";
+    const privacy = user.privacy ?? "public";
+    const visible =
+        isOwner ||
+        privacy === "public" ||
+        (privacy === "friends" && (await areFriends(req.user?._id, user._id)));
 
     return { user, visible };
 }
@@ -137,7 +147,15 @@ const getUser = async (req, res) => {
         return res.status(404).json({ error: "There is no member with that id." });
     }
 
-    res.json(visible ? await withStanding(userProfile(user)) : restrictedProfile(user));
+    // Follow counts and the Follow button show on private profiles too, or
+    // nobody could ever become friends with a friends-only member.
+    const follows = await followState(user, req.user);
+
+    res.json(
+        visible
+            ? { ...(await withStanding(userProfile(user))), ...follows }
+            : { ...restrictedProfile(user), ...follows }
+    );
 }
 
 // Reviews show up around the site whatever the profile's privacy setting,
@@ -219,6 +237,18 @@ function profileChanges(body, me) {
     if ("privacy" in body) {
         if (!PRIVACY_OPTIONS.includes(body.privacy)) return { error: "Unknown privacy setting." };
         set.privacy = body.privacy;
+    }
+
+    if ("feedBackground" in body) {
+        if (!FEED_BACKGROUNDS.includes(body.feedBackground)) return { error: "Unknown Notifications background." };
+        set.feedBackground = body.feedBackground;
+    }
+
+    if ("followPrivacy" in body) {
+        if (!FOLLOW_PRIVACY_OPTIONS.includes(body.followPrivacy)) {
+            return { error: "Unknown setting for who can see your followers." };
+        }
+        set.followPrivacy = body.followPrivacy;
     }
 
     if ("memberTitle" in body) {
@@ -330,7 +360,7 @@ const updateMe = async (req, res) => {
     }
 
     const user = await User.findById(req.user._id).select("-password -email").lean();
-    res.json(await withStanding(userProfile(user)));
+    res.json({ ...(await withStanding(userProfile(user))), ...(await followState(user, req.user)) });
 }
 
 // GDPR right of access / portability: everything we hold about the member,
@@ -373,6 +403,9 @@ const deleteMe = async (req, res) => {
         await Comment.deleteMany({
             $or: [{ user: userId }, { review: { $in: ownReviews.map((review) => review._id) } }],
         });
+
+        await forgetMember(userId, ownReviews.map((review) => review._id));
+        await Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] });
 
         await Review.deleteMany({ user: userId });
         await FilmLog.deleteMany({ user: userId });

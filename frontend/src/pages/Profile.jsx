@@ -4,6 +4,7 @@ import ReviewCard from '../components/reviews/ReviewCard'
 import ReviewCardEditor from '../components/profile/ReviewCardEditor'
 import ProfileEditor from '../components/profile/ProfileEditor'
 import ProfileStats from '../components/profile/ProfileStats'
+import FollowButton from '../components/profile/FollowButton'
 import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
 import FilmSearchPicker from '../components/profile/FilmSearchPicker'
@@ -21,6 +22,8 @@ const EDITABLE_FIELDS = [
   'username',
   'bio',
   'privacy',
+  'followPrivacy',
+  'feedBackground',
   'pvp',
   'allowComments',
   'memberTitle',
@@ -75,12 +78,23 @@ function Profile() {
     )
   }
 
-  // The server leaves the details out of someone else's private profile.
+  // Follow state from the server or the Follow button, merged in.
+  const handleFollowChange = (state) => profile.setData((previous) => ({ ...previous, ...state }))
+
+  // The server leaves the details out of someone else's private profile. The
+  // Follow button stays, so members can still become friends.
   if (profile.data.restricted) {
     return (
       <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <h1 className="text-3xl font-bold">{profile.data.username}</h1>
-        <p className="mt-3 text-white/60">This profile is private.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-bold">{profile.data.username}</h1>
+          <FollowButton profileUser={profile.data} onChange={handleFollowChange} />
+        </div>
+        <p className="mt-3 text-white/60">
+          {profile.data.privacy === 'friends'
+            ? 'Only friends can see this profile. Follow each other to become friends.'
+            : 'This profile is private.'}
+        </p>
       </section>
     )
   }
@@ -92,11 +106,12 @@ function Profile() {
       profileUser={profile.data}
       isOwner={profile.data._id === currentUser?._id}
       onSaved={profile.setData}
+      onFollowChange={handleFollowChange}
     />
   )
 }
 
-function ProfileView({ profileUser, isOwner, onSaved }) {
+function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
   const [draft, setDraft] = useState(null)
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -151,8 +166,9 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
 
     try {
       const saved = await updateMe(changes)
-      // The like and dislike buttons read PVP from the stored login.
-      updateCurrentUser({ pvp: saved.pvp })
+      // The like and dislike buttons read PVP from the stored login, and the
+      // Notifications page its background before the feed itself has loaded.
+      updateCurrentUser({ pvp: saved.pvp, feedBackground: saved.feedBackground })
       onSaved(saved)
       setDraft(null)
       setEditing(null)
@@ -213,7 +229,14 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
 
   // The level comes from the server, which works it out the same way for
   // every review card.
-  const stats = { ...getProfileStats(userReviews), level: profileUser.level }
+  const stats = {
+    ...getProfileStats(userReviews),
+    level: profileUser.level,
+    userId: profileUser._id,
+    followerCount: profileUser.followerCount,
+    followingCount: profileUser.followingCount,
+    canOpenFollows: (profileUser.followListAccess ?? 'none') !== 'none',
+  }
 
   const watchlist = (filmsResult.data ?? [])
     .filter(isWanted)
@@ -270,7 +293,10 @@ function ProfileView({ profileUser, isOwner, onSaved }) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <h1 className="text-3xl font-bold">{displayUser.username}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold">{displayUser.username}</h1>
+              {!isOwner && <FollowButton profileUser={profileUser} onChange={onFollowChange} />}
+            </div>
             <p className="mt-1 text-sm text-brand-gold">{displayUser.memberTitle}</p>
 
             {displayUser.bio && (

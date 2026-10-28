@@ -5,7 +5,7 @@ import PillToggle from '../PillToggle'
 import MemberAvatar from '../profile/MemberAvatar'
 import useApi from '../../hooks/useApi'
 import { getCritics } from '../../services/films'
-import { bannerLayerStyle } from '../../utils/bannerStyle'
+import BannerStrip from '../profile/BannerStrip'
 
 const MODES = [
   {
@@ -27,11 +27,6 @@ const MODES = [
 ]
 
 const COLLAPSED = 4
-
-const FADE_RIGHT = {
-  maskImage: 'linear-gradient(to right, black 60%, transparent)',
-  WebkitMaskImage: 'linear-gradient(to right, black 60%, transparent)',
-}
 
 // The members whose reviews have collected the most likes (Top) or dislikes
 // (Controversial). Shows the top 4, and "Show top 10" lengthens it to 10.
@@ -78,18 +73,7 @@ function CriticsLeaderboard() {
                     to={`/users/${critic.user._id}`}
                     className="group relative isolate flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
                   >
-                    {/* Their review card banner behind the left of the row: as
-                        long as a card, 15% longer on desktop, fading out on the right. */}
-                    <div
-                      className="pointer-events-none absolute inset-y-0 left-0 -z-10 w-120 max-w-full lg:w-138"
-                      style={FADE_RIGHT}
-                    >
-                      <div
-                        className="absolute inset-0"
-                        style={bannerLayerStyle(critic.user.reviewCardBanner)}
-                      />
-                      <div className="absolute inset-0 bg-ink/30" />
-                    </div>
+                    <BannerStrip banner={critic.user.reviewCardBanner} />
 
                     <span
                       className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${

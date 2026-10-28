@@ -5,9 +5,11 @@ const Comment = require("../models/commentModel");
 const User = require("../models/userModel");
 const { parseVote } = require("../models/votable");
 const { getMovie, getMovies } = require("../services/tmdbService");
-const { userSummary, reviewWithUser } = require("../utils/serialize");
+const { AUTHOR_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { levelOf, withAuthorStanding } = require("../utils/level");
 const { rankCritics } = require("../utils/critics");
+const { parseOffset } = require("../utils/paging");
+const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
 const { dislikeRefusal } = require("../utils/pvp");
 
 // "Top rated by the club" shows every rated film, but ranks them as if each
@@ -20,8 +22,6 @@ const RANKING_PRIOR_WEIGHT = 3;
 
 const MAX_REVIEW_LENGTH = 4000;
 
-// The fields a review card needs from its author.
-const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner levelStyle pvp allowComments showRank value privacy";
 
 // "This member wants to see this film": never seen it, or seen it and
 // flagged a rewatch. The same rule as frontend/src/utils/watchlist.js.
@@ -38,12 +38,6 @@ function parseTmdbId(value) {
 function parseLimit(value, fallback, max) {
     const limit = Number(value);
     return Number.isInteger(limit) && limit > 0 ? Math.min(limit, max) : fallback;
-}
-
-// How many to skip, for "load more". Anything odd counts as 0.
-function parseOffset(value) {
-    const offset = Number(value);
-    return Number.isInteger(offset) && offset > 0 ? offset : 0;
 }
 
 // The title, year, poster and genres copied onto log entries and reviews.
@@ -389,7 +383,36 @@ async function setReviewVote(req, res) {
         return res.status(404).json({ error: "Review not found." });
     }
 
+    // Into the author's Feed, and everyone's if it's now trending.
+    await noteReviewVote(review, req.user, vote);
+    if (vote === "like") await noteTrending(review._id);
+
     res.json(result);
+}
+
+// Deletes the review matching `filter` with everything hanging off it: its
+// comments and the notifications about it. The author's film log entry (their
+// rating and "watched") stays. Resolves to the deleted review's id, or null.
+async function removeReview(filter) {
+    const removed = await Review.findOneAndDelete(filter).select("_id").lean();
+    if (!removed) return null;
+
+    await Comment.deleteMany({ review: removed._id });
+    await forgetReview(removed._id);
+    return removed._id;
+}
+
+// Admins deleting someone's review. The page asks twice first.
+async function deleteReview(req, res) {
+    const removed = mongoose.isValidObjectId(req.params.id)
+        ? await removeReview({ _id: req.params.id })
+        : null;
+
+    if (!removed) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    res.json({ deleted: true });
 }
 
 // The author turning comments under one of their reviews off or on.
@@ -605,6 +628,9 @@ async function saveReview(req, res) {
     let review = null;
 
     if (text) {
+        // Only a brand new review goes out to their followers, not an edit.
+        const isNew = !(await Review.exists({ user: req.user._id, tmdbId }));
+
         review = await Review.findOneAndUpdate(
             { user: req.user._id, tmdbId },
             {
@@ -620,10 +646,11 @@ async function saveReview(req, res) {
             },
             { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
         ).lean();
+
+        if (isNew) await noteNewReview(review);
     } else {
-        // Its comments go with it.
-        const removed = await Review.findOneAndDelete({ user: req.user._id, tmdbId }).select("_id").lean();
-        if (removed) await Comment.deleteMany({ review: removed._id });
+        // No text left: the review goes, with its comments.
+        await removeReview({ user: req.user._id, tmdbId });
     }
 
     res.json({ entry: entry.toObject(), review });
@@ -638,6 +665,7 @@ module.exports = {
     getReview,
     getCritics,
     setReviewAllowComments,
+    deleteReview,
     setReviewVote,
     setReviewSpoilers,
     getFilmReviews,

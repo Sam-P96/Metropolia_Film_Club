@@ -9,6 +9,27 @@ const NAV_LINKS = [
   { to: '/about', label: 'About Us' },
 ]
 
+// Lucide's bell (lucide.dev, ISC licence: free to use, no attribution
+// required on the page).
+function BellIcon({ size = 20 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+      <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+    </svg>
+  )
+}
+
 function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -46,13 +67,21 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
 
   const linkClasses = ({ isActive }) =>
     isActive
-      ? 'text-[0.95rem] text-brand-gold transition-colors'
-      : 'text-[0.95rem] text-white/70 transition-colors hover:text-white'
+      ? 'whitespace-nowrap text-[0.95rem] text-brand-gold transition-colors'
+      : 'whitespace-nowrap text-[0.95rem] text-white/70 transition-colors hover:text-white'
 
   const panelLinkClasses = ({ isActive }) =>
     isActive
       ? 'block rounded-md bg-white/10 px-4 py-3 text-base font-medium text-brand-gold'
       : 'block rounded-md px-4 py-3 text-base font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white'
+
+  // Notifications, as a round bell beside Account. Gold while you're on it.
+  const bellClasses = ({ isActive }) =>
+    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${
+      isActive
+        ? 'border-brand-gold/60 bg-white/10 text-brand-gold'
+        : 'border-white/20 bg-white/5 text-white/80 hover:border-brand-gold/60 hover:bg-white/10 hover:text-white'
+    }`
 
   const buttonClasses =
     'whitespace-nowrap rounded-md bg-brand-red px-5 py-2 text-[0.95rem] font-medium text-white transition-colors hover:bg-brand-orange'
@@ -70,12 +99,14 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
           </NavLink>
         </div>
 
-        {/* Desktop only */}
-        <div className="hidden flex-1 lg:block">
+        {/* Desktop only, from 1280px: below that, the links, the search box,
+            the bell and the account buttons leave the search box too narrow
+            to use, so the menu has them. */}
+        <div className="hidden flex-1 xl:block">
           <GlobalSearch />
         </div>
 
-        <ul className="hidden gap-7 lg:flex">
+        <ul className="hidden gap-7 xl:flex">
           {NAV_LINKS.map((link) => (
             <li key={link.to}>
               <NavLink to={link.to} className={linkClasses}>
@@ -85,9 +116,13 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
           ))}
         </ul>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-3 xl:flex">
           {isAuthenticated ? (
             <>
+              {/* Clicking it while on the page loads the page again (Feed.jsx). */}
+              <NavLink to="/feed" className={bellClasses} aria-label="Notifications" title="Notifications">
+                <BellIcon />
+              </NavLink>
               <NavLink to="/account" className={buttonClasses}>Account</NavLink>
               <button onClick={handleLogout} className={logoutClasses}>Log out</button>
             </>
@@ -102,7 +137,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
           onClick={() => setMenuOpen(true)}
           aria-label="Open menu"
           aria-expanded={menuOpen}
-          className="ml-auto rounded-md border border-white/20 bg-white/5 p-2 text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10 lg:hidden"
+          className="ml-auto rounded-md border border-white/20 bg-white/5 p-2 text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10 xl:hidden"
         >
           <svg
             width="22"
@@ -128,8 +163,8 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         aria-hidden="true"
         className={
           menuOpen
-            ? 'fixed inset-0 z-110 bg-black/60 opacity-100 backdrop-blur-sm transition-opacity duration-300 lg:hidden'
-            : 'pointer-events-none fixed inset-0 z-110 bg-black/60 opacity-0 backdrop-blur-sm transition-opacity duration-300 lg:hidden'
+            ? 'fixed inset-0 z-110 bg-black/60 opacity-100 backdrop-blur-sm transition-opacity duration-300 xl:hidden'
+            : 'pointer-events-none fixed inset-0 z-110 bg-black/60 opacity-0 backdrop-blur-sm transition-opacity duration-300 xl:hidden'
         }
       />
 
@@ -138,8 +173,8 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         aria-hidden={!menuOpen}
         className={
           menuOpen
-            ? 'fixed top-0 right-0 z-120 flex h-full w-80 max-w-[85vw] translate-x-0 flex-col border-l border-white/10 bg-ink/60 shadow-2xl shadow-black/60 backdrop-blur-xl transition-transform duration-300 ease-out lg:hidden'
-            : 'fixed top-0 right-0 z-120 flex h-full w-80 max-w-[85vw] translate-x-full flex-col border-l border-white/10 bg-ink/60 shadow-2xl shadow-black/60 backdrop-blur-xl transition-transform duration-300 ease-out lg:hidden'
+            ? 'fixed top-0 right-0 z-120 flex h-full w-80 max-w-[85vw] translate-x-0 flex-col border-l border-white/10 bg-ink/60 shadow-2xl shadow-black/60 backdrop-blur-xl transition-transform duration-300 ease-out xl:hidden'
+            : 'fixed top-0 right-0 z-120 flex h-full w-80 max-w-[85vw] translate-x-full flex-col border-l border-white/10 bg-ink/60 shadow-2xl shadow-black/60 backdrop-blur-xl transition-transform duration-300 ease-out xl:hidden'
         }
       >
 
@@ -183,6 +218,17 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
                 </NavLink>
               </li>
             ))}
+
+            {isAuthenticated && (
+              <li>
+                <NavLink to="/feed" className={panelLinkClasses}>
+                  <span className="flex items-center gap-3">
+                    <BellIcon size={18} />
+                    Notifications
+                  </span>
+                </NavLink>
+              </li>
+            )}
           </ul>
         </nav>
 

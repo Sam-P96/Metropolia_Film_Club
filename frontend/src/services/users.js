@@ -28,6 +28,23 @@ export async function updateMe(changes) {
   return profile
 }
 
+// Follow or unfollow a member. Resolves to their follow state: followerCount,
+// followingCount, isFollowing, followsYou, isFriend and followListAccess.
+export function followUser(id) {
+  return api(`/users/${encodeURIComponent(id)}/follow`, { method: 'PUT' })
+}
+
+export function unfollowUser(id) {
+  return api(`/users/${encodeURIComponent(id)}/follow`, { method: 'DELETE' })
+}
+
+// A page of a member's followers or the members they follow ('followers' or
+// 'following'), newest first. { owner, access, users, total, hasMore, next }.
+// Fails with 403 if their followPrivacy setting keeps it from you.
+export function getFollowList(id, kind, skip = 0) {
+  return api(`/users/${encodeURIComponent(id)}/${kind}?skip=${skip}`)
+}
+
 // Everything we hold about the logged-in member: account, reviews, film logs.
 export function exportMyData() {
   return api('/users/me/export')

@@ -73,6 +73,23 @@ const userSchema = new Schema(
         // while they're in the top 3 on the Critics Leaderboard.
         showRank: {type: Boolean, default: true},
 
+        // Who can open their Followers and Following lists. Friends (mutual
+        // follows) can always open them, but with "nobody" they only see
+        // themselves in them.
+        // What's behind their Notifications page: the Upcoming events GIF ("default"),
+        // plain white, or the site's usual dark purple ("dark").
+        feedBackground: {
+            type: String,
+            enum: ["default", "white", "dark"],
+            default: "default",
+        },
+
+        followPrivacy: {
+            type: String,
+            enum: ["public", "friends", "nobody"],
+            default: "public",
+        },
+
         privacy: {
             type: String,
             enum: ["public", "friends", "private"],

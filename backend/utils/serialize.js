@@ -1,6 +1,12 @@
 // Shapes database documents into what the frontend reads. Every function here
 // takes a plain object (a .lean() result), never a Mongoose document.
 
+// The fields a review card needs from its author.
+const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner levelStyle pvp allowComments showRank value privacy";
+
+// Enough to draw a member's name, title and avatar in a list.
+const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy";
+
 const DEFAULT_BANNER = { type: "color", color: "#2D1B47", imageUrl: null, style: "opaque" };
 const DEFAULT_LEVEL_STYLE = {
     textColor: "#FFFFFF",
@@ -59,6 +65,8 @@ function userProfile(user) {
         ...userSummary(user),
         bio: user.bio ?? "",
         privacy: user.privacy ?? "public",
+        followPrivacy: user.followPrivacy ?? "public",
+        feedBackground: user.feedBackground ?? "default",
         favouriteFilms: user.favouriteFilms ?? [],
         joinedAt: joinedAtOf(user),
     };
@@ -87,6 +95,8 @@ function reviewWithUser(review) {
 }
 
 module.exports = {
+    AUTHOR_FIELDS,
+    MEMBER_FIELDS,
     userSummary,
     userProfile,
     restrictedProfile,

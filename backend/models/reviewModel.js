@@ -23,6 +23,10 @@ const reviewSchema = new Schema(
         // The author can turn comments off for this one review. They're
         // hidden, not deleted. See also allowComments on the user.
         allowComments: {type: Boolean, default: true},
+
+        // When it first passed the trending line and went out in members'
+        // Feeds. It only goes out once.
+        trendingAt: {type: Date, default: null},
     },
     {timestamps: true}
 );

@@ -61,6 +61,12 @@ export function setReviewSpoilers(id, containsSpoilers) {
   })
 }
 
+// Admins only. Deletes the review with its comments; the author's rating
+// stays in their film log. Resolves to { deleted: true }.
+export function deleteReview(id) {
+  return api(`/reviews/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 // The review's author only. Off hides its comments without deleting them.
 // Resolves to { allowComments }.
 export function setReviewAllowComments(id, allowComments) {

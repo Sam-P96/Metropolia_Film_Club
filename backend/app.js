@@ -13,6 +13,7 @@ const eventRouter = require("./routes/eventRouter");
 const filmRouter = require("./routes/filmRouter");
 const reviewRouter = require("./routes/reviewRouter");
 const commentRouter = require("./routes/commentRouter");
+const feedRouter = require("./routes/feedRouter");
 const { recountDislikes } = require("./utils/pvp");
 
 const app = express();
@@ -80,6 +81,7 @@ app.use("/api/events", eventRouter);
 app.use("/api/films", filmRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/comments", commentRouter);
+app.use("/api/feed", feedRouter);
 
 app.get("/api/health", (req, res) => {
     res.json({status: "ok"})
