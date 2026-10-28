@@ -6,6 +6,7 @@ const {
     setReviewVote,
     setReviewSpoilers,
     setReviewAllowComments,
+    deleteReview,
 } = require("../controllers/filmController");
 const { getComments, addComment } = require("../controllers/commentController");
 const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth");
@@ -32,5 +33,8 @@ router.put("/:id/allow-comments", requireAuth, setReviewAllowComments);
 // Moderators and admins. The frontend hides the button from everyone else,
 // but this is the check that counts.
 router.put("/:id/spoilers", requireAuth, requireRole("moderator"), setReviewSpoilers);
+
+// Admins only. Authors delete their own by clearing the text when editing.
+router.delete("/:id", requireAuth, requireRole("admin"), deleteReview);
 
 module.exports = router;

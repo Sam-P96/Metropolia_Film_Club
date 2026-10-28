@@ -1,16 +1,18 @@
 import { api } from './api'
 
-// Comments under a review, oldest first. Each has its author (`user`),
-// likeCount, dislikeCount and myVote ('like', 'dislike' or null).
+// Comments under a review, replies included, oldest first. Each has its
+// author (`user`), `parent` (the comment it replies to, or null), likeCount,
+// dislikeCount and myVote ('like', 'dislike' or null).
 export function getComments(reviewId) {
   return api(`/reviews/${encodeURIComponent(reviewId)}/comments`)
 }
 
-// Any logged-in member. Resolves to the new comment, in the same shape.
-export function addComment(reviewId, text) {
+// Any logged-in member. `parent` is the comment it replies to, or null for
+// one straight under the review. Resolves to the new comment, in the same shape.
+export function addComment(reviewId, text, parent = null) {
   return api(`/reviews/${encodeURIComponent(reviewId)}/comments`, {
     method: 'POST',
-    body: { text },
+    body: { text, parent },
   })
 }
 

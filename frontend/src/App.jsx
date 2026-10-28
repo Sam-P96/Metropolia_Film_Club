@@ -26,6 +26,8 @@ import PlanToWatchAll from "./pages/PlanToWatchAll";
 import Members from "./pages/Members";
 import SearchResults from "./pages/SearchResults";
 import Privacy from "./pages/Privacy";
+import Feed from "./pages/Feed";
+import FollowList from "./pages/FollowList";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -73,6 +75,11 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/members" element={<Members />} />
           <Route path="/users/:userId" element={<Profile />} />
+          <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />
+          <Route path="/users/:userId/following" element={<FollowList key="following" kind="following" />} />
+          <Route path="/feed" element={
+            isAuthenticated ? (<Feed />) : (<Navigate to="/login" state={{ from: '/feed' }} />)
+          } />
 
           <Route path="/wheel" element={<Wheel />} />
           <Route path="/users/:userId/films" element={<UserFilmList />} />

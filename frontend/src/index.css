@@ -20,6 +20,23 @@
     0%, 100% { transform: scale(1); }
     40%      { transform: scale(1.4); }
   }
+
+  /* The Follow / Unfollow button on a profile, when it's clicked */
+  --animate-follow-pop: follow-pop 0.4s ease-out;
+
+  @keyframes follow-pop {
+    0%, 100% { transform: scale(1); }
+    35%      { transform: scale(0.9); }
+    70%      { transform: scale(1.08); }
+  }
+
+  /* A comment opened from a Feed link: a gold ring that fades out */
+  --animate-comment-flash: comment-flash 2.5s ease-out;
+
+  @keyframes comment-flash {
+    0%, 40% { box-shadow: 0 0 0 2px var(--color-brand-gold); }
+    100%    { box-shadow: 0 0 0 2px transparent; }
+  }
 }
 
 body {

@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A Critics Leaderboard at the bottom of the Movie Reviews page: the top 4
   members by likes on their reviews (Top) or by dislikes (Controversial),
   and "Show top 10" lengthens it to 10 (`GET /api/reviews/critics`).
+- Admins can delete someone else's review from its page, after confirming
+  twice. Its comments and notifications go with it; the author's rating
+  stays in their film list (`DELETE /api/reviews/:id`).
 - Moderators and admins can mark a review as containing spoilers, or remove
   the mark, from the review page (`PUT /api/reviews/:id/spoilers`).
 - Members can mark an upcoming event as Attend or Interested, and the event
@@ -111,12 +114,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Critics Leaderboard, Controversial); they're kept, and count again if PVP
   goes back on. The server recounts dislikes when it starts, so ones given
   before PVP existed stop counting until their giver turns PVP on.
+- Replies to comments on the review page, nested Reddit-style under the
+  comment they answer, with a line down each thread. Deleting a comment
+  keeps its replies under a "[deleted]" stand-in
+  (`POST /api/reviews/:id/comments` takes `parent`).
+- Following: a Follow / Unfollow button beside a member's name, in brand
+  red with a small pop. Members who follow each other are friends, which
+  makes the "Friends only" profile setting work. Profile stats gain a row
+  with Followers and Following, opening paged lists in the Critics
+  Leaderboard's style; a new Edit profile setting makes them public,
+  friends only, or nobody (friends then see only themselves)
+  (`PUT`/`DELETE /api/users/:id/follow`, `GET /api/users/:id/followers`,
+  `GET /api/users/:id/following`).
+- A Notifications page for logged-in members, behind a bell icon beside Account
+  in the nav bar (and "Notifications" in the menu on narrower screens):
+  likes and dislikes on your reviews (grouped per review, with everyone who
+  voted, in a translucent green or red box), replies to your reviews and
+  comments, new reviews from members you follow, and reviews from others
+  passing 5 likes as trending. The newest 100, 10 at a time; notifications
+  are deleted after 90 days (`GET /api/feed`). New and trending reviews sit
+  centred on light glass, black for new and brand gold for trending.
+  Someone following you shows too, with a Follow back button; unfollowing
+  quietly removes it. Clicking the bell while on the page loads it again
+  from the top.
+- A Notifications background setting in Edit profile: Default (the Upcoming
+  events glow under dark glass, fixed while the page scrolls), White, or
+  Dark (the site's usual purple).
 - A "Comments on your reviews" switch in Edit profile, and a Turn off
   comments button on the author's own review page for one review
   (`PUT /api/reviews/:id/allow-comments`). Turned-off comments are hidden,
   not deleted, and can't be added to; the comments endpoints answer 403.
 
 ### Changed
+- The full navigation bar shows from 1280px wide; narrower screens get the
+  menu button. With the bell added, the search box was squeezed too narrow
+  to use below about 1200px.
 - The bio limit is 300 characters (was 280 in the form, 500 on the server).
 - Favourite films on a profile link to their film pages.
 - The film title on a review card links to the film's page.

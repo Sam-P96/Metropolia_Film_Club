@@ -1,13 +1,19 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { getReview, setReviewAllowComments, setReviewSpoilers, setReviewVote } from '../services/films'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import {
+  deleteReview,
+  getReview,
+  setReviewAllowComments,
+  setReviewSpoilers,
+  setReviewVote,
+} from '../services/films'
 import useApi from '../hooks/useApi'
 import StarRating from '../components/reviews/StarRating'
 import VoteButtons, { VoteBar } from '../components/reviews/VoteButtons'
 import ReviewComments from '../components/reviews/ReviewComments'
 import { timeAgo } from '../utils/timeAgo'
 import { getCurrentUser } from '../utils/currentUser'
-import { canMarkSpoilers } from '../utils/permissions'
+import { canDeleteAnyReview, canMarkSpoilers } from '../utils/permissions'
 
 function formatFullDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-GB', {
@@ -102,6 +108,8 @@ function ReviewDetail({ isAuthenticated }) {
                 onSaved={(containsSpoilers) => setData((prev) => ({ ...prev, containsSpoilers }))}
               />
             )}
+
+            {canDeleteAnyReview(currentUser) && !isAuthor && <DeleteReview review={review} />}
           </div>
         </div>
 
@@ -255,6 +263,90 @@ function ReviewDetail({ isAuthenticated }) {
 
       </div>
     </section>
+  )
+}
+
+// Admins deleting someone else's review. It asks twice, right where the
+// button was, so it takes three deliberate clicks; then it's back to the
+// reviews page.
+function DeleteReview({ review }) {
+  const navigate = useNavigate()
+  // 0: the button. 1: first "are you sure". 2: the last chance.
+  const [step, setStep] = useState(0)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState(null)
+
+  const whose = review.user ? `${review.user.username}'s` : 'this'
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+
+    try {
+      await deleteReview(review._id)
+      navigate('/movie_reviews', { replace: true })
+    } catch (err) {
+      setError(err.message)
+      setDeleting(false)
+    }
+  }
+
+  const cancel = () => {
+    setStep(0)
+    setError(null)
+  }
+
+  const redButton =
+    'rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60'
+  const cancelButton =
+    'rounded-md border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10'
+
+  if (step === 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => setStep(1)}
+        className="rounded-md border border-brand-red/60 bg-brand-red/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-brand-red hover:bg-brand-red/20"
+      >
+        Delete review
+      </button>
+    )
+  }
+
+  return (
+    <div
+      role="alertdialog"
+      aria-label="Delete this review"
+      className="w-80 max-w-full rounded-xl border border-brand-red/40 bg-brand-red/10 p-4 backdrop-blur-sm"
+    >
+      {step === 1 ? (
+        <p className="text-sm text-white">
+          Delete {whose} review of {review.filmTitle}?
+        </p>
+      ) : (
+        <p className="text-sm text-white">
+          Are you sure? Its comments go with it, and it can't be undone. Their rating stays in
+          their film list.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        <button type="button" onClick={cancel} disabled={deleting} className={cancelButton}>
+          Cancel
+        </button>
+        {step === 1 ? (
+          <button type="button" onClick={() => setStep(2)} className={redButton}>
+            Yes, delete
+          </button>
+        ) : (
+          <button type="button" onClick={handleDelete} disabled={deleting} className={redButton}>
+            {deleting ? 'Deleting…' : 'Delete for good'}
+          </button>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-sm text-brand-red">{error}</p>}
+    </div>
   )
 }
 

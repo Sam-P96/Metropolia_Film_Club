@@ -12,6 +12,7 @@ const {
     exportMe,
     deleteMe,
 } = require("../controllers/userControllers");
+const { followUser, unfollowUser, getFollowers, getFollowing } = require("../controllers/followController");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 
 // login route
@@ -34,5 +35,12 @@ router.delete("/me", requireAuth, deleteMe);
 router.get("/:id", optionalAuth, getUser);
 router.get("/:id/reviews", optionalAuth, getUserReviews);
 router.get("/:id/films", optionalAuth, getUserFilms);
+
+// Following someone; two members who follow each other are friends. The
+// lists follow the member's followPrivacy setting.
+router.put("/:id/follow", requireAuth, followUser);
+router.delete("/:id/follow", requireAuth, unfollowUser);
+router.get("/:id/followers", optionalAuth, getFollowers);
+router.get("/:id/following", optionalAuth, getFollowing);
 
 module.exports = router;

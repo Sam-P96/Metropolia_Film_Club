@@ -70,6 +70,12 @@ export function canRemoveSeats(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
+// Deleting someone else's review (after confirming twice). Authors delete
+// their own by clearing the text when editing it. Matches the backend.
+export function canDeleteAnyReview(currentUser) {
+  return hasAtLeast(currentUser, 'admin')
+}
+
 export function canEditAnyReview(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }

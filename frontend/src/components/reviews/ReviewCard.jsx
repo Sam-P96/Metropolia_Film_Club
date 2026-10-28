@@ -9,7 +9,9 @@ import { bannerLayerStyle } from '../../utils/bannerStyle'
 import { RANK_TITLES, rankRing } from '../../utils/rankRings'
 
 // showLevel keeps "Level: X" on screen, for the preview while editing the card.
-function ReviewCard({ review, onVoteChange, showLevel = false }) {
+// solid gives the card an opaque background, for a light page where the
+// usual see-through one would wash out (the Notifications page on white).
+function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) {
   const { user } = review
 
   // The profile's "No reviews yet" stand-in has no film, so there's nothing
@@ -32,7 +34,11 @@ function ReviewCard({ review, onVoteChange, showLevel = false }) {
     : null
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-white/10 bg-plum/40 text-white shadow-xl shadow-black/40 backdrop-blur-md">
+    <article
+      className={`overflow-hidden rounded-2xl border border-white/10 text-white shadow-xl shadow-black/40 backdrop-blur-md ${
+        solid ? 'bg-plum' : 'bg-plum/40'
+      }`}
+    >
 
       <div className="flex">
         <div className="relative aspect-2/3 w-40 shrink-0 bg-ink/60 sm:w-44">

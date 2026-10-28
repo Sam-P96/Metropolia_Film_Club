@@ -5,6 +5,7 @@ const { parseVote } = require("../models/votable");
 const { userSummary } = require("../utils/serialize");
 const { hasRole } = require("../middleware/auth");
 const { dislikeRefusal } = require("../utils/pvp");
+const { noteReply, forgetComment } = require("../utils/notify");
 
 const MAX_COMMENT_LENGTH = 1000;
 
@@ -20,29 +21,35 @@ function shape(comment) {
     return { ...rest, user: userSummary(comment.user) };
 }
 
-// Whether review `id` takes comments: its author allows them on all their
-// reviews and hasn't turned them off for this one. Null if there's no such
-// review.
-async function commentsOpen(id) {
+// Review `id` with its author's id, and whether it takes comments: its
+// author allows them on all their reviews and hasn't turned them off for
+// this one. Null if there's no such review.
+async function findForComments(id) {
     const review = mongoose.isValidObjectId(id)
         ? await Review.findById(id).select("user allowComments").populate("user", "allowComments").lean()
         : null;
 
     if (!review) return null;
-    return (review.allowComments ?? true) && (review.user?.allowComments ?? true);
+
+    return {
+        _id: review._id,
+        user: review.user?._id ?? null,
+        open: (review.allowComments ?? true) && (review.user?.allowComments ?? true),
+    };
 }
 
-// Everything under one review, oldest first; the page flips it for "Recent".
-// Turned-off comments are kept but not shown.
+// Everything under one review, replies included, oldest first; the page
+// builds the threads from each comment's `parent` and flips the order for
+// "Recent". Turned-off comments are kept but not shown.
 async function getComments(req, res) {
     const { id } = req.params;
-    const open = await commentsOpen(id);
+    const review = await findForComments(id);
 
-    if (open === null) {
+    if (!review) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    if (!open) {
+    if (!review.open) {
         return res.status(403).json({ error: COMMENTS_OFF });
     }
 
@@ -56,26 +63,38 @@ async function getComments(req, res) {
     res.json(await Comment.withMyVote(shown, req.user));
 }
 
-// Any logged-in member, under any review that takes comments.
+// Any logged-in member, under any review that takes comments. `parent`
+// replies to another comment under the same review. Whoever it answers gets
+// it in their Feed.
 async function addComment(req, res) {
     const { id } = req.params;
     const text = String(req.body?.text ?? "").trim();
+    const parent = req.body?.parent ?? null;
 
     if (!text || text.length > MAX_COMMENT_LENGTH) {
         return res.status(400).json({ error: `Comments are 1 to ${MAX_COMMENT_LENGTH} characters.` });
     }
 
-    const open = await commentsOpen(id);
+    const review = await findForComments(id);
 
-    if (open === null) {
+    if (!review) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    if (!open) {
+    if (!review.open) {
         return res.status(403).json({ error: COMMENTS_OFF });
     }
 
-    const created = await Comment.create({ review: id, user: req.user._id, text });
+    const parentExists =
+        parent === null ||
+        (mongoose.isValidObjectId(parent) && (await Comment.exists({ _id: parent, review: id })));
+
+    if (!parentExists) {
+        return res.status(404).json({ error: "The comment you're replying to has been deleted." });
+    }
+
+    const created = await Comment.create({ review: id, user: req.user._id, text, parent });
+    await noteReply(created, review);
     const comment = await Comment.findById(created._id).populate("user", AUTHOR_FIELDS).lean();
 
     res.status(201).json({ ...shape(comment), myVote: null });
@@ -130,7 +149,9 @@ async function deleteComment(req, res) {
         return res.status(403).json({ error: "You can only delete your own comments." });
     }
 
+    // Its replies stay, under a "[deleted]" placeholder on the page.
     await Comment.deleteOne({ _id: id });
+    await forgetComment(id);
     res.json({ ok: true });
 }
 
