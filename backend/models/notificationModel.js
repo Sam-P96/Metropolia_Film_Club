@@ -16,6 +16,9 @@ const KEEP_FOR_DAYS = 90;
 //                   or under one of their comments.
 //   follow          `actors[0]` started following them. No review; it goes
 //                   again if they unfollow.
+//   pvp             `actors[0]` turned PvP on. `variant` picks the line it's
+//                   announced with (frontend/src/components/feed/FeedItem.jsx).
+//                   It goes again if they turn PvP off. No review.
 //   event           `event` was posted: a club event (to every member, its
 //                   poster included) or a
 //                   member screening by `actors[0]`: to its host, their
@@ -24,7 +27,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event"],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp"],
         required: true,
     },
     review: {
@@ -32,10 +35,11 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return this.type !== "follow" && this.type !== "event";
+            return !["follow", "event", "pvp"].includes(this.type);
         },
     },
     event: {type: Schema.Types.ObjectId, ref: "Event", default: null},
+    variant: {type: Number, default: null},
     comment: {type: Schema.Types.ObjectId, ref: "Comment", default: null},
     actors: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
     // The last activity: when it was made, or when someone last voted.

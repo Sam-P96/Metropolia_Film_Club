@@ -102,6 +102,10 @@ async function hydrate(rows, viewer) {
 
         if (members.length === 0) return [];
 
+        if (row.type === "pvp") {
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, variant: row.variant ?? 0 }];
+        }
+
         if (row.type === "follow") {
             return [{
                 _id: row._id,

@@ -406,6 +406,53 @@ function EventNotice({ item, light }) {
   )
 }
 
+// How a member turning PvP on is announced, one picked at random for each
+// notification (the server stores which). Nods to films and games. The
+// server's PVP_LINES (backend/utils/notify.js) must match how many.
+const PVP_LINES = [
+  (name) => <>Here comes a new challenger: {name}!</>, // Street Fighter / Tekken
+  (name) => <>{name}, may the power protect you.</>, // Power Rangers
+  (name) => <>Are you not entertained? {name} has entered the arena!</>, // Gladiator
+  (name) => <>This. Is. {name}! ! !</>, // 300
+  (name) => <>May the odds be ever in {name}'s favour.</>, // The Hunger Games
+  (name) => <>Rejoice. You have the privilege of being rated by {name}. You may think this is suffering... no. It is salvation. </>, // Infinity War
+  (name) => <>War. War never changes. But {name} just did.</>, // Fallout
+  (name) => <>{name} has entered the fray.</>, // Skyrim
+  (name) => <>{name} is inevitable. Dread it. Run from it. Destiny arrives all the same.</>, // Avengers: Endgame
+  (name) => <>{name} has stepped onto the battlefield!</>, // ???
+]
+
+// Someone turned PvP on: on their banner, inside a glowing red border, the
+// line it's announced with, and plainly what happened. It goes again if
+// they turn PvP off.
+function PvpNotice({ item }) {
+  const fighter = item.actors[0]
+  const line = PVP_LINES[(item.variant ?? 0) % PVP_LINES.length]
+  const name = <NameLink user={fighter} className={bannerNameClasses} />
+
+  return (
+    <article className="relative isolate overflow-hidden rounded-2xl border-2 border-brand-red shadow-[0_0_28px_rgba(199,37,62,0.6)]">
+      <BannerBackdrop user={fighter} />
+
+      <div className="flex flex-wrap items-center gap-5 p-5 sm:p-6">
+        <Link to={`/users/${fighter._id}`} tabIndex={-1} aria-hidden="true" className="shrink-0">
+          <MemberAvatar user={fighter} size="lg" />
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold tracking-widest text-red-300 uppercase">PvP enabled</p>
+          <h2 className="mt-1 text-lg font-bold text-white sm:text-xl">{line(name)}</h2>
+          <p className="mt-1 text-sm text-white/70">
+            {fighter.username} has enabled PvP: they can dislike reviews and comments, and theirs
+            can be disliked.
+            <span className="text-white/50"> · {timeAgo(item.at)}</span>
+          </p>
+        </div>
+      </div>
+    </article>
+  )
+}
+
 // A reported review, pinned at the top of every moderator's and admin's
 // Notifications: in a red box, the review card on the left, who reported it
 // and when on the right. "Addressed" or "Dismiss" clears it for all of them.
@@ -498,6 +545,7 @@ function FeedItem({ item, light = false }) {
   if (item.type === 'like' || item.type === 'dislike') return <VoteNotice item={item} tone={tone} solid={light} />
   if (item.type === 'reply') return <ReplyNotice item={item} />
   if (item.type === 'follow') return <FollowNotice item={item} />
+  if (item.type === 'pvp') return <PvpNotice item={item} />
   if (item.type === 'event') return <EventNotice item={item} light={light} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }
