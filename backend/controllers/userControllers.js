@@ -5,12 +5,16 @@ const Comment = require("../models/commentModel");
 const FilmLog = require("../models/filmLogModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
+const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
 const { withStanding } = require("../utils/level");
 const { recountDislikes } = require("../utils/pvp");
 const Follow = require("../models/followModel");
 const { areFriends, followState } = require("../utils/follows");
 const { forgetMember } = require("../utils/notify");
+const Report = require("../models/reportModel");
+const { BAN_RIGHTS, bansOf } = require("../utils/bans");
+const { hasRole, outranks } = require("../middleware/auth");
+const { parseOffset } = require("../utils/paging");
 
 const MAX_FAVOURITES = 4;
 const MAX_USERNAME_LENGTH = 30;
@@ -151,11 +155,74 @@ const getUser = async (req, res) => {
     // nobody could ever become friends with a friends-only member.
     const follows = await followState(user, req.user);
 
+    // Moderators and admins see a member's bans, and the Ban Hammer if they
+    // outrank them.
+    const staff = hasRole(req.user, "moderator")
+        ? { bans: bansOf(user), canBan: outranks(req.user, user) }
+        : {};
+
     res.json(
         visible
-            ? { ...(await withStanding(userProfile(user))), ...follows }
-            : { ...restrictedProfile(user), ...follows }
+            ? { ...(await withStanding(userProfile(user))), ...follows, ...staff }
+            : { ...restrictedProfile(user), ...follows, ...staff }
     );
+}
+
+// The Ban Hammer: moderators and admins switching a member's bans on or off,
+// one or more at a time ({ comments: true }), on members they outrank.
+// Resolves to { bans }.
+const setBans = async (req, res) => {
+    const { id } = req.params;
+    const target = mongoose.isValidObjectId(id) ? await User.findById(id).select("role").lean() : null;
+
+    if (!target) {
+        return res.status(404).json({ error: "There is no member with that id." });
+    }
+
+    if (!outranks(req.user, target)) {
+        return res.status(403).json({ error: "You can only ban members below you." });
+    }
+
+    const set = {};
+    for (const right of BAN_RIGHTS) {
+        if (!(right in (req.body ?? {}))) continue;
+        if (typeof req.body[right] !== "boolean") {
+            return res.status(400).json({ error: `${right} must be true or false.` });
+        }
+        set[`bans.${right}`] = req.body[right];
+    }
+
+    if (Object.keys(set).length === 0) {
+        return res.status(400).json({ error: "Nothing to change." });
+    }
+
+    const user = await User.findByIdAndUpdate(id, { $set: set }, { returnDocument: "after" }).select("bans").lean();
+    res.json({ bans: bansOf(user) });
+}
+
+// The Banned List, for moderators and admins: everyone with at least one
+// ban, A to Z, 10 at a time. { users, total, hasMore, next }.
+const getBanned = async (req, res) => {
+    const filter = { $or: BAN_RIGHTS.map((right) => ({ [`bans.${right}`]: true })) };
+    const skip = parseOffset(req.query.skip);
+
+    const [users, total] = await Promise.all([
+        User.find(filter)
+            .select(`${MEMBER_FIELDS} bans`)
+            .collation({ locale: "en" })
+            .sort({ username: 1 })
+            .skip(skip)
+            .limit(10)
+            .lean(),
+        User.countDocuments(filter),
+    ]);
+
+    res.json({
+        users: users.map((user) => ({ ...userSummary(user), bans: bansOf(user) })),
+        total,
+        hasMore: skip + users.length < total,
+        next: skip + users.length,
+    });
 }
 
 // Reviews show up around the site whatever the profile's privacy setting,
@@ -405,6 +472,9 @@ const deleteMe = async (req, res) => {
         });
 
         await forgetMember(userId, ownReviews.map((review) => review._id));
+        await Report.deleteMany({
+            $or: [{ reporter: userId }, { review: { $in: ownReviews.map((review) => review._id) } }],
+        });
         await Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] });
 
         await Review.deleteMany({ user: userId });
@@ -422,6 +492,8 @@ module.exports = {
     loginUser,
     getUsers,
     getUser,
+    setBans,
+    getBanned,
     getUserReviews,
     getUserFilms,
     updateMe,

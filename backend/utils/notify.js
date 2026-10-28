@@ -101,6 +101,48 @@ function forgetFollow(followerId, followingId) {
     return Notification.deleteMany({ recipient: followingId, type: "follow", actors: followerId });
 }
 
+// A new event. A club event goes to every member, whoever posted it
+// included. A member screening goes to its host, the members who follow
+// them, and every moderator and admin (who look after screenings), each
+// once.
+async function noteNewEvent(event) {
+    if (event.official !== false) {
+        const members = await User.find().distinct("_id");
+        await sendToEach(members, { type: "event", event: event._id, actors: [event.createdBy] });
+        return;
+    }
+
+    const [followers, staff] = await Promise.all([
+        Follow.find({ following: event.createdBy }).distinct("follower"),
+        User.find({ role: { $in: ["moderator", "admin"] } }).distinct("_id"),
+    ]);
+    const recipients = [...new Map(
+        [event.createdBy, ...followers, ...staff].map((id) => [String(id), id])
+    ).values()];
+
+    await sendToEach(recipients, { type: "event", event: event._id, actors: [event.createdBy] });
+}
+
+// A member screening made official is a new club event for every member
+// who hasn't heard about it yet (its host and their followers have),
+// whoever promoted it included.
+async function notePromotedEvent(event) {
+    const [members, told] = await Promise.all([
+        User.find().distinct("_id"),
+        Notification.find({ type: "event", event: event._id }).distinct("recipient"),
+    ]);
+    const skip = new Set(told.map(String));
+
+    await sendToEach(
+        members.filter((id) => !skip.has(String(id))),
+        { type: "event", event: event._id, actors: [event.createdBy] }
+    );
+}
+
+function forgetEvent(eventId) {
+    return Notification.deleteMany({ event: eventId });
+}
+
 // A review or comment was deleted, so its notifications go too.
 function forgetReview(reviewId) {
     return Notification.deleteMany({ review: reviewId });
@@ -132,6 +174,9 @@ module.exports = {
     noteReply,
     noteFollow,
     forgetFollow,
+    noteNewEvent,
+    notePromotedEvent,
+    forgetEvent,
     forgetReview,
     forgetComment,
     forgetMember,

@@ -4,7 +4,7 @@ import ReviewCard from '../components/reviews/ReviewCard'
 import ReviewCardEditor from '../components/profile/ReviewCardEditor'
 import ProfileEditor from '../components/profile/ProfileEditor'
 import ProfileStats from '../components/profile/ProfileStats'
-import FollowButton from '../components/profile/FollowButton'
+import ProfileHeading from '../components/profile/ProfileHeading'
 import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
 import FilmSearchPicker from '../components/profile/FilmSearchPicker'
@@ -14,6 +14,7 @@ import useApi from '../hooks/useApi'
 import { getCurrentUser, updateCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
 import { isWanted } from '../utils/watchlist'
+import { canModerate } from '../utils/permissions'
 
 const MAX_FAVOURITES = 4
 
@@ -78,18 +79,21 @@ function Profile() {
     )
   }
 
-  // Follow state from the server or the Follow button, merged in.
+  // Follow and ban changes from the server or the buttons, merged in.
   const handleFollowChange = (state) => profile.setData((previous) => ({ ...previous, ...state }))
 
   // The server leaves the details out of someone else's private profile. The
-  // Follow button stays, so members can still become friends.
+  // Follow button stays, so members can still become friends, and so does
+  // the Ban Hammer.
   if (profile.data.restricted) {
     return (
       <section className="mx-auto max-w-3xl px-8 py-24 text-white">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold">{profile.data.username}</h1>
-          <FollowButton profileUser={profile.data} onChange={handleFollowChange} />
-        </div>
+        <ProfileHeading
+          name={profile.data.username}
+          profileUser={profile.data}
+          isOwner={false}
+          onChange={handleFollowChange}
+        />
         <p className="mt-3 text-white/60">
           {profile.data.privacy === 'friends'
             ? 'Only friends can see this profile. Follow each other to become friends.'
@@ -288,15 +292,22 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
                 <button onClick={() => startEditing('profile')} className={buttonClasses}>
                   Edit profile
                 </button>
+                {canModerate(profileUser) && (
+                  <Link to="/banned" className={buttonClasses}>
+                    Banned list
+                  </Link>
+                )}
               </div>
             )}
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold">{displayUser.username}</h1>
-              {!isOwner && <FollowButton profileUser={profileUser} onChange={onFollowChange} />}
-            </div>
+            <ProfileHeading
+              name={displayUser.username}
+              profileUser={profileUser}
+              isOwner={isOwner}
+              onChange={onFollowChange}
+            />
             <p className="mt-1 text-sm text-brand-gold">{displayUser.memberTitle}</p>
 
             {displayUser.bio && (

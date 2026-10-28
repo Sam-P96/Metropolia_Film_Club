@@ -61,6 +61,18 @@ export function setReviewSpoilers(id, containsSpoilers) {
   })
 }
 
+// Any logged-in member, on someone else's review: up to 5 a day. Moderators
+// and admins see it at the top of their Notifications.
+export function reportReview(id) {
+  return api(`/reviews/${encodeURIComponent(id)}/report`, { method: 'POST' })
+}
+
+// Moderators and admins: 'addressed' or 'dismissed' closes every open report
+// on the review, for all of them.
+export function resolveReports(reviewId, status) {
+  return api(`/reviews/${encodeURIComponent(reviewId)}/reports`, { method: 'PUT', body: { status } })
+}
+
 // Admins only. Deletes the review with its comments; the author's rating
 // stays in their film log. Resolves to { deleted: true }.
 export function deleteReview(id) {

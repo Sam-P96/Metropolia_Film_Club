@@ -28,6 +28,7 @@ import SearchResults from "./pages/SearchResults";
 import Privacy from "./pages/Privacy";
 import Feed from "./pages/Feed";
 import FollowList from "./pages/FollowList";
+import BannedList from "./pages/BannedList";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -77,6 +78,9 @@ function App() {
           <Route path="/users/:userId" element={<Profile />} />
           <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />
           <Route path="/users/:userId/following" element={<FollowList key="following" kind="following" />} />
+          <Route path="/banned" element={
+            isAuthenticated ? (<BannedList />) : (<Navigate to="/login" state={{ from: '/banned' }} />)
+          } />
           <Route path="/feed" element={
             isAuthenticated ? (<Feed />) : (<Navigate to="/login" state={{ from: '/feed' }} />)
           } />

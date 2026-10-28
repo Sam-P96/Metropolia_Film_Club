@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   deleteReview,
   getReview,
+  reportReview,
   setReviewAllowComments,
   setReviewSpoilers,
   setReviewVote,
@@ -108,6 +109,8 @@ function ReviewDetail({ isAuthenticated }) {
                 onSaved={(containsSpoilers) => setData((prev) => ({ ...prev, containsSpoilers }))}
               />
             )}
+
+            {currentUser && !isAuthor && <ReportReview review={review} />}
 
             {canDeleteAnyReview(currentUser) && !isAuthor && <DeleteReview review={review} />}
           </div>
@@ -263,6 +266,86 @@ function ReviewDetail({ isAuthenticated }) {
 
       </div>
     </section>
+  )
+}
+
+// Reporting the review to the moderators and admins, after confirming. They
+// see who reported it. Members can report 5 reviews a day; the server says
+// so, and why else it won't take one.
+function ReportReview({ review }) {
+  // 'idle', 'confirming' or 'done'.
+  const [step, setStep] = useState('idle')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleReport = async () => {
+    setSending(true)
+    setError(null)
+
+    try {
+      await reportReview(review._id)
+      setStep('done')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (step === 'done') {
+    return (
+      <p className="w-80 max-w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+        Reported. A moderator will take a look.
+      </p>
+    )
+  }
+
+  if (step === 'idle') {
+    return (
+      <button
+        type="button"
+        onClick={() => setStep('confirming')}
+        className="rounded-md border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:border-brand-red/60 hover:text-white"
+      >
+        Report
+      </button>
+    )
+  }
+
+  return (
+    <div
+      role="alertdialog"
+      aria-label="Report this review"
+      className="w-80 max-w-full rounded-xl border border-brand-red/40 bg-brand-red/10 p-4 backdrop-blur-sm"
+    >
+      <p className="text-sm text-white">
+        Report this review to the moderators? They'll see that you reported it.
+      </p>
+
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setStep('idle')
+            setError(null)
+          }}
+          disabled={sending}
+          className="rounded-md border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleReport}
+          disabled={sending}
+          className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60"
+        >
+          {sending ? 'Reporting…' : 'Report'}
+        </button>
+      </div>
+
+      {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
+    </div>
   )
 }
 

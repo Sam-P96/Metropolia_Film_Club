@@ -16,11 +16,15 @@ const KEEP_FOR_DAYS = 90;
 //                   or under one of their comments.
 //   follow          `actors[0]` started following them. No review; it goes
 //                   again if they unfollow.
+//   event           `event` was posted: a club event (to every member, its
+//                   poster included) or a
+//                   member screening by `actors[0]`: to its host, their
+//                   followers, and moderators and admins. No review.
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow"],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event"],
         required: true,
     },
     review: {
@@ -28,9 +32,10 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return this.type !== "follow";
+            return this.type !== "follow" && this.type !== "event";
         },
     },
+    event: {type: Schema.Types.ObjectId, ref: "Event", default: null},
     comment: {type: Schema.Types.ObjectId, ref: "Comment", default: null},
     actors: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
     // The last activity: when it was made, or when someone last voted.
@@ -43,5 +48,6 @@ notificationSchema.index({at: 1}, {expireAfterSeconds: KEEP_FOR_DAYS * 24 * 60 *
 notificationSchema.index({recipient: 1, type: 1, review: 1});
 notificationSchema.index({review: 1});
 notificationSchema.index({comment: 1});
+notificationSchema.index({event: 1});
 
 module.exports = mongoose.model("Notification", notificationSchema);

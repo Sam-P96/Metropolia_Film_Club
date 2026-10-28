@@ -11,9 +11,11 @@ const {
     updateMe,
     exportMe,
     deleteMe,
+    setBans,
+    getBanned,
 } = require("../controllers/userControllers");
 const { followUser, unfollowUser, getFollowers, getFollowing } = require("../controllers/followController");
-const { requireAuth, optionalAuth } = require("../middleware/auth");
+const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth");
 
 // login route
 router.post("/login", loginUser);
@@ -32,7 +34,15 @@ router.delete("/me", requireAuth, deleteMe);
 
 // optionalAuth: a private profile is only visible to its owner, and a
 // logged-in member learns which reviews they've liked.
+// Moderators and admins only. Before "/:id", or Express would read
+// "banned" as an id.
+router.get("/banned", requireAuth, requireRole("moderator"), getBanned);
+
 router.get("/:id", optionalAuth, getUser);
+
+// The Ban Hammer. Moderators and admins, on members they outrank; the
+// controller checks the ranks.
+router.put("/:id/bans", requireAuth, requireRole("moderator"), setBans);
 router.get("/:id/reviews", optionalAuth, getUserReviews);
 router.get("/:id/films", optionalAuth, getUserFilms);
 

@@ -17,7 +17,12 @@ function usePagedList(loadPage, deps, itemsKey) {
 
     try {
       const page = await loadPage(first.data.next)
-      first.setData((previous) => ({ ...page, [itemsKey]: [...previous[itemsKey], ...page[itemsKey]] }))
+      // Anything only the first page carries (pinned reports) stays.
+      first.setData((previous) => ({
+        ...previous,
+        ...page,
+        [itemsKey]: [...previous[itemsKey], ...page[itemsKey]],
+      }))
     } catch (err) {
       setMoreError(err.message)
     } finally {

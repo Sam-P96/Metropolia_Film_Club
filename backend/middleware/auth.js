@@ -12,7 +12,7 @@ async function userFromRequest(req) {
 
     try {
         const { _id } = jwt.verify(token, process.env.SECRET);
-        return await User.findById(_id).select("_id username role privacy pvp feedBackground").lean();
+        return await User.findById(_id).select("_id username role privacy pvp feedBackground bans").lean();
     } catch {
         return null;
     }
@@ -42,6 +42,12 @@ function hasRole(user, minimum) {
     return (ROLE_RANK[user?.role] ?? 0) >= ROLE_RANK[minimum];
 }
 
+// Whether `user` ranks above `other`: who may ban whom. Nobody outranks
+// themselves or an equal, so admins can't be banned.
+function outranks(user, other) {
+    return (ROLE_RANK[user?.role] ?? 0) > (ROLE_RANK[other?.role] ?? 0);
+}
+
 // Use after requireAuth.
 function requireRole(minimum) {
     return (req, res, next) => {
@@ -53,4 +59,4 @@ function requireRole(minimum) {
     };
 }
 
-module.exports = { requireAuth, optionalAuth, requireRole, hasRole };
+module.exports = { requireAuth, optionalAuth, requireRole, hasRole, outranks };
