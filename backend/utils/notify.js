@@ -9,7 +9,11 @@ const Notification = require("../models/notificationModel");
 const TRENDING_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
-const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow"];
+const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp"];
+
+// How many lines a PvP announcement can be made with. Matches PVP_LINES in
+// frontend/src/components/feed/FeedItem.jsx.
+const PVP_LINES = 10;
 
 // `voter` changed their vote on `review` (anything with _id and user) to
 // "like", "dislike" or null. Likes and dislikes are grouped per review, so
@@ -101,6 +105,28 @@ function forgetFollow(followerId, followingId) {
     return Notification.deleteMany({ recipient: followingId, type: "follow", actors: followerId });
 }
 
+// `userId` turned PvP on: everyone else hears about it, each with a line
+// picked at random. Any earlier announcement goes first, so switching PvP
+// off and on can't pile them up.
+async function noteEnabledPvp(userId) {
+    await forgetPvp(userId);
+
+    const members = await User.find({ _id: { $ne: userId } }).distinct("_id");
+    if (members.length === 0) return;
+
+    await Notification.insertMany(members.map((recipient) => ({
+        recipient,
+        type: "pvp",
+        actors: [userId],
+        variant: Math.floor(Math.random() * PVP_LINES),
+    })));
+}
+
+// They turned PvP off again: the announcement quietly goes.
+function forgetPvp(userId) {
+    return Notification.deleteMany({ type: "pvp", actors: userId });
+}
+
 // A new event. A club event goes to every member, whoever posted it
 // included. A member screening goes to its host, the members who follow
 // them, and every moderator and admin (who look after screenings), each
@@ -176,6 +202,8 @@ module.exports = {
     forgetFollow,
     noteNewEvent,
     notePromotedEvent,
+    noteEnabledPvp,
+    forgetPvp,
     forgetEvent,
     forgetReview,
     forgetComment,

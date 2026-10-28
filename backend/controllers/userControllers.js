@@ -10,7 +10,7 @@ const { withStanding } = require("../utils/level");
 const { recountDislikes } = require("../utils/pvp");
 const Follow = require("../models/followModel");
 const { areFriends, followState } = require("../utils/follows");
-const { forgetMember } = require("../utils/notify");
+const { forgetMember, noteEnabledPvp, forgetPvp } = require("../utils/notify");
 const Report = require("../models/reportModel");
 const { BAN_RIGHTS, bansOf } = require("../utils/bans");
 const { hasRole, outranks } = require("../middleware/auth");
@@ -421,9 +421,11 @@ const updateMe = async (req, res) => {
         { runValidators: true, strict: false }
     );
 
-    // Their dislikes only count while PVP is on.
+    // Their dislikes only count while PVP is on, and everyone hears when
+    // they turn it on (and stops hearing it if they turn it off).
     if ("pvp" in set && set.pvp !== Boolean(req.user.pvp)) {
         await recountDislikes({ dislikedBy: req.user._id });
+        await (set.pvp ? noteEnabledPvp(req.user._id) : forgetPvp(req.user._id));
     }
 
     const user = await User.findById(req.user._id).select("-password -email").lean();

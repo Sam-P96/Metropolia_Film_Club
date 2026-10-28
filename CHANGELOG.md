@@ -157,6 +157,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a brand gold border. They show the event as it is now, a promoted
   screening reaches everyone who hadn't heard yet, and deleting an event
   removes them.
+- When a member turns PvP on, everyone else is told on their
+  Notifications page: the member's banner inside a glowing red border,
+  one of ten lines nodding to films and games ("Here comes a new
+  challenger: X!", "Heeere's X!", ...), and plainly that X has enabled
+  PvP. Turning PvP off quietly removes it, and switching back and forth
+  never leaves more than one.
 - A Notifications background setting in Edit profile: Default (the Upcoming
   events glow under dark glass, fixed while the page scrolls), White, or
   Dark (the site's usual purple).
