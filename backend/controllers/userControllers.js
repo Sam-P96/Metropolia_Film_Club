@@ -3,8 +3,10 @@ const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const Comment = require("../models/commentModel");
 const FilmLog = require("../models/filmLogModel");
-const jwt = require("jsonwebtoken");
+const Event = require("../models/eventModel");
+const PasswordReset = require("../models/passwordResetModel");
 const bcrypt = require("bcryptjs");
+const { sessionFor } = require("../utils/session");
 const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
 const { withStanding } = require("../utils/level");
 const { recountDislikes } = require("../utils/pvp");
@@ -33,12 +35,6 @@ const FEED_BACKGROUNDS = ["default", "white", "dark"];
 // Bump this when the privacy policy text changes, so a member's stored
 // consent records which version they agreed to. Matches frontend/src/pages/Privacy.jsx.
 const PRIVACY_POLICY_VERSION = "2026-10-23";
-
-const generateToken = (_id) => {
-    return jwt.sign({ _id }, process.env.SECRET, {
-        expiresIn: "3d"
-    })
-}
 
 const signupUser = async (req, res) => {
     const { username, email, password, acceptedPrivacyPolicy } = req.body;
@@ -81,8 +77,7 @@ const signupUser = async (req, res) => {
 
         // Send back a token
         if (user) {
-            const token = generateToken(user._id);
-            res.status(201).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp, feedBackground: user.feedBackground, token })
+            res.status(201).json(sessionFor(user))
         } else {
             res.status(400);
             throw new Error("Invalid user data");
@@ -101,8 +96,7 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email });
 
         if (user && (await bcrypt.compare(password, user.password))) {
-            const token = generateToken(user._id);
-            res.status(200).json({ _id: user._id, username: user.username, email, role: user.role, pvp: user.pvp ?? false, feedBackground: user.feedBackground ?? "default", token });
+            res.status(200).json(sessionFor(user));
         } else {
             res.status(400);
             throw new Error("Invalid credentials")
@@ -156,9 +150,13 @@ const getUser = async (req, res) => {
     const follows = await followState(user, req.user);
 
     // Moderators and admins see a member's bans, and the Ban Hammer if they
-    // outrank them.
+    // outrank them. Admins can also delete the account from there.
     const staff = hasRole(req.user, "moderator")
-        ? { bans: bansOf(user), canBan: outranks(req.user, user) }
+        ? {
+            bans: bansOf(user),
+            canBan: outranks(req.user, user),
+            canDelete: hasRole(req.user, "admin") && outranks(req.user, user),
+        }
         : {};
 
     res.json(
@@ -458,34 +456,65 @@ const exportMe = async (req, res) => {
     });
 }
 
-// GDPR right to erasure: delete the account and everything tied to it: their
-// reviews (with the comments under them), their comments, and their likes
-// and dislikes on everyone else's, so the counts stay right. Irreversible.
+// Deletes an account and everything tied to it: their reviews (with the
+// comments under them), comments, film logs, follows, reports, password
+// reset requests and notifications, and their likes and dislikes on everyone
+// else's reviews and comments, so the counts stay right. They leave every
+// event's Attending and Interested lists and seat plan; events they posted
+// stay. `user` needs _id and pvp. Irreversible.
+async function deleteAccount(user) {
+    const userId = user._id;
+
+    await Review.removeVotesBy(user);
+    await Comment.removeVotesBy(user);
+
+    const ownReviewIds = (await Review.find({ user: userId }).select("_id").lean()).map((review) => review._id);
+    await Comment.deleteMany({ $or: [{ user: userId }, { review: { $in: ownReviewIds } }] });
+
+    await forgetMember(userId, ownReviewIds);
+    await Report.deleteMany({ $or: [{ reporter: userId }, { review: { $in: ownReviewIds } }] });
+    await Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] });
+    await Event.updateMany(
+        { $or: [{ attending: userId }, { interested: userId }, { "seats.user": userId }] },
+        { $pull: { attending: userId, interested: userId, seats: { user: userId } } },
+        { timestamps: false }
+    );
+    await PasswordReset.deleteMany({ user: userId });
+
+    await Review.deleteMany({ user: userId });
+    await FilmLog.deleteMany({ user: userId });
+    await User.deleteOne({ _id: userId });
+}
+
+// GDPR right to erasure: the member deleting their own account.
 const deleteMe = async (req, res) => {
-    const userId = req.user._id;
-
     try {
-        await Review.removeVotesBy(req.user);
-        await Comment.removeVotesBy(req.user);
-
-        const ownReviews = await Review.find({ user: userId }).select("_id").lean();
-        await Comment.deleteMany({
-            $or: [{ user: userId }, { review: { $in: ownReviews.map((review) => review._id) } }],
-        });
-
-        await forgetMember(userId, ownReviews.map((review) => review._id));
-        await Report.deleteMany({
-            $or: [{ reporter: userId }, { review: { $in: ownReviews.map((review) => review._id) } }],
-        });
-        await Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] });
-
-        await Review.deleteMany({ user: userId });
-        await FilmLog.deleteMany({ user: userId });
-        await User.deleteOne({ _id: userId });
-
+        await deleteAccount(req.user);
         res.json({ deleted: true });
     } catch (error) {
         res.status(500).json({ error: "Could not delete your account. Please try again." });
+    }
+}
+
+// Admins deleting someone else's account from the Ban Hammer, after
+// confirming three times. Only members they outrank, so never another admin.
+const deleteUser = async (req, res) => {
+    const { id } = req.params;
+    const target = mongoose.isValidObjectId(id) ? await User.findById(id).select("username role pvp").lean() : null;
+
+    if (!target) {
+        return res.status(404).json({ error: "There is no member with that id." });
+    }
+
+    if (!outranks(req.user, target)) {
+        return res.status(403).json({ error: "You can only delete members below you." });
+    }
+
+    try {
+        await deleteAccount(target);
+        res.json({ deleted: true });
+    } catch (error) {
+        res.status(500).json({ error: `Could not delete ${target.username}'s account. Please try again.` });
     }
 }
 
@@ -501,4 +530,5 @@ module.exports = {
     updateMe,
     exportMe,
     deleteMe,
+    deleteUser,
 }

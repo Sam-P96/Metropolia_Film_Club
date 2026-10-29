@@ -62,6 +62,13 @@ export function exportMyData() {
   return api('/users/me/export')
 }
 
+// Admins only, from the Ban Hammer: delete someone else's account and all of
+// its data. Cannot be undone.
+export async function deleteUser(id) {
+  await api(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  clearCache('/users')
+}
+
 // Delete the account and all of its data. Cannot be undone.
 export async function deleteMe() {
   await api('/users/me', { method: 'DELETE' })

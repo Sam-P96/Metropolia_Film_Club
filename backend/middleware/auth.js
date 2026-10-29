@@ -48,6 +48,15 @@ function outranks(user, other) {
     return (ROLE_RANK[user?.role] ?? 0) > (ROLE_RANK[other?.role] ?? 0);
 }
 
+// Who may approve or dismiss `requester`'s password reset: anyone who
+// outranks them, or for an admin's, another admin. Approving lets whoever
+// asked choose the password, so a moderator mustn't be able to take over a
+// moderator's or admin's account, and nobody decides their own.
+function canApproveReset(approver, requester) {
+    if (String(approver._id) === String(requester._id)) return false;
+    return outranks(approver, requester) || approver.role === "admin";
+}
+
 // Use after requireAuth.
 function requireRole(minimum) {
     return (req, res, next) => {
@@ -59,4 +68,4 @@ function requireRole(minimum) {
     };
 }
 
-module.exports = { requireAuth, optionalAuth, requireRole, hasRole, outranks };
+module.exports = { requireAuth, optionalAuth, requireRole, hasRole, outranks, canApproveReset };

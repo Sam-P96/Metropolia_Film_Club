@@ -5,7 +5,8 @@ const Notification = require("../models/notificationModel");
 const Follow = require("../models/followModel");
 const Event = require("../models/eventModel");
 const Report = require("../models/reportModel");
-const { hasRole } = require("../middleware/auth");
+const PasswordReset = require("../models/passwordResetModel");
+const { hasRole, canApproveReset } = require("../middleware/auth");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { withAuthorStanding } = require("../utils/level");
 const { parseOffset } = require("../utils/paging");
@@ -62,6 +63,25 @@ async function openReports(viewer) {
 
         return [{ _id: String(group._id), review, reporters, at: group.latest }];
     });
+}
+
+// Password reset requests waiting for a moderator or admin, newest first,
+// leaving out any `viewer` may not decide (see canApproveReset). Each with
+// the member (never their email), when they asked, and when it times out.
+async function openPasswordResets(viewer) {
+    const requests = await PasswordReset.find({ status: "pending", expiresAt: { $gt: new Date() } })
+        .sort({ createdAt: -1 })
+        .populate("user", MEMBER_FIELDS)
+        .lean();
+
+    return requests
+        .filter((request) => request.user && canApproveReset(viewer, request.user))
+        .map((request) => ({
+            _id: request._id,
+            user: userSummary(request.user),
+            at: request.createdAt,
+            expiresAt: request.expiresAt,
+        }));
 }
 
 // Turns notifications into what the Feed draws: each review as a full review
@@ -133,8 +153,8 @@ async function hydrate(rows, viewer) {
 
 // ?skip=n. { items, hasMore, next, background }: `next` is the skip for the
 // next page, and `background` the member's Notifications background setting.
-// Moderators and admins also get `reports` with the first page: the open
-// ones, pinned above everything else.
+// Moderators and admins also get, with the first page, `passwordResets` and
+// `reports`: the open ones, pinned above everything else.
 async function getFeed(req, res) {
     const skip = Math.min(parseOffset(req.query.skip), FEED_SIZE);
     const limit = Math.min(PAGE_SIZE, FEED_SIZE - skip);
@@ -152,7 +172,10 @@ async function getFeed(req, res) {
         hasMore: skip + rows.length < Math.min(total, FEED_SIZE),
         next: skip + rows.length,
         background: req.user.feedBackground ?? "default",
-        ...(skip === 0 && hasRole(req.user, "moderator") && { reports: await openReports(req.user) }),
+        ...(skip === 0 && hasRole(req.user, "moderator") && {
+            passwordResets: await openPasswordResets(req.user),
+            reports: await openReports(req.user),
+        }),
     });
 }
 

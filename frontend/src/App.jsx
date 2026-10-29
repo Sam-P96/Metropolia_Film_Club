@@ -8,6 +8,8 @@ import Home from './pages/Home'
 import About from './pages/About'
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ClubEvents from './pages/ClubEvents'
 import Profile from "./pages/Profile";
 import Wheel from './pages/Wheel';
@@ -73,6 +75,10 @@ function App() {
           <Route path="/account" element={
             isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
           } />
+          {/* "Forgot password?" on the login page, then choosing the new one
+              once a moderator or admin approves. */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/privacy" element={<Privacy />} />
           {/* Not linked from anywhere on purpose. */}
