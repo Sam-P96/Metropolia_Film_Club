@@ -11,6 +11,7 @@ const {
     updateMe,
     exportMe,
     deleteMe,
+    deleteUser,
     setBans,
     getBanned,
 } = require("../controllers/userControllers");
@@ -43,6 +44,10 @@ router.get("/:id", optionalAuth, getUser);
 // The Ban Hammer. Moderators and admins, on members they outrank; the
 // controller checks the ranks.
 router.put("/:id/bans", requireAuth, requireRole("moderator"), setBans);
+
+// Admins only, on members they outrank (the controller checks), from the
+// Ban Hammer. "/me" above is a member deleting their own.
+router.delete("/:id", requireAuth, requireRole("admin"), deleteUser);
 router.get("/:id/reviews", optionalAuth, getUserReviews);
 router.get("/:id/films", optionalAuth, getUserFilms);
 

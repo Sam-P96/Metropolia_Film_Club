@@ -70,9 +70,19 @@ const Login = ({ setIsAuthenticated }) => {
           </div>
 
           <div>
-            <label htmlFor="password" className={labelClasses}>
-              Password
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label htmlFor="password" className="block text-sm font-medium text-white/70">
+                Password
+              </label>
+              {/* Takes the email along, so they don't type it twice. */}
+              <Link
+                to="/forgot-password"
+                state={{ email }}
+                className="text-sm font-medium text-brand-gold transition-colors hover:text-white"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

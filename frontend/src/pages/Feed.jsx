@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
-import FeedItem, { ReportNotice } from '../components/feed/FeedItem'
+import FeedItem, { PasswordResetNotice, ReportNotice } from '../components/feed/FeedItem'
 import GifBackground from '../components/GifBackground'
 import usePagedList from '../hooks/usePagedList'
 import { getFeed } from '../services/feed'
@@ -53,8 +53,16 @@ function Feed() {
   }, [key])
 
   const items = feed.data?.items ?? []
-  // Moderators and admins only: open reports, pinned above everything else.
+  // Moderators and admins only: password reset requests and open reports,
+  // pinned above everything else.
+  const passwordResets = feed.data?.passwordResets ?? []
   const reports = feed.data?.reports ?? []
+
+  const handleResetDecided = (requestId) =>
+    feed.setData((previous) => ({
+      ...previous,
+      passwordResets: previous.passwordResets.filter((request) => request._id !== requestId),
+    }))
 
   const handleResolved = (reviewId) =>
     feed.setData((previous) => ({
@@ -79,6 +87,16 @@ function Feed() {
           screenings from members you follow, new club events, and what's trending. Your last
           100, kept for three months.
         </p>
+
+        {passwordResets.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Password reset requests">
+            {passwordResets.map((request) => (
+              <li key={request._id}>
+                <PasswordResetNotice request={request} light={light} onResolved={handleResetDecided} />
+              </li>
+            ))}
+          </ul>
+        )}
 
         {reports.length > 0 && (
           <ul className="mt-10 space-y-6" aria-label="Reported reviews">

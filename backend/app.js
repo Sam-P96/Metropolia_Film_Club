@@ -12,6 +12,7 @@ const wheelRouter = require("./routes/wheel");
 const eventRouter = require("./routes/eventRouter");
 const filmRouter = require("./routes/filmRouter");
 const reviewRouter = require("./routes/reviewRouter");
+const passwordResetRouter = require("./routes/passwordResetRouter");
 const commentRouter = require("./routes/commentRouter");
 const feedRouter = require("./routes/feedRouter");
 const { recountDislikes } = require("./utils/pvp");
@@ -71,6 +72,10 @@ const tmdbLimiter = rateLimit({
 
 app.use("/api/users/login", authLimiter);
 app.use("/api/users/signup", authLimiter);
+// "Forgot password?" tells you whether an email has an account, so it's
+// limited the same way, or a script could check a whole list.
+app.use("/api/password-resets/check", authLimiter);
+app.post("/api/password-resets", authLimiter);
 app.use("/api/tmdb", tmdbLimiter);
 
 app.use("/api/tmdb", tmdbRouter);
@@ -82,6 +87,7 @@ app.use("/api/films", filmRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/feed", feedRouter);
+app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {
     res.json({status: "ok"})
