@@ -5,9 +5,9 @@ import useApi from './useApi'
 // A list that loads a page at a time: the first page as soon as `deps` are
 // set, then `loadMore()` fetches the next and adds its items on. Each page
 // looks like { [itemsKey]: [...], hasMore, next }, where `next` is where the
-// following page starts.
-function usePagedList(loadPage, deps, itemsKey) {
-  const first = useApi(() => loadPage(0), deps)
+// following page starts. `options` go to useApi: { enabled: false } waits.
+function usePagedList(loadPage, deps, itemsKey, options) {
+  const first = useApi(() => loadPage(0), deps, options)
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreError, setMoreError] = useState(null)
 

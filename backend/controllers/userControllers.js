@@ -4,6 +4,7 @@ const Review = require("../models/reviewModel");
 const Comment = require("../models/commentModel");
 const FilmLog = require("../models/filmLogModel");
 const Event = require("../models/eventModel");
+const Cut = require("../models/cutModel");
 const PasswordReset = require("../models/passwordResetModel");
 const bcrypt = require("bcryptjs");
 const { sessionFor } = require("../utils/session");
@@ -456,22 +457,26 @@ const exportMe = async (req, res) => {
     });
 }
 
-// Deletes an account and everything tied to it: their reviews (with the
-// comments under them), comments, film logs, follows, reports, password
-// reset requests and notifications, and their likes and dislikes on everyone
-// else's reviews and comments, so the counts stay right. They leave every
-// event's Attending and Interested lists and seat plan; events they posted
-// stay. `user` needs _id and pvp. Irreversible.
+// Deletes an account and everything tied to it: their reviews and cuts
+// (with the comments and replies under them), comments, film logs, follows,
+// reports, password reset requests and notifications, and their likes and
+// dislikes on everyone else's reviews, comments and cuts, so the counts stay
+// right. They leave every event's Attending and Interested lists and seat
+// plan; events they posted stay. `user` needs _id and pvp. Irreversible.
 async function deleteAccount(user) {
     const userId = user._id;
 
     await Review.removeVotesBy(user);
     await Comment.removeVotesBy(user);
+    await Cut.removeVotesBy(user);
 
     const ownReviewIds = (await Review.find({ user: userId }).select("_id").lean()).map((review) => review._id);
-    await Comment.deleteMany({ $or: [{ user: userId }, { review: { $in: ownReviewIds } }] });
+    const ownCutIds = await Cut.find({ user: userId }).distinct("_id");
+    await Comment.deleteMany({
+        $or: [{ user: userId }, { review: { $in: ownReviewIds } }, { cut: { $in: ownCutIds } }],
+    });
 
-    await forgetMember(userId, ownReviewIds);
+    await forgetMember(userId, ownReviewIds, ownCutIds);
     await Report.deleteMany({ $or: [{ reporter: userId }, { review: { $in: ownReviewIds } }] });
     await Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] });
     await Event.updateMany(
@@ -482,6 +487,7 @@ async function deleteAccount(user) {
     await PasswordReset.deleteMany({ user: userId });
 
     await Review.deleteMany({ user: userId });
+    await Cut.deleteMany({ user: userId });
     await FilmLog.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

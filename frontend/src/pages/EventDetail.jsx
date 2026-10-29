@@ -5,6 +5,7 @@ import {
   deleteEvent,
   getEvent,
   removeSeat,
+  repostEvent,
   setEventOfficial,
   setEventRsvp,
   setMySeat,
@@ -74,6 +75,8 @@ function EventDetail({ isAuthenticated }) {
             <ManageEvent
               eventId={event._id}
               official={event.official}
+              isHost={event.createdBy === currentUser._id}
+              canRepost={!isPast}
               canPromote={canMakeEventsOfficial(currentUser)}
               onOfficialChange={(official) => setData((prev) => ({ ...prev, official }))}
             />
@@ -535,12 +538,32 @@ function SeatControls({ eventId, member, canEdit, canRemove, onChange }) {
 // Edit and Delete, for moderators and admins, and for the member who made a
 // member screening. Delete asks first, right where the button was, so a stray
 // click can't remove an event. Moderators and admins also get Promote/Demote.
-function ManageEvent({ eventId, official, canPromote, onOfficialChange }) {
+// Before it starts, Promote (`canRepost`) sends it to the top of members'
+// Notifications again: everyone's for a club event, the host's followers'
+// for a member screening. It's done once per visit to the page.
+function ManageEvent({ eventId, official, isHost, canRepost, canPromote, onOfficialChange }) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [promoting, setPromoting] = useState(false)
+  const [reposting, setReposting] = useState(false)
+  // How many members it went to, once it has.
+  const [sentTo, setSentTo] = useState(null)
   const [error, setError] = useState(null)
+
+  const handleRepost = async () => {
+    setReposting(true)
+    setError(null)
+
+    try {
+      const result = await repostEvent(eventId)
+      setSentTo(result.sentTo)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setReposting(false)
+    }
+  }
 
   const handlePromote = async () => {
     setPromoting(true)
@@ -601,6 +624,19 @@ function ManageEvent({ eventId, official, canPromote, onOfficialChange }) {
         </>
       ) : (
         <>
+          {canRepost && (
+            <button
+              type="button"
+              onClick={handleRepost}
+              disabled={reposting || sentTo !== null}
+              title={`Send it to the top of ${
+                official ? "every member's" : isHost ? "your followers'" : "the host's followers'"
+              } Notifications again`}
+              className="rounded-md border border-brand-gold/60 px-4 py-2 text-sm font-medium text-brand-gold transition-colors hover:bg-brand-gold/10 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
+            >
+              {sentTo !== null ? '✓ Promoted' : reposting ? 'Promoting…' : 'Promote'}
+            </button>
+          )}
           {canPromote && (
             <button
               type="button"
@@ -620,6 +656,11 @@ function ManageEvent({ eventId, official, canPromote, onOfficialChange }) {
         </>
       )}
 
+      {sentTo !== null && (
+        <p className="w-full text-right text-sm text-white/60">
+          Back at the top of {sentTo} {sentTo === 1 ? "member's" : "members'"} Notifications.
+        </p>
+      )}
       {error && <p className="w-full text-right text-sm text-brand-red">{error}</p>}
     </div>
   )

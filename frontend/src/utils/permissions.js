@@ -96,6 +96,11 @@ export function canDeleteAnyComment(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
+// Deleting anyone's cut. Everyone can delete their own.
+export function canDeleteAnyCut(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
 export function canManageMembers(currentUser) {
   return hasAtLeast(currentUser, 'admin')
 }

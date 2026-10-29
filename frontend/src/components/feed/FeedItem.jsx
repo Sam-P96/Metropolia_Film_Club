@@ -2,15 +2,21 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import ReviewCard from '../reviews/ReviewCard'
+import { CutReplies } from '../reviews/ReviewComments'
+import VoteButtons from '../reviews/VoteButtons'
 import MemberAvatar from '../profile/MemberAvatar'
 import FollowButton from '../profile/FollowButton'
-import { bannerLayerStyle } from '../../utils/bannerStyle'
-import { getCurrentUserId } from '../../utils/currentUser'
+import { bannerFillStyle, bannerFrameStyle, bannerLayerStyle } from '../../utils/bannerStyle'
+import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
+import { splitLinks } from '../../utils/links'
+import { canDeleteAnyCut } from '../../utils/permissions'
 import { timeAgo } from '../../utils/timeAgo'
 import { resolveReports } from '../../services/films'
 import { decidePasswordReset } from '../../services/passwordResets'
+import { deleteCut, setCutVote } from '../../services/cuts'
 import useCountdown, { formatCountdown } from '../../hooks/useCountdown'
+import useDominantColor from '../../hooks/useDominantColor'
 
 // How many names a vote notification lists before "+N others".
 const SHOWN_NAMES = 3
@@ -182,12 +188,50 @@ function ReviewNotice({ item, tone, solid }) {
   )
 }
 
+// With `fadeWhenTall`, a banner picture stops growing a little past half the
+// screen's height: down to half it's as before, then it fades into its most
+// common colour, which carries on down the rest of the box. The colour comes
+// in as the picture goes, so a see-through picture's gaps stay see-through
+// above that.
+const PICTURE_FADE = 'linear-gradient(to bottom, black 50vh, transparent calc(50vh + 8rem))'
+const COLOUR_FADE = 'linear-gradient(to bottom, transparent 50vh, black calc(50vh + 4rem))'
+
 // A member's banner filling the box, darkened on the left so the text reads,
-// for replies and new followers.
-function BannerBackdrop({ user }) {
+// for replies, new followers and cuts. A cover-sized picture grows with the
+// box, so one that can get tall (a cut with its replies open) passes
+// `fadeWhenTall` to keep it from stretching into a blurry close-up.
+function BannerBackdrop({ user, fadeWhenTall = false }) {
+  const banner = user.reviewCardBanner
+  const fades = fadeWhenTall && banner?.type === 'image' && Boolean(banner.imageUrl)
+  // Until it's worked out, or if the host won't let us read the picture,
+  // the banner colour they picked.
+  const dominant = useDominantColor(fades ? banner.imageUrl : null)
+
   return (
     <>
-      <div className="absolute inset-0 -z-10" style={bannerLayerStyle(user.reviewCardBanner)} />
+      {fades ? (
+        <div className="absolute inset-0 -z-10 overflow-hidden" style={bannerFrameStyle(banner)}>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: dominant ?? banner.color ?? '#2D1B47',
+              maskImage: COLOUR_FADE,
+              WebkitMaskImage: COLOUR_FADE,
+            }}
+          />
+          <div
+            className="absolute inset-x-0 top-0 h-full"
+            style={{
+              ...bannerFillStyle(banner),
+              maxHeight: 'calc(50vh + 8rem)',
+              maskImage: PICTURE_FADE,
+              WebkitMaskImage: PICTURE_FADE,
+            }}
+          />
+        </div>
+      ) : (
+        <div className="absolute inset-0 -z-10" style={bannerLayerStyle(banner)} />
+      )}
       <div className="absolute inset-0 -z-10 bg-linear-to-r from-ink/85 via-ink/60 to-ink/30" />
     </>
   )
@@ -289,6 +333,225 @@ function FollowNotice({ item }) {
             showFollowsYou={false}
           />
         </div>
+      </div>
+    </article>
+  )
+}
+
+// How many likes make a cut a viral take. Matches VIRAL_LIKES in
+// backend/utils/notify.js.
+const VIRAL_LIKES = 5
+
+// A member's cut: on their banner, who posted it, then what they wrote in a
+// speech bubble, with any web addresses in it as links. Under it, its likes
+// and dislikes (which don't count towards levels) and its replies, which
+// open inside the card; `repliesOpen` has them open from the start with no
+// toggle, as on the cut's own page. Its author, and moderators and admins,
+// can delete it, which takes it out of everyone's Notifications; Delete
+// asks first, right where the button was.
+//
+// A viral take (one with VIRAL_LIKES likes or more, which went out to every
+// member) glows in brand gold and says so.
+export function CutNotice({ item, onDeleted, repliesOpen = false }) {
+  const { cut } = item
+  const author = item.actors[0]
+  const [currentUser] = useState(getCurrentUser)
+  const yours = author._id === currentUser?._id
+  const canDelete = yours || canDeleteAnyCut(currentUser)
+
+  const [votes, setVotes] = useState({
+    likeCount: cut.likeCount ?? 0,
+    dislikeCount: cut.dislikeCount ?? 0,
+    myVote: cut.myVote ?? null,
+  })
+  const [showReplies, setShowReplies] = useState(repliesOpen)
+  const [replyCount, setReplyCount] = useState(cut.replyCount ?? 0)
+  // Your like can be the one that makes it viral; the server marks it then.
+  const viral = cut.viral || votes.likeCount >= VIRAL_LIKES
+
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+
+    try {
+      await deleteCut(cut._id)
+      onDeleted(cut._id)
+    } catch (err) {
+      // 404: it's already gone, deleted somewhere else.
+      if (err.status === 404) {
+        onDeleted(cut._id)
+        return
+      }
+      setError(err.message)
+      setDeleting(false)
+    }
+  }
+
+  const repliesLabel = showReplies
+    ? 'Hide replies'
+    : replyCount === 0
+      ? 'Reply'
+      : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`
+
+  return (
+    <article
+      className={`relative isolate overflow-hidden rounded-2xl ${
+        viral
+          ? 'border-2 border-brand-gold shadow-[0_0_28px_rgba(250,188,63,0.6)]'
+          : 'border border-white/10 shadow-xl shadow-black/40'
+      }`}
+    >
+      <BannerBackdrop user={author} fadeWhenTall />
+
+      <div className="p-5 sm:p-6">
+        {viral && (
+          <p className="mb-3 text-xs font-semibold tracking-widest text-brand-gold uppercase">
+            {yours ? 'Your cut went viral' : 'Viral take'}
+          </p>
+        )}
+
+        <div className="flex items-center gap-3 text-sm text-white/80">
+          <Link to={`/users/${author._id}`} tabIndex={-1} aria-hidden="true" className="shrink-0">
+            <MemberAvatar user={author} size="md" />
+          </Link>
+          <p>
+            {yours ? (
+              'You posted your cut'
+            ) : (
+              <>
+                <NameLink user={author} className={bannerNameClasses} /> posted their cut
+              </>
+            )}
+            <span className="text-white/50"> · {timeAgo(item.at)}</span>
+          </p>
+        </div>
+
+        <blockquote className="mt-4 rounded-2xl rounded-tl-sm border border-white/10 bg-ink/70 px-5 py-4 text-lg leading-relaxed text-white backdrop-blur-sm">
+          <p className="whitespace-pre-line wrap-break-word">
+            {splitLinks(cut.text).map((part, index) =>
+              typeof part === 'string' ? (
+                part
+              ) : (
+                <a
+                  key={index}
+                  href={part.href}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow ugc"
+                  className="font-medium break-all text-brand-gold underline underline-offset-2 transition-colors hover:text-white"
+                >
+                  {part.text}
+                </a>
+              )
+            )}
+          </p>
+        </blockquote>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+          <VoteButtons
+            {...votes}
+            send={(vote) => setCutVote(cut._id, vote)}
+            onChange={setVotes}
+            subject="cut"
+            allowDislikes={author.pvp}
+          />
+
+          {!repliesOpen && (
+            <button
+              type="button"
+              onClick={() => setShowReplies(!showReplies)}
+              aria-expanded={showReplies}
+              className="font-medium text-white/60 transition-colors hover:text-brand-gold"
+            >
+              {repliesLabel}
+            </button>
+          )}
+
+          {canDelete && (
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {confirming ? (
+                <>
+                  <span className="text-white/70">
+                    Delete {yours ? 'your' : `${author.username}'s`} cut for everyone?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="rounded-md bg-brand-red px-3 py-1.5 font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {deleting ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    disabled={deleting}
+                    className="rounded-md border border-white/20 bg-white/5 px-3 py-1.5 font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  className="font-medium text-white/50 transition-colors hover:text-brand-red"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {error && <p className="mt-2 text-right text-xs text-brand-red">{error}</p>}
+
+        {showReplies && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-ink/75 p-4 backdrop-blur-sm sm:p-5">
+            <CutReplies cutId={cut._id} onCountChange={setReplyCount} />
+          </div>
+        )}
+      </div>
+    </article>
+  )
+}
+
+// Someone answered your cut, or your reply under one: on their banner, what
+// they said in a quote bubble, the cut it's under, and a link to the reply
+// on the cut's page.
+function CutReplyNotice({ item }) {
+  const { cut, reply } = item
+  const replier = item.actors[0]
+  const replyLink = `/cuts/${cut._id}#comment-${reply._id}`
+
+  return (
+    <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 shadow-xl shadow-black/40">
+      <BannerBackdrop user={replier} />
+
+      <div className="p-5">
+        <div className="flex items-center gap-3 text-sm text-white/80">
+          <MemberAvatar user={replier} size="sm" />
+          <p>
+            <NameLink user={replier} className={bannerNameClasses} /> replied to your{' '}
+            {reply.toComment ? 'reply' : 'cut'}
+          </p>
+        </div>
+
+        <blockquote className="mt-3 rounded-2xl rounded-tl-sm border border-white/10 bg-ink/70 px-4 py-3 text-sm leading-relaxed text-white/85 backdrop-blur-sm">
+          <p className="line-clamp-3 whitespace-pre-line wrap-break-word">“{reply.text}”</p>
+        </blockquote>
+
+        <p className="mt-3 line-clamp-1 text-xs wrap-break-word text-white/50">On the cut: “{cut.text}”</p>
+
+        <p className="mt-1 text-xs text-white/50">
+          {timeAgo(item.at)} ·{' '}
+          <Link to={replyLink} className="font-medium text-brand-gold transition-colors hover:text-white">
+            View reply →
+          </Link>
+        </p>
       </div>
     </article>
   )
@@ -628,8 +891,9 @@ export function PasswordResetNotice({ request, light = false, onResolved }) {
 }
 
 // One notification on the Notifications page. `light` is for the white background:
-// darker text, and solid review cards so they don't wash out.
-function FeedItem({ item, light = false }) {
+// darker text, and solid review cards so they don't wash out. `onCutDeleted`
+// gets the id of a cut deleted from here.
+function FeedItem({ item, light = false, onCutDeleted }) {
   const tone = light ? TONES.light : TONES.dark
 
   if (item.type === 'like' || item.type === 'dislike') return <VoteNotice item={item} tone={tone} solid={light} />
@@ -637,6 +901,8 @@ function FeedItem({ item, light = false }) {
   if (item.type === 'follow') return <FollowNotice item={item} />
   if (item.type === 'pvp') return <PvpNotice item={item} />
   if (item.type === 'event') return <EventNotice item={item} light={light} />
+  if (item.type === 'cut') return <CutNotice item={item} onDeleted={onCutDeleted} />
+  if (item.type === 'cutReply') return <CutReplyNotice item={item} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }
 

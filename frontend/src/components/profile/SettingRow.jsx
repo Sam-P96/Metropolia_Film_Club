@@ -1,7 +1,7 @@
 // Off | On, in the same dark glass pill as PillToggle, with the gold
 // highlight sliding across to the picked side. Both halves are the same
 // width, so it slides by exactly its own width.
-function OnOffSwitch({ on, onChange, label }) {
+export function OnOffSwitch({ on, onChange, label }) {
   const text = (active) =>
     `relative px-3 py-1 transition-colors duration-300 ${active ? 'text-ink' : 'text-white/60'}`
 

@@ -92,6 +92,7 @@ const userSchema = new Schema(
             comments: {type: Boolean, default: false},
             dislikeComments: {type: Boolean, default: false},
             reports: {type: Boolean, default: false},
+            cuts: {type: Boolean, default: false},
         },
 
         followPrivacy: {

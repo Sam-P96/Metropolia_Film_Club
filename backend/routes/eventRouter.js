@@ -6,6 +6,7 @@ const {
     setMySeat,
     removeSeat,
     setEventOfficial,
+    repostEvent,
     createEvent,
     updateEvent,
     deleteEvent,
@@ -33,6 +34,8 @@ router.delete("/:id/seats/:userId", requireAuth, requireRole("moderator"), remov
 router.post("/", requireAuth, createEvent);
 router.put("/:id", requireAuth, updateEvent);
 router.delete("/:id", requireAuth, deleteEvent);
+// The Promote button, for the same members as editing.
+router.post("/:id/repost", requireAuth, repostEvent);
 
 // Moderators and admins: promote to official, or demote to member screening.
 router.put("/:id/official", requireAuth, requireRole("moderator"), setEventOfficial);

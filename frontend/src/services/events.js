@@ -54,6 +54,14 @@ export async function deleteEvent(id) {
   clearCache('/events')
 }
 
+// The Promote button, for whoever can edit the event: sends it to the top
+// of members' Notifications again (every member for a club event, the
+// host's followers for a member screening). Resolves to { sentTo }, how
+// many members it went to.
+export function repostEvent(id) {
+  return api(`/events/${encodeURIComponent(id)}/repost`, { method: 'POST' })
+}
+
 // Moderators and admins: promote a member screening to an official club
 // event (true), or demote it back (false). Resolves to { official }.
 export async function setEventOfficial(id, official) {

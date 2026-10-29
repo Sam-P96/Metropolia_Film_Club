@@ -188,6 +188,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admins can delete a member's or moderator's account from the Ban Hammer,
   after three confirmations. It removes the same things as a member
   deleting their own account (`DELETE /api/users/:id`).
+- A Promote button on an upcoming event's page, for whoever can edit it. It
+  sends the event to the top of Notifications again: every member's for a
+  club event, the host's and their followers' for a member screening. The
+  copy they had before goes, so it only ever shows once
+  (`POST /api/events/:id/repost`).
+- Cuts: short posts of up to 280 characters that any member can write, in
+  a box at the top of the Notifications page. A cut goes to its author's followers and to
+  the author, on the author's banner under "X posted their cut", with web
+  addresses in it as links. The author, and moderators and admins, can
+  delete it from there, which takes it out of everyone's Notifications;
+  deleting an account deletes its cuts (`POST /api/cuts`,
+  `DELETE /api/cuts/:id`). The Ban Hammer can take away posting cuts.
+- Cuts have likes and dislikes, like comments (dislikes only between
+  members with PvP on); they don't count towards levels
+  (`PUT /api/cuts/:id/vote`). Members can reply to a cut, and to each
+  other's replies, the same way as comments on a review: "N replies" opens
+  the thread inside the cut, replies have likes and dislikes, and the cut's
+  author (or whoever was replied to) is told on their Notifications page.
+  "View reply" opens the cut on its own page, `/cuts/:id`
+  (`GET /api/cuts/:id`, `GET`/`POST /api/cuts/:id/replies`). Replies are
+  comments, so they vote and delete through `/api/comments`, and the
+  Commenting and Disliking comments bans cover replies and cut dislikes.
+  Deleting a cut deletes its replies. A cut with an image banner that grows
+  past about half the screen (with its replies open) stops the picture
+  there and fades it into the picture's most common colour for the rest
+  of the card, instead of stretching the picture to fill it.
+- Viral takes: the like that takes a cut to 5 makes it viral. It goes out
+  once to every member's Notifications, at the top, in place of the copy
+  its author and their followers had. A viral cut has a glowing brand gold
+  border and a "Viral take" label ("Your cut went viral" for its author)
+  wherever it shows, and stays viral if likes drop again.
+- "Show all cuts" on the Notifications page for moderators and admins: an
+  Off | On switch beside the heading swaps the list for every member's
+  cuts, newest first, where they can delete any of them
+  (`GET /api/cuts`).
+- Make profile picture and Make banner buttons on every picture on the
+  /SECRETpfp page. A banner keeps the member's colour and style, and the
+  ones in use show as ticked. Logged-out visitors are sent to log in, then
+  back.
 
 ### Changed
 - The full navigation bar shows from 1280px wide; narrower screens get the
