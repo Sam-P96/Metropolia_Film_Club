@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Comment = require("../models/commentModel");
 const Review = require("../models/reviewModel");
+const Cut = require("../models/cutModel");
 const { parseVote } = require("../models/votable");
 const { userSummary } = require("../utils/serialize");
 const { hasRole } = require("../middleware/auth");
@@ -39,6 +40,48 @@ async function findForComments(id) {
     };
 }
 
+// Everything matching `where` (one review's comments, or one cut's
+// replies), replies to them included, oldest first, for `viewer`.
+async function listComments(where, viewer) {
+    const comments = await Comment.find(where)
+        .sort({ createdAt: 1 })
+        .limit(500)
+        .populate("user", AUTHOR_FIELDS)
+        .lean();
+
+    const shown = comments.filter((comment) => comment.user).map(shape);
+    return Comment.withMyVote(shown, viewer);
+}
+
+// A new comment's text, trimmed, or why it can't be posted: it's empty or
+// too long, or the member is banned from commenting. { text } or
+// { status, error }.
+function checkNewComment(req) {
+    const text = String(req.body?.text ?? "").trim();
+
+    if (!text || text.length > MAX_COMMENT_LENGTH) {
+        return { status: 400, error: `Comments are 1 to ${MAX_COMMENT_LENGTH} characters.` };
+    }
+
+    const banned = banRefusal(req.user, "comments");
+    if (banned) return { status: 403, error: banned };
+
+    return { text };
+}
+
+// Whether `parent` (an id, or null for none) is still there, matching
+// `where`: under the same review or cut.
+async function parentExists(parent, where) {
+    if (parent === null) return true;
+    return mongoose.isValidObjectId(parent) && Boolean(await Comment.exists({ _id: parent, ...where }));
+}
+
+// A comment just saved, as the page reads it.
+async function created(comment) {
+    const saved = await Comment.findById(comment._id).populate("user", AUTHOR_FIELDS).lean();
+    return { ...shape(saved), myVote: null };
+}
+
 // Everything under one review, replies included, oldest first; the page
 // builds the threads from each comment's `parent` and flips the order for
 // "Recent". Turned-off comments are kept but not shown.
@@ -54,14 +97,7 @@ async function getComments(req, res) {
         return res.status(403).json({ error: COMMENTS_OFF });
     }
 
-    const comments = await Comment.find({ review: id })
-        .sort({ createdAt: 1 })
-        .limit(500)
-        .populate("user", AUTHOR_FIELDS)
-        .lean();
-
-    const shown = comments.filter((comment) => comment.user).map(shape);
-    res.json(await Comment.withMyVote(shown, req.user));
+    res.json(await listComments({ review: id }, req.user));
 }
 
 // Any logged-in member, under any review that takes comments. `parent`
@@ -69,16 +105,11 @@ async function getComments(req, res) {
 // it in their Feed.
 async function addComment(req, res) {
     const { id } = req.params;
-    const text = String(req.body?.text ?? "").trim();
     const parent = req.body?.parent ?? null;
+    const { text, status, error } = checkNewComment(req);
 
-    if (!text || text.length > MAX_COMMENT_LENGTH) {
-        return res.status(400).json({ error: `Comments are 1 to ${MAX_COMMENT_LENGTH} characters.` });
-    }
-
-    const banned = banRefusal(req.user, "comments");
-    if (banned) {
-        return res.status(403).json({ error: banned });
+    if (error) {
+        return res.status(status).json({ error });
     }
 
     const review = await findForComments(id);
@@ -91,19 +122,54 @@ async function addComment(req, res) {
         return res.status(403).json({ error: COMMENTS_OFF });
     }
 
-    const parentExists =
-        parent === null ||
-        (mongoose.isValidObjectId(parent) && (await Comment.exists({ _id: parent, review: id })));
-
-    if (!parentExists) {
+    if (!(await parentExists(parent, { review: id }))) {
         return res.status(404).json({ error: "The comment you're replying to has been deleted." });
     }
 
-    const created = await Comment.create({ review: id, user: req.user._id, text, parent });
-    await noteReply(created, review);
-    const comment = await Comment.findById(created._id).populate("user", AUTHOR_FIELDS).lean();
+    const comment = await Comment.create({ review: id, user: req.user._id, text, parent });
+    await noteReply(comment, review);
 
-    res.status(201).json({ ...shape(comment), myVote: null });
+    res.status(201).json(await created(comment));
+}
+
+// Every reply under a cut, oldest first, in the same shape as a review's
+// comments.
+async function getCutReplies(req, res) {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id) || !(await Cut.exists({ _id: id }))) {
+        return res.status(404).json({ error: "Cut not found." });
+    }
+
+    res.json(await listComments({ cut: id }, req.user));
+}
+
+// Any logged-in member, under any cut, the same as commenting on a review.
+// `parent` replies to another reply under the same cut. Whoever it answers
+// gets it in their Feed.
+async function addCutReply(req, res) {
+    const { id } = req.params;
+    const parent = req.body?.parent ?? null;
+    const { text, status, error } = checkNewComment(req);
+
+    if (error) {
+        return res.status(status).json({ error });
+    }
+
+    const cut = mongoose.isValidObjectId(id) ? await Cut.findById(id).select("user").lean() : null;
+
+    if (!cut) {
+        return res.status(404).json({ error: "Cut not found." });
+    }
+
+    if (!(await parentExists(parent, { cut: id }))) {
+        return res.status(404).json({ error: "The reply you're answering has been deleted." });
+    }
+
+    const comment = await Comment.create({ cut: id, user: req.user._id, text, parent });
+    await noteReply(comment, cut);
+
+    res.status(201).json(await created(comment));
 }
 
 // The thumbs up and thumbs down, as on reviews (dislikes only between
@@ -166,6 +232,8 @@ async function deleteComment(req, res) {
 module.exports = {
     getComments,
     addComment,
+    getCutReplies,
+    addCutReply,
     setCommentVote,
     deleteComment,
 };

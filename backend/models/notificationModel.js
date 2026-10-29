@@ -22,12 +22,19 @@ const KEEP_FOR_DAYS = 90;
 //   event           `event` was posted: a club event (to every member, its
 //                   poster included) or a
 //                   member screening by `actors[0]`: to its host, their
-//                   followers, and moderators and admins. No review.
+//                   followers, and moderators and admins. The event page's
+//                   Promote button sends it again, in place of the old one.
+//                   No review.
+//   cut             `actors[0]` posted `cut`: to them and their followers,
+//                   and once it goes viral, to every member in place of
+//                   the one they had. No review.
+//   cutReply        `actors[0]` wrote `comment`, straight under their `cut`
+//                   or under one of their replies there. No review.
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp"],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply"],
         required: true,
     },
     review: {
@@ -35,12 +42,13 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp"].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply"].includes(this.type);
         },
     },
     event: {type: Schema.Types.ObjectId, ref: "Event", default: null},
     variant: {type: Number, default: null},
     comment: {type: Schema.Types.ObjectId, ref: "Comment", default: null},
+    cut: {type: Schema.Types.ObjectId, ref: "Cut", default: null},
     actors: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
     // The last activity: when it was made, or when someone last voted.
     at: {type: Date, default: Date.now},
@@ -53,5 +61,6 @@ notificationSchema.index({recipient: 1, type: 1, review: 1});
 notificationSchema.index({review: 1});
 notificationSchema.index({comment: 1});
 notificationSchema.index({event: 1});
+notificationSchema.index({cut: 1});
 
 module.exports = mongoose.model("Notification", notificationSchema);

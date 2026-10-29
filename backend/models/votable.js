@@ -14,7 +14,7 @@ function counts(kind, user) {
     return kind === "like" || Boolean(user.pvp);
 }
 
-// Likes and dislikes, for reviews and comments. A member can like or dislike
+// Likes and dislikes, for reviews, comments and cuts. A member can like or dislike
 // something, not both. Who voted is kept so nobody votes twice, but left out
 // of every query unless asked for: lists only need the counts, and who voted
 // isn't anyone else's business.

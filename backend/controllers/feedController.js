@@ -4,11 +4,13 @@ const Comment = require("../models/commentModel");
 const Notification = require("../models/notificationModel");
 const Follow = require("../models/followModel");
 const Event = require("../models/eventModel");
+const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
 const PasswordReset = require("../models/passwordResetModel");
 const { hasRole, canApproveReset } = require("../middleware/auth");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { withAuthorStanding } = require("../utils/level");
+const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
 const { parseOffset } = require("../utils/paging");
 
 // The Feed shows a member's newest notifications, this many at most, a page
@@ -85,14 +87,15 @@ async function openPasswordResets(viewer) {
 }
 
 // Turns notifications into what the Feed draws: each review as a full review
-// card, the members involved, a reply's text, for a new follower whether
-// you follow them back, and each event as it is now. Leaves out any whose
-// review, comment, event or members have since been deleted.
+// card, the members involved, a reply's text, each cut with its votes and
+// how many replies it has, for a new follower whether you follow them back,
+// and each event as it is now. Leaves out any whose review, comment, cut,
+// event or members have since been deleted.
 async function hydrate(rows, viewer) {
     const idsOf = (pick) => [...new Set(rows.flatMap(pick).filter(Boolean).map(String))];
     const followers = idsOf((row) => (row.type === "follow" ? row.actors : []));
 
-    const [reviewById, actors, comments, followedBack, events] = await Promise.all([
+    const [reviewById, actors, comments, followedBack, events, cuts] = await Promise.all([
         reviewCards(idsOf((row) => row.review), viewer),
         User.find({ _id: { $in: idsOf((row) => row.actors) } }).select(MEMBER_FIELDS).lean(),
         Comment.find({ _id: { $in: idsOf((row) => row.comment) } }).select("text parent").lean(),
@@ -100,12 +103,14 @@ async function hydrate(rows, viewer) {
         Event.find({ _id: { $in: idsOf((row) => row.event) } })
             .select("title startsAt location description film gifUrl official")
             .lean(),
+        Cut.find({ _id: { $in: idsOf((row) => row.cut) } }).select(CUT_FIELDS).lean(),
     ]);
     const following = new Set(followedBack.map(String));
 
     const byId = (list) => new Map(list.map((item) => [String(item._id), item]));
     const memberById = byId(actors.map(userSummary));
     const commentById = byId(comments);
+    const cutById = byId(await cutDetails(cuts, viewer));
     // Events from before member screenings have no `official`; they're official.
     const eventById = byId(events.map((event) => ({ ...event, official: event.official !== false })));
 
@@ -121,6 +126,25 @@ async function hydrate(rows, viewer) {
         }
 
         if (members.length === 0) return [];
+
+        if (row.type === "cut") {
+            const cut = cutById.get(String(row.cut));
+            return cut ? [{ _id: row._id, type: row.type, at: row.at, actors: members, cut }] : [];
+        }
+
+        if (row.type === "cutReply") {
+            const cut = cutById.get(String(row.cut));
+            if (!cut || !comment) return [];
+
+            return [{
+                _id: row._id,
+                type: row.type,
+                at: row.at,
+                actors: members,
+                cut: { _id: cut._id, text: cut.text },
+                reply: { _id: comment._id, text: comment.text, toComment: Boolean(comment.parent) },
+            }];
+        }
 
         if (row.type === "pvp") {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, variant: row.variant ?? 0 }];

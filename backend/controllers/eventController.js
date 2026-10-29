@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Event = require("../models/eventModel");
 const {userSummary} = require("../utils/serialize");
 const {hasRole} = require("../middleware/auth");
-const {noteNewEvent, notePromotedEvent, forgetEvent} = require("../utils/notify");
+const {noteNewEvent, notePromotedEvent, noteRepostedEvent, forgetEvent} = require("../utils/notify");
 
 const FIELDS = "title startsAt location description film gifUrl ticketUrl official createdBy";
 
@@ -393,6 +393,31 @@ async function setEventOfficial(req, res) {
     res.json({official});
 }
 
+// The "Promote" button: whoever can change the event sends it to the top of
+// members' Notifications again, in place of the one they had (see
+// noteRepostedEvent). Only before it starts. Answers { sentTo }, how many
+// members it went to.
+async function repostEvent(req, res) {
+    const {id} = req.params;
+    const event = mongoose.isValidObjectId(id)
+        ? await Event.findById(id).select("startsAt official createdBy").lean()
+        : null;
+
+    if (!event) {
+        return res.status(404).json({error: "Event not found."});
+    }
+
+    if (!canManage(req.user, event)) {
+        return res.status(403).json({error: NOT_YOURS});
+    }
+
+    if (event.startsAt <= new Date()) {
+        return res.status(400).json({error: "This event has already happened."});
+    }
+
+    res.json({sentTo: await noteRepostedEvent(event)});
+}
+
 module.exports = {
     getEvents,
     getEvent,
@@ -400,6 +425,7 @@ module.exports = {
     setMySeat,
     removeSeat,
     setEventOfficial,
+    repostEvent,
     createEvent,
     updateEvent,
     deleteEvent,

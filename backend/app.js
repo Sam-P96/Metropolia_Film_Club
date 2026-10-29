@@ -15,6 +15,7 @@ const reviewRouter = require("./routes/reviewRouter");
 const passwordResetRouter = require("./routes/passwordResetRouter");
 const commentRouter = require("./routes/commentRouter");
 const feedRouter = require("./routes/feedRouter");
+const cutRouter = require("./routes/cutRouter");
 const { recountDislikes } = require("./utils/pvp");
 
 const app = express();
@@ -87,6 +88,7 @@ app.use("/api/films", filmRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/feed", feedRouter);
+app.use("/api/cuts", cutRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

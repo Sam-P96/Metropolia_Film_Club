@@ -1,6 +1,6 @@
 // What moderators and admins can stop a member doing with the Ban Hammer,
 // each on its own. Matches frontend/src/utils/bans.js.
-const BAN_RIGHTS = ["reviews", "dislikeReviews", "comments", "dislikeComments", "reports"];
+const BAN_RIGHTS = ["reviews", "dislikeReviews", "comments", "dislikeComments", "reports", "cuts"];
 
 const BAN_MESSAGES = {
     reviews: "You've been banned from posting reviews.",
@@ -8,6 +8,7 @@ const BAN_MESSAGES = {
     comments: "You've been banned from commenting.",
     dislikeComments: "You've been banned from disliking comments.",
     reports: "You've been banned from reporting reviews.",
+    cuts: "You've been banned from posting cuts.",
 };
 
 // Why `user` can't do `right` (one of BAN_RIGHTS), or null if they can.

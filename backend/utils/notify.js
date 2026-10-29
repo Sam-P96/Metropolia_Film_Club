@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const Comment = require("../models/commentModel");
+const Cut = require("../models/cutModel");
 const Follow = require("../models/followModel");
 const Notification = require("../models/notificationModel");
 
@@ -8,8 +9,13 @@ const Notification = require("../models/notificationModel");
 // once, to the Feed of every member who doesn't already follow its author.
 const TRENDING_LIKES = 5;
 
+// A cut is a viral take once it has this many likes. It then goes out,
+// once, to every member's Feed. Matches VIRAL_LIKES in
+// frontend/src/components/feed/FeedItem.jsx.
+const VIRAL_LIKES = 5;
+
 const VOTE_TYPES = ["like", "dislike"];
-const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp"];
+const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply"];
 
 // How many lines a PvP announcement can be made with. Matches PVP_LINES in
 // frontend/src/components/feed/FeedItem.jsx.
@@ -76,19 +82,19 @@ async function noteTrending(reviewId) {
 }
 
 // A new comment: tell whoever it answers. That's the comment it replies to,
-// or the review's author for one straight under the review. Not yourself.
-async function noteReply(comment, review) {
+// or the author of `subject` (the review, or the cut for a reply under a
+// cut) for one straight under it. Not yourself.
+async function noteReply(comment, subject) {
     const parent = comment.parent
         ? await Comment.findById(comment.parent).select("user").lean()
         : null;
-    const recipient = parent ? parent.user : review.user;
+    const recipient = parent ? parent.user : subject.user;
 
     if (!recipient || String(recipient) === String(comment.user)) return;
 
     await Notification.create({
         recipient,
-        type: "reply",
-        review: review._id,
+        ...(comment.cut ? { type: "cutReply", cut: subject._id } : { type: "reply", review: subject._id }),
         comment: comment._id,
         actors: [comment.user],
     });
@@ -165,8 +171,59 @@ async function notePromotedEvent(event) {
     );
 }
 
+// The Promote button on an event's page: it goes out again, to every member
+// for a club event, or for a member screening to its host and their
+// followers. Whoever already had it loses the old one, so it shows once,
+// at the top. Returns how many members it went to.
+async function noteRepostedEvent(event) {
+    let recipients;
+
+    if (event.official !== false) {
+        recipients = await User.find().distinct("_id");
+    } else {
+        // Looked up again so a host who has since deleted their account drops out.
+        const followers = await Follow.find({ following: event.createdBy }).distinct("follower");
+        recipients = await User.find({ _id: { $in: [event.createdBy, ...followers] } }).distinct("_id");
+    }
+
+    await Notification.deleteMany({ type: "event", event: event._id, recipient: { $in: recipients } });
+    await sendToEach(recipients, { type: "event", event: event._id, actors: [event.createdBy] });
+    return recipients.length;
+}
+
 function forgetEvent(eventId) {
     return Notification.deleteMany({ event: eventId });
+}
+
+// A member posted a cut: it goes to everyone who follows them, and to them,
+// so they see it went out (and can delete it from there). Replies under it
+// go through noteReply.
+async function noteNewCut(cut) {
+    const followers = await Follow.find({ following: cut.user }).distinct("follower");
+    await sendToEach([cut.user, ...followers], { type: "cut", cut: cut._id, actors: [cut.user] });
+}
+
+// After a like on a cut: if it has just reached the viral line, mark it so
+// it only goes out once, and send it to every member, its author included,
+// at the top of their Feed. Whoever had it already (its author and their
+// followers) loses that copy, so it shows once.
+async function noteViralCut(cutId) {
+    const cut = await Cut.findOneAndUpdate(
+        { _id: cutId, viralAt: null, likeCount: { $gte: VIRAL_LIKES } },
+        { $set: { viralAt: new Date() } },
+        { timestamps: false }
+    ).select("user").lean();
+
+    if (!cut) return;
+
+    const members = await User.find().distinct("_id");
+    await Notification.deleteMany({ type: "cut", cut: cut._id });
+    await sendToEach(members, { type: "cut", cut: cut._id, actors: [cut.user] });
+}
+
+// A cut was deleted: it goes, and so do the replies to it.
+function forgetCut(cutId) {
+    return Notification.deleteMany({ cut: cutId });
 }
 
 // A review or comment was deleted, so its notifications go too.
@@ -178,13 +235,14 @@ function forgetComment(commentId) {
     return Notification.deleteMany({ comment: commentId });
 }
 
-// An account was deleted: their own Feed, everything about their reviews,
-// the notifications they set off, and their name in vote groups.
-async function forgetMember(userId, reviewIds) {
+// An account was deleted: their own Feed, everything about their reviews
+// and cuts, the notifications they set off, and their name in vote groups.
+async function forgetMember(userId, reviewIds, cutIds = []) {
     await Notification.deleteMany({
         $or: [
             { recipient: userId },
             { review: { $in: reviewIds } },
+            { cut: { $in: cutIds } },
             { type: { $in: FROM_ONE_MEMBER }, actors: userId },
         ],
     });
@@ -194,6 +252,7 @@ async function forgetMember(userId, reviewIds) {
 
 module.exports = {
     TRENDING_LIKES,
+    VIRAL_LIKES,
     noteReviewVote,
     noteNewReview,
     noteTrending,
@@ -202,10 +261,14 @@ module.exports = {
     forgetFollow,
     noteNewEvent,
     notePromotedEvent,
+    noteRepostedEvent,
     noteEnabledPvp,
     forgetPvp,
     forgetEvent,
     forgetReview,
     forgetComment,
+    noteNewCut,
+    noteViralCut,
+    forgetCut,
     forgetMember,
 };
