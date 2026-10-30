@@ -11,7 +11,7 @@ import { formatPoints } from '../../../../shared/farkle/rules.js'
 const BOX = 'rounded-2xl border bg-plum/90 p-5 shadow-xl shadow-black/30 backdrop-blur-md sm:p-6'
 const BUTTON = 'inline-flex min-h-11 items-center gap-2 rounded-xl px-4 font-bold transition'
 const PLAY = `${BUTTON} bg-brand-gold text-ink hover:brightness-110`
-const WATCH = `${BUTTON} bg-emerald-400 text-ink hover:brightness-110`
+const WATCH = `${BUTTON} bg-brand-gold text-ink hover:brightness-110`
 const SEE = `${BUTTON} border border-white/20 bg-white/5 text-white hover:border-brand-gold/60 hover:bg-white/10`
 
 const HEADINGS = {
