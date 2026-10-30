@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 
 import CutComposer from '../components/feed/CutComposer'
 import FeedItem, { PasswordResetNotice, ReportNotice } from '../components/feed/FeedItem'
+import { OngoingGame } from '../components/farkle/FarkleNotice'
 import GifBackground from '../components/GifBackground'
 import { OnOffSwitch } from '../components/profile/SettingRow'
 import usePagedList from '../hooks/usePagedList'
@@ -77,6 +78,8 @@ function Feed() {
   // pinned above everything else.
   const passwordResets = feed.data?.passwordResets ?? []
   const reports = feed.data?.reports ?? []
+  // Farkle games they're playing, at the very top, always.
+  const games = feed.data?.games ?? []
 
   const handleResetDecided = (requestId) =>
     feed.setData((previous) => ({
@@ -131,8 +134,18 @@ function Feed() {
         <p className={`mt-2 text-sm ${tone.text}`}>
           {showAllCuts
             ? "Every member's cuts, newest first, whoever they reach. Deleting one here takes it out of everyone's Notifications."
-            : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, and what's trending or viral. Your last 100, kept for three months."}
+            : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the very top, and challenges stay pinned until you answer), and how the members you follow do at Farkle. Your last 100, kept for three months."}
         </p>
+
+        {!showAllCuts && games.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Your Farkle games">
+            {games.map((match) => (
+              <li key={match._id}>
+                <OngoingGame match={match} />
+              </li>
+            ))}
+          </ul>
+        )}
 
         {passwordResets.length > 0 && (
           <ul className="mt-10 space-y-6" aria-label="Password reset requests">

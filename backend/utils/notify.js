@@ -15,7 +15,13 @@ const TRENDING_LIKES = 5;
 const VIRAL_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
-const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply"];
+const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", ...Notification.FARKLE_TYPES];
+
+// The Farkle notifications that wait for the member to act, pinned to the
+// top of their Notifications page. "farkleTurn" isn't sent any more (games
+// being played show at the very top of Notifications by themselves:
+// controllers/feedController.js), but is still cleared with the rest.
+const FARKLE_PINNED = ["farkleChallenge", "farkleTurn"];
 
 // How many lines a PvP announcement can be made with. Matches PVP_LINES in
 // frontend/src/components/feed/FeedItem.jsx.
@@ -235,6 +241,91 @@ function forgetComment(commentId) {
     return Notification.deleteMany({ comment: commentId });
 }
 
+// The 12:00 payout gave `userId` `amount` PP. Yesterday's goes first, so
+// there's only ever the latest one, not a month of them.
+async function notePayout(userId, amount) {
+    await Notification.deleteMany({ recipient: userId, type: "payout" });
+    await Notification.create({ recipient: userId, type: "payout", amount });
+}
+
+// `fromId` gifted `toId` `amount` P-PP (utils/wallet.js giftPpp).
+function noteGift(toId, fromId, amount) {
+    return Notification.create({ recipient: toId, type: "gift", amount, actors: [fromId] });
+}
+
+// Farkle between members (utils/farkle.js). A challenge waiting on someone
+// is pinned: it sits at the top of their Notifications until they answer.
+// Each new one for a game takes the place of the last, so there's only
+// ever one. Games being played aren't notifications at all: the
+// Notifications page lists them above everything, as they are right now.
+function unpinFarkle(matchId) {
+    return Notification.deleteMany({ match: matchId, type: { $in: FARKLE_PINNED } });
+}
+
+// The terms on the table (match.offer) are waiting on `offer.to`.
+async function noteFarkleChallenge(match) {
+    await unpinFarkle(match._id);
+    await Notification.create({
+        recipient: match.offer.to,
+        type: "farkleChallenge",
+        match: match._id,
+        actors: [match.offer.by],
+        pinned: true,
+    });
+}
+
+// The challenge was answered, or wasn't: its pinned notice goes, and with
+// a `type` ("farkleAccepted", "farkleDeclined", "farkleExpired"), `to`
+// hears about it from `from`.
+async function noteFarkleAnswer(match, type = null, to = null, from = null) {
+    await unpinFarkle(match._id);
+    if (type) await Notification.create({ recipient: to, type, match: match._id, actors: [from] });
+}
+
+// The game is over: the pinned notice goes, and each player hears how it
+// ended, except `skip` (a member who has just left the club).
+async function noteFarkleOver(match, skip = null) {
+    await unpinFarkle(match._id);
+
+    const [first, second] = match.players.map((player) => player.user);
+    const notes = [
+        { recipient: first, actors: [second] },
+        { recipient: second, actors: [first] },
+    ].filter((note) => note.recipient && String(note.recipient) !== String(skip));
+
+    if (notes.length === 0) return;
+    await Notification.insertMany(notes.map((note) => ({ ...note, type: "farkleOver", match: match._id })));
+}
+
+// The game is over: everyone who follows either player hears who won how
+// much from whom, once each, even if they follow both (then `actors` has
+// both). Not the players themselves, who got farkleOver, and nothing about
+// `skip`, a member who has just left the club.
+async function noteFarkleResult(match, skip = null) {
+    const players = match.players.map((player) => player.user).filter(Boolean);
+    const followed = players.filter((id) => String(id) !== String(skip));
+    if (followed.length === 0) return;
+
+    const isPlayer = new Set(players.map(String));
+    const follows = await Follow.find({ following: { $in: followed } }).select("follower following").lean();
+
+    const notes = new Map();
+    for (const follow of follows) {
+        if (isPlayer.has(String(follow.follower))) continue;
+        const note = notes.get(String(follow.follower)) ?? { recipient: follow.follower, actors: [] };
+        note.actors.push(follow.following);
+        notes.set(String(follow.follower), note);
+    }
+
+    if (notes.size === 0) return;
+    await Notification.insertMany([...notes.values()].map((note) => ({ ...note, type: "farkleResult", match: match._id })));
+}
+
+// A game that never got going was deleted.
+function forgetFarkleMatch(matchId) {
+    return Notification.deleteMany({ match: matchId });
+}
+
 // An account was deleted: their own Feed, everything about their reviews
 // and cuts, the notifications they set off, and their name in vote groups.
 async function forgetMember(userId, reviewIds, cutIds = []) {
@@ -271,4 +362,11 @@ module.exports = {
     noteViralCut,
     forgetCut,
     forgetMember,
+    notePayout,
+    noteGift,
+    noteFarkleChallenge,
+    noteFarkleAnswer,
+    noteFarkleOver,
+    noteFarkleResult,
+    forgetFarkleMatch,
 };

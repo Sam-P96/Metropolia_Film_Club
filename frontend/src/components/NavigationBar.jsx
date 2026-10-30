@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import GlobalSearch from './search/GlobalSearch'
+import CoinBalance from './wallet/CoinBalance'
+import useWallet from '../hooks/useWallet'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/club_events', label: 'Club Events' },
   { to: '/movie_reviews', label: 'Movie Reviews' },
+  { to: '/games', label: 'Games' },
   { to: '/about', label: 'About Us' },
 ]
 
@@ -34,6 +37,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const wallet = useWallet(isAuthenticated)
 
   // Navigating should always close the panel
   useEffect(() => {
@@ -77,10 +81,9 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
 
   // Notifications, as a round bell beside Account. Gold while you're on it.
   const bellClasses = ({ isActive }) =>
-    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${
-      isActive
-        ? 'border-brand-gold/60 bg-white/10 text-brand-gold'
-        : 'border-white/20 bg-white/5 text-white/80 hover:border-brand-gold/60 hover:bg-white/10 hover:text-white'
+    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${isActive
+      ? 'border-brand-gold/60 bg-white/10 text-brand-gold'
+      : 'border-white/20 bg-white/5 text-white/80 hover:border-brand-gold/60 hover:bg-white/10 hover:text-white'
     }`
 
   const buttonClasses =
@@ -119,6 +122,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         <div className="hidden items-center gap-3 xl:flex">
           {isAuthenticated ? (
             <>
+              <CoinBalance wallet={wallet} />
               {/* Clicking it while on the page loads the page again (Feed.jsx). */}
               <NavLink to="/feed" className={bellClasses} aria-label="Notifications" title="Notifications">
                 <BellIcon />
@@ -218,23 +222,21 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
                 </NavLink>
               </li>
             ))}
-
-            {isAuthenticated && (
-              <li>
-                <NavLink to="/feed" className={panelLinkClasses}>
-                  <span className="flex items-center gap-3">
-                    <BellIcon size={18} />
-                    Notifications
-                  </span>
-                </NavLink>
-              </li>
-            )}
           </ul>
         </nav>
 
+        {/* Your own things together at the bottom: Wallet, Notifications,
+            then Account and Log out. */}
         <div className="space-y-3 border-t border-white/10 px-5 py-5">
           {isAuthenticated ? (
             <>
+              <CoinBalance wallet={wallet} block />
+              <NavLink to="/feed" className={panelLinkClasses}>
+                <span className="flex items-center gap-3">
+                  <BellIcon size={18} />
+                  Notifications
+                </span>
+              </NavLink>
               <NavLink to="/account" className={`${buttonClasses} block text-center`}>
                 Account
               </NavLink>

@@ -33,6 +33,10 @@ import CutDetail from "./pages/CutDetail";
 import FollowList from "./pages/FollowList";
 import BannedList from "./pages/BannedList";
 import SecretPfp from "./pages/SecretPfp";
+import FarkleMatch from "./pages/FarkleMatch";
+import FarkleLobby from "./pages/FarkleLobby";
+import Games from "./pages/Games";
+import Wallet from "./pages/Wallet";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -98,6 +102,19 @@ function App() {
           } />
 
           <Route path="/wheel" element={<Wheel />} />
+          {/* Games, from the nav. Anyone can see what there is; playing is
+              for points, so the games themselves need a login, and come
+              back to the same page after it (links from notifications). */}
+          <Route path="/games" element={<Games />} />
+          <Route path="/games/farkle" element={
+            isAuthenticated ? (<FarkleLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/farkle/bot" element={
+            isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/farkle/:matchId" element={
+            isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
           <Route path="/movie_reviews" element={<MovieReviews />} />
@@ -121,6 +138,9 @@ function App() {
             element={<EventDetail isAuthenticated={isAuthenticated} />}
           />
           <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
+          <Route path="/wallet" element={
+            isAuthenticated ? (<Wallet />) : (<Navigate to="/login" state={{ from: '/wallet' }} />)
+          } />
         </Routes>
       </main>
 

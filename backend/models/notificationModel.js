@@ -30,11 +30,28 @@ const KEEP_FOR_DAYS = 90;
 //                   the one they had. No review.
 //   cutReply        `actors[0]` wrote `comment`, straight under their `cut`
 //                   or under one of their replies there. No review.
+//   payout          the 12:00 payout gave them `amount` PP. Each day's
+//                   replaces the one before. No review, no actors.
+//   gift            `actors[0]` gifted them `amount` P-PP ("Gift PP" in the
+//                   Wallet). No review.
+// Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
+//   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
+//   farkleTurn       no longer sent: games being played are listed at the
+//                    top of Notifications by the page itself
+//   farkleAccepted   they accepted your challenge: the game's on
+//   farkleDeclined   they turned your challenge down
+//   farkleExpired    your challenge to them went unanswered for three days
+//   farkleOver       the game ended: `match` says who won and how
+//   farkleResult     a game ended for a member you follow (`actors`: the
+//                    one you follow, or both if you follow both): who won
+//                    how much from whom. Against the bot too.
+const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkleDeclined", "farkleExpired", "farkleOver", "farkleResult"];
+
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply"],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", ...FARKLE_TYPES],
         required: true,
     },
     review: {
@@ -42,9 +59,15 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply"].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", ...FARKLE_TYPES].includes(this.type);
         },
     },
+    match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
+    amount: {type: Number, default: null},
+    // Pinned ones sit at the top of the Notifications page until the member
+    // acts on them. Only ever true or missing (never false), so that sorting
+    // by it leaves every other notification in date order.
+    pinned: {type: Boolean},
     event: {type: Schema.Types.ObjectId, ref: "Event", default: null},
     variant: {type: Number, default: null},
     comment: {type: Schema.Types.ObjectId, ref: "Comment", default: null},
@@ -62,5 +85,11 @@ notificationSchema.index({review: 1});
 notificationSchema.index({comment: 1});
 notificationSchema.index({event: 1});
 notificationSchema.index({cut: 1});
+notificationSchema.index({match: 1});
+// The Notifications page: pinned first, then newest first.
+notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 
-module.exports = mongoose.model("Notification", notificationSchema);
+const Notification = mongoose.model("Notification", notificationSchema);
+Notification.FARKLE_TYPES = FARKLE_TYPES;
+
+module.exports = Notification;
