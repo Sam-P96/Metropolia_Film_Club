@@ -4,6 +4,7 @@ const WalletTx = require("../models/walletTxModel");
 const { WalletError, changeWallet, credit } = require("./wallet");
 const { noteFarkleAnswer, noteFarkleOver, noteFarkleResult, forgetFarkleMatch } = require("./notify");
 const { GAME_FIELDS, applyMove, forfeit } = require("../games/farkle/engine");
+const { announceMatch } = require("../games/farkle/live");
 const { BOT_NAME } = require("../../shared/farkle/rules.js");
 
 // Farkle matches in the database: saving a move, paying the winner, and
@@ -59,7 +60,7 @@ async function pointsOf(userId) {
 // still be `match.version`. That's what stops a double tap rolling twice:
 // the second tap carries the same version, and by then it's out of date.
 // `extra` is anything else to set. Returns the saved match, or null if the
-// match had moved on.
+// match had moved on. Pages playing it live hear about it straight away.
 async function saveGame(match, game, extra = {}) {
     const set = { ...extra };
     for (const field of GAME_FIELDS) set[field] = game[field];
@@ -71,11 +72,14 @@ async function saveGame(match, game, extra = {}) {
         update.$unset = { openBotFor: 1, pairKey: 1 };
     }
 
-    return FarkleMatch.findOneAndUpdate(
+    const saved = await FarkleMatch.findOneAndUpdate(
         { _id: match._id, version: match.version },
         update,
         { returnDocument: "after" }
     ).lean();
+
+    if (saved) announceMatch(saved);
+    return saved;
 }
 
 // Pays the winner of a finished game, once. It claims the game first
@@ -282,6 +286,9 @@ async function matchViews(matches, viewerId) {
             kept: match.kept,
             turnPoints: match.turnPoints,
             hotDice: match.hotDice,
+            // This turn's rolls so far, so a page watching the other player
+            // can show each roll as it comes (Play Live).
+            steps: match.steps,
             lastTurns: match.lastTurns,
             log: match.log,
             winner: match.winner,

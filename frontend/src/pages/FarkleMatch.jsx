@@ -62,6 +62,46 @@ function GiveUpButton({ stake, disabled, onGiveUp }) {
   )
 }
 
+// Play Live, in a game between members: whether the other player has the
+// game open too, so their rolls and taps show here as they happen. If
+// another of your games has taken Play Live, a button to bring it back.
+function LiveBadge({ live, opponent }) {
+  if (live.bumped) {
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-center text-sm text-amber-100">
+        You're playing live in another game, so this one is by notification for now.
+        <button
+          type="button"
+          onClick={live.playLiveHere}
+          className="cursor-pointer rounded-lg bg-brand-gold px-3 py-1 font-bold text-ink transition hover:brightness-110"
+        >
+          Play Live here
+        </button>
+      </div>
+    )
+  }
+
+  if (!live.on) return null
+
+  if (!live.opponentHere) {
+    return (
+      <p className="text-center text-sm text-white/50">
+        Play Live is on. {opponent} doesn't have the game open, so they'll get a notification when it's their turn.
+      </p>
+    )
+  }
+
+  return (
+    <p className="flex items-center justify-center gap-2 text-center text-sm font-semibold text-emerald-300">
+      <span className="relative flex size-2.5 shrink-0" aria-hidden="true">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
+        <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400" />
+      </span>
+      Play Live: {opponent} is here, and every roll shows as it happens.
+    </p>
+  )
+}
+
 function Header({ children, aside }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
@@ -86,7 +126,7 @@ function Header({ children, aside }) {
 // challenge it still is.
 function FarkleGame({ matchId }) {
   const navigate = useNavigate()
-  const { game, match, loading, roll, bank, toggleDie, resign, start, playAgain, adopt } = useServerFarkle(matchId)
+  const { game, match, loading, live, roll, bank, toggleDie, resign, start, playAgain, adopt } = useServerFarkle(matchId)
   const wallet = useWallet()
 
   // The last bot game's winning score and stake, so Play again starts there.
@@ -154,6 +194,8 @@ function FarkleGame({ matchId }) {
       >
         You vs. {game.opponent}. First to {formatPoints(game.target)} wins.
       </Header>
+
+      {pvp && game.phase !== 'over' && <LiveBadge live={live} opponent={game.opponent} />}
 
       <Scoreboard
         players={game.players}

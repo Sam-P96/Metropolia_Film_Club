@@ -135,7 +135,7 @@ export default function FarkleLobby() {
           >
             {lobby?.bot
               ? `Carry on: ${formatPoints(lobby.bot.scores[lobby.bot.mySeat])} to ${formatPoints(lobby.bot.scores[1 - lobby.bot.mySeat])}`
-              : `Play ${BOT_NAME}`}
+              : `Play ${BOT_MODE}`}
           </Link>
         </section>
 

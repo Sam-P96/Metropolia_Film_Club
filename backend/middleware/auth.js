@@ -8,7 +8,14 @@ const ROLE_RANK = { user: 0, moderator: 1, admin: 2 };
 // or null. Never throws, so routes can decide whether a login is required.
 async function userFromRequest(req) {
     const [scheme, token] = (req.headers.authorization ?? "").split(" ");
-    if (scheme !== "Bearer" || !token) return null;
+    if (scheme !== "Bearer") return null;
+    return userFromToken(token);
+}
+
+// The user a login token belongs to, or null. Play Live checks its
+// connections with this too (games/farkle/live.js), so both use one login.
+async function userFromToken(token) {
+    if (!token || typeof token !== "string") return null;
 
     try {
         const { _id } = jwt.verify(token, process.env.SECRET);
@@ -68,4 +75,4 @@ function requireRole(minimum) {
     };
 }
 
-module.exports = { requireAuth, optionalAuth, requireRole, hasRole, outranks, canApproveReset };
+module.exports = { requireAuth, optionalAuth, requireRole, hasRole, outranks, canApproveReset, userFromToken };
