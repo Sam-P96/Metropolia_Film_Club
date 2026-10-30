@@ -12,11 +12,13 @@ const Schema = mongoose.Schema;
 //   refund        a bet handed back (a cancelled or expired game)
 //   shop          P-PP spent on a badge or trophy
 //   admin         changed by hand by an admin
+//   giftSent      P-PP gifted to `other`, plus the 1 point fee ("Gift PP")
+//   giftReceived  P-PP gifted by `other`
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
         type: String,
-        enum: ["dailyPayout", "bet", "win", "refund", "shop", "admin"],
+        enum: ["dailyPayout", "bet", "win", "refund", "shop", "admin", "giftSent", "giftReceived"],
         required: true,
     },
     pp: {type: Number, default: 0},
@@ -27,6 +29,8 @@ const walletTxSchema = new Schema({
     },
     // The Farkle game a bet, win or refund belongs to.
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
+    // The other member in a gift: who it went to, or came from.
+    other: {type: Schema.Types.ObjectId, ref: "User", default: null},
     at: {type: Date, default: Date.now},
 });
 

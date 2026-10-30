@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import CoinIcon from '../components/wallet/CoinIcon'
+import GiftForm from '../components/wallet/GiftForm'
 import useWallet from '../hooks/useWallet'
 import { WALLET_CHANGED_EVENT, getWalletHistory } from '../services/wallet'
 import { timeAgo } from '../utils/timeAgo'
@@ -13,6 +14,16 @@ const REASONS = {
   refund: 'Bet returned',
   shop: 'Shop',
   admin: 'Changed by an admin',
+  giftSent: 'Gift',
+  giftReceived: 'Gift',
+}
+
+// What a history row was. Gifts say who to or from.
+function labelFor(row) {
+  const name = row.other?.username ?? 'a former member'
+  if (row.reason === 'giftSent') return `Gift to ${name} (with the 1 point fee)`
+  if (row.reason === 'giftReceived') return `Gift from ${name}`
+  return REASONS[row.reason] ?? row.reason
 }
 
 const format = (points) => points.toLocaleString('en-US')
@@ -87,6 +98,15 @@ export default function Wallet() {
       </section>
 
       <section className={CARD}>
+        <h2 className="text-lg font-semibold text-white">Gift PP</h2>
+        <p className="mt-2 mb-4 text-sm text-white/70">
+          Give some of your P-PP to another member. Each gift costs 1 point on top, whatever its size: 1 PP if you have any,
+          otherwise 1 P-PP.
+        </p>
+        <GiftForm wallet={wallet} />
+      </section>
+
+      <section className={CARD}>
         <h2 className="mb-3 text-lg font-semibold text-white">History</h2>
         {history === null ? (
           <p className="text-sm text-white/50">Loading…</p>
@@ -97,7 +117,7 @@ export default function Wallet() {
             {history.map((row) => (
               <li key={row._id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
                 <div className="min-w-0">
-                  <div className="text-white">{REASONS[row.reason] ?? row.reason}</div>
+                  <div className="text-white">{labelFor(row)}</div>
                   <div className="text-xs text-white/50">{timeAgo(row.at)}</div>
                 </div>
                 <div className="flex items-center gap-4 tabular-nums">

@@ -102,6 +102,18 @@ function LiveBadge({ live, opponent }) {
   )
 }
 
+// Slides up and fades in as the page opens (animate-page-in in index.css).
+// `step` is how far down the page it sits, so the parts arrive one after
+// another. Only on first showing: the game changing underneath doesn't
+// replay it.
+function Enter({ step = 0, children }) {
+  return (
+    <div className="animate-page-in motion-reduce:animate-none" style={{ animationDelay: `${step * 80}ms` }}>
+      {children}
+    </div>
+  )
+}
+
 function Header({ children, aside }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
@@ -135,7 +147,9 @@ function FarkleGame({ matchId }) {
   if (loading) {
     return (
       <div className={PAGE}>
-        <Header>Shuffling the dice…</Header>
+        <Enter>
+          <Header>Shuffling the dice…</Header>
+        </Enter>
       </div>
     )
   }
@@ -143,9 +157,15 @@ function FarkleGame({ matchId }) {
   if (!game && !matchId) {
     return (
       <div className={PAGE}>
-        <Header>{BOT_MODE}: you against {BOT_NAME}, for points.</Header>
-        <StakePicker wallet={wallet} onStart={start} initial={last} />
-        <ScoringGuide />
+        <Enter>
+          <Header>{BOT_MODE}: you against {BOT_NAME}, for points.</Header>
+        </Enter>
+        <Enter step={1}>
+          <StakePicker wallet={wallet} onStart={start} initial={last} />
+        </Enter>
+        <Enter step={2}>
+          <ScoringGuide />
+        </Enter>
       </div>
     )
   }
@@ -155,19 +175,23 @@ function FarkleGame({ matchId }) {
 
     return (
       <div className={PAGE}>
-        <Header>{match ? `You and ${opponent}.` : 'Game not found.'}</Header>
-        {match?.status === 'challenge' ? (
-          <div className={`${CARD} border-brand-gold/60`}>
-            <ChallengeCard match={match} onChange={adopt} />
-          </div>
-        ) : (
-          <p className={`${CARD} text-white/80`}>
-            {CLOSED[match?.status] ?? "This game doesn't exist, or it isn't yours."}{' '}
-            <Link to="/games/farkle" className="text-brand-gold underline underline-offset-4">
-              Back to Farkle
-            </Link>
-          </p>
-        )}
+        <Enter>
+          <Header>{match ? `You and ${opponent}.` : 'Game not found.'}</Header>
+        </Enter>
+        <Enter step={1}>
+          {match?.status === 'challenge' ? (
+            <div className={`${CARD} border-brand-gold/60`}>
+              <ChallengeCard match={match} onChange={adopt} />
+            </div>
+          ) : (
+            <p className={`${CARD} text-white/80`}>
+              {CLOSED[match?.status] ?? "This game doesn't exist, or it isn't yours."}{' '}
+              <Link to="/games/farkle" className="text-brand-gold underline underline-offset-4">
+                Back to Farkle
+              </Link>
+            </p>
+          )}
+        </Enter>
       </div>
     )
   }
@@ -180,61 +204,69 @@ function FarkleGame({ matchId }) {
 
   return (
     <div className={PAGE}>
-      <Header
-        aside={
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            <span className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm tabular-nums text-white/80">
-              {pvp ? `Stake ${formatPoints(game.stake)} each · winner takes` : `Stake ${formatPoints(game.stake)} · win`}
-              <CoinIcon kind="ppp" size={15} />
-              <span className="font-bold text-brand-gold">{formatPoints(game.prize)} P-PP</span>
-            </span>
-            {game.phase !== 'over' && <GiveUpButton stake={game.stake} disabled={!(betweenMoves || waiting)} onGiveUp={resign} />}
-          </div>
-        }
-      >
-        You vs. {game.opponent}. First to {formatPoints(game.target)} wins.
-      </Header>
+      <Enter>
+        <Header
+          aside={
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <span className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm tabular-nums text-white/80">
+                {pvp ? `Stake ${formatPoints(game.stake)} each · winner takes` : `Stake ${formatPoints(game.stake)} · win`}
+                <CoinIcon kind="ppp" size={15} />
+                <span className="font-bold text-brand-gold">{formatPoints(game.prize)} P-PP</span>
+              </span>
+              {game.phase !== 'over' && <GiveUpButton stake={game.stake} disabled={!(betweenMoves || waiting)} onGiveUp={resign} />}
+            </div>
+          }
+        >
+          You vs. {game.opponent}. First to {formatPoints(game.target)} wins.
+        </Header>
+      </Enter>
 
       {pvp && game.phase !== 'over' && <LiveBadge live={live} opponent={game.opponent} />}
 
-      <Scoreboard
-        players={game.players}
-        scores={game.scores}
-        current={game.current}
-        winner={game.winner}
-        target={game.target}
-        over={game.phase === 'over'}
-      />
+      <Enter step={1}>
+        <Scoreboard
+          players={game.players}
+          scores={game.scores}
+          current={game.current}
+          winner={game.winner}
+          target={game.target}
+          over={game.phase === 'over'}
+        />
+      </Enter>
 
-      <DiceTray
-        dice={game.dice}
-        kept={game.kept}
-        selected={game.selected}
-        rolling={game.phase === 'rolling'}
-        canChoose={choosing}
-        onToggle={toggleDie}
-        message={game.message}
-        tone={game.tone}
-        turnPoints={game.turnPoints}
-        selectedPoints={pick.points}
-        badPick={choosing && game.selected.length > 0 && pick.points === 0}
-      />
+      <Enter step={2}>
+        <DiceTray
+          dice={game.dice}
+          kept={game.kept}
+          selected={game.selected}
+          rolling={game.phase === 'rolling'}
+          canChoose={choosing}
+          onToggle={toggleDie}
+          message={game.message}
+          tone={game.tone}
+          turnPoints={game.turnPoints}
+          selectedPoints={pick.points}
+          badPick={choosing && game.selected.length > 0 && pick.points === 0}
+        />
+      </Enter>
 
-      <TurnControls
-        game={game}
-        pick={pick}
-        opponent={game.opponent}
-        onRoll={roll}
-        onBank={bank}
-        onPlayAgain={() => {
-          if (matchId) {
-            navigate('/games/farkle')
-            return
-          }
-          setLast({ target: game.target, stake: game.stake })
-          playAgain()
-        }}
-      />
+      <Enter step={3}>
+        <TurnControls
+          game={game}
+          pick={pick}
+          opponent={game.opponent}
+          onRoll={roll}
+          onBank={bank}
+          onPlayAgain={() => {
+            if (matchId) {
+              navigate('/games/farkle')
+              return
+            }
+            setLast({ target: game.target, stake: game.stake })
+            playAgain()
+          }}
+        />
+      </Enter>
 
       {betweenMoves && (
         <p className="-mt-2 text-center text-sm text-white/50">
@@ -248,10 +280,12 @@ function FarkleGame({ matchId }) {
         </p>
       )}
 
-      <div className="grid gap-5 md:grid-cols-[1.3fr_1fr]">
-        <ScoringGuide />
-        <MatchLog log={game.log} them={pvp ? game.opponent : BOT_NAME} />
-      </div>
+      <Enter step={4}>
+        <div className="grid gap-5 md:grid-cols-[1.3fr_1fr]">
+          <ScoringGuide />
+          <MatchLog log={game.log} them={pvp ? game.opponent : BOT_NAME} />
+        </div>
+      </Enter>
     </div>
   )
 }

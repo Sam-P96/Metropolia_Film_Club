@@ -1,7 +1,7 @@
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const WalletTx = require("../models/walletTxModel");
-const { notePayout } = require("./notify");
+const { notePayout, noteGift } = require("./notify");
 
 // Every member has two kinds of points:
 //   PP    Power Points. Paid out at 12:00 each day: 1 per review they've
@@ -46,7 +46,7 @@ const TRIES = 5;
 //
 // Returns { pp, ppp } (what changed) and `balance` (the wallet after), or
 // null if nothing changed.
-async function changeWallet(userId, decide, { reason, match = null } = {}) {
+async function changeWallet(userId, decide, { reason, match = null, other = null } = {}) {
     for (let attempt = 0; attempt < TRIES; attempt++) {
         const user = await User.findById(userId).select("wallet").lean();
         if (!user) throw new WalletError("That member doesn't exist any more.", 404);
@@ -85,7 +85,7 @@ async function changeWallet(userId, decide, { reason, match = null } = {}) {
         if (result.matchedCount === 0) continue; // changed under us: try again
 
         if (pp !== 0 || ppp !== 0) {
-            await WalletTx.create({ user: userId, reason, pp, ppp, balance, match });
+            await WalletTx.create({ user: userId, reason, pp, ppp, balance, match, other });
         }
 
         return { pp, ppp, balance };
@@ -128,6 +128,54 @@ async function credit(userId, ppp, { reason = "win", match = null } = {}) {
     }
 
     return changeWallet(userId, () => ({ ppp }), { reason, match });
+}
+
+// What a gift costs on top of the gift itself, whatever its size.
+const GIFT_FEE = 1;
+
+// "Gift PP": `amount` P-PP from one member to another (it's called Gift PP,
+// but only P-PP can be given). The 1 point fee is taken like a bet, PP if
+// they have any, otherwise P-PP, and goes to nobody. 50 P-PP to Maria with
+// 10 PP and 100 P-PP: 1 PP and 50 P-PP go, and Maria gets 50 P-PP. If the
+// gift can't reach them (their account has just gone), everything, fee
+// included, goes back. Returns what it took from the giver.
+async function giftPpp(fromId, toId, amount) {
+    if (!Number.isInteger(amount) || amount < 1) {
+        throw new WalletError("A gift is a whole number of P-PP, at least 1.");
+    }
+    if (String(fromId) === String(toId)) {
+        throw new WalletError("You can't gift yourself.");
+    }
+    if (!(await User.exists({ _id: toId }))) {
+        throw new WalletError("That member doesn't exist any more.", 404);
+    }
+
+    const taken = await changeWallet(
+        fromId,
+        (wallet) => {
+            const feeFromPp = wallet.pp >= GIFT_FEE ? GIFT_FEE : 0;
+            const feeFromPpp = GIFT_FEE - feeFromPp;
+            if (wallet.ppp < amount + feeFromPpp) {
+                throw new WalletError(
+                    feeFromPpp
+                        ? `With no PP for the fee, that's ${amount + feeFromPpp} P-PP, and you have ${wallet.ppp}.`
+                        : `You have ${wallet.ppp} P-PP to give.`
+                );
+            }
+            return { pp: 0 - feeFromPp, ppp: 0 - amount - feeFromPpp };
+        },
+        { reason: "giftSent", other: toId }
+    );
+
+    try {
+        await changeWallet(toId, () => ({ ppp: amount }), { reason: "giftReceived", other: fromId });
+    } catch (error) {
+        await changeWallet(fromId, () => ({ pp: 0 - taken.pp, ppp: 0 - taken.ppp }), { reason: "refund", other: toId });
+        throw error;
+    }
+
+    await noteGift(toId, fromId, amount);
+    return taken;
 }
 
 // Today's date in Helsinki, like "2026-10-30". The payout uses it to pay
@@ -195,6 +243,8 @@ module.exports = {
     changeWallet,
     spend,
     credit,
+    GIFT_FEE,
+    giftPpp,
     helsinkiDay,
     helsinkiHour,
     payEveryone,

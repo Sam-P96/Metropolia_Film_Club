@@ -222,29 +222,21 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
                 </NavLink>
               </li>
             ))}
-
-            {isAuthenticated && (
-              <li>
-                <NavLink to="/feed" className={panelLinkClasses}>
-                  <span className="flex items-center gap-3">
-                    <BellIcon size={18} />
-                    Notifications
-                  </span>
-                </NavLink>
-              </li>
-            )}
-
-            {isAuthenticated && (
-              <li>
-                <CoinBalance wallet={wallet} block />
-              </li>
-            )}
           </ul>
         </nav>
 
+        {/* Your own things together at the bottom: Wallet, Notifications,
+            then Account and Log out. */}
         <div className="space-y-3 border-t border-white/10 px-5 py-5">
           {isAuthenticated ? (
             <>
+              <CoinBalance wallet={wallet} block />
+              <NavLink to="/feed" className={panelLinkClasses}>
+                <span className="flex items-center gap-3">
+                  <BellIcon size={18} />
+                  Notifications
+                </span>
+              </NavLink>
               <NavLink to="/account" className={`${buttonClasses} block text-center`}>
                 Account
               </NavLink>

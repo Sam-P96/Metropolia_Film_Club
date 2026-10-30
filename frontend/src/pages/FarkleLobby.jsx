@@ -123,7 +123,9 @@ export default function FarkleLobby() {
         </section>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* items-start: each card only as tall as itself, so the challenge
+          form growing with search results leaves the other card alone. */}
+      <div className="grid items-start gap-6 md:grid-cols-2">
         <section className={`${CARD} flex flex-col gap-3`}>
           <h2 className={HEADING}>{BOT_MODE}</h2>
           <p className="text-white/70">

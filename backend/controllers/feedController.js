@@ -144,6 +144,10 @@ async function hydrate(rows, viewer) {
 
         if (members.length === 0) return [];
 
+        if (row.type === "gift") {
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
+        }
+
         if (row.type === "cut") {
             const cut = cutById.get(String(row.cut));
             return cut ? [{ _id: row._id, type: row.type, at: row.at, actors: members, cut }] : [];

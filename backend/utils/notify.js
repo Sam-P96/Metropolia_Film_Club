@@ -15,7 +15,7 @@ const TRENDING_LIKES = 5;
 const VIRAL_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
-const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply", ...Notification.FARKLE_TYPES];
+const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", ...Notification.FARKLE_TYPES];
 
 // The Farkle notifications that wait for the member to act, pinned to the
 // top of their Notifications page.
@@ -246,6 +246,11 @@ async function notePayout(userId, amount) {
     await Notification.create({ recipient: userId, type: "payout", amount });
 }
 
+// `fromId` gifted `toId` `amount` P-PP (utils/wallet.js giftPpp).
+function noteGift(toId, fromId, amount) {
+    return Notification.create({ recipient: toId, type: "gift", amount, actors: [fromId] });
+}
+
 // Farkle between members (utils/farkle.js). A challenge waiting on someone
 // and "your turn" in a game are pinned: they sit at the top of that
 // member's Notifications until they act. Each new one for a game takes the
@@ -368,6 +373,7 @@ module.exports = {
     forgetCut,
     forgetMember,
     notePayout,
+    noteGift,
     noteFarkleChallenge,
     noteFarkleTurn,
     noteFarkleAnswer,

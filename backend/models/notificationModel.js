@@ -32,6 +32,8 @@ const KEEP_FOR_DAYS = 90;
 //                   or under one of their replies there. No review.
 //   payout          the 12:00 payout gave them `amount` PP. Each day's
 //                   replaces the one before. No review, no actors.
+//   gift            `actors[0]` gifted them `amount` P-PP ("Gift PP" in the
+//                   Wallet). No review.
 // Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
 //   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
 //   farkleTurn       it's your turn in the game. Pinned.
@@ -48,7 +50,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", ...FARKLE_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", ...FARKLE_TYPES],
         required: true,
     },
     review: {
@@ -56,7 +58,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", ...FARKLE_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", ...FARKLE_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
