@@ -6,6 +6,7 @@ const FilmLog = require("../models/filmLogModel");
 const Event = require("../models/eventModel");
 const Cut = require("../models/cutModel");
 const PasswordReset = require("../models/passwordResetModel");
+const WalletTx = require("../models/walletTxModel");
 const bcrypt = require("bcryptjs");
 const { sessionFor } = require("../utils/session");
 const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
@@ -53,7 +54,7 @@ const signupUser = async (req, res) => {
         }
 
         // Is the email taken?
-        const userExists = await User.findOne({email})
+        const userExists = await User.findOne({ email })
 
         if (userExists) {
             res.status(400);
@@ -437,11 +438,12 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
         FilmLog.find({ user: userId }).lean(),
+        WalletTx.find({ user: userId }).sort({ at: -1 }).lean(),
     ]);
 
     if (!account) {
@@ -454,6 +456,7 @@ const exportMe = async (req, res) => {
         reviews,
         comments,
         filmLogs,
+        walletHistory,
     });
 }
 
@@ -489,6 +492,7 @@ async function deleteAccount(user) {
     await Review.deleteMany({ user: userId });
     await Cut.deleteMany({ user: userId });
     await FilmLog.deleteMany({ user: userId });
+    await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }
 

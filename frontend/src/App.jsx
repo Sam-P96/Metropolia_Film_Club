@@ -33,6 +33,8 @@ import CutDetail from "./pages/CutDetail";
 import FollowList from "./pages/FollowList";
 import BannedList from "./pages/BannedList";
 import SecretPfp from "./pages/SecretPfp";
+import FarkleMatch from "./pages/FarkleMatch";
+import Wallet from "./pages/Wallet";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -98,6 +100,8 @@ function App() {
           } />
 
           <Route path="/wheel" element={<Wheel />} />
+          {/* Farkle against the bot. Not in the nav yet. */}
+          <Route path="/games/farkle" element={<FarkleMatch />} />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
           <Route path="/movie_reviews" element={<MovieReviews />} />
@@ -121,6 +125,9 @@ function App() {
             element={<EventDetail isAuthenticated={isAuthenticated} />}
           />
           <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
+          <Route path="/wallet" element={
+            isAuthenticated ? (<Wallet />) : (<Navigate to="/login" state={{ from: '/wallet' }} />)
+          } />
         </Routes>
       </main>
 

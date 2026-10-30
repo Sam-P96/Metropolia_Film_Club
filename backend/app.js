@@ -16,7 +16,10 @@ const passwordResetRouter = require("./routes/passwordResetRouter");
 const commentRouter = require("./routes/commentRouter");
 const feedRouter = require("./routes/feedRouter");
 const cutRouter = require("./routes/cutRouter");
+const walletRouter = require("./routes/walletRouter");
 const { recountDislikes } = require("./utils/pvp");
+const { giveEveryoneAWallet } = require("./utils/wallet");
+const { startDailyPayout } = require("./jobs/dailyPayout");
 
 const app = express();
 
@@ -46,9 +49,17 @@ app.use(express.json());
 // Dislikes only count from members with PVP on (see utils/pvp.js). A full
 // recount once connected keeps the stored totals right, including dislikes
 // given before PVP existed.
-connectDB()
+const connected = connectDB();
+
+connected
     .then(() => recountDislikes())
     .catch((error) => console.error("Couldn't recount dislikes:", error.message));
+
+// Wallets: give older accounts an empty one, then start the 12:00 PP payout.
+connected
+    .then(() => giveEveryoneAWallet())
+    .then(() => startDailyPayout())
+    .catch((error) => console.error("Couldn't start the wallets:", error.message));
 
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
@@ -89,6 +100,7 @@ app.use("/api/reviews", reviewRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/feed", feedRouter);
 app.use("/api/cuts", cutRouter);
+app.use("/api/wallet", walletRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

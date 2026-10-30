@@ -37,6 +37,21 @@
     0%, 40% { box-shadow: 0 0 0 2px var(--color-brand-gold); }
     100%    { box-shadow: 0 0 0 2px transparent; }
   }
+
+  /* Farkle dice (components/farkle/Die.jsx): their colours, and the tumble
+     when they're rolled */
+  --color-dice-ivory: #F4EBD6;
+  --color-dice-shade: #D6C6A8;
+  --color-dice-pip: #2A160F;
+
+  --animate-dice-tumble: dice-tumble 0.62s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+
+  @keyframes dice-tumble {
+    0%   { transform: translateY(-18px) rotate(-38deg) scale(0.9); }
+    45%  { transform: translateY(5px) rotate(18deg); }
+    75%  { transform: translateY(-3px) rotate(-6deg); }
+    100% { transform: none; }
+  }
 }
 
 body {
@@ -55,3 +70,4 @@ body {
   from { transform: translateX(-50%); }
   to   { transform: translateX(0); }
 }
+

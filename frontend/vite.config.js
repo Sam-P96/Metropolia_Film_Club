@@ -8,6 +8,11 @@ export default defineConfig({
     modulePreload: { polyfill: false },
   },
   server: {
+    // Lets the dev server load files from the repo's shared/ folder, which
+    // sits outside frontend/. The production build doesn't need this.
+    fs: {
+      allow: ['..'],
+    },
     proxy: {
       '/api': 'http://localhost:3000'
     }

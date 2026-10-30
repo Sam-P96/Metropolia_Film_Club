@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import GlobalSearch from './search/GlobalSearch'
+import CoinBalance from './wallet/CoinBalance'
+import useWallet from '../hooks/useWallet'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -34,6 +36,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const wallet = useWallet(isAuthenticated)
 
   // Navigating should always close the panel
   useEffect(() => {
@@ -77,10 +80,9 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
 
   // Notifications, as a round bell beside Account. Gold while you're on it.
   const bellClasses = ({ isActive }) =>
-    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${
-      isActive
-        ? 'border-brand-gold/60 bg-white/10 text-brand-gold'
-        : 'border-white/20 bg-white/5 text-white/80 hover:border-brand-gold/60 hover:bg-white/10 hover:text-white'
+    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${isActive
+      ? 'border-brand-gold/60 bg-white/10 text-brand-gold'
+      : 'border-white/20 bg-white/5 text-white/80 hover:border-brand-gold/60 hover:bg-white/10 hover:text-white'
     }`
 
   const buttonClasses =
@@ -119,6 +121,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         <div className="hidden items-center gap-3 xl:flex">
           {isAuthenticated ? (
             <>
+              <CoinBalance wallet={wallet} />
               {/* Clicking it while on the page loads the page again (Feed.jsx). */}
               <NavLink to="/feed" className={bellClasses} aria-label="Notifications" title="Notifications">
                 <BellIcon />
@@ -227,6 +230,12 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
                     Notifications
                   </span>
                 </NavLink>
+              </li>
+            )}
+
+            {isAuthenticated && (
+              <li>
+                <CoinBalance wallet={wallet} block />
               </li>
             )}
           </ul>
