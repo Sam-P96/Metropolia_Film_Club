@@ -39,7 +39,10 @@ const KEEP_FOR_DAYS = 90;
 //   farkleDeclined   they turned your challenge down
 //   farkleExpired    your challenge to them went unanswered for three days
 //   farkleOver       the game ended: `match` says who won and how
-const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkleDeclined", "farkleExpired", "farkleOver"];
+//   farkleResult     a game ended for a member you follow (`actors`: the
+//                    one you follow, or both if you follow both): who won
+//                    how much from whom. Against the bot too.
+const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkleDeclined", "farkleExpired", "farkleOver", "farkleResult"];
 
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},

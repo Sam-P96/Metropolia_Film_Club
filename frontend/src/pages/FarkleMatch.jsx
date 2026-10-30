@@ -13,7 +13,7 @@ import TurnControls from '../components/farkle/TurnControls'
 import useServerFarkle, { selectionOf } from '../hooks/useServerFarkle'
 import useWallet from '../hooks/useWallet'
 import { formatDeadline } from '../utils/farkle'
-import { BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
+import { BOT_MODE, BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
 const PAGE = 'mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-8 sm:py-12'
@@ -103,7 +103,7 @@ function FarkleGame({ matchId }) {
   if (!game && !matchId) {
     return (
       <div className={PAGE}>
-        <Header>You against {BOT_NAME}, for points.</Header>
+        <Header>{BOT_MODE}: you against {BOT_NAME}, for points.</Header>
         <StakePicker wallet={wallet} onStart={start} initial={last} />
         <ScoringGuide />
       </div>
@@ -208,7 +208,7 @@ function FarkleGame({ matchId }) {
 
       <div className="grid gap-5 md:grid-cols-[1.3fr_1fr]">
         <ScoringGuide />
-        <MatchLog log={game.log} them={pvp ? game.opponent : 'Bot'} />
+        <MatchLog log={game.log} them={pvp ? game.opponent : BOT_NAME} />
       </div>
     </div>
   )

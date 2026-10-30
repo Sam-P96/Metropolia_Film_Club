@@ -2,7 +2,7 @@ const FarkleMatch = require("../models/farkleMatchModel");
 const User = require("../models/userModel");
 const WalletTx = require("../models/walletTxModel");
 const { WalletError, changeWallet, credit } = require("./wallet");
-const { noteFarkleAnswer, noteFarkleOver, forgetFarkleMatch } = require("./notify");
+const { noteFarkleAnswer, noteFarkleOver, noteFarkleResult, forgetFarkleMatch } = require("./notify");
 const { GAME_FIELDS, applyMove, forfeit } = require("../games/farkle/engine");
 const { BOT_NAME } = require("../../shared/farkle/rules.js");
 
@@ -114,11 +114,13 @@ async function settleSafely(matchId) {
     }
 }
 
-// A game just ended (saved as over): pay the winner, and between members,
-// tell them both. `skip` is a member who has just left the club.
+// A game just ended (saved as over): pay the winner, tell both players
+// (between members), and tell whoever follows them how it went (against
+// the bot too). `skip` is a member who has just left the club.
 async function finishMatch(match, skip = null) {
     await settleSafely(match._id);
     if (match.mode === "pvp") await noteFarkleOver(match, skip);
+    await noteFarkleResult(match, skip);
 }
 
 // If `match` has gone three days without a move, ends it now (the player

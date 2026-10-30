@@ -1,6 +1,7 @@
 import '@fontsource/cinzel'
 import { Link } from 'react-router-dom'
 import Die from '../components/farkle/Die'
+import { BOT_MODE } from '../../../shared/farkle/rules.js'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -27,7 +28,7 @@ export default function Games() {
               Kino <span className="text-brand-gold">Farkle</span>
             </h2>
             <p className="text-white/70">
-              The push-your-luck dice game. Play The Projectionist any time, or challenge another member and take turns by
+              The push-your-luck dice game. Play {BOT_MODE} any time, or challenge another member and take turns by
               notification.
             </p>
             <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Farkle →</span>

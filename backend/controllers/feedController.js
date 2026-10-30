@@ -137,7 +137,9 @@ async function hydrate(rows, viewer) {
 
         if (row.type.startsWith("farkle")) {
             const match = matchById.get(String(row.match));
-            return match ? [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, match }] : [];
+            // A result about someone you follow is no use once they're gone.
+            if (!match || (row.type === "farkleResult" && members.length === 0)) return [];
+            return [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, match }];
         }
 
         if (members.length === 0) return [];

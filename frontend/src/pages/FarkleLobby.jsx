@@ -6,7 +6,7 @@ import ChallengeCard from '../components/farkle/ChallengeCard'
 import ChallengeForm from '../components/farkle/ChallengeForm'
 import CoinIcon from '../components/wallet/CoinIcon'
 import { getLobby } from '../services/farkle'
-import { BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
+import { BOT_MODE, BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
 const HEADING = "font-['Cinzel'] text-xl text-brand-gold"
@@ -125,7 +125,7 @@ export default function FarkleLobby() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className={`${CARD} flex flex-col gap-3`}>
-          <h2 className={HEADING}>Play {BOT_NAME}</h2>
+          <h2 className={HEADING}>{BOT_MODE}</h2>
           <p className="text-white/70">
             Any time, 2 to 500 points. Win and you get your stake back plus half again, in P-PP. {BOT_NAME} always rolls first.
           </p>

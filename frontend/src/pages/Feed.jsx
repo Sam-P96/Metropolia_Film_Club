@@ -131,7 +131,7 @@ function Feed() {
         <p className={`mt-2 text-sm ${tone.text}`}>
           {showAllCuts
             ? "Every member's cuts, newest first, whoever they reach. Deleting one here takes it out of everyone's Notifications."
-            : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, and your Farkle games (challenges and your turns stay pinned at the top until you answer). Your last 100, kept for three months."}
+            : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (challenges and your turns stay pinned at the top until you answer), and how the members you follow do at Farkle. Your last 100, kept for three months."}
         </p>
 
         {passwordResets.length > 0 && (

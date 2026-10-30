@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import CoinIcon from '../wallet/CoinIcon'
-import { BOT_NAME, BOT_STAKE, WINNING_SCORES, botPrize, formatPoints } from '../../../../shared/farkle/rules.js'
+import { BOT_MODE, BOT_NAME, BOT_STAKE, WINNING_SCORES, botPrize, formatPoints } from '../../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
 const QUICK_STAKES = [10, 50, 100, 250, 500]
@@ -54,7 +54,7 @@ export default function StakePicker({ wallet, onStart, initial }) {
   if (balance !== null && balance < BOT_STAKE.min) {
     return (
       <section className={CARD}>
-        <h2 className="font-['Cinzel'] text-xl text-brand-gold">Play {BOT_NAME}</h2>
+        <h2 className="font-['Cinzel'] text-xl text-brand-gold">{BOT_MODE}</h2>
         <p className="mt-2 text-white/80">
           You need at least {BOT_STAKE.min} points to play. PP is paid every day at 12:00: 1 for each review you've written.
         </p>
@@ -68,7 +68,7 @@ export default function StakePicker({ wallet, onStart, initial }) {
   return (
     <section className={CARD} aria-labelledby="stake-heading">
       <h2 id="stake-heading" className="font-['Cinzel'] text-xl text-brand-gold">
-        Play {BOT_NAME}
+        {BOT_MODE}
       </h2>
 
       <fieldset className="mt-4">

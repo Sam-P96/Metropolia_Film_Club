@@ -19,7 +19,6 @@ const {
     pointsOf,
     saveGame,
     seatOf,
-    settleSafely,
 } = require("../utils/farkle");
 const {
     BOT_NAME,
@@ -136,7 +135,7 @@ async function startBotMatch(req, res) {
     if (!saved) throw new Error(`Farkle match ${match._id} changed before it started`);
 
     // The bot can win on its very first turn when playing to 2,000.
-    if (saved.status === "over") await settleSafely(saved._id);
+    if (saved.status === "over") await finishMatch(saved);
 
     res.status(201).json(await matchView(saved, userId));
 }

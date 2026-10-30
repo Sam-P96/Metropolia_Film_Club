@@ -302,6 +302,30 @@ async function noteFarkleOver(match, skip = null) {
     await Notification.insertMany(notes.map((note) => ({ ...note, type: "farkleOver", match: match._id })));
 }
 
+// The game is over: everyone who follows either player hears who won how
+// much from whom, once each, even if they follow both (then `actors` has
+// both). Not the players themselves, who got farkleOver, and nothing about
+// `skip`, a member who has just left the club.
+async function noteFarkleResult(match, skip = null) {
+    const players = match.players.map((player) => player.user).filter(Boolean);
+    const followed = players.filter((id) => String(id) !== String(skip));
+    if (followed.length === 0) return;
+
+    const isPlayer = new Set(players.map(String));
+    const follows = await Follow.find({ following: { $in: followed } }).select("follower following").lean();
+
+    const notes = new Map();
+    for (const follow of follows) {
+        if (isPlayer.has(String(follow.follower))) continue;
+        const note = notes.get(String(follow.follower)) ?? { recipient: follow.follower, actors: [] };
+        note.actors.push(follow.following);
+        notes.set(String(follow.follower), note);
+    }
+
+    if (notes.size === 0) return;
+    await Notification.insertMany([...notes.values()].map((note) => ({ ...note, type: "farkleResult", match: match._id })));
+}
+
 // A game that never got going was deleted.
 function forgetFarkleMatch(matchId) {
     return Notification.deleteMany({ match: matchId });
@@ -348,5 +372,6 @@ module.exports = {
     noteFarkleTurn,
     noteFarkleAnswer,
     noteFarkleOver,
+    noteFarkleResult,
     forgetFarkleMatch,
 };

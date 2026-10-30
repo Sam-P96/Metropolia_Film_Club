@@ -7,8 +7,10 @@ export const DICE_PER_TURN = 6
 // The winning scores a game can be played to.
 export const WINNING_SCORES = [2000, 4000, 8000]
 
-// The bot's name at the table. It always rolls first.
-export const BOT_NAME = 'The Projectionist'
+// The bot's name at the table, and what playing it is called. It always
+// rolls first.
+export const BOT_NAME = 'Clanker'
+export const BOT_MODE = `Vs ${BOT_NAME}`
 
 // What a game against the bot can be played for, in points.
 export const BOT_STAKE = { min: 2, max: 500 }

@@ -19,6 +19,52 @@ const HEADINGS = {
   farkleOver: 'Game over',
 }
 
+// A player's name as a link to their profile, or just the name for the bot
+// (and for someone who has left the club).
+function PlayerName({ player }) {
+  if (!player?._id) return player?.username ?? 'A former member'
+  return (
+    <Link to={`/users/${player._id}`} className="font-semibold text-white hover:text-brand-gold">
+      {player.username}
+    </Link>
+  )
+}
+
+// A game that ended for a member you follow: who won how much from whom.
+// Told from the winner's side if you follow the winner (or both).
+function followedResult(item) {
+  const { match } = item
+  const winner = match.players[match.winner]
+  const loser = match.players[1 - match.winner]
+  const followsWinner = item.actors.some((actor) => actor._id === winner._id)
+  const how = { resign: 'gave up', forfeit: 'ran out of time', left: 'left the club' }[match.endedBy]
+
+  if (followsWinner) {
+    return {
+      heading: 'Farkle win',
+      text: (
+        <>
+          <PlayerName player={winner} /> beat <PlayerName player={loser} />
+          {how ? ` (who ${how})` : ''} and won{' '}
+          <span className="inline-flex items-center gap-1 font-bold text-brand-gold">
+            <CoinIcon kind="ppp" size={15} /> {formatPoints(match.prize)} P-PP
+          </span>
+          .
+        </>
+      ),
+    }
+  }
+
+  return {
+    heading: 'Farkle loss',
+    text: (
+      <>
+        <PlayerName player={loser} /> {how ? `${how} and ` : ''}lost {formatPoints(match.stake)} to <PlayerName player={winner} />.
+      </>
+    ),
+  }
+}
+
 // How a finished game went, from the viewer's side.
 function result(match, name) {
   const youWon = match.winner === match.mySeat
@@ -55,7 +101,12 @@ export default function FarkleNotice({ item }) {
   const theirs = match.scores?.[1 - match.mySeat] ?? 0
 
   let body
-  if (item.type === 'farkleChallenge') {
+  let heading = HEADINGS[item.type]
+  if (item.type === 'farkleResult') {
+    const told = followedResult(item)
+    heading = told.heading
+    body = <p className="text-lg text-white/90">{told.text}</p>
+  } else if (item.type === 'farkleChallenge') {
     body =
       match.status === 'challenge' ? (
         <ChallengeCard match={match} onChange={(now) => now && setMatch(now)} />
@@ -117,7 +168,7 @@ export default function FarkleNotice({ item }) {
   return (
     <article className={`${BOX} ${item.pinned ? 'border-brand-gold/70' : 'border-white/10'}`}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">{HEADINGS[item.type]}</h2>
+        <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">{heading}</h2>
         {item.pinned && <span className="rounded-full bg-brand-gold px-2 text-[11px] font-semibold text-ink uppercase">Pinned</span>}
         <span className="text-xs text-white/40">{timeAgo(item.at)}</span>
       </div>
