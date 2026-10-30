@@ -129,7 +129,7 @@ function checkKeep(keep, diceOnTable) {
 //           dice at `keep` and roll the rest: all six again if that used
 //           every die (hot dice)
 //   bank    set aside `keep` and add the turn's points to their score
-//   resign  give up: the other player wins
+//   resign  fold (the Fold button): the other player wins
 // Returns the game after the move and leaves `game` as it was. `roll`
 // makes the dice. Throws a MoveError if the move isn't allowed.
 function applyMove(game, seat, move, roll = cryptoDice) {
@@ -139,7 +139,7 @@ function applyMove(game, seat, move, roll = cryptoDice) {
     const type = move?.type;
 
     if (type === "resign") {
-        addLog(next, seat, "Gave up");
+        addLog(next, seat, "Folded");
         endGame(next, 1 - seat, "resign");
         return next;
     }

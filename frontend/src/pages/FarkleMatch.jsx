@@ -25,8 +25,13 @@ const CLOSED = {
   withdrawn: 'This challenge was taken back. Nothing was taken from either of you.',
 }
 
-// Asks before giving up, since it costs the stake.
-function GiveUpButton({ stake, disabled, onGiveUp }) {
+const FOLD_BUTTON =
+  'flex min-h-14 cursor-pointer flex-col items-center justify-center rounded-xl px-6 py-1.5 text-lg font-bold transition disabled:cursor-default disabled:opacity-40'
+
+// The Fold button, at the bottom of the page: give up the game, and with it
+// the stake. It asks first, since it can't be undone. Only between moves
+// (yours, or while you wait for theirs), so it never crosses a roll.
+function FoldButton({ stake, opponent, disabled, onFold }) {
   const [asking, setAsking] = useState(false)
 
   if (!asking) {
@@ -35,30 +40,40 @@ function GiveUpButton({ stake, disabled, onGiveUp }) {
         type="button"
         disabled={disabled}
         onClick={() => setAsking(true)}
-        className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white disabled:cursor-default disabled:opacity-40"
+        className={`${FOLD_BUTTON} w-full bg-brand-red text-white hover:bg-brand-orange sm:mx-auto sm:w-80`}
       >
-        Give up
+        Fold
+        <small className="text-sm font-medium opacity-80">Give up and lose your {formatPoints(stake)}</small>
       </button>
     )
   }
 
   return (
-    <span className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-white/80">Lose your {formatPoints(stake)}?</span>
-      <button
-        type="button"
-        onClick={() => {
-          setAsking(false)
-          onGiveUp()
-        }}
-        className="cursor-pointer rounded-lg bg-brand-red px-3 py-1 font-medium text-white hover:bg-brand-orange"
-      >
-        Give up
-      </button>
-      <button type="button" onClick={() => setAsking(false)} className="cursor-pointer text-brand-gold underline underline-offset-4">
-        Keep playing
-      </button>
-    </span>
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-brand-red/60 bg-brand-red/15 p-5 text-center">
+      <p className="text-white">
+        Fold? {opponent} wins the game, and your {formatPoints(stake)} is gone.
+      </p>
+      <div className="grid w-full grid-cols-2 gap-3 sm:w-96">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            setAsking(false)
+            onFold()
+          }}
+          className={`${FOLD_BUTTON} bg-brand-red text-white hover:bg-brand-orange`}
+        >
+          Fold
+        </button>
+        <button
+          type="button"
+          onClick={() => setAsking(false)}
+          className={`${FOLD_BUTTON} border border-white/20 bg-white/5 text-white hover:border-brand-gold/60 hover:bg-white/10`}
+        >
+          Keep playing
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -207,14 +222,11 @@ function FarkleGame({ matchId }) {
       <Enter>
         <Header
           aside={
-            <div className="flex flex-col items-start gap-2 sm:items-end">
-              <span className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm tabular-nums text-white/80">
-                {pvp ? `Stake ${formatPoints(game.stake)} each · winner takes` : `Stake ${formatPoints(game.stake)} · win`}
-                <CoinIcon kind="ppp" size={15} />
-                <span className="font-bold text-brand-gold">{formatPoints(game.prize)} P-PP</span>
-              </span>
-              {game.phase !== 'over' && <GiveUpButton stake={game.stake} disabled={!(betweenMoves || waiting)} onGiveUp={resign} />}
-            </div>
+            <span className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm tabular-nums text-white/80">
+              {pvp ? `Stake ${formatPoints(game.stake)} each · winner takes` : `Stake ${formatPoints(game.stake)} · win`}
+              <CoinIcon kind="ppp" size={15} />
+              <span className="font-bold text-brand-gold">{formatPoints(game.prize)} P-PP</span>
+            </span>
           }
         >
           You vs. {game.opponent}. First to {formatPoints(game.target)} wins.
@@ -286,6 +298,12 @@ function FarkleGame({ matchId }) {
           <MatchLog log={game.log} them={pvp ? game.opponent : BOT_NAME} />
         </div>
       </Enter>
+
+      {game.phase !== 'over' && (
+        <Enter step={5}>
+          <FoldButton stake={game.stake} opponent={game.opponent} disabled={!(betweenMoves || waiting)} onFold={resign} />
+        </Enter>
+      )}
     </div>
   )
 }

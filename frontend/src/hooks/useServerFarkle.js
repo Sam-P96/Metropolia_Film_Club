@@ -58,8 +58,8 @@ function messageFor(match, opponent) {
 
     if (match.endedBy === 'resign') {
       return youWon
-        ? { tone: 'good', message: `${opponent} gave up. ${prize}` }
-        : { tone: 'bad', message: `You gave up, so ${opponent} takes the game.` }
+        ? { tone: 'good', message: `${opponent} folded. ${prize}` }
+        : { tone: 'bad', message: `You folded, so ${opponent} takes the game.` }
     }
     if (match.endedBy === 'forfeit') {
       return youWon
@@ -498,7 +498,7 @@ export default function useServerFarkle(matchId = null) {
     [update, sendSelection]
   )
 
-  // Giving up: the other side wins and the stake is gone. Only between
+  // Folding: the other side wins and the stake is gone. Only between
   // moves (yours, or while you wait for theirs), so it never crosses a
   // roll that's still on its way.
   const resign = useCallback(() => {
@@ -506,7 +506,7 @@ export default function useServerFarkle(matchId = null) {
     const yourMove = g?.current === 0 && (g.phase === 'ready' || g.phase === 'choosing')
     if (!g || !(yourMove || g.phase === 'waiting')) return
 
-    show({ ...g, phase: 'waiting', tone: '', message: 'Giving up…' })
+    show({ ...g, phase: 'waiting', tone: '', message: 'Folding…' })
     send({ type: 'resign' }, g, g)
   }, [show, send])
 

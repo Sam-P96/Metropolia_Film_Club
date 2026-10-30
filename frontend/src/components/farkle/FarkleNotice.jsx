@@ -37,7 +37,7 @@ function followedResult(item) {
   const winner = match.players[match.winner]
   const loser = match.players[1 - match.winner]
   const followsWinner = item.actors.some((actor) => actor._id === winner._id)
-  const how = { resign: 'gave up', forfeit: 'ran out of time', left: 'left the club' }[match.endedBy]
+  const how = { resign: 'folded', forfeit: 'ran out of time', left: 'left the club' }[match.endedBy]
 
   if (followsWinner) {
     return {
@@ -75,11 +75,11 @@ function result(match, name) {
   )
 
   if (youWon) {
-    const how = { resign: `${name} gave up`, forfeit: `${name} ran out of time`, left: `${name} left the club` }[match.endedBy]
+    const how = { resign: `${name} folded`, forfeit: `${name} ran out of time`, left: `${name} left the club` }[match.endedBy]
     return <>You beat {name}{how ? ` (${how})` : ''} and won {prize}.</>
   }
 
-  const how = { resign: 'You gave up', forfeit: 'Three days went by without your move' }[match.endedBy]
+  const how = { resign: 'You folded', forfeit: 'Three days went by without your move' }[match.endedBy]
   return <>{how ? `${how}, so ` : ''}{name} won the game{how ? '' : ` with ${formatPoints(match.scores[match.winner])}`}.</>
 }
 
