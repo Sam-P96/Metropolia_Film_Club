@@ -17,9 +17,11 @@ const commentRouter = require("./routes/commentRouter");
 const feedRouter = require("./routes/feedRouter");
 const cutRouter = require("./routes/cutRouter");
 const walletRouter = require("./routes/walletRouter");
+const farkleRouter = require("./routes/farkleRouter");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
+const { startFarkleSweep } = require("./jobs/farkleSweep");
 
 const app = express();
 
@@ -61,6 +63,11 @@ connected
     .then(() => startDailyPayout())
     .catch((error) => console.error("Couldn't start the wallets:", error.message));
 
+// Farkle: forfeits games quiet for three days and tidies up (jobs/farkleSweep.js).
+connected
+    .then(() => startFarkleSweep())
+    .catch((error) => console.error("Couldn't start the Farkle sweep:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -101,6 +108,7 @@ app.use("/api/comments", commentRouter);
 app.use("/api/feed", feedRouter);
 app.use("/api/cuts", cutRouter);
 app.use("/api/wallet", walletRouter);
+app.use("/api/farkle", farkleRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

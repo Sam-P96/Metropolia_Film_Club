@@ -7,6 +7,8 @@ const Event = require("../models/eventModel");
 const Cut = require("../models/cutModel");
 const PasswordReset = require("../models/passwordResetModel");
 const WalletTx = require("../models/walletTxModel");
+const FarkleMatch = require("../models/farkleMatchModel");
+const { forgetFarklePlayer } = require("../utils/farkle");
 const bcrypt = require("bcryptjs");
 const { sessionFor } = require("../utils/session");
 const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
@@ -438,12 +440,13 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
         FilmLog.find({ user: userId }).lean(),
         WalletTx.find({ user: userId }).sort({ at: -1 }).lean(),
+        FarkleMatch.find({ "players.user": userId }).sort({ createdAt: -1 }).lean(),
     ]);
 
     if (!account) {
@@ -457,12 +460,14 @@ const exportMe = async (req, res) => {
         comments,
         filmLogs,
         walletHistory,
+        farkleMatches,
     });
 }
 
 // Deletes an account and everything tied to it: their reviews and cuts
 // (with the comments and replies under them), comments, film logs, follows,
-// reports, password reset requests and notifications, and their likes and
+// reports, password reset requests and notifications, wallet receipts and
+// games against the bot (utils/farkle.js), and their likes and
 // dislikes on everyone else's reviews, comments and cuts, so the counts stay
 // right. They leave every event's Attending and Interested lists and seat
 // plan; events they posted stay. `user` needs _id and pvp. Irreversible.
@@ -492,6 +497,7 @@ async function deleteAccount(user) {
     await Review.deleteMany({ user: userId });
     await Cut.deleteMany({ user: userId });
     await FilmLog.deleteMany({ user: userId });
+    await forgetFarklePlayer(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

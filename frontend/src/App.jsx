@@ -100,8 +100,10 @@ function App() {
           } />
 
           <Route path="/wheel" element={<Wheel />} />
-          {/* Farkle against the bot. Not in the nav yet. */}
-          <Route path="/games/farkle" element={<FarkleMatch />} />
+          {/* Farkle against the bot, for points, so login only. Not in the nav yet. */}
+          <Route path="/games/farkle" element={
+            isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: '/games/farkle' }} />)
+          } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
           <Route path="/movie_reviews" element={<MovieReviews />} />

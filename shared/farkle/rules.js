@@ -1,11 +1,24 @@
 // Farkle's rules as plain functions: no React, no database, no timers.
-// The game page uses them now, and the server will use this same file in
-// Phase 3, so the browser and the server always agree on what scores.
+// The game page and the server (backend/games/farkle/engine.js) both use
+// this file, so the browser and the server always agree on what scores.
 
 export const DICE_PER_TURN = 6
 
 // The winning scores a game can be played to.
 export const WINNING_SCORES = [2000, 4000, 8000]
+
+// The bot's name at the table. It always rolls first.
+export const BOT_NAME = 'The Projectionist'
+
+// What a game against the bot can be played for, in points.
+export const BOT_STAKE = { min: 2, max: 500 }
+
+// What beating the bot pays, all in P-PP: the stake back plus half of it,
+// rounded down. 100 -> 150, 25 -> 37. The minimum stake is 2 because a
+// stake of 1 would win nothing extra.
+export function botPrize(stake) {
+  return stake + Math.floor(stake / 2)
+}
 
 // 4000 -> "4,000"
 export function formatPoints(points) {
@@ -89,10 +102,10 @@ export function hasScoringDice(dice) {
   return counts[1] > 0 || counts[5] > 0 || counts.some((n, face) => face > 0 && n >= 3)
 }
 
-// `count` random faces from 1 to 6. `random` can be swapped out, so the
-// server can use a stronger random number source later.
-export function rollDice(count, random = Math.random) {
-  return Array.from({ length: count }, () => 1 + Math.floor(random() * 6))
+// `count` dice. `face` picks one face from 1 to 6: the server passes one
+// that uses crypto.randomInt, which, unlike Math.random, can't be predicted.
+export function rollDice(count, face = () => 1 + Math.floor(Math.random() * 6)) {
+  return Array.from({ length: count }, () => face())
 }
 
 // The bot's choice for a roll: which dice to set aside. It tries every

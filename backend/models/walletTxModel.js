@@ -25,8 +25,8 @@ const walletTxSchema = new Schema({
         pp: {type: Number, required: true},
         ppp: {type: Number, required: true},
     },
-    // The Farkle game a bet, win or refund belongs to (Phase 3).
-    match: {type: Schema.Types.ObjectId, default: null},
+    // The Farkle game a bet, win or refund belongs to.
+    match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
     at: {type: Date, default: Date.now},
 });
 
