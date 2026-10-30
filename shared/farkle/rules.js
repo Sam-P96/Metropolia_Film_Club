@@ -20,6 +20,16 @@ export function botPrize(stake) {
   return stake + Math.floor(stake / 2)
 }
 
+// Against a member, each puts up the stake: at least this much, and at
+// most what the poorer of the two has.
+export const PVP_MIN_STAKE = 2
+
+// What beating a member pays, all in P-PP: the whole pot, both stakes.
+// 100 each -> 200.
+export function pvpPrize(stake) {
+  return stake * 2
+}
+
 // 4000 -> "4,000"
 export function formatPoints(points) {
   return points.toLocaleString('en-US')

@@ -17,6 +17,13 @@ import { walletChanged } from '../services/wallet'
 // How long the dice tumble before they land, at the least.
 const ROLL_MS = 650
 
+// While it's the other member's turn, how often to look for their move.
+// Live mode (Phase 5) will push moves instead.
+const POLL_MS = 15000
+
+// Matches in these states are games to show; the rest are challenges.
+const PLAYABLE = ['active', 'over']
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const diceWord = (count) => (count === 1 ? 'die' : 'dice')
 
@@ -178,10 +185,15 @@ function framesFor(match, fromTurn, start) {
   return frames
 }
 
-export default function useServerFarkle() {
+// `matchId` is a game between members (or a challenge); without one, it's
+// the member's game against the bot.
+export default function useServerFarkle(matchId = null) {
   // undefined while the page loads, null when there's no game (time to
-  // pick a stake), otherwise the game.
+  // pick a stake, or still a challenge), otherwise the game.
   const [game, setGame] = useState(undefined)
+
+  // The match as the server last sent it, for a challenge's card.
+  const [match, setMatch] = useState(null)
 
   // Timers need the game as it is when they fire, not as it was when they
   // started, so the latest game is also kept here.
@@ -212,23 +224,67 @@ export default function useServerFarkle() {
     [show, update]
   )
 
-  // Their open game, if they have one. Leaving the page stops any replay.
+  // Shows a match as it is, with no replay: a game, or (game null) a
+  // challenge for the page to draw from `match`.
+  const adopt = useCallback(
+    (next) => {
+      setMatch(next)
+      show(next && PLAYABLE.includes(next.status) ? gameFromMatch(next) : null)
+    },
+    [show]
+  )
+
+  // The match, or their open game against the bot. Leaving the page stops
+  // any replay.
   useEffect(() => {
     const run = runRef
     const started = run.current
+    const load = matchId ? getMatch(matchId) : getBotMatch().then((reply) => reply.match)
 
-    getBotMatch()
-      .then(({ match }) => {
-        if (started === run.current) show(match ? gameFromMatch(match) : null)
+    load
+      .then((loaded) => {
+        if (started === run.current) adopt(loaded)
       })
       .catch(() => {
-        if (started === run.current) show(null)
+        if (started === run.current) adopt(null)
       })
 
     return () => {
       run.current += 1
     }
-  }, [show])
+  }, [matchId, adopt])
+
+  // While it's the other member's turn: has their move come in? If so, play
+  // it out, roll by roll.
+  const refresh = useCallback(async () => {
+    const g = gameRef.current
+    if (!g || g.phase !== 'waiting') return
+
+    const run = runRef.current
+    const next = await getMatch(g.id).catch(() => null)
+    if (!next || next.version === g.version || run !== runRef.current || gameRef.current?.phase !== 'waiting') return
+
+    setMatch(next)
+    if (next.status === 'over') walletChanged()
+    await play(framesFor(next, g.turn, g), gameFromMatch(next))
+  }, [play])
+
+  const waiting = game?.phase === 'waiting'
+
+  useEffect(() => {
+    if (!waiting) return
+
+    const check = () => {
+      if (!document.hidden) refresh()
+    }
+    const timer = setInterval(check, POLL_MS)
+    window.addEventListener('focus', check)
+
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', check)
+    }
+  }, [waiting, refresh])
 
   // Sends a move and plays out what the server says happened. `before` is
   // the game as it was, `start` as it will be once the move is made (the
@@ -241,6 +297,7 @@ export default function useServerFarkle() {
       try {
         const match = await sendMove(before.id, { version: before.version, ...move })
         if (run !== runRef.current) return
+        setMatch(match)
 
         const left = since + ROLL_MS - Date.now()
         if (since && left > 0) await wait(left)
@@ -255,6 +312,7 @@ export default function useServerFarkle() {
         // move didn't go through.
         const match = await getMatch(before.id).catch(() => null)
         if (run !== runRef.current) return
+        if (match) setMatch(match)
         show({ ...(match ? gameFromMatch(match) : before), tone: 'bad', message: error.message })
       }
     },
@@ -315,10 +373,12 @@ export default function useServerFarkle() {
   )
 
   // Giving up: the other side wins and the stake is gone. Only between
-  // moves, so it never crosses a roll that's still on its way.
+  // moves (yours, or while you wait for theirs), so it never crosses a
+  // roll that's still on its way.
   const resign = useCallback(() => {
     const g = gameRef.current
-    if (!g || g.current !== 0 || (g.phase !== 'ready' && g.phase !== 'choosing')) return
+    const yourMove = g?.current === 0 && (g.phase === 'ready' || g.phase === 'choosing')
+    if (!g || !(yourMove || g.phase === 'waiting')) return
 
     show({ ...g, phase: 'waiting', tone: '', message: 'Giving up…' })
     send({ type: 'resign' }, g, g)
@@ -332,6 +392,7 @@ export default function useServerFarkle() {
       const match = await startBotMatch({ target, stake })
       walletChanged()
       runRef.current += 1
+      setMatch(match)
 
       const final = gameFromMatch(match)
       const fresh = { ...final, scores: [0, 0], current: 1, dice: [], kept: [], selected: [], turnPoints: 0, phase: 'bot', winner: null, log: [], tone: '', message: '' }
@@ -344,8 +405,9 @@ export default function useServerFarkle() {
   // "Play again": back to picking a stake.
   const playAgain = useCallback(() => {
     runRef.current += 1
+    setMatch(null)
     show(null)
   }, [show])
 
-  return { game: game ?? null, loading: game === undefined, roll, bank, toggleDie, resign, start, playAgain }
+  return { game: game ?? null, match, loading: game === undefined, roll, bank, toggleDie, resign, start, playAgain, adopt }
 }

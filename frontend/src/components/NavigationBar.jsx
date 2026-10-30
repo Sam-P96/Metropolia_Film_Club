@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/club_events', label: 'Club Events' },
   { to: '/movie_reviews', label: 'Movie Reviews' },
+  { to: '/games', label: 'Games' },
   { to: '/about', label: 'About Us' },
 ]
 

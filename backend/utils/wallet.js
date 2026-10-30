@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const WalletTx = require("../models/walletTxModel");
+const { notePayout } = require("./notify");
 
 // Every member has two kinds of points:
 //   PP    Power Points. Paid out at 12:00 each day: 1 per review they've
@@ -144,8 +145,8 @@ function helsinkiHour(date = new Date()) {
 
 // The daily payout: each member who has written reviews gets 1 PP per
 // review, but never past their cap, and only once per Helsinki day. A
-// member already at their cap still counts as paid. Returns how many
-// members got PP.
+// member already at their cap still counts as paid, but isn't told, since
+// they got nothing. Returns how many members got PP.
 async function payEveryone(day = helsinkiDay()) {
     const writers = await Review.aggregate([{ $group: { _id: "$user", reviews: { $sum: 1 } } }]);
 
@@ -162,7 +163,10 @@ async function payEveryone(day = helsinkiDay()) {
                 },
                 { reason: "dailyPayout" }
             );
-            if (result?.pp > 0) paid += 1;
+            if (result?.pp > 0) {
+                paid += 1;
+                await notePayout(userId, result.pp);
+            }
         } catch (error) {
             // One member's trouble (say, their account was just deleted)
             // mustn't stop everyone else's payout.

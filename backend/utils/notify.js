@@ -15,7 +15,11 @@ const TRENDING_LIKES = 5;
 const VIRAL_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
-const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply"];
+const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply", ...Notification.FARKLE_TYPES];
+
+// The Farkle notifications that wait for the member to act, pinned to the
+// top of their Notifications page.
+const FARKLE_PINNED = ["farkleChallenge", "farkleTurn"];
 
 // How many lines a PvP announcement can be made with. Matches PVP_LINES in
 // frontend/src/components/feed/FeedItem.jsx.
@@ -235,6 +239,74 @@ function forgetComment(commentId) {
     return Notification.deleteMany({ comment: commentId });
 }
 
+// The 12:00 payout gave `userId` `amount` PP. Yesterday's goes first, so
+// there's only ever the latest one, not a month of them.
+async function notePayout(userId, amount) {
+    await Notification.deleteMany({ recipient: userId, type: "payout" });
+    await Notification.create({ recipient: userId, type: "payout", amount });
+}
+
+// Farkle between members (utils/farkle.js). A challenge waiting on someone
+// and "your turn" in a game are pinned: they sit at the top of that
+// member's Notifications until they act. Each new one for a game takes the
+// place of the last, so there's only ever one, and it's always new, which
+// also keeps the 90-day clean-up away from games still being played.
+function unpinFarkle(matchId) {
+    return Notification.deleteMany({ match: matchId, type: { $in: FARKLE_PINNED } });
+}
+
+// The terms on the table (match.offer) are waiting on `offer.to`.
+async function noteFarkleChallenge(match) {
+    await unpinFarkle(match._id);
+    await Notification.create({
+        recipient: match.offer.to,
+        type: "farkleChallenge",
+        match: match._id,
+        actors: [match.offer.by],
+        pinned: true,
+    });
+}
+
+// It's `match.current`'s turn.
+async function noteFarkleTurn(match) {
+    await unpinFarkle(match._id);
+    await Notification.create({
+        recipient: match.players[match.current].user,
+        type: "farkleTurn",
+        match: match._id,
+        actors: [match.players[1 - match.current].user],
+        pinned: true,
+    });
+}
+
+// The challenge was answered, or wasn't: its pinned notice goes, and with
+// a `type` ("farkleAccepted", "farkleDeclined", "farkleExpired"), `to`
+// hears about it from `from`.
+async function noteFarkleAnswer(match, type = null, to = null, from = null) {
+    await unpinFarkle(match._id);
+    if (type) await Notification.create({ recipient: to, type, match: match._id, actors: [from] });
+}
+
+// The game is over: the pinned notice goes, and each player hears how it
+// ended, except `skip` (a member who has just left the club).
+async function noteFarkleOver(match, skip = null) {
+    await unpinFarkle(match._id);
+
+    const [first, second] = match.players.map((player) => player.user);
+    const notes = [
+        { recipient: first, actors: [second] },
+        { recipient: second, actors: [first] },
+    ].filter((note) => note.recipient && String(note.recipient) !== String(skip));
+
+    if (notes.length === 0) return;
+    await Notification.insertMany(notes.map((note) => ({ ...note, type: "farkleOver", match: match._id })));
+}
+
+// A game that never got going was deleted.
+function forgetFarkleMatch(matchId) {
+    return Notification.deleteMany({ match: matchId });
+}
+
 // An account was deleted: their own Feed, everything about their reviews
 // and cuts, the notifications they set off, and their name in vote groups.
 async function forgetMember(userId, reviewIds, cutIds = []) {
@@ -271,4 +343,10 @@ module.exports = {
     noteViralCut,
     forgetCut,
     forgetMember,
+    notePayout,
+    noteFarkleChallenge,
+    noteFarkleTurn,
+    noteFarkleAnswer,
+    noteFarkleOver,
+    forgetFarkleMatch,
 };

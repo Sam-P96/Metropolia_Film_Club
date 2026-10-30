@@ -7,7 +7,9 @@ const Event = require("../models/eventModel");
 const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
 const PasswordReset = require("../models/passwordResetModel");
+const FarkleMatch = require("../models/farkleMatchModel");
 const { hasRole, canApproveReset } = require("../middleware/auth");
+const { matchViews } = require("../utils/farkle");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { withAuthorStanding } = require("../utils/level");
 const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
@@ -89,11 +91,15 @@ async function openPasswordResets(viewer) {
 // Turns notifications into what the Feed draws: each review as a full review
 // card, the members involved, a reply's text, each cut with its votes and
 // how many replies it has, for a new follower whether you follow them back,
-// and each event as it is now. Leaves out any whose review, comment, cut,
-// event or members have since been deleted.
+// each event as it is now, and each Farkle game as it is now. Leaves out any
+// whose review, comment, cut, event, game or members have since been
+// deleted (a Farkle opponent who left the club is fine: the game stays).
 async function hydrate(rows, viewer) {
     const idsOf = (pick) => [...new Set(rows.flatMap(pick).filter(Boolean).map(String))];
     const followers = idsOf((row) => (row.type === "follow" ? row.actors : []));
+
+    const matches = await FarkleMatch.find({ _id: { $in: idsOf((row) => row.match) } }).lean();
+    const matchById = new Map((await matchViews(matches, viewer._id)).map((match) => [String(match._id), match]));
 
     const [reviewById, actors, comments, followedBack, events, cuts] = await Promise.all([
         reviewCards(idsOf((row) => row.review), viewer),
@@ -123,6 +129,15 @@ async function hydrate(rows, viewer) {
         if (row.type === "event") {
             const event = eventById.get(String(row.event));
             return event ? [{ _id: row._id, type: row.type, at: row.at, event, actors: members }] : [];
+        }
+
+        if (row.type === "payout") {
+            return [{ _id: row._id, type: row.type, at: row.at, amount: row.amount }];
+        }
+
+        if (row.type.startsWith("farkle")) {
+            const match = matchById.get(String(row.match));
+            return match ? [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, match }] : [];
         }
 
         if (members.length === 0) return [];
@@ -177,8 +192,10 @@ async function hydrate(rows, viewer) {
 
 // ?skip=n. { items, hasMore, next, background }: `next` is the skip for the
 // next page, and `background` the member's Notifications background setting.
-// Moderators and admins also get, with the first page, `passwordResets` and
-// `reports`: the open ones, pinned above everything else.
+// Pinned notifications (Farkle challenges and turns waiting on them) come
+// first, then the rest newest first. Moderators and admins also get, with
+// the first page, `passwordResets` and `reports`: the open ones, pinned
+// above everything else.
 async function getFeed(req, res) {
     const skip = Math.min(parseOffset(req.query.skip), FEED_SIZE);
     const limit = Math.min(PAGE_SIZE, FEED_SIZE - skip);
@@ -186,7 +203,7 @@ async function getFeed(req, res) {
 
     const [rows, total] = await Promise.all([
         limit > 0
-            ? Notification.find(mine).sort({ at: -1, _id: -1 }).skip(skip).limit(limit).lean()
+            ? Notification.find(mine).sort({ pinned: -1, at: -1, _id: -1 }).skip(skip).limit(limit).lean()
             : [],
         Notification.countDocuments(mine),
     ]);

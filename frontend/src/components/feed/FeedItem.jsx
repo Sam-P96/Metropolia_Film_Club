@@ -6,6 +6,8 @@ import { CutReplies } from '../reviews/ReviewComments'
 import VoteButtons from '../reviews/VoteButtons'
 import MemberAvatar from '../profile/MemberAvatar'
 import FollowButton from '../profile/FollowButton'
+import FarkleNotice from '../farkle/FarkleNotice'
+import PayoutNotice from '../wallet/PayoutNotice'
 import { bannerFillStyle, bannerFrameStyle, bannerLayerStyle } from '../../utils/bannerStyle'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
@@ -903,6 +905,8 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'event') return <EventNotice item={item} light={light} />
   if (item.type === 'cut') return <CutNotice item={item} onDeleted={onCutDeleted} />
   if (item.type === 'cutReply') return <CutReplyNotice item={item} />
+  if (item.type === 'payout') return <PayoutNotice item={item} light={light} />
+  if (item.type.startsWith('farkle')) return <FarkleNotice item={item} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }
 
