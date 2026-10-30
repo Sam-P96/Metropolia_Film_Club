@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import CoinIcon from '../wallet/CoinIcon'
+import MemberAvatar from '../profile/MemberAvatar'
 import TermsPicker from './TermsPicker'
 import useCountdown from '../../hooks/useCountdown'
 import { answerChallenge, getMatch } from '../../services/farkle'
@@ -58,39 +59,45 @@ export default function ChallengeCard({ match, onChange }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <p className="text-lg text-white/90">
-          {match.myAnswer ? (
-            <>
-              {name} {countered ? 'came back with new terms' : 'challenges you to Farkle'}
-            </>
-          ) : (
-            <>
-              {countered ? 'You sent new terms to' : 'You challenged'} {name}
-            </>
-          )}
-        </p>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-white/70">
-          <span>First to {formatPoints(match.target)}</span>
-          <span aria-hidden="true">·</span>
-          <span>{formatPoints(match.stake)} each</span>
-          <span aria-hidden="true">·</span>
-          <span className="flex items-center gap-1">
-            winner takes <CoinIcon kind="ppp" size={15} />
-            <span className="font-bold text-brand-gold">{formatPoints(match.prize)} P-PP</span>
-          </span>
-        </p>
-        <p className="mt-1 text-sm text-white/50">
-          {msLeft > 0
-            ? `${match.myAnswer ? 'Answer within' : 'They have'} ${roughTimeLeft(msLeft)}${match.myAnswer ? '' : ' to answer'}. Nothing is taken until it's accepted.`
-            : 'Time is up for this challenge.'}
-        </p>
-        {lowered && (
-          <p className="mt-2 text-sm text-amber-200">
-            One of you has less than {formatPoints(match.stake)} right now, so accepting plays for {formatPoints(match.acceptStake)} each
-            (winner takes {formatPoints(pvpPrize(match.acceptStake))} P-PP).
+      <div className="flex items-start gap-4">
+        {/* Who you're playing (or would be): their picture, by the terms. */}
+        <Link to={`/users/${them._id}`} className="shrink-0" aria-hidden="true" tabIndex={-1}>
+          <MemberAvatar user={them} size="lg" />
+        </Link>
+        <div className="min-w-0">
+          <p className="text-lg text-white/90">
+            {match.myAnswer ? (
+              <>
+                {name} {countered ? 'came back with new terms' : 'challenges you to Farkle'}
+              </>
+            ) : (
+              <>
+                {countered ? 'You sent new terms to' : 'You challenged'} {name}
+              </>
+            )}
           </p>
-        )}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-white/70">
+            <span>First to {formatPoints(match.target)}</span>
+            <span aria-hidden="true">·</span>
+            <span>{formatPoints(match.stake)} each</span>
+            <span aria-hidden="true">·</span>
+            <span className="flex items-center gap-1">
+              winner takes <CoinIcon kind="ppp" size={15} />
+              <span className="font-bold text-brand-gold">{formatPoints(match.prize)} P-PP</span>
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-white/50">
+            {msLeft > 0
+              ? `${match.myAnswer ? 'Answer within' : 'They have'} ${roughTimeLeft(msLeft)}${match.myAnswer ? '' : ' to answer'}. Nothing is taken until it's accepted.`
+              : 'Time is up for this challenge.'}
+          </p>
+          {lowered && (
+            <p className="mt-2 text-sm text-amber-200">
+              One of you has less than {formatPoints(match.stake)} right now, so accepting plays for {formatPoints(match.acceptStake)} each
+              (winner takes {formatPoints(pvpPrize(match.acceptStake))} P-PP).
+            </p>
+          )}
+        </div>
       </div>
 
       {match.myAnswer ? (

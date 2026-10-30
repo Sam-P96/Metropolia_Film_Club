@@ -98,6 +98,8 @@ function gameFromMatch(match) {
     prize: match.prize,
     opponent,
     players: ['You', opponent],
+    // Both players, you first, with their avatars and banners.
+    people: [match.players[me], match.players[them]],
     scores: [match.scores[me], match.scores[them]],
     current: side(match.current),
     dice: match.dice,

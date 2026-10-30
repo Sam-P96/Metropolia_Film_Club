@@ -5,6 +5,7 @@ const { WalletError, changeWallet, credit } = require("./wallet");
 const { noteFarkleAnswer, noteFarkleOver, noteFarkleResult, forgetFarkleMatch } = require("./notify");
 const { GAME_FIELDS, applyMove, forfeit } = require("../games/farkle/engine");
 const { announceMatch } = require("../games/farkle/live");
+const { MEMBER_FIELDS, userSummary } = require("./serialize");
 const { BOT_NAME } = require("../../shared/farkle/rules.js");
 
 // Farkle matches in the database: saving a move, paying the winner, and
@@ -239,11 +240,22 @@ async function sweepMatches(now = Date.now()) {
 // turns everything round so it's always "you" first. A challenge waiting on
 // them also says what they'd play for if they accepted now (`acceptStake`:
 // the stake, unless one of them has less) and the most they can counter
-// with (`counterMax`).
+// with (`counterMax`). Each player comes with their avatar and review card
+// banner, for the challenge cards and the scoreboard.
 async function matchViews(matches, viewerId) {
     const ids = [...new Set(matches.flatMap((match) => match.players.map((player) => player.user)).filter(Boolean).map(String))];
-    const users = await User.find({ _id: { $in: ids } }).select("username wallet").lean();
+    const users = await User.find({ _id: { $in: ids } }).select(`${MEMBER_FIELDS} wallet`).lean();
     const userById = new Map(users.map((user) => [String(user._id), user]));
+
+    // A seat as the pages draw it: the bot, a member, or a member who has
+    // since left the club.
+    const playerView = (id) => {
+        if (!id) return { _id: null, username: BOT_NAME, avatarUrl: null, reviewCardBanner: null, bot: true };
+        const user = userById.get(String(id));
+        if (!user) return { _id: id, username: "A former member", avatarUrl: null, reviewCardBanner: null, bot: false };
+        const { username, avatarUrl, reviewCardBanner } = userSummary(user);
+        return { _id: id, username, avatarUrl, reviewCardBanner, bot: false };
+    };
     const pointsOfUser = (id) => {
         const wallet = userById.get(String(id))?.wallet;
         return (wallet?.pp ?? 0) + (wallet?.ppp ?? 0);
@@ -265,11 +277,7 @@ async function matchViews(matches, viewerId) {
             stake: match.stake,
             prize: match.prize,
             mySeat,
-            players: match.players.map((player) => ({
-                _id: player.user,
-                username: player.user ? userById.get(String(player.user))?.username ?? "A former member" : BOT_NAME,
-                bot: !player.user,
-            })),
+            players: match.players.map((player) => playerView(player.user)),
             ...(match.mode === "pvp" && {
                 offer: match.offer,
                 counters: match.counters,

@@ -238,6 +238,7 @@ function FarkleGame({ matchId }) {
       <Enter step={1}>
         <Scoreboard
           players={game.players}
+          people={game.people}
           scores={game.scores}
           current={game.current}
           winner={game.winner}

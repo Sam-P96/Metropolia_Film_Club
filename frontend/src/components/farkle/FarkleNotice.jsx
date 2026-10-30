@@ -75,8 +75,10 @@ function result(match, name) {
   )
 
   if (youWon) {
-    const how = { resign: `${name} folded`, forfeit: `${name} ran out of time`, left: `${name} left the club` }[match.endedBy]
-    return <>You beat {name}{how ? ` (${how})` : ''} and won {prize}.</>
+    // Plain words only: `name` is a link, which can't go inside a `text`
+    // template (it would come out as "[object Object]").
+    const how = { resign: 'folded', forfeit: 'ran out of time', left: 'left the club' }[match.endedBy]
+    return <>You beat {name}{how ? `, who ${how},` : ''} and won {prize}.</>
   }
 
   const how = { resign: 'You folded', forfeit: 'Three days went by without your move' }[match.endedBy]

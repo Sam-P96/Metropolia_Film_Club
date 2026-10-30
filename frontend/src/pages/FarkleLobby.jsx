@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import ChallengeCard from '../components/farkle/ChallengeCard'
 import ChallengeForm from '../components/farkle/ChallengeForm'
 import CoinIcon from '../components/wallet/CoinIcon'
+import MemberAvatar from '../components/profile/MemberAvatar'
 import { getLobby } from '../services/farkle'
 import { BOT_MODE, BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
 
@@ -24,11 +25,14 @@ function GameRow({ match }) {
         yourTurn ? 'border-brand-gold/60 bg-brand-gold/10' : 'border-white/10 bg-white/5'
       }`}
     >
-      <span className="min-w-0">
-        <span className="font-semibold text-white">vs {opponentOf(match).username}</span>
-        <span className="block text-sm text-white/60 tabular-nums">
-          {formatPoints(match.scores[match.mySeat])} to {formatPoints(match.scores[1 - match.mySeat])} · first to{' '}
-          {formatPoints(match.target)} · winner takes {formatPoints(match.prize)} P-PP
+      <span className="flex min-w-0 items-center gap-3">
+        <MemberAvatar user={opponentOf(match)} />
+        <span className="min-w-0">
+          <span className="font-semibold text-white">vs {opponentOf(match).username}</span>
+          <span className="block text-sm text-white/60 tabular-nums">
+            {formatPoints(match.scores[match.mySeat])} to {formatPoints(match.scores[1 - match.mySeat])} · first to{' '}
+            {formatPoints(match.target)} · winner takes {formatPoints(match.prize)} P-PP
+          </span>
         </span>
       </span>
       <span className={`rounded-full px-3 py-1 text-sm font-semibold ${yourTurn ? 'bg-brand-gold text-ink' : 'bg-white/10 text-white/70'}`}>
