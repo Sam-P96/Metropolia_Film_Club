@@ -36,7 +36,8 @@ const KEEP_FOR_DAYS = 90;
 //                   Wallet). No review.
 // Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
 //   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
-//   farkleTurn       it's your turn in the game. Pinned.
+//   farkleTurn       no longer sent: games being played are listed at the
+//                    top of Notifications by the page itself
 //   farkleAccepted   they accepted your challenge: the game's on
 //   farkleDeclined   they turned your challenge down
 //   farkleExpired    your challenge to them went unanswered for three days

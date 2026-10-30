@@ -4,7 +4,7 @@ const WalletTx = require("../models/walletTxModel");
 const { WalletError, changeWallet, credit } = require("./wallet");
 const { noteFarkleAnswer, noteFarkleOver, noteFarkleResult, forgetFarkleMatch } = require("./notify");
 const { GAME_FIELDS, applyMove, forfeit } = require("../games/farkle/engine");
-const { announceMatch } = require("../games/farkle/live");
+const { announceMatch, playersAt } = require("../games/farkle/live");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
 const { BOT_NAME } = require("../../shared/farkle/rules.js");
 
@@ -252,7 +252,8 @@ async function matchViews(matches, viewerId) {
     const playerView = (id) => {
         if (!id) return { _id: null, username: BOT_NAME, avatarUrl: null, reviewCardBanner: null, bot: true };
         const user = userById.get(String(id));
-        if (!user) return { _id: id, username: "A former member", avatarUrl: null, reviewCardBanner: null, bot: false };
+        // Gone from the club: no id, so nothing links to a profile that isn't there.
+        if (!user) return { _id: null, username: "A former member", avatarUrl: null, reviewCardBanner: null, bot: false };
         const { username, avatarUrl, reviewCardBanner } = userSummary(user);
         return { _id: id, username, avatarUrl, reviewCardBanner, bot: false };
     };
@@ -260,6 +261,15 @@ async function matchViews(matches, viewerId) {
         const wallet = userById.get(String(id))?.wallet;
         return (wallet?.pp ?? 0) + (wallet?.ppp ?? 0);
     };
+
+    // Who has each game being played open right now (Play Live).
+    const hereById = new Map(
+        await Promise.all(
+            matches
+                .filter((match) => match.mode === "pvp" && match.status === "active")
+                .map(async (match) => [String(match._id), await playersAt(match._id)])
+        )
+    );
 
     return matches.map((match) => {
         const mySeat = seatOf(match, viewerId);
@@ -281,6 +291,7 @@ async function matchViews(matches, viewerId) {
             ...(match.mode === "pvp" && {
                 offer: match.offer,
                 counters: match.counters,
+                here: hereById.get(String(match._id)) ?? [],
                 expiresAt: match.expiresAt,
                 myAnswer,
                 acceptStake: myAnswer ? Math.min(match.stake, counterMax) : null,

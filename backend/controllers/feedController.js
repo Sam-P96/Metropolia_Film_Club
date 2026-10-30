@@ -9,7 +9,7 @@ const Report = require("../models/reportModel");
 const PasswordReset = require("../models/passwordResetModel");
 const FarkleMatch = require("../models/farkleMatchModel");
 const { hasRole, canApproveReset } = require("../middleware/auth");
-const { matchViews } = require("../utils/farkle");
+const { catchUp, matchViews } = require("../utils/farkle");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { withAuthorStanding } = require("../utils/level");
 const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
@@ -135,6 +135,9 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, amount: row.amount }];
         }
 
+        // Old "your turn" notices: the games list at the top does that now.
+        if (row.type === "farkleTurn") return [];
+
         if (row.type.startsWith("farkle")) {
             const match = matchById.get(String(row.match));
             // A result about someone you follow is no use once they're gone.
@@ -196,12 +199,31 @@ async function hydrate(rows, viewer) {
     });
 }
 
-// ?skip=n. { items, hasMore, next, background }: `next` is the skip for the
-// next page, and `background` the member's Notifications background setting.
-// Pinned notifications (Farkle challenges and turns waiting on them) come
-// first, then the rest newest first. Moderators and admins also get, with
-// the first page, `passwordResets` and `reports`: the open ones, pinned
-// above everything else.
+// The Farkle games between members they're playing right now, for the very
+// top of the page: their turn first, then the rest, latest move first.
+// Worked out fresh each time rather than stored as notifications, so it's
+// always as the game is now. A game whose three days ran out is ended first
+// (utils/farkle.js catchUp), so it doesn't show as still going.
+async function ongoingGames(viewer) {
+    const found = await FarkleMatch.find({ mode: "pvp", status: "active", "players.user": viewer._id }).lean();
+    const going = [];
+    for (const match of found) {
+        const now = await catchUp(match);
+        if (now.status === "active") going.push(now);
+    }
+
+    const yourTurnFirst = (a, b) => Number(b.current === b.mySeat) - Number(a.current === a.mySeat)
+        || new Date(b.lastMoveAt) - new Date(a.lastMoveAt);
+    return (await matchViews(going, viewer._id)).sort(yourTurnFirst);
+}
+
+// ?skip=n. { items, hasMore, next, background, games }: `next` is the skip
+// for the next page, and `background` the member's Notifications background
+// setting. `games`, with the first page, are the Farkle games they're
+// playing, always at the very top. Then pinned notifications (Farkle
+// challenges waiting on them), then the rest newest first. Moderators and
+// admins also get, with the first page, `passwordResets` and `reports`: the
+// open ones.
 async function getFeed(req, res) {
     const skip = Math.min(parseOffset(req.query.skip), FEED_SIZE);
     const limit = Math.min(PAGE_SIZE, FEED_SIZE - skip);
@@ -219,6 +241,7 @@ async function getFeed(req, res) {
         hasMore: skip + rows.length < Math.min(total, FEED_SIZE),
         next: skip + rows.length,
         background: req.user.feedBackground ?? "default",
+        games: skip === 0 ? await ongoingGames(req.user) : [],
         ...(skip === 0 && hasRole(req.user, "moderator") && {
             passwordResets: await openPasswordResets(req.user),
             reports: await openReports(req.user),

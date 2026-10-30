@@ -123,6 +123,13 @@ function startLive(httpServer) {
     return io;
 }
 
+// The members with the game open right now, for "at the table right now"
+// on the Notifications page. Nobody before startLive.
+async function playersAt(matchId) {
+    if (!io) return [];
+    return presentIn(matchId);
+}
+
 // Tells the pages open on `match` that it changed (a roll, a bank, the end
 // of the game). Does nothing before startLive, so tests and scripts that use
 // the routes without a server still work.
@@ -131,4 +138,4 @@ function announceMatch(match) {
     io.to(gameRoom(match._id)).emit("farkle:changed", { matchId: String(match._id), version: match.version });
 }
 
-module.exports = { startLive, announceMatch };
+module.exports = { startLive, announceMatch, playersAt };

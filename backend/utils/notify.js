@@ -18,7 +18,9 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", ...Notification.FARKLE_TYPES];
 
 // The Farkle notifications that wait for the member to act, pinned to the
-// top of their Notifications page.
+// top of their Notifications page. "farkleTurn" isn't sent any more (games
+// being played show at the very top of Notifications by themselves:
+// controllers/feedController.js), but is still cleared with the rest.
 const FARKLE_PINNED = ["farkleChallenge", "farkleTurn"];
 
 // How many lines a PvP announcement can be made with. Matches PVP_LINES in
@@ -252,10 +254,10 @@ function noteGift(toId, fromId, amount) {
 }
 
 // Farkle between members (utils/farkle.js). A challenge waiting on someone
-// and "your turn" in a game are pinned: they sit at the top of that
-// member's Notifications until they act. Each new one for a game takes the
-// place of the last, so there's only ever one, and it's always new, which
-// also keeps the 90-day clean-up away from games still being played.
+// is pinned: it sits at the top of their Notifications until they answer.
+// Each new one for a game takes the place of the last, so there's only
+// ever one. Games being played aren't notifications at all: the
+// Notifications page lists them above everything, as they are right now.
 function unpinFarkle(matchId) {
     return Notification.deleteMany({ match: matchId, type: { $in: FARKLE_PINNED } });
 }
@@ -268,18 +270,6 @@ async function noteFarkleChallenge(match) {
         type: "farkleChallenge",
         match: match._id,
         actors: [match.offer.by],
-        pinned: true,
-    });
-}
-
-// It's `match.current`'s turn.
-async function noteFarkleTurn(match) {
-    await unpinFarkle(match._id);
-    await Notification.create({
-        recipient: match.players[match.current].user,
-        type: "farkleTurn",
-        match: match._id,
-        actors: [match.players[1 - match.current].user],
         pinned: true,
     });
 }
@@ -375,7 +365,6 @@ module.exports = {
     notePayout,
     noteGift,
     noteFarkleChallenge,
-    noteFarkleTurn,
     noteFarkleAnswer,
     noteFarkleOver,
     noteFarkleResult,

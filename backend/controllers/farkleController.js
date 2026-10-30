@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const FarkleMatch = require("../models/farkleMatchModel");
 const User = require("../models/userModel");
 const { WalletError, changeWallet, spend } = require("../utils/wallet");
-const { noteFarkleAnswer, noteFarkleChallenge, noteFarkleTurn } = require("../utils/notify");
+const { noteFarkleAnswer, noteFarkleChallenge } = require("../utils/notify");
 const { MoveError, applyMove, newGame, playBot } = require("../games/farkle/engine");
 const {
     BOT_SEAT,
@@ -156,8 +156,8 @@ async function getMatch(req, res) {
 // keep the positions of the dice to set aside. `version` is the match
 // version the page made it on. Against the bot, the bot's turn is played
 // straight after and comes back in `lastTurns` for the page to replay.
-// Between members, the other player gets a pinned "your turn" when the
-// dice pass to them.
+// Between members, the game sits at the top of both players' Notifications
+// while it's played, saying whose turn it is (controllers/feedController.js).
 async function makeMove(req, res) {
     const userId = req.user._id;
     const found = await findMyMatch(req.params.id, userId);
@@ -195,7 +195,6 @@ async function makeMove(req, res) {
     }
 
     if (saved.status === "over") await finishMatch(saved);
-    else if (saved.mode === "pvp" && saved.current !== match.current) await noteFarkleTurn(saved);
 
     res.json(await matchView(saved, userId));
 }
@@ -384,7 +383,6 @@ async function acceptChallenge(req, res) {
     if (!saved) throw new Error(`Farkle match ${match._id} changed while it was starting`);
 
     await noteFarkleAnswer(saved, "farkleAccepted", other, me);
-    await noteFarkleTurn(saved);
 
     res.json(await matchView(saved, me));
 }
