@@ -34,6 +34,11 @@ const KEEP_FOR_DAYS = 90;
 //                   replaces the one before. No review, no actors.
 //   gift            `actors[0]` gifted them `amount` P-PP ("Gift PP" in the
 //                   Wallet). No review.
+//   scratchWin      `actors[0]`, whom they follow, won `tier` (a key in
+//                   shared/scratch/config.js) on Box Office Scratch: `amount`
+//                   P-PP, or for the refund tier, the ticket price back.
+//   scratchJackpot  `actors[0]` won the Box Office Scratch jackpot, `amount`
+//                   P-PP. Goes to every member.
 // Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
 //   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
 //   farkleTurn       no longer sent: games being played are listed at the
@@ -47,11 +52,16 @@ const KEEP_FOR_DAYS = 90;
 //                    how much from whom. Against the bot too.
 const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkleDeclined", "farkleExpired", "farkleOver", "farkleResult"];
 
+// The game ones: unread, they make the bell blink red rather than just
+// glow purple (controllers/feedController.js). farkleTurn isn't shown any
+// more, so it never counts as unread at all.
+const GAME_TYPES = [...FARKLE_TYPES.filter((type) => type !== "farkleTurn"), "scratchWin", "scratchJackpot"];
+
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", ...FARKLE_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", ...FARKLE_TYPES],
         required: true,
     },
     review: {
@@ -59,11 +69,13 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", ...FARKLE_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", ...FARKLE_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
     amount: {type: Number, default: null},
+    // Box Office Scratch: the tier won, by its key in shared/scratch/config.js.
+    tier: {type: String, default: null},
     // Pinned ones sit at the top of the Notifications page until the member
     // acts on them. Only ever true or missing (never false), so that sorting
     // by it leaves every other notification in date order.
@@ -91,5 +103,6 @@ notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 
 const Notification = mongoose.model("Notification", notificationSchema);
 Notification.FARKLE_TYPES = FARKLE_TYPES;
+Notification.GAME_TYPES = GAME_TYPES;
 
 module.exports = Notification;

@@ -18,10 +18,12 @@ const feedRouter = require("./routes/feedRouter");
 const cutRouter = require("./routes/cutRouter");
 const walletRouter = require("./routes/walletRouter");
 const farkleRouter = require("./routes/farkleRouter");
+const scratchRouter = require("./routes/scratchRouter");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
 const { startFarkleSweep } = require("./jobs/farkleSweep");
+const { startScratchSweep } = require("./jobs/scratchSweep");
 
 const app = express();
 
@@ -68,6 +70,12 @@ connected
     .then(() => startFarkleSweep())
     .catch((error) => console.error("Couldn't start the Farkle sweep:", error.message));
 
+// Box Office Scratch: the jackpot pool, and paying out what a failure left
+// unpaid (jobs/scratchSweep.js).
+connected
+    .then(() => startScratchSweep())
+    .catch((error) => console.error("Couldn't start the scratch sweep:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -109,6 +117,7 @@ app.use("/api/feed", feedRouter);
 app.use("/api/cuts", cutRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/farkle", farkleRouter);
+app.use("/api/scratch", scratchRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

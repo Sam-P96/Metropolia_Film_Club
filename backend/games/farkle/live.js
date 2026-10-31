@@ -16,12 +16,17 @@ const { userFromToken } = require("../../middleware/auth");
 // A member can Play Live in one game at a time. A page joining a game takes
 // their pages out of any other game's room (the newest page wins), and those
 // pages drop back to notifications, with a "Play Live here" button.
+//
+// The same connection also carries the Box Office Scratch jackpot: pages
+// showing the game join the "scratch" room, and hear the pool change as
+// tickets are bought and jackpots won (utils/scratch.js).
 
 let io = null;
 
 const gameRoom = (matchId) => `farkle:${matchId}`;
 const memberRoom = (userId) => `member:${userId}`;
 const GAME_PREFIX = "farkle:";
+const SCRATCH_ROOM = "scratch";
 
 // The members with a page in a game's room right now, once each.
 async function presentIn(matchId) {
@@ -110,6 +115,10 @@ function startLive(httpServer) {
             socket.to(gameRoom(matchId)).emit("farkle:select", { matchId, by: userId, selected: payload.selected });
         });
 
+        // The Box Office Scratch page, open or closed: the jackpot as it grows.
+        socket.on("scratch:watch", () => socket.join(SCRATCH_ROOM));
+        socket.on("scratch:unwatch", () => socket.leave(SCRATCH_ROOM));
+
         // A page closing (or its connection dropping): once it has left its
         // rooms, tell the games it was in.
         socket.on("disconnecting", () => {
@@ -138,4 +147,10 @@ function announceMatch(match) {
     io.to(gameRoom(match._id)).emit("farkle:changed", { matchId: String(match._id), version: match.version });
 }
 
-module.exports = { startLive, announceMatch, playersAt };
+// Tells every Box Office Scratch page the jackpot is now `amount`.
+function announceJackpot(amount) {
+    if (!io) return;
+    io.to(SCRATCH_ROOM).emit("scratch:jackpot", { amount });
+}
+
+module.exports = { startLive, announceMatch, playersAt, announceJackpot };

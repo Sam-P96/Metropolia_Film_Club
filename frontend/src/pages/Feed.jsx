@@ -8,7 +8,7 @@ import GifBackground from '../components/GifBackground'
 import { OnOffSwitch } from '../components/profile/SettingRow'
 import usePagedList from '../hooks/usePagedList'
 import { getAllCuts } from '../services/cuts'
-import { getFeed } from '../services/feed'
+import { getFeed, markNotificationsSeen } from '../services/feed'
 import { getCurrentUser } from '../utils/currentUser'
 import { canModerate } from '../utils/permissions'
 import pinkGlowGif from '../assets/Pink Glow GIF by xponentialdesign.gif'
@@ -54,7 +54,11 @@ const withoutCut = (cutId) => (previous) => {
 // in the nav. Votes on their
 // reviews, replies, new followers, cuts and new reviews from members they
 // follow, and trending reviews. The newest 100, 10 at a time. Above it all,
-// the box for posting a cut of their own. Moderators and admins can switch
+// the box for posting a cut of their own. From the top: for moderators and
+// admins, password reset requests and reports; then the Farkle games
+// they're playing; then jackpots they haven't seen yet; then everything
+// else as usual (pinned challenges, then newest first). Opening the page
+// marks it all seen, so the bell in the nav goes dark. Moderators and admins can switch
 // on "Show all cuts" to see every member's cuts there instead, and delete
 // any of them. App.jsx sends logged-out visitors to log in first. Its
 // background is theirs to pick in Edit profile.
@@ -73,13 +77,27 @@ function Feed() {
     window.scrollTo(0, 0)
   }, [key])
 
-  const items = list.data?.items ?? []
   // Moderators and admins only: password reset requests and open reports,
   // pinned above everything else.
   const passwordResets = feed.data?.passwordResets ?? []
   const reports = feed.data?.reports ?? []
-  // Farkle games they're playing, at the very top, always.
+  // Farkle games they're playing, under those, always. A game that's over
+  // is an ordinary notification, down in the list by its date.
   const games = feed.data?.games ?? []
+  // Jackpots they hadn't seen when the page opened, under the games. The
+  // same notices are in the list by date too, so they're left out there.
+  const jackpots = showAllCuts ? [] : (feed.data?.jackpots ?? [])
+  const jackpotIds = new Set(jackpots.map((item) => item._id))
+  const items = (list.data?.items ?? []).filter((item) => !jackpotIds.has(item._id))
+
+  // Once the page is in, everything on it is seen: up to the moment the
+  // server put it together, so anything that came in since still counts as
+  // new. Next time, today's jackpots wait in line by their date like
+  // everything else.
+  const seenUntil = feed.data?.now
+  useEffect(() => {
+    if (seenUntil) markNotificationsSeen(seenUntil).catch(() => {})
+  }, [seenUntil])
 
   const handleResetDecided = (requestId) =>
     feed.setData((previous) => ({
@@ -134,18 +152,8 @@ function Feed() {
         <p className={`mt-2 text-sm ${tone.text}`}>
           {showAllCuts
             ? "Every member's cuts, newest first, whoever they reach. Deleting one here takes it out of everyone's Notifications."
-            : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the very top, and challenges stay pinned until you answer), and how the members you follow do at Farkle. Your last 100, kept for three months."}
+            : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the top, and challenges stay pinned until you answer), how the members you follow do at Farkle and Box Office Scratch, and every jackpot (new ones up top until you've seen them). Your last 100, kept for three months."}
         </p>
-
-        {!showAllCuts && games.length > 0 && (
-          <ul className="mt-10 space-y-6" aria-label="Your Farkle games">
-            {games.map((match) => (
-              <li key={match._id}>
-                <OngoingGame match={match} />
-              </li>
-            ))}
-          </ul>
-        )}
 
         {passwordResets.length > 0 && (
           <ul className="mt-10 space-y-6" aria-label="Password reset requests">
@@ -167,6 +175,26 @@ function Feed() {
           </ul>
         )}
 
+        {!showAllCuts && games.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Your Farkle games">
+            {games.map((match) => (
+              <li key={match._id}>
+                <OngoingGame match={match} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {jackpots.length > 0 && (
+          <ul className="mt-10 space-y-12" aria-label="New jackpots">
+            {jackpots.map((item) => (
+              <li key={item._id}>
+                <FeedItem item={item} light={light} onCutDeleted={handleCutDeleted} />
+              </li>
+            ))}
+          </ul>
+        )}
+
         {list.loading ? (
           <p className={`mt-10 text-sm ${tone.muted}`}>Loading…</p>
         ) : list.error ? (
@@ -174,13 +202,13 @@ function Feed() {
             {showAllCuts ? "Couldn't load the cuts." : "Couldn't load your feed."} Try refreshing the
             page.
           </p>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && jackpots.length === 0 ? (
           <p className={`mt-10 ${tone.text}`}>
             {showAllCuts
               ? 'Nobody has posted a cut yet.'
               : 'Nothing here yet. Follow some members, write a review, or join in the comments.'}
           </p>
-        ) : (
+        ) : items.length > 0 && (
           <ul className="mt-10 space-y-12">
             {items.map((item) => (
               <li key={item._id}>

@@ -16,6 +16,10 @@ const REASONS = {
   admin: 'Changed by an admin',
   giftSent: 'Gift',
   giftReceived: 'Gift',
+  scratchTicket: 'Box Office Scratch ticket',
+  scratchWin: 'Box Office Scratch win',
+  scratchRefund: 'Box Office Scratch: ticket price back',
+  jackpot: 'Box Office Scratch jackpot!',
 }
 
 // What a history row was. Gifts say who to or from.

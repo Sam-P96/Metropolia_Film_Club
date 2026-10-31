@@ -84,6 +84,11 @@ const userSchema = new Schema(
             default: "default",
         },
 
+        // When they last opened their Notifications page. Anything newer is
+        // unread, and lights up the bell in the nav. null: never opened, so
+        // everything is unread (controllers/feedController.js).
+        notificationsSeenAt: { type: Date, default: null },
+
         // What moderators and admins have stopped them doing with the Ban
         // Hammer, each on its own (utils/bans.js).
         bans: {
