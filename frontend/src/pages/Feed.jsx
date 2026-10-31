@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
 import CutComposer from '../components/feed/CutComposer'
-import FeedItem, { PasswordResetNotice, ReportNotice } from '../components/feed/FeedItem'
+import FeedItem, { ReportNotice } from '../components/feed/FeedItem'
 import { OngoingGame } from '../components/farkle/FarkleNotice'
 import GifBackground from '../components/GifBackground'
 import { OnOffSwitch } from '../components/profile/SettingRow'
@@ -55,7 +55,7 @@ const withoutCut = (cutId) => (previous) => {
 // reviews, replies, new followers, cuts and new reviews from members they
 // follow, and trending reviews. The newest 100, 10 at a time. Above it all,
 // the box for posting a cut of their own. From the top: for moderators and
-// admins, password reset requests and reports; then the Farkle games
+// admins, open reports; then the Farkle games
 // they're playing; then jackpots they haven't seen yet; then everything
 // else as usual (pinned challenges, then newest first). Opening the page
 // marks it all seen, so the bell in the nav goes dark. Moderators and admins can switch
@@ -77,9 +77,7 @@ function Feed() {
     window.scrollTo(0, 0)
   }, [key])
 
-  // Moderators and admins only: password reset requests and open reports,
-  // pinned above everything else.
-  const passwordResets = feed.data?.passwordResets ?? []
+  // Moderators and admins only: open reports, pinned above everything else.
   const reports = feed.data?.reports ?? []
   // Farkle games they're playing, under those, always. A game that's over
   // is an ordinary notification, down in the list by its date.
@@ -98,12 +96,6 @@ function Feed() {
   useEffect(() => {
     if (seenUntil) markNotificationsSeen(seenUntil).catch(() => {})
   }, [seenUntil])
-
-  const handleResetDecided = (requestId) =>
-    feed.setData((previous) => ({
-      ...previous,
-      passwordResets: previous.passwordResets.filter((request) => request._id !== requestId),
-    }))
 
   // A deleted cut leaves both lists: it can be in your notifications and
   // in all cuts.
@@ -154,16 +146,6 @@ function Feed() {
             ? "Every member's cuts, newest first, whoever they reach. Deleting one here takes it out of everyone's Notifications."
             : "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the top, and challenges stay pinned until you answer), how the members you follow do at Farkle and Box Office Scratch, and every jackpot (new ones up top until you've seen them). Your last 100, kept for three months."}
         </p>
-
-        {passwordResets.length > 0 && (
-          <ul className="mt-10 space-y-6" aria-label="Password reset requests">
-            {passwordResets.map((request) => (
-              <li key={request._id}>
-                <PasswordResetNotice request={request} light={light} onResolved={handleResetDecided} />
-              </li>
-            ))}
-          </ul>
-        )}
 
         {reports.length > 0 && (
           <ul className="mt-10 space-y-6" aria-label="Reported reviews">
