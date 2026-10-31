@@ -13,6 +13,7 @@ const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require(".
 const { dislikeRefusal } = require("../utils/pvp");
 const { banRefusal } = require("../utils/bans");
 const Report = require("../models/reportModel");
+const { hasRole } = require("../middleware/auth");
 
 // "Top rated by the club" shows every rated film, but ranks them as if each
 // also had this many extra ratings at the club's overall average. A film only
@@ -407,14 +408,21 @@ async function removeReview(filter) {
     return removed._id;
 }
 
-// Admins deleting someone's review. The page asks twice first.
+// Deleting a review: its author, or an admin (anyone's). The page asks
+// twice first. Anyone else is refused, and the review stays.
 async function deleteReview(req, res) {
-    const removed = mongoose.isValidObjectId(req.params.id)
-        ? await removeReview({ _id: req.params.id })
-        : null;
-
-    if (!removed) {
+    if (!mongoose.isValidObjectId(req.params.id)) {
         return res.status(404).json({ error: "Review not found." });
+    }
+
+    const filter = hasRole(req.user, "admin")
+        ? { _id: req.params.id }
+        : { _id: req.params.id, user: req.user._id };
+
+    if (!(await removeReview(filter))) {
+        return (await Review.exists({ _id: req.params.id }))
+            ? res.status(403).json({ error: "You can only delete your own reviews." })
+            : res.status(404).json({ error: "Review not found." });
     }
 
     res.json({ deleted: true });

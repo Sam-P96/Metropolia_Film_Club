@@ -112,7 +112,7 @@ function ReviewDetail({ isAuthenticated }) {
 
             {currentUser && !isAuthor && <ReportReview review={review} />}
 
-            {canDeleteAnyReview(currentUser) && !isAuthor && <DeleteReview review={review} />}
+            {(isAuthor || canDeleteAnyReview(currentUser)) && <DeleteReview review={review} own={isAuthor} />}
           </div>
         </div>
 
@@ -349,17 +349,18 @@ function ReportReview({ review }) {
   )
 }
 
-// Admins deleting someone else's review. It asks twice, right where the
-// button was, so it takes three deliberate clicks; then it's back to the
-// reviews page.
-function DeleteReview({ review }) {
+// Deleting the review: the author deleting their own (`own`), or an admin
+// deleting anyone's. It asks twice, right where the button was, so it takes
+// three deliberate clicks. Then the author goes back to their profile, and
+// an admin to the reviews page.
+function DeleteReview({ review, own }) {
   const navigate = useNavigate()
   // 0: the button. 1: first "are you sure". 2: the last chance.
   const [step, setStep] = useState(0)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState(null)
 
-  const whose = review.user ? `${review.user.username}'s` : 'this'
+  const whose = own ? 'your' : review.user ? `${review.user.username}'s` : 'this'
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -367,7 +368,7 @@ function DeleteReview({ review }) {
 
     try {
       await deleteReview(review._id)
-      navigate('/movie_reviews', { replace: true })
+      navigate(own ? `/users/${review.user._id}` : '/movie_reviews', { replace: true })
     } catch (err) {
       setError(err.message)
       setDeleting(false)
@@ -408,8 +409,8 @@ function DeleteReview({ review }) {
         </p>
       ) : (
         <p className="text-sm text-white">
-          Are you sure? Its comments go with it, and it can't be undone. Their rating stays in
-          their film list.
+          Are you sure? Its comments go with it, and it can't be undone.{' '}
+          {own ? 'Your rating stays in your film list.' : 'Their rating stays in their film list.'}
         </p>
       )}
 
