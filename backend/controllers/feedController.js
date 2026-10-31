@@ -151,6 +151,10 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
         }
 
+        if (row.type === "scratchWin" || row.type === "scratchJackpot") {
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, tier: row.tier }];
+        }
+
         if (row.type === "cut") {
             const cut = cutById.get(String(row.cut));
             return cut ? [{ _id: row._id, type: row.type, at: row.at, actors: members, cut }] : [];
@@ -217,14 +221,34 @@ async function ongoingGames(viewer) {
     return (await matchViews(going, viewer._id)).sort(yourTurnFirst);
 }
 
-// ?skip=n. { items, hasMore, next, background, games }: `next` is the skip
-// for the next page, and `background` the member's Notifications background
-// setting. `games`, with the first page, are the Farkle games they're
-// playing, always at the very top. Then pinned notifications (Farkle
-// challenges waiting on them), then the rest newest first. Moderators and
-// admins also get, with the first page, `passwordResets` and `reports`: the
-// open ones.
+// Unread jackpot notices, newest first, for just under the games: a
+// jackpot is big news, so until it's been seen it doesn't wait in line.
+async function unreadJackpots(viewer, since) {
+    const rows = await Notification.find({ recipient: viewer._id, type: "scratchJackpot", at: { $gt: since } })
+        .sort({ at: -1, _id: -1 })
+        .limit(FEED_SIZE)
+        .lean();
+    return hydrate(rows, viewer);
+}
+
+// When they last opened Notifications, as a date to compare with: anything
+// newer is unread. Never opened counts as "the start of time".
+const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
+
+// ?skip=n. { items, hasMore, next, background }: `next` is the skip for the
+// next page, and `background` the member's Notifications background
+// setting. The first page also brings:
+//   games     the Farkle games they're playing, near the very top
+//   jackpots  jackpot notices they haven't seen yet, just under the games
+//             (they're in `items` too, in date order: the page leaves
+//             those out)
+//   seenAt    when they last opened the page (null if never), and `now`,
+//             for marking everything up to it seen (markSeen below)
+// Moderators and admins also get `passwordResets` and `reports`: the open
+// ones, above everything. In `items`, pinned notifications come first
+// (Farkle challenges waiting on them), then the rest newest first.
 async function getFeed(req, res) {
+    const now = new Date();
     const skip = Math.min(parseOffset(req.query.skip), FEED_SIZE);
     const limit = Math.min(PAGE_SIZE, FEED_SIZE - skip);
     const mine = { recipient: req.user._id };
@@ -241,7 +265,13 @@ async function getFeed(req, res) {
         hasMore: skip + rows.length < Math.min(total, FEED_SIZE),
         next: skip + rows.length,
         background: req.user.feedBackground ?? "default",
-        games: skip === 0 ? await ongoingGames(req.user) : [],
+        // Only with the first page, so loading more never wipes them.
+        ...(skip === 0 && {
+            games: await ongoingGames(req.user),
+            jackpots: await unreadJackpots(req.user, seenSince(req.user)),
+            seenAt: req.user.notificationsSeenAt ?? null,
+            now,
+        }),
         ...(skip === 0 && hasRole(req.user, "moderator") && {
             passwordResets: await openPasswordResets(req.user),
             reports: await openReports(req.user),
@@ -249,4 +279,56 @@ async function getFeed(req, res) {
     });
 }
 
-module.exports = { getFeed };
+// What lights up the bell in the nav: { unread, games }. `unread`: anything
+// new since they last opened Notifications (the bell glows purple).
+// `games`: some of it is about games (it blinks red instead): a game
+// notification, or a Farkle game that's come round to their turn. For
+// moderators and admins, new password reset requests and reports count
+// too. The nav asks every minute or so, so each check is a quick "is there
+// at least one?" rather than loading anything.
+async function getUnread(req, res) {
+    const viewer = req.user;
+    const since = seenSince(viewer);
+    const newer = { recipient: viewer._id, at: { $gt: since } };
+
+    const [gameNotice, yourTurn] = await Promise.all([
+        Notification.exists({ ...newer, type: { $in: Notification.GAME_TYPES } }),
+        FarkleMatch.exists({
+            mode: "pvp",
+            status: "active",
+            "players.user": viewer._id,
+            lastMoveAt: { $gt: since },
+            $expr: { $eq: [{ $arrayElemAt: ["$players.user", "$current"] }, viewer._id] },
+        }),
+    ]);
+    const games = Boolean(gameNotice || yourTurn);
+
+    let unread = games || Boolean(await Notification.exists({ ...newer, type: { $ne: "farkleTurn" } }));
+    if (!unread && hasRole(viewer, "moderator")) {
+        const [resets, report] = await Promise.all([
+            openPasswordResets(viewer),
+            Report.exists({ status: "open", createdAt: { $gt: since } }),
+        ]);
+        unread = Boolean(report) || resets.some((request) => request.at > since);
+    }
+
+    res.json({ unread, games });
+}
+
+// { until }: they've opened Notifications, so everything up to `until` (the
+// `now` their page came with) is seen. Never later than right now, and
+// never earlier than it already was, so an old page can't make things
+// unread again.
+async function markSeen(req, res) {
+    const now = new Date();
+    const until = new Date(req.body?.until ?? now);
+    const seenAt = Number.isNaN(until.getTime()) || until > now ? now : until;
+
+    await User.updateOne(
+        { _id: req.user._id, $or: [{ notificationsSeenAt: null }, { notificationsSeenAt: { $lt: seenAt } }] },
+        { $set: { notificationsSeenAt: seenAt } }
+    );
+    res.json({ ok: true });
+}
+
+module.exports = { getFeed, getUnread, markSeen };

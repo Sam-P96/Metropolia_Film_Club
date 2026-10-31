@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import GlobalSearch from './search/GlobalSearch'
 import CoinBalance from './wallet/CoinBalance'
+import useUnread from '../hooks/useUnread'
 import useWallet from '../hooks/useWallet'
 
 const NAV_LINKS = [
@@ -38,6 +39,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const wallet = useWallet(isAuthenticated)
+  const unread = useUnread(isAuthenticated, location.pathname)
 
   // Navigating should always close the panel
   useEffect(() => {
@@ -79,12 +81,24 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
       ? 'block rounded-md bg-white/10 px-4 py-3 text-base font-medium text-brand-gold'
       : 'block rounded-md px-4 py-3 text-base font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white'
 
+  // Unread notifications light the bell up: a purple glow, or for unread
+  // game ones, a blink to glowing red (index.css). On phones, where the bell
+  // is in the menu, the menu button lights up the same way, and so does
+  // Notifications once the menu's open. Each takes this in place of its
+  // usual border colour. Empty when there's nothing unread.
+  const glow = unread.games
+    ? 'glow-unread animate-unread-games motion-reduce:animate-none motion-reduce:glow-unread-games'
+    : unread.unread
+      ? 'glow-unread'
+      : ''
+  const unreadLabel = unread.games ? ', unread game notifications' : unread.unread ? ', unread notifications' : ''
+
   // Notifications, as a round bell beside Account. Gold while you're on it.
   const bellClasses = ({ isActive }) =>
-    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${isActive
-      ? 'border-brand-gold/60 bg-white/10 text-brand-gold'
-      : 'border-white/20 bg-white/5 text-white/80 hover:border-brand-gold/60 hover:bg-white/10 hover:text-white'
-    }`
+    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-[color,background-color,border-color,box-shadow] duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${isActive
+      ? 'bg-white/10 text-brand-gold'
+      : 'bg-white/5 text-white/80 hover:bg-white/10 hover:text-white'
+    } ${glow || (isActive ? 'border-brand-gold/60' : 'border-white/20 hover:border-brand-gold/60')}`
 
   const buttonClasses =
     'whitespace-nowrap rounded-md bg-brand-red px-5 py-2 text-[0.95rem] font-medium text-white transition-colors hover:bg-brand-orange'
@@ -124,7 +138,7 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
             <>
               <CoinBalance wallet={wallet} />
               {/* Clicking it while on the page loads the page again (Feed.jsx). */}
-              <NavLink to="/feed" className={bellClasses} aria-label="Notifications" title="Notifications">
+              <NavLink to="/feed" className={bellClasses} aria-label={`Notifications${unreadLabel}`} title="Notifications">
                 <BellIcon />
               </NavLink>
               <NavLink to="/account" className={buttonClasses}>Account</NavLink>
@@ -139,9 +153,9 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          aria-label="Open menu"
+          aria-label={`Open menu${unreadLabel}`}
           aria-expanded={menuOpen}
-          className="ml-auto rounded-md border border-white/20 bg-white/5 p-2 text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10 xl:hidden"
+          className={`ml-auto rounded-md border bg-white/5 p-2 text-white transition-[background-color,border-color,box-shadow] duration-300 hover:bg-white/10 xl:hidden ${glow || 'border-white/20 hover:border-brand-gold/60'}`}
         >
           <svg
             width="22"
@@ -231,7 +245,13 @@ function NavigationBar({ isAuthenticated, setIsAuthenticated }) {
           {isAuthenticated ? (
             <>
               <CoinBalance wallet={wallet} block />
-              <NavLink to="/feed" className={panelLinkClasses}>
+              {/* A see-through border all the time, so lighting up only
+                  colours it in and nothing moves. */}
+              <NavLink
+                to="/feed"
+                aria-label={`Notifications${unreadLabel}`}
+                className={(link) => `${panelLinkClasses(link)} border transition-[color,background-color,border-color,box-shadow] duration-300 ${glow || 'border-transparent'}`}
+              >
                 <span className="flex items-center gap-3">
                   <BellIcon size={18} />
                   Notifications

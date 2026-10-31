@@ -53,6 +53,11 @@
     100% { transform: none; }
   }
 
+  /* Box Office Scratch (pages/ScratchGame.jsx): the ticket, a shade bluer
+     than plum, and the deeper blue of the wells its tiles sit in */
+  --color-ticket: #24225C;
+  --color-ticket-deep: #14133A;
+
   /* Farkle's game pages (pages/FarkleMatch.jsx): each part slides up and
      fades in as the page opens, a moment after the one above it */
   --animate-page-in: page-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
@@ -70,6 +75,37 @@
     from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: none; }
   }
+
+  /* The bell in the nav (components/NavigationBar.jsx) when unread game
+     notifications are waiting: a quick fade up to glowing red, held a
+     moment, then a slower fade back to unread's purple, over and over.
+     Never a snap. */
+  --animate-unread-games: unread-games 1.6s ease-in-out infinite;
+
+  @keyframes unread-games {
+    0%, 100% {
+      border-color: rgb(192 132 252 / 0.85);
+      box-shadow: 0 0 12px 2px rgb(168 85 247 / 0.6);
+    }
+    15%, 50% {
+      border-color: rgb(244 114 130 / 0.95);
+      box-shadow: 0 0 16px 4px rgb(199 37 62 / 0.85);
+    }
+  }
+}
+
+/* The bell with unread notifications (on phones, the menu button and the
+   Notifications link in the menu too): a soft purple glow. */
+@utility glow-unread {
+  border-color: rgb(192 132 252 / 0.85);
+  box-shadow: 0 0 12px 2px rgb(168 85 247 / 0.6);
+}
+
+/* Unread game notifications with reduced motion on: steady red instead of
+   blinking. */
+@utility glow-unread-games {
+  border-color: rgb(244 114 130 / 0.95);
+  box-shadow: 0 0 16px 4px rgb(199 37 62 / 0.85);
 }
 
 body {

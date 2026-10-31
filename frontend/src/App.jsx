@@ -36,6 +36,7 @@ import SecretPfp from "./pages/SecretPfp";
 import FarkleMatch from "./pages/FarkleMatch";
 import FarkleLobby from "./pages/FarkleLobby";
 import Games from "./pages/Games";
+import ScratchGame from "./pages/ScratchGame";
 import Wallet from "./pages/Wallet";
 
 
@@ -114,6 +115,9 @@ function App() {
           } />
           <Route path="/games/farkle/:matchId" element={
             isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/scratch" element={
+            isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />

@@ -4,7 +4,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "simulate:scratch": "node scripts/simulate-scratch.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

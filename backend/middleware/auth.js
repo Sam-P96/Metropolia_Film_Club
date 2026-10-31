@@ -19,7 +19,7 @@ async function userFromToken(token) {
 
     try {
         const { _id } = jwt.verify(token, process.env.SECRET);
-        return await User.findById(_id).select("_id username role privacy pvp feedBackground bans").lean();
+        return await User.findById(_id).select("_id username role privacy pvp feedBackground notificationsSeenAt bans").lean();
     } catch {
         return null;
     }

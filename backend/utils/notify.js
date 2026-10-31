@@ -15,7 +15,10 @@ const TRENDING_LIKES = 5;
 const VIRAL_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
-const FROM_ONE_MEMBER = ["review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", ...Notification.FARKLE_TYPES];
+const FROM_ONE_MEMBER = [
+    "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
+    ...Notification.FARKLE_TYPES,
+];
 
 // The Farkle notifications that wait for the member to act, pinned to the
 // top of their Notifications page. "farkleTurn" isn't sent any more (games
@@ -253,6 +256,20 @@ function noteGift(toId, fromId, amount) {
     return Notification.create({ recipient: toId, type: "gift", amount, actors: [fromId] });
 }
 
+// Box Office Scratch (utils/scratch.js): `winnerId` won `tier` (its key),
+// worth `amount`. Everyone who follows them hears about it.
+async function noteScratchWin(winnerId, tier, amount) {
+    const followers = await Follow.find({ following: winnerId }).distinct("follower");
+    await sendToEach(followers, { type: "scratchWin", tier, amount, actors: [winnerId] });
+}
+
+// `winnerId` won the Box Office Scratch jackpot, `amount` P-PP: every
+// member hears about it, the winner included, like a club event.
+async function noteScratchJackpot(winnerId, amount) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, { type: "scratchJackpot", amount, actors: [winnerId] });
+}
+
 // Farkle between members (utils/farkle.js). A challenge waiting on someone
 // is pinned: it sits at the top of their Notifications until they answer.
 // Each new one for a game takes the place of the last, so there's only
@@ -364,6 +381,8 @@ module.exports = {
     forgetMember,
     notePayout,
     noteGift,
+    noteScratchWin,
+    noteScratchJackpot,
     noteFarkleChallenge,
     noteFarkleAnswer,
     noteFarkleOver,

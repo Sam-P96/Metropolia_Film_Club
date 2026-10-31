@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import CoinIcon from './CoinIcon'
-
-const format = (points) => points.toLocaleString('en-US')
+import AnimatedNumber from '../AnimatedNumber'
 
 // Both balances side by side, linking to the Wallet page. `wallet` comes
-// from useWallet; while it's loading, the amounts show as "–".
+// from useWallet; while it's loading, the amounts show as "–". They count
+// up and down to a new balance rather than jumping.
 // `block` makes it a full-width row for the mobile menu.
 export default function CoinBalance({ wallet, block = false }) {
   const base = block
@@ -23,11 +23,11 @@ export default function CoinBalance({ wallet, block = false }) {
       {block && <span className="mr-auto">Wallet</span>}
       <span className="flex items-center gap-1.5">
         <CoinIcon kind="pp" />
-        {wallet ? format(wallet.pp) : '–'}
+        {wallet ? <AnimatedNumber value={wallet.pp} /> : '–'}
       </span>
       <span className="flex items-center gap-1.5">
         <CoinIcon kind="ppp" />
-        {wallet ? format(wallet.ppp) : '–'}
+        {wallet ? <AnimatedNumber value={wallet.ppp} /> : '–'}
       </span>
     </NavLink>
   )
