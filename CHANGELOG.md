@@ -170,21 +170,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comments button on the author's own review page for one review
   (`PUT /api/reviews/:id/allow-comments`). Turned-off comments are hidden,
   not deleted, and can't be added to; the comments endpoints answer 403.
-- "Forgot password?" on the login page. The member enters their email; if
-  it has an account, they confirm and a request goes to the moderators and
-  admins, pinned at the top of their Notifications as "X has requested to
-  change passwords" with Approve and Dismiss. Either button clears it for
-  all of them. The member's page waits and, once approved, moves on by
-  itself to a page in the signup page's style that shows their email and
-  "Admin X has approved your password reset", where they type the new
-  password twice and are logged in. A request times out after 20 minutes
-  (and an approval 20 minutes after it's given), after which, or after a
-  dismissal, they can ask again. Moderators decide members' requests;
-  only admins decide moderators', and another admin an admin's. Only the
-  requester's browser holds the secret that lets it set the password
-  (`/api/password-resets`: `POST /check`, `POST /`, `POST /status`,
-  `POST /complete`, `PUT /:id`). Checking an email shares the login rate
-  limit.
+- "Forgot password?" on the login page. The member enters their email and,
+  if there's an account, is emailed a link (sent with Resend) to choose a new
+  password. The link carries a one-time token that expires in 20 minutes;
+  opening it leads to a page in the signup page's style where they set the
+  password and are logged in. The reply is the same whether or not the email
+  has an account, so it can't be used to tell who's a member
+  (`POST /api/password-resets`, `POST /api/password-resets/complete`).
+  Without `RESEND_API_KEY` set, the link is logged to the server console
+  instead of emailed, for local development. Requesting a link shares the
+  login rate limit.
 - Admins can delete a member's or moderator's account from the Ban Hammer,
   after three confirmations. It removes the same things as a member
   deleting their own account (`DELETE /api/users/:id`).
