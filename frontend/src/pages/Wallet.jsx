@@ -20,6 +20,9 @@ const REASONS = {
   scratchWin: 'Box Office Scratch win',
   scratchRefund: 'Box Office Scratch: ticket price back',
   jackpot: 'Box Office Scratch jackpot!',
+  doubleBet: 'Double or Nothing bet',
+  doubleWin: 'Double or Nothing win',
+  doubleBonus: 'Double or Nothing bonus pot!',
 }
 
 // What a history row was. Gifts say who to or from.

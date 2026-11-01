@@ -188,6 +188,94 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         for (const key of ["games", "jackpots", "seenAt", "now"]) assert.ok(!(key in second), key);
     });
 
+    // Every page of a filter, as names: the type, or "viralCut" for a cut that went viral.
+    async function shown(user, filter) {
+        const names = [];
+        for (let skip = 0; ; ) {
+            const { body } = await call(user, "GET", `/?skip=${skip}${filter ? `&filter=${filter}` : ""}`);
+            names.push(...body.items.map((item) => (item.type === "cut" && item.cut.viral ? "viralCut" : item.type)));
+            if (!body.hasMore) return names.sort();
+            skip = body.next;
+        }
+    }
+
+    test("the filters: each shows its own kind, and all of them show events and big news", async () => {
+        const Review = require("../models/reviewModel");
+        const Cut = require("../models/cutModel");
+        const Event = require("../models/eventModel");
+        const DoubleGame = require("../models/doubleGameModel");
+        const [user, other] = [await member(), await member()];
+        const review = await Review.create({ user: user._id, tmdbId: 4242, filmTitle: "A Film", rating: 4, text: "Good." });
+        const plainCut = await Cut.create({ user: other._id, text: "A take." });
+        const viralCut = await Cut.create({ user: other._id, text: "A hot take.", viralAt: new Date() });
+        const event = await Event.create({ title: "A screening", startsAt: new Date(Date.now() + 86400000), createdBy: other._id });
+        const game = (outcome) =>
+            DoubleGame.create({
+                userId: other._id,
+                bet: 40,
+                seed: 20,
+                rounds: [{ playerThrow: "rock", houseThrow: outcome === "win" ? "scissors" : "paper", result: outcome === "win" ? "win" : "loss" }],
+                status: "finished",
+                outcome,
+                payout: outcome === "win" ? 80 : 0,
+                newBet: outcome === "win" ? 20 : 80,
+                roundDeadline: new Date(),
+                finishedAt: new Date(),
+            });
+
+        const kinds = {
+            follow: { actors: [other._id] },
+            pvp: { actors: [other._id] },
+            payout: { amount: 3 },
+            gift: { actors: [other._id], amount: 5 },
+            cut: { actors: [other._id], cut: plainCut._id },
+            viralCut: { type: "cut", actors: [other._id], cut: viralCut._id },
+            event: { actors: [other._id], event: event._id },
+            like: { actors: [other._id], review: review._id },
+            trending: { actors: [user._id], review: review._id },
+            scratchWin: { actors: [other._id], tier: "smash", amount: 80 },
+            scratchJackpot: { actors: [other._id], amount: 400 },
+            doublePlay: { actors: [other._id], doubleGame: (await game("ban"))._id },
+            doubleWin: { actors: [other._id], doubleGame: (await game("win"))._id, amount: 80 },
+        };
+        for (const [name, fields] of Object.entries(kinds)) await notify(user, name, fields);
+
+        const big = ["event", "trending", "scratchJackpot", "doubleWin", "viralCut"];
+        const expect = (names) => [...new Set(names)].sort();
+        assert.deepEqual(await shown(user), expect(Object.keys(kinds)));
+        assert.deepEqual(await shown(user, "all"), expect(Object.keys(kinds)));
+        assert.deepEqual(await shown(user, "events"), expect(big));
+        assert.deepEqual(await shown(user, "reviews"), expect(["like", "trending", "pvp", ...big]));
+        assert.deepEqual(await shown(user, "games"), expect(["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...big]));
+        // Anything else is "all", even names JavaScript objects have built in.
+        for (const odd of ["nonsense", "constructor", "__proto__"]) assert.deepEqual(await shown(user, odd), expect(Object.keys(kinds)), odd);
+
+        const doubleItem = (await call(user, "GET", "/?filter=games")).body.items.find((item) => item.type === "doublePlay");
+        assert.deepEqual([doubleItem.game.bet, doubleItem.game.outcome, doubleItem.game.results], [40, "ban", ["loss"]]);
+    });
+
+    test("the games being played show with All and Games; open reports with All and Reviews", async () => {
+        const Review = require("../models/reviewModel");
+        const [moderator, rival] = [await member("moderator"), await member()];
+        await FarkleMatch.create({
+            mode: "pvp",
+            status: "active",
+            players: [{ user: moderator._id }, { user: rival._id }],
+            target: 2000,
+            stake: 5,
+            prize: 10,
+            lastMoveAt: new Date(),
+        });
+        const review = await Review.create({ user: rival._id, tmdbId: 777, filmTitle: "Reported", rating: 1, text: "Hmm." });
+        await Report.create({ review: review._id, reporter: moderator._id });
+
+        const page = async (filter) => (await call(moderator, "GET", `/?filter=${filter}`)).body;
+        assert.deepEqual(
+            await Promise.all(["all", "events", "reviews", "games"].map(async (filter) => [(await page(filter)).games.length, (await page(filter)).reports.length])),
+            [[1, 1], [0, 0], [0, 1], [1, 0]]
+        );
+    });
+
     test("logged out: 401", async () => {
         assert.equal((await fetch(`${base}/unread`)).status, 401);
         assert.equal((await fetch(`${base}/seen`, { method: "POST" })).status, 401);

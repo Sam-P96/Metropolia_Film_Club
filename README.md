@@ -46,6 +46,39 @@ npm run dev
 The frontend calls `/api/...` and Vite proxies that to the backend on port 3000,
 so start the backend first.
 
+## MongoDB has to be a replica set
+
+Double or Nothing (`backend/utils/double.js`) does each move as one MongoDB
+transaction: the bet, the game and the pot change together or not at all.
+Transactions only work on a replica set. MongoDB Atlas (a `mongodb+srv://`
+connection string) always is one, so there's nothing to do there.
+
+A plain `mongod` on your own server (like the Hetzner box) usually runs on its
+own, "standalone". The game then answers every move with an error. Turning it
+into a replica set of one takes a few minutes and keeps all your data:
+
+1. Add this to `/etc/mongod.conf`:
+
+   ```yaml
+   replication:
+     replSetName: rs0
+   ```
+
+2. Restart MongoDB: `sudo systemctl restart mongod`
+3. Run this once, in `mongosh`:
+
+   ```js
+   rs.initiate()
+   ```
+
+   `rs.status()` should then say this server is `PRIMARY`.
+4. Add `replicaSet=rs0` to `MONGO_URI` in `backend/.env`, for example
+   `mongodb://127.0.0.1:27017/kinokaverit?replicaSet=rs0` (if the string
+   already has a `?`, add `&replicaSet=rs0` instead), then restart the backend.
+
+The tests need the same: point `MONGO_TEST_URI` at a replica set, or the
+Double or Nothing route tests skip themselves.
+
 ## Where things are
 
 ```
@@ -75,7 +108,9 @@ frontend/src/
 ## Scripts
 
 Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`.
-Backend: `npm run dev` (nodemon), `npm start`.
+Backend: `npm run dev` (nodemon), `npm start`, `npm test` (with
+`MONGO_TEST_URI` set to a database whose name ends in `_test`, which the
+tests wipe, like `mongodb://127.0.0.1:27017/kino_test?replicaSet=rs0`).
 
 ## Contributing
 

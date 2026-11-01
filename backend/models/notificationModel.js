@@ -39,6 +39,11 @@ const KEEP_FOR_DAYS = 90;
 //                   P-PP, or for the refund tier, the ticket price back.
 //   scratchJackpot  `actors[0]` won the Box Office Scratch jackpot, `amount`
 //                   P-PP. Goes to every member.
+//   doublePlay      `actors[0]`, whom they follow, played Double or Nothing
+//                   and didn't win (`doubleGame`: how it went).
+//   doubleWin       `actors[0]` won Double or Nothing: `amount` P-PP in all,
+//                   the bonus pot included (`doubleGame`: how it went).
+//                   Goes to every member, the winner included.
 // Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
 //   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
 //   farkleTurn       no longer sent: games being played are listed at the
@@ -55,13 +60,13 @@ const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkle
 // The game ones: unread, they make the bell blink red rather than just
 // glow purple (controllers/feedController.js). farkleTurn isn't shown any
 // more, so it never counts as unread at all.
-const GAME_TYPES = [...FARKLE_TYPES.filter((type) => type !== "farkleTurn"), "scratchWin", "scratchJackpot"];
+const GAME_TYPES = [...FARKLE_TYPES.filter((type) => type !== "farkleTurn"), "scratchWin", "scratchJackpot", "doublePlay", "doubleWin"];
 
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", ...FARKLE_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...FARKLE_TYPES],
         required: true,
     },
     review: {
@@ -69,10 +74,12 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", ...FARKLE_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...FARKLE_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
+    // Double or Nothing: the game it's about.
+    doubleGame: {type: Schema.Types.ObjectId, ref: "DoubleGame", default: null},
     amount: {type: Number, default: null},
     // Box Office Scratch: the tier won, by its key in shared/scratch/config.js.
     tier: {type: String, default: null},
@@ -98,6 +105,7 @@ notificationSchema.index({comment: 1});
 notificationSchema.index({event: 1});
 notificationSchema.index({cut: 1});
 notificationSchema.index({match: 1});
+notificationSchema.index({doubleGame: 1});
 // The Notifications page: pinned first, then newest first.
 notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 

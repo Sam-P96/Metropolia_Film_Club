@@ -19,6 +19,14 @@ export function getStakeLimit(userId) {
   return api(`/farkle/limit/${userId}`)
 }
 
+// "Challenge a friend": a page of their friends (members they follow who
+// follow them back), the most points first: { friends, hasMore, next }.
+// Each friend has `points` (PP and P-PP together) and `match`, the
+// challenge or game the two already have going ({ _id, status }), or null.
+export function getFriends(skip = 0) {
+  return api(`/farkle/friends?skip=${skip}`)
+}
+
 // A challenge to another member. Nothing is taken until they accept.
 export function sendChallenge({ opponent, target, stake }) {
   return api('/farkle/challenges', { method: 'POST', body: { opponent, target, stake } })

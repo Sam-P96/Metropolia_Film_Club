@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 
 import AnimatedNumber from '../components/AnimatedNumber'
+import GameBackdrop from '../components/GameBackdrop'
 import CoinIcon from '../components/wallet/CoinIcon'
 import HowToPlay from '../components/scratch/HowToPlay'
 import ScratchTicket, { TicketSkeleton } from '../components/scratch/ScratchTicket'
@@ -140,7 +141,8 @@ function BuyPanel({ wallet, buying, onBuy, again }) {
 // Your balance and the jackpot up top, your ticket (or the way to buy one),
 // and how to play. Coming back mid-card picks it up where you left it.
 // Everything moves into place rather than snapping; with reduced motion,
-// movement becomes simple fades (MotionConfig).
+// movement becomes simple fades (MotionConfig). Behind it all, the club's
+// purple runs into blue.
 export default function ScratchGame() {
   const wallet = useWallet()
   const jackpot = useJackpot()
@@ -159,6 +161,9 @@ export default function ScratchGame() {
 
   return (
     <MotionConfig reducedMotion="user">
+      {/* Outside the sliding wrapper: a moving parent would carry a fixed
+          background along with it. */}
+      <GameBackdrop to="#1E3A8A" />
       <motion.div
         initial={{ opacity: 0, y: 18, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

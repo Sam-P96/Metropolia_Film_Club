@@ -1,9 +1,11 @@
 import '@fontsource/cinzel'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import ChallengeCard from '../components/farkle/ChallengeCard'
 import ChallengeForm from '../components/farkle/ChallengeForm'
+import FriendList from '../components/farkle/FriendList'
+import GameBackdrop from '../components/GameBackdrop'
 import CoinIcon from '../components/wallet/CoinIcon'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import { getLobby } from '../services/farkle'
@@ -78,7 +80,9 @@ function RecentRow({ match }) {
 
 // The Farkle lobby, from the Games page: play the bot, challenge a member,
 // answer challenges, and every game you have going. App.jsx sends
-// logged-out visitors to log in first.
+// logged-out visitors to log in first. It slides up and fades in as it
+// opens (animate-page-in in index.css, like the game pages), over the
+// club's purple running into red.
 export default function FarkleLobby() {
   const [lobby, setLobby] = useState(null)
   const [error, setError] = useState('')
@@ -100,93 +104,116 @@ export default function FarkleLobby() {
 
   const reload = () => setReloads((count) => count + 1)
 
+  // A friend picked from "Challenge a friend": the challenge form opens on
+  // them (a fresh one each time, `at` telling picks apart, even of the same
+  // friend) and the page scrolls up to it.
+  const [picked, setPicked] = useState(null)
+  const challengeBox = useRef(null)
+  const challengeFriend = (friend) => {
+    setPicked({ friend, at: Date.now() })
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    challengeBox.current?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' })
+  }
+  const sent = () => {
+    setPicked(null)
+    reload()
+  }
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:py-12">
-      <header>
-        <Link to="/games" className="text-sm text-white/60 hover:text-white">
-          ← Games
-        </Link>
-        <h1 className="mt-2 font-['Cinzel'] text-4xl text-white">
-          Kino <span className="text-brand-gold">Farkle</span>
-        </h1>
-        <p className="mt-1 text-white/60">Push your luck, for points.</p>
-      </header>
-
-      {error && <p className="text-red-300">Couldn't load your games: {error}</p>}
-
-      {lobby?.incoming.length > 0 && (
-        <section aria-labelledby="incoming-heading" className="flex flex-col gap-4">
-          <h2 id="incoming-heading" className={HEADING}>
-            Waiting on you
-          </h2>
-          {lobby.incoming.map((match) => (
-            <div key={match._id} className={`${CARD} border-brand-gold/60`}>
-              <ChallengeCard match={match} onChange={reload} />
-            </div>
-          ))}
-        </section>
-      )}
-
-      {/* items-start: each card only as tall as itself, so the challenge
-          form growing with search results leaves the other card alone. */}
-      <div className="grid items-start gap-6 md:grid-cols-2">
-        <section className={`${CARD} flex flex-col gap-3`}>
-          <h2 className={HEADING}>{BOT_MODE}</h2>
-          <p className="text-white/70">
-            Any time, 2 to 500 points. Win and you get your stake back plus half again, in P-PP. {BOT_NAME} always rolls first.
-          </p>
-          <Link
-            to="/games/farkle/bot"
-            className="mt-auto inline-flex min-h-12 items-center justify-center rounded-xl bg-brand-gold px-4 font-bold text-ink transition hover:brightness-110"
-          >
-            {lobby?.bot
-              ? `Carry on: ${formatPoints(lobby.bot.scores[lobby.bot.mySeat])} to ${formatPoints(lobby.bot.scores[1 - lobby.bot.mySeat])}`
-              : `Play ${BOT_MODE}`}
+    <>
+      {/* Outside the sliding page: a moving parent would carry a fixed
+          background along with it. */}
+      <GameBackdrop to="#821131" />
+      <div className="mx-auto flex w-full max-w-3xl animate-page-in flex-col gap-6 px-4 py-8 motion-reduce:animate-none sm:py-12">
+        <header>
+          <Link to="/games" className="text-sm text-white/60 hover:text-white">
+            ← Games
           </Link>
-        </section>
+          <h1 className="mt-2 font-['Cinzel'] text-4xl text-white">
+            Kino <span className="text-brand-gold">Farkle</span>
+          </h1>
+          <p className="mt-1 text-white/60">Push your luck, for points.</p>
+        </header>
 
-        <section className={CARD}>
-          <h2 className={`${HEADING} mb-3`}>Challenge a member</h2>
-          <ChallengeForm onSent={reload} />
-        </section>
-      </div>
+        {error && <p className="text-red-300">Couldn't load your games: {error}</p>}
 
-      {lobby?.games.length > 0 && (
-        <section aria-labelledby="games-heading" className={`${CARD} flex flex-col gap-3`}>
-          <h2 id="games-heading" className={HEADING}>
-            Your games
-          </h2>
-          {lobby.games.map((match) => (
-            <GameRow key={match._id} match={match} />
-          ))}
-        </section>
-      )}
-
-      {lobby?.outgoing.length > 0 && (
-        <section aria-labelledby="sent-heading" className="flex flex-col gap-4">
-          <h2 id="sent-heading" className={HEADING}>
-            Sent
-          </h2>
-          {lobby.outgoing.map((match) => (
-            <div key={match._id} className={CARD}>
-              <ChallengeCard match={match} onChange={reload} />
-            </div>
-          ))}
-        </section>
-      )}
-
-      {lobby?.recent.length > 0 && (
-        <section aria-labelledby="recent-heading" className={CARD}>
-          <h2 id="recent-heading" className={`${HEADING} mb-2`}>
-            Finished
-          </h2>
-          <div className="divide-y divide-white/10">
-            {lobby.recent.map((match) => (
-              <RecentRow key={match._id} match={match} />
+        {lobby?.incoming.length > 0 && (
+          <section aria-labelledby="incoming-heading" className="flex flex-col gap-4">
+            <h2 id="incoming-heading" className={HEADING}>
+              Waiting on you
+            </h2>
+            {lobby.incoming.map((match) => (
+              <div key={match._id} className={`${CARD} border-brand-gold/60`}>
+                <ChallengeCard match={match} onChange={reload} />
+              </div>
             ))}
+          </section>
+        )}
+
+        {/* items-start: each card only as tall as itself, so the challenge
+            form growing with search results leaves the other card alone. */}
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <section className={`${CARD} flex flex-col gap-3`}>
+            <h2 className={HEADING}>{BOT_MODE}</h2>
+            <p className="text-white/70">
+              Any time, 2 to 500 points. Win and you get your stake back plus half again, in P-PP. {BOT_NAME} always rolls first.
+            </p>
+            <Link
+              to="/games/farkle/bot"
+              className="mt-auto inline-flex min-h-12 items-center justify-center rounded-xl bg-brand-gold px-4 font-bold text-ink transition hover:brightness-110"
+            >
+              {lobby?.bot
+                ? `Carry on: ${formatPoints(lobby.bot.scores[lobby.bot.mySeat])} to ${formatPoints(lobby.bot.scores[1 - lobby.bot.mySeat])}`
+                : `Play ${BOT_MODE}`}
+            </Link>
+          </section>
+
+          <div className="flex flex-col gap-6">
+            <section ref={challengeBox} className={`${CARD} scroll-mt-24`}>
+              <h2 className={`${HEADING} mb-3`}>Challenge a member</h2>
+              <ChallengeForm key={picked?.at ?? 'search'} initialOpponent={picked?.friend ?? null} onSent={sent} />
+            </section>
+            <FriendList className={CARD} onChallenge={challengeFriend} reloads={reloads} />
           </div>
-        </section>
-      )}
-    </div>
+        </div>
+
+        {lobby?.games.length > 0 && (
+          <section aria-labelledby="games-heading" className={`${CARD} flex flex-col gap-3`}>
+            <h2 id="games-heading" className={HEADING}>
+              Your games
+            </h2>
+            {lobby.games.map((match) => (
+              <GameRow key={match._id} match={match} />
+            ))}
+          </section>
+        )}
+
+        {lobby?.outgoing.length > 0 && (
+          <section aria-labelledby="sent-heading" className="flex flex-col gap-4">
+            <h2 id="sent-heading" className={HEADING}>
+              Sent
+            </h2>
+            {lobby.outgoing.map((match) => (
+              <div key={match._id} className={CARD}>
+                <ChallengeCard match={match} onChange={reload} />
+              </div>
+            ))}
+          </section>
+        )}
+
+        {lobby?.recent.length > 0 && (
+          <section aria-labelledby="recent-heading" className={CARD}>
+            <h2 id="recent-heading" className={`${HEADING} mb-2`}>
+              Finished
+            </h2>
+            <div className="divide-y divide-white/10">
+              {lobby.recent.map((match) => (
+                <RecentRow key={match._id} match={match} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </>
   )
 }

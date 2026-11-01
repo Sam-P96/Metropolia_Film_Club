@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import ChallengeCard from '../components/farkle/ChallengeCard'
+import GameBackdrop from '../components/GameBackdrop'
 import CoinIcon from '../components/wallet/CoinIcon'
 import DiceTray from '../components/farkle/DiceTray'
 import MatchLog from '../components/farkle/MatchLog'
@@ -310,8 +311,14 @@ function FarkleGame({ matchId }) {
 }
 
 // /games/farkle/bot and /games/farkle/:matchId. A fresh FarkleGame for
-// each match, so nothing from one game carries into the next.
+// each match, so nothing from one game carries into the next. Behind it,
+// the club's purple runs into red, like the lobby.
 export default function FarkleMatch() {
   const { matchId = null } = useParams()
-  return <FarkleGame key={matchId ?? 'bot'} matchId={matchId} />
+  return (
+    <>
+      <GameBackdrop to="#821131" />
+      <FarkleGame key={matchId ?? 'bot'} matchId={matchId} />
+    </>
+  )
 }

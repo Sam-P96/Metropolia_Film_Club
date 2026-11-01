@@ -18,6 +18,9 @@ const Schema = mongoose.Schema;
 //   scratchWin      a Box Office Scratch tier won, in P-PP
 //   scratchRefund   the Straight to DVD tier: the ticket price handed back
 //   jackpot         the Box Office Scratch jackpot, in P-PP
+//   doubleBet       a Double or Nothing bet (`game`)
+//   doubleWin       a Double or Nothing win: twice the bet, in P-PP
+//   doubleBonus     the Double or Nothing bonus pot, won with a win
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -25,6 +28,7 @@ const walletTxSchema = new Schema({
         enum: [
             "dailyPayout", "bet", "win", "refund", "shop", "admin", "giftSent", "giftReceived",
             "scratchTicket", "scratchWin", "scratchRefund", "jackpot",
+            "doubleBet", "doubleWin", "doubleBonus",
         ],
         required: true,
     },
@@ -38,6 +42,8 @@ const walletTxSchema = new Schema({
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
     // The Box Office Scratch card a ticket, win, refund or jackpot belongs to.
     card: {type: Schema.Types.ObjectId, ref: "ScratchCard", default: null},
+    // The Double or Nothing game a bet, win or bonus belongs to.
+    game: {type: Schema.Types.ObjectId, ref: "DoubleGame", default: null},
     // The other member in a gift: who it went to, or came from.
     other: {type: Schema.Types.ObjectId, ref: "User", default: null},
     at: {type: Date, default: Date.now},

@@ -10,6 +10,7 @@ import FarkleNotice from '../farkle/FarkleNotice'
 import PayoutNotice from '../wallet/PayoutNotice'
 import GiftNotice from '../wallet/GiftNotice'
 import ScratchNotice from '../scratch/ScratchNotice'
+import DoubleNotice from '../double/DoubleNotice'
 import { bannerFillStyle, bannerFrameStyle, bannerLayerStyle } from '../../utils/bannerStyle'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
@@ -820,6 +821,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'payout') return <PayoutNotice item={item} light={light} />
   if (item.type === 'gift') return <GiftNotice item={item} light={light} />
   if (item.type === 'scratchWin' || item.type === 'scratchJackpot') return <ScratchNotice item={item} />
+  if (item.type === 'doublePlay' || item.type === 'doubleWin') return <DoubleNotice item={item} />
   if (item.type.startsWith('farkle')) return <FarkleNotice item={item} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }
