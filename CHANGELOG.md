@@ -222,6 +222,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   /SECRETpfp page. A banner keeps the member's colour and style, and the
   ones in use show as ticked. Logged-out visitors are sent to log in, then
   back.
+- Double or Nothing on the Games page (`/games/double-or-nothing`): one
+  shared pot for the whole site. Match the pot's bet and play up to 3
+  rounds of rock, paper, scissors against the house: 2 wins pays double the
+  bet in P-PP (plus the bonus pot once the bet is 4x the week's seed), a
+  lost round puts you on the Ban List and 2 draws on the Waiting List, and
+  either way the pot doubles for the next player. The pot resets every
+  Monday at 12:00 Helsinki time, half of what's left going to the bonus pot
+  (up to 3 000) and half burned. Every move runs in a MongoDB transaction,
+  so MongoDB has to be a replica set (see the README)
+  (`GET /api/double-or-nothing/status`, `POST /api/double-or-nothing/start`,
+  `POST /api/double-or-nothing/round`).
+- Double or Nothing notifications: a game that isn't won goes to the
+  player's followers, and a win goes to every member, on black glass with a
+  glowing emerald border.
+- An All | Events | Reviews | Games toggle on the Notifications page, in
+  place of "Show all cuts" (`GET /api/feed?filter=`). Club events and big
+  news (trending reviews, viral cuts, jackpots, Double or Nothing wins) show
+  under every one of them.
+- Each game page has its own background: the club's purple fading into
+  green (Double or Nothing), blue (Box Office Scratch) or red (Kino Farkle).
+  The Farkle lobby fades and slides in as it opens.
+- "Challenge a friend" in the Farkle lobby: friends (mutual follows), the
+  most points first, five at a time, each with a Challenge button that opens
+  the challenge form on them (`GET /api/farkle/friends`).
+- A member's PP and P-PP in a small pill beside Stats on their profile,
+  where the rest of the profile shows.
 
 ### Changed
 - The full navigation bar shows from 1280px wide; narrower screens get the
@@ -237,6 +263,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out of 5, like club ratings (★ 2.5 to ★ 4.0 and up), instead of out of 10.
 
 ### Fixed
+- The Notifications page's GIF background and the sign-up page's starfield
+  show again: the dark base colour that stops phones flashing white at the
+  bottom now sits under the body's gradient, instead of on `<html>`, where
+  it hid backgrounds placed behind pages.
 - Deleting an account also takes the member off every event's Attending
   and Interested lists and seat plan, and removes their password reset
   requests.

@@ -46,9 +46,13 @@ const TRIES = 5;
 //
 // Returns { pp, ppp } (what changed) and `balance` (the wallet after), or
 // null if nothing changed.
-async function changeWallet(userId, decide, { reason, match = null, card = null, other = null } = {}) {
+//
+// `session`: a MongoDB transaction to make the change part of, so it only
+// happens if everything else in the transaction does (Double or Nothing,
+// utils/double.js). Without one, it stands on its own.
+async function changeWallet(userId, decide, { reason, match = null, card = null, game = null, other = null, session = null } = {}) {
     for (let attempt = 0; attempt < TRIES; attempt++) {
-        const user = await User.findById(userId).select("wallet").lean();
+        const user = await User.findById(userId).select("wallet").session(session).lean();
         if (!user) throw new WalletError("That member doesn't exist any more.", 404);
 
         const wallet = {
@@ -79,13 +83,13 @@ async function changeWallet(userId, decide, { reason, match = null, card = null,
                 "wallet.lastPayoutDay": wallet.lastPayoutDay,
             },
             { $set: set },
-            { timestamps: false }
+            { timestamps: false, session }
         );
 
         if (result.matchedCount === 0) continue; // changed under us: try again
 
         if (pp !== 0 || ppp !== 0) {
-            await WalletTx.create({ user: userId, reason, pp, ppp, balance, match, card, other });
+            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other }], { session });
         }
 
         return { pp, ppp, balance };
@@ -98,7 +102,7 @@ async function changeWallet(userId, decide, { reason, match = null, card = null,
 // rest. 40 PP and 100 P-PP, betting 60: 40 PP and 20 P-PP go.
 // `async` so a bad amount comes back as a rejected promise, like every
 // other failure here, instead of a throw that a .catch() would miss.
-async function spend(userId, amount, { reason = "bet", match = null, card = null } = {}) {
+async function spend(userId, amount, { reason = "bet", match = null, card = null, game = null, session = null } = {}) {
     if (!Number.isInteger(amount) || amount <= 0) {
         throw new WalletError("A bet has to be a whole number above 0.");
     }
@@ -117,17 +121,17 @@ async function spend(userId, amount, { reason = "bet", match = null, card = null
             // which would end up saved on the receipt as -0.
             return { pp: 0 - fromPp, ppp: 0 - fromPpp };
         },
-        { reason, match, card }
+        { reason, match, card, game, session }
     );
 }
 
 // Gives a member `ppp` P-PP, like a win. Async for the same reason as spend.
-async function credit(userId, ppp, { reason = "win", match = null, card = null } = {}) {
+async function credit(userId, ppp, { reason = "win", match = null, card = null, game = null, session = null } = {}) {
     if (!Number.isInteger(ppp) || ppp <= 0) {
         throw new WalletError("Can only add a whole number of P-PP above 0.");
     }
 
-    return changeWallet(userId, () => ({ ppp }), { reason, match, card });
+    return changeWallet(userId, () => ({ ppp }), { reason, match, card, game, session });
 }
 
 // What a gift costs on top of the gift itself, whatever its size.

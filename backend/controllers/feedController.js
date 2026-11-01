@@ -7,6 +7,7 @@ const Event = require("../models/eventModel");
 const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
 const FarkleMatch = require("../models/farkleMatchModel");
+const DoubleGame = require("../models/doubleGameModel");
 const { hasRole } = require("../middleware/auth");
 const { catchUp, matchViews } = require("../utils/farkle");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
@@ -18,6 +19,41 @@ const { parseOffset } = require("../utils/paging");
 // at a time. Older ones are deleted after 90 days (models/notificationModel.js).
 const FEED_SIZE = 100;
 const PAGE_SIZE = 10;
+
+// The filters at the top of Notifications, and the notifications each one
+// shows. "all" (or anything not listed here) shows everything.
+//   events   club events and member screenings
+//   reviews  votes on their reviews, replies, new reviews from members they
+//            follow, trending reviews, and members turning PvP on (which
+//            decides who can dislike reviews)
+//   games    Farkle, Box Office Scratch and Double or Nothing, and the daily
+//            PP payout and gifts (points are only for games)
+// New followers, cuts and replies to cuts are only in "all".
+const FEED_FILTERS = {
+    events: [],
+    reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
+    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...Notification.FARKLE_TYPES],
+};
+// What every filter shows whatever else it leaves out: club events, and big
+// news (a trending review, a jackpot, a Double or Nothing win, and a viral
+// cut, found by its cut in feedQuery).
+const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin"];
+
+// The filter asked for (?filter=), if it's a real one; "all" otherwise.
+const filterOf = (asked) => (Object.hasOwn(FEED_FILTERS, asked) ? asked : "all");
+
+// Which of `viewer`'s notifications `filter` shows, as a MongoDB query.
+async function feedQuery(viewer, filter) {
+    const mine = { recipient: viewer._id };
+    if (filter === "all") return mine;
+
+    // A viral cut is an ordinary cut notification about a cut that went viral.
+    const viralCuts = await Cut.distinct("_id", { viralAt: { $ne: null } });
+    return {
+        ...mine,
+        $or: [{ type: { $in: [...new Set([...FEED_FILTERS[filter], ...ALWAYS])] } }, { type: "cut", cut: { $in: viralCuts } }],
+    };
+}
 
 // Full review cards (as review lists send them) for `ids`, keyed by id string.
 async function reviewCards(ids, viewer) {
@@ -79,6 +115,8 @@ async function hydrate(rows, viewer) {
     const followers = idsOf((row) => (row.type === "follow" ? row.actors : []));
 
     const matches = await FarkleMatch.find({ _id: { $in: idsOf((row) => row.match) } }).lean();
+    const doubleGames = await DoubleGame.find({ _id: { $in: idsOf((row) => row.doubleGame) } }).lean();
+    const doubleById = new Map(doubleGames.map((game) => [String(game._id), game]));
     const matchById = new Map((await matchViews(matches, viewer._id)).map((match) => [String(match._id), match]));
 
     const [reviewById, actors, comments, followedBack, events, cuts] = await Promise.all([
@@ -133,6 +171,28 @@ async function hydrate(rows, viewer) {
 
         if (row.type === "scratchWin" || row.type === "scratchJackpot") {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, tier: row.tier }];
+        }
+
+        // Double or Nothing: how the game went, as it ended.
+        if (row.type === "doublePlay" || row.type === "doubleWin") {
+            const game = doubleById.get(String(row.doubleGame));
+            if (!game) return [];
+            return [{
+                _id: row._id,
+                type: row.type,
+                at: row.at,
+                actors: members,
+                amount: row.amount,
+                game: {
+                    bet: game.bet,
+                    results: game.rounds.map((round) => round.result),
+                    auto: game.rounds.some((round) => round.auto),
+                    outcome: game.outcome,
+                    payout: game.payout,
+                    bonusWon: game.bonusWon,
+                    newBet: game.newBet,
+                },
+            }];
         }
 
         if (row.type === "cut") {
@@ -215,23 +275,26 @@ async function unreadJackpots(viewer, since) {
 // newer is unread. Never opened counts as "the start of time".
 const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 
-// ?skip=n. { items, hasMore, next, background }: `next` is the skip for the
-// next page, and `background` the member's Notifications background
-// setting. The first page also brings:
-//   games     the Farkle games they're playing, near the very top
+// ?skip=n&filter=all|events|reviews|games. { items, hasMore, next,
+// background, filter }: `next` is the skip for the next page, `background`
+// the member's Notifications background setting, and `filter` the one used
+// (FEED_FILTERS above). The first page also brings:
+//   games     the Farkle games they're playing, near the very top (with
+//             "all" and "games")
 //   jackpots  jackpot notices they haven't seen yet, just under the games
 //             (they're in `items` too, in date order: the page leaves
 //             those out)
 //   seenAt    when they last opened the page (null if never), and `now`,
 //             for marking everything up to it seen (markSeen below)
-// Moderators and admins also get `reports`: the open ones, above
-// everything. In `items`, pinned notifications come first
+// Moderators and admins also get `reports`, with "all" and "reviews": the
+// open ones, above everything. In `items`, pinned notifications come first
 // (Farkle challenges waiting on them), then the rest newest first.
 async function getFeed(req, res) {
     const now = new Date();
     const skip = Math.min(parseOffset(req.query.skip), FEED_SIZE);
     const limit = Math.min(PAGE_SIZE, FEED_SIZE - skip);
-    const mine = { recipient: req.user._id };
+    const filter = filterOf(req.query.filter);
+    const mine = await feedQuery(req.user, filter);
 
     const [rows, total] = await Promise.all([
         limit > 0
@@ -245,15 +308,16 @@ async function getFeed(req, res) {
         hasMore: skip + rows.length < Math.min(total, FEED_SIZE),
         next: skip + rows.length,
         background: req.user.feedBackground ?? "default",
+        filter,
         // Only with the first page, so loading more never wipes them.
         ...(skip === 0 && {
-            games: await ongoingGames(req.user),
+            games: filter === "all" || filter === "games" ? await ongoingGames(req.user) : [],
             jackpots: await unreadJackpots(req.user, seenSince(req.user)),
             seenAt: req.user.notificationsSeenAt ?? null,
             now,
         }),
         ...(skip === 0 && hasRole(req.user, "moderator") && {
-            reports: await openReports(req.user),
+            reports: filter === "all" || filter === "reviews" ? await openReports(req.user) : [],
         }),
     });
 }

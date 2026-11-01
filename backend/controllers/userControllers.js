@@ -10,6 +10,7 @@ const WalletTx = require("../models/walletTxModel");
 const FarkleMatch = require("../models/farkleMatchModel");
 const { forgetFarklePlayer } = require("../utils/farkle");
 const { forgetScratchPlayer, scratchCardsOf } = require("../utils/scratch");
+const { forgetDoublePlayer, doubleGamesOf } = require("../utils/double");
 const bcrypt = require("bcryptjs");
 const { sessionFor } = require("../utils/session");
 const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
@@ -164,9 +165,13 @@ const getUser = async (req, res) => {
         }
         : {};
 
+    // Their points, for the pill beside Stats: only where the rest of the
+    // profile shows.
+    const wallet = { pp: user.wallet?.pp ?? 0, ppp: user.wallet?.ppp ?? 0 };
+
     res.json(
         visible
-            ? { ...(await withStanding(userProfile(user))), ...follows, ...staff }
+            ? { ...(await withStanding(userProfile(user))), wallet, ...follows, ...staff }
             : { ...restrictedProfile(user), ...follows, ...staff }
     );
 }
@@ -441,7 +446,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -449,6 +454,7 @@ const exportMe = async (req, res) => {
         WalletTx.find({ user: userId }).sort({ at: -1 }).lean(),
         FarkleMatch.find({ "players.user": userId }).sort({ createdAt: -1 }).lean(),
         scratchCardsOf(userId),
+        doubleGamesOf(userId),
     ]);
 
     if (!account) {
@@ -464,6 +470,7 @@ const exportMe = async (req, res) => {
         walletHistory,
         farkleMatches,
         scratchCards,
+        doubleOrNothingGames,
     });
 }
 
@@ -503,6 +510,7 @@ async function deleteAccount(user) {
     await FilmLog.deleteMany({ user: userId });
     await forgetFarklePlayer(userId);
     await forgetScratchPlayer(userId);
+    await forgetDoublePlayer(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

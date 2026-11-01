@@ -6,6 +6,7 @@ const {
     makeMove,
     getLobby,
     getStakeLimit,
+    getFriends,
     createChallenge,
     acceptChallenge,
     declineChallenge,
@@ -27,6 +28,8 @@ router.post("/bot", requireAuth, startBotMatch);
 // challenge. The answers are on the match; the controller checks whose
 // turn it is to answer.
 router.get("/limit/:userId", requireAuth, getStakeLimit);
+// "Challenge a friend": their friends, the most points first.
+router.get("/friends", requireAuth, getFriends);
 router.post("/challenges", requireAuth, createChallenge);
 router.post("/matches/:id/accept", requireAuth, acceptChallenge);
 router.post("/matches/:id/decline", requireAuth, declineChallenge);

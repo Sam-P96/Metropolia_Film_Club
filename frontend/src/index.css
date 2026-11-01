@@ -108,17 +108,17 @@
   box-shadow: 0 0 16px 4px rgb(199 37 62 / 0.85);
 }
 
-/* The colour under the whole page. The body's gradient covers the page
-   itself, but on phones, bouncing past the bottom or the address bar
-   sliding away shows what's underneath it, and with nothing set there,
-   browsers show white. */
-html {
-  background-color: #0B0710;
-}
-
+/* The body's background is the whole page's: with nothing set on <html>,
+   the browser paints it as the bottom layer, under everything, so the
+   backgrounds pages put behind themselves (the Notifications GIF, the
+   sign-up starfield, Double or Nothing's green) show on top of it. The dark
+   ink under the gradient is what phones show when you bounce past the
+   bottom or the address bar slides away; without it they show white. Don't
+   give <html> a background of its own: that would lift this one above
+   those backgrounds and hide them. */
 body {
   min-height: 100vh;
-  background: linear-gradient(160deg, #0B0710 0%, #1A1024 45%, #2D1B47 100%);
+  background: #0B0710 linear-gradient(160deg, #0B0710 0%, #1A1024 45%, #2D1B47 100%);
   background-attachment: fixed;
   color: #E8E3ED;
 }

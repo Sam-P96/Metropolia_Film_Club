@@ -4,6 +4,7 @@ import ReviewCard from '../components/reviews/ReviewCard'
 import ReviewCardEditor from '../components/profile/ReviewCardEditor'
 import ProfileEditor from '../components/profile/ProfileEditor'
 import ProfileStats from '../components/profile/ProfileStats'
+import WalletPill from '../components/profile/WalletPill'
 import ProfileHeading from '../components/profile/ProfileHeading'
 import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
@@ -353,9 +354,13 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
         )}
 
         <div className="mt-14">
-          <h2 className="mb-5 text-sm font-semibold tracking-widest text-brand-gold uppercase">
-            Stats
-          </h2>
+          {/* Their PP and P-PP in a pill on the same line as the heading. */}
+          <div className="mb-5 flex flex-wrap items-center gap-3">
+            <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
+              Stats
+            </h2>
+            <WalletPill wallet={profileUser.wallet} />
+          </div>
           <ProfileStats stats={stats} />
         </div>
 

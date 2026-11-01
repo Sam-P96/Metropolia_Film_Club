@@ -1,9 +1,12 @@
 import { getCurrentUser, forgetExpiredLogin } from '../utils/currentUser'
 
+// `data` is the server's whole answer, for the pages that act on more than
+// the message (Double or Nothing's `code`, like POT_CHANGED).
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, data = null) {
     super(message)
     this.status = status
+    this.data = data
   }
 }
 
@@ -28,7 +31,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   if (!response.ok) {
     if (response.status === 401 && token) forgetExpiredLogin()
 
-    throw new ApiError(data?.error ?? `Request failed (${response.status})`, response.status)
+    throw new ApiError(data?.error ?? `Request failed (${response.status})`, response.status, data)
   }
 
   return data

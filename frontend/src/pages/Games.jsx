@@ -1,7 +1,12 @@
 import '@fontsource/bebas-neue'
 import '@fontsource/cinzel'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Die from '../components/farkle/Die'
+import StatusBadge from '../components/double/StatusBadge'
+import useApi from '../hooks/useApi'
+import { getDoubleStatus } from '../services/double'
+import { getCurrentUser } from '../utils/currentUser'
 import PpLeaderboard from '../components/wallet/PpLeaderboard'
 import { GoldenTicketIcon, StarIcon } from '../components/scratch/TileFace'
 import { BOT_MODE } from '../../../shared/farkle/rules.js'
@@ -9,11 +14,17 @@ import { SCRATCH } from '../../../shared/scratch/config.js'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
-// Every game on the site, as a card each, behind "Games" in the nav: for
-// now Farkle and Box Office Scratch. Below them, the PP Leaderboard, like
-// the Critics Leaderboard under Movie Reviews. Anyone can look; playing
-// needs a login, since games are played for points.
+// Every game on the site, as a card each, behind "Games" in the nav:
+// Farkle, Box Office Scratch and Double or Nothing. Below them, the PP
+// Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
+// look; playing needs a login, since games are played for points. Double or
+// Nothing's picture is the member's standing in it, which logged-out
+// visitors always see as AVAILABLE.
 export default function Games() {
+  const [loggedIn] = useState(() => Boolean(getCurrentUser()))
+  const double = useApi(() => getDoubleStatus(), [loggedIn], { enabled: loggedIn })
+  const doubleStatus = loggedIn ? (double.data?.status ?? (double.error ? 'AVAILABLE' : null)) : 'AVAILABLE'
+
   return (
     <>
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
@@ -56,6 +67,22 @@ export default function Games() {
                 hunt for the Golden Ticket and its jackpot.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Scratch →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/double-or-nothing" className={CARD}>
+              <div className="self-start">
+                <span className="sr-only">Your status: </span>
+                <StatusBadge status={doubleStatus} />
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Double <span className="text-brand-gold">or Nothing</span>
+              </h2>
+              <p className="text-white/70">
+                Double it, give it to the next person! Match the bet and win 2 of 3 throws of rock, paper, scissors to double it. Lose, and the pot
+                doubles for the next player.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Double or Nothing →</span>
             </Link>
           </li>
         </ul>

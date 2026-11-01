@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import MemberAvatar from '../profile/MemberAvatar'
 import MemberPicker from '../profile/MemberPicker'
 import TermsPicker from './TermsPicker'
@@ -8,26 +8,36 @@ import { stakeHint } from '../../utils/farkle'
 // Challenging another member: find them by name, then pick the winning
 // score and the stake (up to what the poorer of the two has). Any member
 // can be challenged, whatever their PvP setting. `onSent(match)` gets the
-// new challenge.
-export default function ChallengeForm({ onSent }) {
-  const [opponent, setOpponent] = useState(null)
+// new challenge. With `initialOpponent` (picked from "Challenge a friend"),
+// it opens on them, straight at the terms.
+export default function ChallengeForm({ onSent, initialOpponent = null }) {
+  const [opponent, setOpponent] = useState(initialOpponent)
   const [max, setMax] = useState(null)
   const [target, setTarget] = useState(4000)
   const [stakeText, setStakeText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
 
-  const pick = (member) => {
-    setOpponent(member)
-    setMax(null)
-    setError('')
+  const loadLimit = (member) =>
     getStakeLimit(member._id)
       .then((limit) => {
         setMax(limit.max)
         setStakeText(String(Math.min(100, limit.max)))
       })
       .catch((limitError) => setError(limitError.message))
+
+  const pick = (member) => {
+    setOpponent(member)
+    setMax(null)
+    setError('')
+    loadLimit(member)
   }
+
+  // Opened on a friend: what the two of them can play for. (The lobby
+  // gives each pick a fresh form, so this runs once per friend.)
+  useEffect(() => {
+    if (initialOpponent) loadLimit(initialOpponent)
+  }, [initialOpponent])
 
   const send = async () => {
     setSending(true)

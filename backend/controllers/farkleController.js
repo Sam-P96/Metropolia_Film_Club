@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const FarkleMatch = require("../models/farkleMatchModel");
 const User = require("../models/userModel");
+const Follow = require("../models/followModel");
+const { MEMBER_FIELDS, userSummary } = require("../utils/serialize");
+const { parseOffset } = require("../utils/paging");
 const { WalletError, changeWallet, spend } = require("../utils/wallet");
 const { noteFarkleAnswer, noteFarkleChallenge } = require("../utils/notify");
 const { MoveError, applyMove, newGame, playBot } = require("../games/farkle/engine");
@@ -242,6 +245,49 @@ async function getStakeLimit(req, res) {
     res.json({ max: Math.min(mine, theirs) });
 }
 
+// How many friends "Challenge a friend" shows at a time.
+const FRIENDS_PAGE = 5;
+
+// ?skip=n. "Challenge a friend" in the lobby: their friends (members they
+// follow who follow them back), the most points first, FRIENDS_PAGE at a
+// time. Each with their picture, `points` (PP and P-PP together, what they
+// could play for), and `match`: the challenge or game the two of them
+// already have going ({ _id, status }), or null, since two members can only
+// have one at a time. { friends, hasMore, next }.
+async function getFriends(req, res) {
+    const me = req.user._id;
+    const skip = parseOffset(req.query.skip);
+
+    const followed = await Follow.find({ follower: me }).distinct("following");
+    const friendIds = await Follow.find({ following: me, follower: { $in: followed } }).distinct("follower");
+
+    const ranked = await User.aggregate([
+        { $match: { _id: { $in: friendIds } } },
+        { $project: { username: 1, points: { $add: [{ $ifNull: ["$wallet.pp", 0] }, { $ifNull: ["$wallet.ppp", 0] }] } } },
+        { $sort: { points: -1, username: 1, _id: 1 } },
+        { $skip: skip },
+        { $limit: FRIENDS_PAGE + 1 },
+    ]);
+    const page = ranked.slice(0, FRIENDS_PAGE);
+
+    const [members, open] = await Promise.all([
+        User.find({ _id: { $in: page.map((row) => row._id) } }).select(MEMBER_FIELDS).lean(),
+        FarkleMatch.find({ pairKey: { $in: page.map((row) => pairKeyOf(me, row._id)) } }).select("status pairKey").lean(),
+    ]);
+    const memberById = new Map(members.map((member) => [String(member._id), member]));
+    const openByPair = new Map(open.map((match) => [match.pairKey, { _id: match._id, status: match.status }]));
+
+    res.json({
+        friends: page.flatMap((row) => {
+            const member = memberById.get(String(row._id));
+            if (!member) return [];
+            return [{ ...userSummary(member), points: row.points, match: openByPair.get(pairKeyOf(me, row._id)) ?? null }];
+        }),
+        hasMore: ranked.length > FRIENDS_PAGE,
+        next: skip + page.length,
+    });
+}
+
 // A challenge, { opponent, target, stake }. Nothing is taken from anyone
 // until it's accepted. They get a pinned notification with Accept, Decline
 // and Counter, and three days to answer. Any member can be challenged, PvP
@@ -464,6 +510,7 @@ module.exports = {
     makeMove,
     getLobby,
     getStakeLimit,
+    getFriends,
     createChallenge,
     acceptChallenge,
     declineChallenge,
