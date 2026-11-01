@@ -108,6 +108,14 @@
   box-shadow: 0 0 16px 4px rgb(199 37 62 / 0.85);
 }
 
+/* The colour under the whole page. The body's gradient covers the page
+   itself, but on phones, bouncing past the bottom or the address bar
+   sliding away shows what's underneath it, and with nothing set there,
+   browsers show white. */
+html {
+  background-color: #0B0710;
+}
+
 body {
   min-height: 100vh;
   background: linear-gradient(160deg, #0B0710 0%, #1A1024 45%, #2D1B47 100%);
