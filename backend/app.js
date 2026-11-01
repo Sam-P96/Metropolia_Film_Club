@@ -99,9 +99,8 @@ const tmdbLimiter = rateLimit({
 
 app.use("/api/users/login", authLimiter);
 app.use("/api/users/signup", authLimiter);
-// "Forgot password?" tells you whether an email has an account, so it's
-// limited the same way, or a script could check a whole list.
-app.use("/api/password-resets/check", authLimiter);
+// "Forgot password?" sends an email, so it's limited the same way as login,
+// or a script could make us send a flood of them.
 app.post("/api/password-resets", authLimiter);
 app.use("/api/tmdb", tmdbLimiter);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import ReviewCard from '../reviews/ReviewCard'
@@ -17,9 +17,7 @@ import { splitLinks } from '../../utils/links'
 import { canDeleteAnyCut } from '../../utils/permissions'
 import { timeAgo } from '../../utils/timeAgo'
 import { resolveReports } from '../../services/films'
-import { decidePasswordReset } from '../../services/passwordResets'
 import { deleteCut, setCutVote } from '../../services/cuts'
-import useCountdown, { formatCountdown } from '../../hooks/useCountdown'
 import useDominantColor from '../../hooks/useDominantColor'
 
 // How many names a vote notification lists before "+N others".
@@ -802,94 +800,6 @@ export function ReportNotice({ report, light = false, onResolved }) {
           {error && <p className="mt-2 text-sm text-brand-red">{error}</p>}
         </div>
       </div>
-    </article>
-  )
-}
-
-// A member asking for a password reset, pinned at the top of the
-// Notifications of every moderator and admin who may decide it, in a gold
-// box. Approve lets the member choose a new password; either button clears
-// it for all of them. It leaves by itself when it times out (20 minutes).
-export function PasswordResetNotice({ request, light = false, onResolved }) {
-  const tone = light ? TONES.light : TONES.dark
-  const [saving, setSaving] = useState(null)
-  const [error, setError] = useState(null)
-  const msLeft = useCountdown(request.expiresAt)
-  const { user } = request
-
-  useEffect(() => {
-    if (msLeft === 0) onResolved(request._id)
-  }, [msLeft, onResolved, request._id])
-
-  const decide = async (decision) => {
-    setSaving(decision)
-    setError(null)
-
-    try {
-      await decidePasswordReset(request._id, decision)
-      onResolved(request._id)
-    } catch (err) {
-      // 404: someone else decided it first, or it timed out. Either way it's gone.
-      if (err.status === 404) {
-        onResolved(request._id)
-        return
-      }
-      setError(err.message)
-      setSaving(null)
-    }
-  }
-
-  const buttonBase =
-    'rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60'
-
-  return (
-    <article className="rounded-2xl border border-brand-gold/60 bg-brand-gold/15 p-5 shadow-xl shadow-black/30 backdrop-blur-sm sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className={`text-sm font-semibold tracking-widest uppercase ${light ? 'text-amber-700' : 'text-brand-gold'}`}>
-          Password reset request
-        </h2>
-
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => decide('approve')}
-            disabled={saving !== null}
-            className={`${buttonBase} bg-emerald-600 text-white hover:bg-emerald-500`}
-          >
-            {saving === 'approve' ? 'Saving…' : 'Approve'}
-          </button>
-          <button
-            type="button"
-            onClick={() => decide('dismiss')}
-            disabled={saving !== null}
-            className={`${buttonBase} border ${
-              light
-                ? 'border-ink/20 bg-ink/5 text-ink hover:bg-ink/10'
-                : 'border-white/20 bg-white/5 text-white hover:border-brand-gold/60 hover:bg-white/10'
-            }`}
-          >
-            {saving === 'dismiss' ? 'Saving…' : 'Dismiss'}
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <MemberAvatar user={user} size="lg" />
-        <div className="min-w-0">
-          <p className={`text-lg ${tone.text}`}>
-            <NameLink user={user} className={tone.name} /> has requested to change passwords
-          </p>
-          <p className={`mt-1 text-sm ${tone.muted}`}>
-            {timeAgo(request.at)} · times out in {formatCountdown(msLeft)}
-          </p>
-        </div>
-      </div>
-
-      <p className={`mt-4 text-xs ${tone.muted}`}>
-        Only approve it if you know {user.username} asked: whoever sent the request chooses the
-        new password. Approve or Dismiss clears it for every moderator and admin.
-      </p>
-      {error && <p className="mt-2 text-sm text-brand-red">{error}</p>}
     </article>
   )
 }

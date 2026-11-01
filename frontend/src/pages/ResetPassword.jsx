@@ -1,38 +1,34 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import AuthCard from '../components/auth/AuthCard'
-import useApi from '../hooks/useApi'
-import useCountdown, { formatCountdown } from '../hooks/useCountdown'
-import { completePasswordReset, getResetStatus } from '../services/passwordResets'
-import { forgetPendingReset, getPendingReset } from '../utils/pendingReset'
-import { ROLE_LABELS } from '../utils/permissions'
+import { completePasswordReset } from '../services/passwordResets'
 
 const inputClasses =
   'w-full rounded-md border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10'
 const labelClasses = 'mb-2 block text-sm font-medium text-white/70'
 const linkClasses = 'font-medium text-brand-gold transition-colors hover:text-white'
 
-// Choosing a new password, once a moderator or admin has approved this
-// browser's request. "Forgot password?" (ForgotPassword.jsx) brings the
-// member here by itself. It looks like the signup page. Saving logs them in.
+const MIN_PASSWORD_LENGTH = 8
+
+// Choosing a new password from the link in the reset email. The token is in
+// the URL (?token=...). Saving logs the member in. Looks like the signup page.
 function ResetPassword() {
-  const [pending] = useState(getPendingReset)
-  const request = useApi(
-    () => (pending ? getResetStatus(pending.token) : Promise.resolve({ status: 'expired' })),
-    []
-  )
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  const approved = request.data?.status === 'approved'
-  const msLeft = useCountdown(approved ? request.data.expiresAt : null)
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Your new password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
@@ -42,8 +38,7 @@ function ResetPassword() {
     setSaving(true)
 
     try {
-      const user = await completePasswordReset(pending.token, password)
-      forgetPendingReset()
+      const user = await completePasswordReset(token, password)
       localStorage.setItem('user', JSON.stringify(user))
       window.location.href = '/'
     } catch (err) {
@@ -52,78 +47,23 @@ function ResetPassword() {
     }
   }
 
-  if (request.loading) {
+  if (!token) {
     return (
-      <AuthCard title="Choose a new" accent="password">
-        <p className="text-sm text-white/40">Loading…</p>
-      </AuthCard>
-    )
-  }
-
-  if (request.error) {
-    return (
-      <AuthCard title="Choose a new" accent="password">
+      <AuthCard title="Reset" accent="link">
         <p className="text-sm leading-relaxed text-white/60">
-          Couldn't check your password reset. Try refreshing the page.
-        </p>
-      </AuthCard>
-    )
-  }
-
-  if (request.data?.status === 'pending') {
-    return (
-      <AuthCard title="Not approved" accent="yet">
-        <p className="text-sm leading-relaxed text-white/60">
-          Your password reset request is still waiting for a moderator or admin.{' '}
+          This reset link is missing its token. Open the link from your email, or{' '}
           <Link to="/forgot-password" className={linkClasses}>
-            Back to your request
+            ask for a new one
           </Link>
+          .
         </p>
       </AuthCard>
     )
   }
-
-  if (!approved || msLeft === 0) {
-    return (
-      <AuthCard title="Reset" accent="closed">
-        <p className="text-sm leading-relaxed text-white/60">
-          There's no approved password reset to use here. It may have timed out.{' '}
-          <Link to="/forgot-password" className={linkClasses}>
-            Ask for a new one
-          </Link>
-        </p>
-      </AuthCard>
-    )
-  }
-
-  const { approvedBy, email } = request.data
-  const approver = approvedBy
-    ? `${ROLE_LABELS[approvedBy.role] ?? 'A moderator'} ${approvedBy.username}`
-    : 'A moderator'
 
   return (
     <AuthCard title="Choose a new" accent="password">
-      <p className="mb-6 rounded-md border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-white">
-        {approver} has approved your password reset.
-      </p>
-
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label htmlFor="email" className={labelClasses}>
-            Email address
-          </label>
-          {/* Read-only, and named "username" so password managers file the
-              new password under this account. */}
-          <input
-            id="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            readOnly
-            className={`${inputClasses} cursor-default text-white/60 focus:bg-white/5`}
-          />
-        </div>
-
         <div>
           <label htmlFor="password" className={labelClasses}>
             New password
@@ -169,7 +109,9 @@ function ResetPassword() {
       </form>
 
       <p className="mt-8 text-center text-sm text-white/50">
-        This stays open for another {formatCountdown(msLeft)}.
+        <Link to="/login" className={linkClasses}>
+          Back to log in
+        </Link>
       </p>
     </AuthCard>
   )
