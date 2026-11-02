@@ -21,6 +21,8 @@ const Schema = mongoose.Schema;
 //   doubleBet       a Double or Nothing bet (`game`)
 //   doubleWin       a Double or Nothing win: twice the bet, in P-PP
 //   doubleBonus     the Double or Nothing bonus pot, won with a win
+//   slotCredits     points moved into the Slot Machine (PP first, then P-PP)
+//   slotCashOut     the Slot Machine cashed out: PP back as PP, P-PP as P-PP
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -29,6 +31,7 @@ const walletTxSchema = new Schema({
             "dailyPayout", "bet", "win", "refund", "shop", "admin", "giftSent", "giftReceived",
             "scratchTicket", "scratchWin", "scratchRefund", "jackpot",
             "doubleBet", "doubleWin", "doubleBonus",
+            "slotCredits", "slotCashOut",
         ],
         required: true,
     },

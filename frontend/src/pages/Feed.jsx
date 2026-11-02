@@ -49,13 +49,13 @@ const FILTERS = [
     value: 'all',
     label: 'All',
     about:
-      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the top, and challenges stay pinned until you answer), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, and every jackpot and Double or Nothing win (new jackpots up top until you've seen them). Your last 100, kept for three months.",
+      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the top, and challenges stay pinned until you answer), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, and every jackpot, Double or Nothing win and Kino Kasino tripling (new jackpots up top until you've seen them). Your last 100, kept for three months.",
     empty: 'Nothing here yet. Follow some members, write a review, or join in the comments.',
   },
   {
     value: 'events',
     label: 'Events',
-    about: "New club events and member screenings, plus the big news: what's trending or viral, jackpots and Double or Nothing wins.",
+    about: "New club events and member screenings, plus the big news: what's trending or viral, jackpots, Double or Nothing wins and Kino Kasino triplings.",
     empty: 'No events yet.',
   },
   {
@@ -69,7 +69,7 @@ const FILTERS = [
     value: 'games',
     label: 'Games',
     about:
-      'Your Farkle games and challenges, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, jackpots and wins, your daily PP and gifts. Events and the big news show here too.',
+      'Your Farkle games and challenges, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, jackpots, wins and Kino Kasino triplings, your daily PP and gifts. Events and the big news show here too.',
     empty: 'No games yet. Find one on the Games page.',
   },
 ]

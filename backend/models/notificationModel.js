@@ -44,6 +44,10 @@ const KEEP_FOR_DAYS = 90;
 //   doubleWin       `actors[0]` won Double or Nothing: `amount` P-PP in all,
 //                   the bonus pot included (`doubleGame`: how it went).
 //                   Goes to every member, the winner included.
+//   slotTriple      `actors[0]` tripled the credits they put in the Slot
+//                   Machine this session. Goes to every member.
+//   slotJackpot     `actors[0]` hit the Slot Machine jackpot, winning
+//                   `amount` PP on that spin. Goes to every member.
 // Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
 //   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
 //   farkleTurn       no longer sent: games being played are listed at the
@@ -60,13 +64,13 @@ const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkle
 // The game ones: unread, they make the bell blink red rather than just
 // glow purple (controllers/feedController.js). farkleTurn isn't shown any
 // more, so it never counts as unread at all.
-const GAME_TYPES = [...FARKLE_TYPES.filter((type) => type !== "farkleTurn"), "scratchWin", "scratchJackpot", "doublePlay", "doubleWin"];
+const GAME_TYPES = [...FARKLE_TYPES.filter((type) => type !== "farkleTurn"), "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot"];
 
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...FARKLE_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES],
         required: true,
     },
     review: {
@@ -74,7 +78,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...FARKLE_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},

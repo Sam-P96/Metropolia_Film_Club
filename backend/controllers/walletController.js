@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const WalletTx = require("../models/walletTxModel");
-const { WalletError, dailyPp, giftPpp, ppCap } = require("../utils/wallet");
+const { WalletError, dailyPp, giftPpp, leaderboardStages, ppCap } = require("../utils/wallet");
 const { nextPayoutAt, runPayout } = require("../jobs/dailyPayout");
 const { MEMBER_FIELDS, userSummary } = require("../utils/serialize");
 
@@ -64,9 +64,8 @@ const sendGift = async (req, res) => {
 const getLeaderboard = async (req, res) => {
     const fields = Object.fromEntries(MEMBER_FIELDS.split(" ").map((field) => [field, 1]));
     const rows = await User.aggregate([
-        { $project: { ...fields, pp: { $add: [{ $ifNull: ["$wallet.pp", 0] }, { $ifNull: ["$wallet.ppp", 0] }] } } },
+        ...leaderboardStages(fields),
         { $match: { pp: { $gt: 0 } } },
-        { $sort: { pp: -1, username: 1 } },
         { $limit: LEADERBOARD_SIZE },
     ]);
 

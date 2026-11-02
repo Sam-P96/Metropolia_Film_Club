@@ -11,11 +11,15 @@ import PpLeaderboard from '../components/wallet/PpLeaderboard'
 import { GoldenTicketIcon, StarIcon } from '../components/scratch/TileFace'
 import { BOT_MODE } from '../../../shared/farkle/rules.js'
 import { SCRATCH } from '../../../shared/scratch/config.js'
+import SymbolArt from '../components/slots/SymbolArt'
+import GameTitle from '../components/slots/GameTitle'
+import { SLOTS } from '../../../shared/slots/config.js'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Farkle, Box Office Scratch and Double or Nothing. Below them, the PP
+// Farkle, Box Office Scratch, Double or Nothing and Kino Kasino. Every row
+// is as tall as the tallest card, so the cards are all one size. Below them, the PP
 // Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
 // look; playing needs a login, since games are played for points. Double or
 // Nothing's picture is the member's standing in it, which logged-out
@@ -33,7 +37,7 @@ export default function Games() {
           Play for PP and P-PP. Points can't be bought or cashed out: they're only for fun on the site, like badges and trophies.
         </p>
 
-        <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-8 grid auto-rows-fr gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <li>
             <Link to="/games/farkle" className={CARD}>
               <div className="flex gap-2" aria-hidden="true">
@@ -83,6 +87,24 @@ export default function Games() {
                 doubles for the next player.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Double or Nothing →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/slots" className={CARD}>
+              <div className="flex gap-1.5 self-start" aria-hidden="true">
+                {['logo', 'gauntlet', 'ring'].map((key) => (
+                  <span key={key} className="grid size-10 place-items-center rounded-lg bg-dice-ivory">
+                    <SymbolArt symbolKey={key} size={30} />
+                  </span>
+                ))}
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                <GameTitle />
+              </h2>
+              <p className="text-white/70">
+                Five reels, five lines. Load it with points, pull the lever, and line up five Kino Kaveri logos for the jackpot.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play {SLOTS.name} →</span>
             </Link>
           </li>
         </ul>

@@ -248,6 +248,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the challenge form on them (`GET /api/farkle/friends`).
 - A member's PP and P-PP in a small pill beside Stats on their profile,
   where the rest of the profile shows.
+- Kino Kasino, a slot machine (`/games/slots`, a new card on the Games
+  page; the name is one constant in `shared/slots/config.js`). An intro with Play and How
+  to Play (the controls, the five paylines and the paytable), then a machine
+  that fills the screen under the nav without scrolling: 5 reels by 3 rows
+  in a marquee-bulb frame, a status line, the credits with Add credits and
+  Cash out, the bet (− and + hold to repeat, MAX goes all in and pulls),
+  and a lever you click or drag, with the prototype's sounds (mute
+  remembered), haptics and a simplified paytable. Eight symbols, commonest
+  first: Movie Ticket, Popcorn, Clapperboard, Film Strip, The Marauder's
+  Map, The One Ring, the Infinity Gauntlet, and the Kino Kaveri logo
+  (the favicon), whose 5 in a row is the 28,500x jackpot.
+  Every spin happens on the server with a crypto RNG, is logged, can't
+  spend the same credits twice and is played once however often it's sent
+  (`GET /api/slots`, `POST /api/slots/credits`, `POST /api/slots/spins`,
+  rate limited, `GET`/`POST /api/slots/cash-out`). The machine's credits
+  are kept on the server. Add credits moves PP, then P-PP, from the wallet;
+  bets take PP first; wins are P-PP; cashing out rounds each down to whole
+  points, and P-PP cashed out each 12:00-to-12:00 day is capped at 3x the
+  richest member's total at 12:00 (plus what was put in that day), the
+  rest waiting in the machine. Tripling a session's credits and hitting the
+  jackpot are announced to every member in Notifications with a glowing gold
+  border, and the jackpot fills the winner's screen with gold.
+  Hidden from players, how often symbols land depends on where they stand
+  on a snapshot of the PP Leaderboard taken at 12:00 after the payout:
+  95% RTP for the richest member who has reviewed in the last 30 days, up
+  to 103% for the poorest, 101% for the only one, and 95% for everyone else
+  (`backend/games/slots/`, tables made by `npm run slots:tune` and checked
+  by `npm run slots:rtp` and the tests). Wins always pay the paytable.
 
 ### Changed
 - The full navigation bar shows from 1280px wide; narrower screens get the
