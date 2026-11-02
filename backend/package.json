@@ -6,7 +6,9 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "node --test --test-concurrency=1 tests/*.test.js",
-    "simulate:scratch": "node scripts/simulate-scratch.js"
+    "simulate:scratch": "node scripts/simulate-scratch.js",
+    "slots:rtp": "node scripts/slots-rtp.js",
+    "slots:tune": "node scripts/tune-slots.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -11,6 +11,7 @@ const FarkleMatch = require("../models/farkleMatchModel");
 const { forgetFarklePlayer } = require("../utils/farkle");
 const { forgetScratchPlayer, scratchCardsOf } = require("../utils/scratch");
 const { forgetDoublePlayer, doubleGamesOf } = require("../utils/double");
+const { forgetSlotPlayer, slotMachineOf } = require("../utils/slots");
 const bcrypt = require("bcryptjs");
 const { sessionFor } = require("../utils/session");
 const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
@@ -446,7 +447,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -455,6 +456,7 @@ const exportMe = async (req, res) => {
         FarkleMatch.find({ "players.user": userId }).sort({ createdAt: -1 }).lean(),
         scratchCardsOf(userId),
         doubleGamesOf(userId),
+        slotMachineOf(userId),
     ]);
 
     if (!account) {
@@ -471,6 +473,7 @@ const exportMe = async (req, res) => {
         farkleMatches,
         scratchCards,
         doubleOrNothingGames,
+        slotMachine,
     });
 }
 
@@ -478,7 +481,8 @@ const exportMe = async (req, res) => {
 // (with the comments and replies under them), comments, film logs, follows,
 // reports, password reset requests and notifications, wallet receipts and
 // games against the bot (utils/farkle.js), Box Office Scratch cards (and
-// their name in Recent jackpots), and their likes and
+// their name in Recent jackpots), their Slot Machine and its credits, and
+// their likes and
 // dislikes on everyone else's reviews, comments and cuts, so the counts stay
 // right. They leave every event's Attending and Interested lists and seat
 // plan; events they posted stay. `user` needs _id and pvp. Irreversible.
@@ -511,6 +515,7 @@ async function deleteAccount(user) {
     await forgetFarklePlayer(userId);
     await forgetScratchPlayer(userId);
     await forgetDoublePlayer(userId);
+    await forgetSlotPlayer(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

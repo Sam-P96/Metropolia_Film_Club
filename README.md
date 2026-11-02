@@ -77,7 +77,7 @@ into a replica set of one takes a few minutes and keeps all your data:
    already has a `?`, add `&replicaSet=rs0` instead), then restart the backend.
 
 The tests need the same: point `MONGO_TEST_URI` at a replica set, or the
-Double or Nothing route tests skip themselves.
+Double or Nothing and Slot Machine route tests skip themselves.
 
 ## Where things are
 
@@ -111,6 +111,10 @@ Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`.
 Backend: `npm run dev` (nodemon), `npm start`, `npm test` (with
 `MONGO_TEST_URI` set to a database whose name ends in `_test`, which the
 tests wipe, like `mongodb://127.0.0.1:27017/kino_test?replicaSet=rs0`).
+Slot Machine: `npm run slots:rtp` prints the exact RTP of every weight table
+(add `-- --simulate 1000000` to simulate the hit rate too), and
+`npm run slots:tune` makes the tables again after the paytable or base
+weights change (`backend/games/slots/`).
 
 ## Contributing
 

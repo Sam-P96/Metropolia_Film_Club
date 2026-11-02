@@ -20,6 +20,7 @@ const walletRouter = require("./routes/walletRouter");
 const farkleRouter = require("./routes/farkleRouter");
 const scratchRouter = require("./routes/scratchRouter");
 const doubleRouter = require("./routes/doubleRouter");
+const slotRouter = require("./routes/slotRouter");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
@@ -119,6 +120,7 @@ app.use("/api/wallet", walletRouter);
 app.use("/api/farkle", farkleRouter);
 app.use("/api/scratch", scratchRouter);
 app.use("/api/double-or-nothing", doubleRouter);
+app.use("/api/slots", slotRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

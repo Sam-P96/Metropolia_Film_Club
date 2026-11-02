@@ -26,18 +26,23 @@ const PAGE_SIZE = 10;
 //   reviews  votes on their reviews, replies, new reviews from members they
 //            follow, trending reviews, and members turning PvP on (which
 //            decides who can dislike reviews)
-//   games    Farkle, Box Office Scratch and Double or Nothing, and the daily
-//            PP payout and gifts (points are only for games)
+//   games    Farkle, Box Office Scratch, Double or Nothing and the Slot
+//            Machine, and the daily PP payout and gifts (points are only
+//            for games)
 // New followers, cuts and replies to cuts are only in "all".
 const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
-    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...Notification.FARKLE_TYPES],
+    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
-// news (a trending review, a jackpot, a Double or Nothing win, and a viral
-// cut, found by its cut in feedQuery).
-const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin"];
+// news (a trending review, a jackpot, a Double or Nothing win, someone
+// tripling their Slot Machine credits, and a viral cut, found by its cut in
+// feedQuery).
+const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot"];
+
+// The jackpots, which wait just under the games until they've been seen.
+const JACKPOT_TYPES = ["scratchJackpot", "slotJackpot"];
 
 // The filter asked for (?filter=), if it's a real one; "all" otherwise.
 const filterOf = (asked) => (Object.hasOwn(FEED_FILTERS, asked) ? asked : "all");
@@ -169,6 +174,10 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
         }
 
+        if (row.type === "slotTriple" || row.type === "slotJackpot") {
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
+        }
+
         if (row.type === "scratchWin" || row.type === "scratchJackpot") {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, tier: row.tier }];
         }
@@ -264,7 +273,7 @@ async function ongoingGames(viewer) {
 // Unread jackpot notices, newest first, for just under the games: a
 // jackpot is big news, so until it's been seen it doesn't wait in line.
 async function unreadJackpots(viewer, since) {
-    const rows = await Notification.find({ recipient: viewer._id, type: "scratchJackpot", at: { $gt: since } })
+    const rows = await Notification.find({ recipient: viewer._id, type: { $in: JACKPOT_TYPES }, at: { $gt: since } })
         .sort({ at: -1, _id: -1 })
         .limit(FEED_SIZE)
         .lean();

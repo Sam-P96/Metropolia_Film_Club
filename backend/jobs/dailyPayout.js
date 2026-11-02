@@ -1,16 +1,25 @@
 const cron = require("node-cron");
 const { helsinkiHour, payEveryone } = require("../utils/wallet");
+const { takeSnapshot } = require("../utils/slots");
 
 // Runs the PP payout every day at 12:00 Helsinki time. node-cron follows
 // Finland's summer and winter time by itself.
 let task = null;
 
+// Pays, then takes the Slot Machine's snapshot of the PP Leaderboard for
+// the day ahead (utils/slots.js), once the payout is in it.
 async function runPayout() {
     try {
         const paid = await payEveryone();
         console.log(`Daily payout: ${paid} member(s) got PP.`);
     } catch (error) {
         console.error("Daily payout failed:", error.message);
+    }
+
+    try {
+        await takeSnapshot();
+    } catch (error) {
+        console.error("Slot Machine snapshot failed:", error.message);
     }
 }
 

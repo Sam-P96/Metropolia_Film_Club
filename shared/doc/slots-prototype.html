@@ -1,0 +1,724 @@
+<title>Kino Kaveri Slots</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Figtree:wght@400;600;700&family=Limelight&display=swap">
+<style>
+/* Layout: one-screen phone column — top bar, marquee-bulb reel frame, status strip, bank + bet controls with a lever beside them */
+:root {
+  --velvet: #24090f;
+  --velvet-2: #3a1019;
+  --velvet-3: #4c1622;
+  --brass: #e3b45a;
+  --brass-dim: #8f6a34;
+  --cream: #f6e8cc;
+  --muted: #c4a38c;
+  --reel: #f5ecdc;
+  --reel-shade: #d9c8ab;
+  --ink: #24090f;
+  --win: #ffd76a;
+  --alert: #ff8a78;
+  --font-display: "Limelight", "Georgia", serif;
+  --font-num: "Big Shoulders Display", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-ui: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(120% 80% at 50% 0%, var(--velvet-3), var(--velvet) 60%) fixed, var(--velvet);
+  color: var(--cream);
+  font-family: var(--font-ui);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+.app {
+  max-width: 440px;
+  min-height: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Top bar */
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: transparent; border: 0;
+  display: grid; place-items: center;
+  color: var(--cream);
+}
+.icon-btn:active { background: var(--velvet-2); }
+.icon-btn svg { width: 26px; height: 26px; }
+
+/* Reel frame with marquee bulbs */
+.frame {
+  position: relative;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--velvet-2);
+  box-shadow: inset 0 0 0 1.5px var(--brass-dim), 0 10px 30px rgba(0,0,0,.45);
+}
+.frame::before, .frame::after {
+  content: "";
+  position: absolute; inset: 3px;
+  border-radius: 15px;
+  background: radial-gradient(circle, var(--win) 0 2.2px, transparent 3px) 0 0 / 13px 13px;
+  animation: blink 1.4s steps(1) infinite;
+}
+.frame::after { background-position: 6.5px 6.5px; animation-delay: -.7s; }
+.frame.spinning::before, .frame.spinning::after { animation-duration: .24s; }
+.frame.spinning::after { animation-delay: -.12s; }
+@keyframes blink { 0% { opacity: 1 } 50% { opacity: .18 } }
+
+.window {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--velvet);
+}
+.reel {
+  position: relative;
+  aspect-ratio: 1 / 3;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--reel);
+}
+.reel::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(36,9,15,.38), transparent 22%, transparent 78%, rgba(36,9,15,.38));
+}
+.track.settle { animation: settle .32s ease-out; }
+@keyframes settle { 0% { transform: translateY(0) } 35% { transform: translateY(7px) } 100% { transform: translateY(0) } }
+.strip { will-change: transform; }
+.strip.blur .cell span { filter: blur(1.4px); }
+.cell {
+  height: var(--cell, 68px);
+  display: grid; place-items: center;
+  border-bottom: 1px solid var(--reel-shade);
+  box-sizing: border-box;
+}
+.cell span { font-size: calc(var(--cell, 68px) * .55); line-height: 1; }
+.cell.win { background: var(--win); animation: winpulse .7s ease-in-out 3; }
+@keyframes winpulse { 50% { background: var(--reel); } }
+
+/* Status strip */
+.status {
+  text-align: center;
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--brass);
+  min-height: 1.4em;
+  margin-top: -4px;
+}
+.status.alert { color: var(--alert); }
+.status.win { color: var(--win); }
+
+/* Controls + lever */
+.controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px;
+  gap: 14px;
+  align-items: stretch;
+}
+.left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.bank {
+  border-radius: 14px;
+  background: var(--velvet-2);
+  box-shadow: inset 0 0 0 1.5px var(--brass-dim);
+  overflow: hidden;
+}
+.bank.nudge { animation: nudge .38s; }
+@keyframes nudge { 20%,60% { transform: translateX(-6px) } 40%,80% { transform: translateX(6px) } }
+.bank-top {
+  padding: 10px 14px 8px;
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 10px;
+}
+.label {
+  font-size: .68rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted);
+}
+.win-line { margin-top: 4px; font-family: var(--font-num); font-weight: 600; font-size: 1rem; letter-spacing: .04em; color: var(--muted); }
+.win-line b { color: var(--win); font-weight: 800; }
+.balance {
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 2.6rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+.bank-actions {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--brass-dim);
+}
+.bank-actions button {
+  background: transparent; border: 0;
+  padding: 11px 6px;
+  font-weight: 600; font-size: .9rem;
+}
+.bank-actions button + button { border-left: 1px solid var(--brass-dim); }
+.bank-actions button:active { background: var(--velvet-3); }
+
+.bet-row {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) 50px minmax(0, 1.1fr);
+  gap: 8px;
+  align-items: center;
+}
+.round {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--velvet-2);
+  border: 1.5px solid var(--brass);
+  font-size: 1.6rem; line-height: 1;
+  display: grid; place-items: center;
+}
+.round:active { transform: scale(.94); background: var(--velvet-3); }
+.bet-readout { text-align: center; }
+.bet-readout .bet {
+  display: block;
+  font-family: var(--font-num); font-weight: 800; font-size: 1.5rem; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.max {
+  height: 50px; border-radius: 12px;
+  background: var(--brass); color: var(--ink);
+  border: 0;
+  font-family: var(--font-num); font-weight: 800; font-size: 1.35rem; letter-spacing: .08em;
+  box-shadow: 0 4px 0 var(--brass-dim);
+}
+.max:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--brass-dim); }
+button:disabled { opacity: .4; cursor: default; }
+button:disabled:active { transform: none; }
+
+/* Lever */
+.lever-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.lever {
+  position: relative;
+  width: 70px;
+  flex: 1;
+  min-height: 190px;
+  touch-action: none;
+  cursor: grab;
+}
+.lever.held { cursor: grabbing; }
+.lever.locked { cursor: default; }
+.lever .slot {
+  position: absolute; left: 50%; top: 22px; bottom: 22px; width: 10px;
+  transform: translateX(-50%);
+  border-radius: 5px;
+  background: var(--velvet);
+  box-shadow: inset 0 0 0 1.5px var(--brass-dim), inset 0 2px 4px rgba(0,0,0,.6);
+}
+.lever .rod {
+  position: absolute; left: 50%; width: 8px; margin-left: -4px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #9b9b9b, #f2f2f2 45%, #8a8a8a);
+}
+.lever .pivot {
+  position: absolute; left: 50%; top: 50%; width: 26px; height: 26px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--brass), var(--brass-dim));
+  box-shadow: 0 2px 6px rgba(0,0,0,.5);
+}
+.lever .knob {
+  position: absolute; left: 50%; top: 0;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ff9b8c 0 10%, #d7263d 45%, #7a0f1f 100%);
+  box-shadow: 0 6px 14px rgba(0,0,0,.55);
+  transform-origin: 50% 50%;
+}
+.lever.locked .knob { filter: saturate(.55) brightness(.8); }
+.pull-hint { font-size: .66rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 20px);
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--cream); color: var(--ink);
+  font-weight: 700; font-size: .9rem;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  z-index: 30;
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Nav drawer */
+.scrim { position: fixed; inset: 0; background: rgba(10,2,4,.6); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 20; }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(320px, 86vw);
+  box-sizing: border-box;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  padding-left: 20px;
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  background: var(--velvet-2);
+  box-shadow: -10px 0 30px rgba(0,0,0,.5);
+  transform: translateX(105%);
+  transition: transform .3s cubic-bezier(.2,.8,.2,1);
+  z-index: 21;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head { display: flex; justify-content: space-between; align-items: center; }
+.brand { font-family: var(--font-display); font-size: 1.5rem; color: var(--brass); }
+.nav { display: flex; flex-direction: column; }
+.nav a {
+  color: var(--cream); text-decoration: none;
+  padding: 12px 2px; border-bottom: 1px solid var(--velvet-3);
+  font-weight: 600;
+}
+.nav a[aria-current="page"] { color: var(--brass); }
+.paytable h2 { margin: 0 0 4px; font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.paytable p { margin: 0 0 10px; font-size: .85rem; color: var(--muted); line-height: 1.45; }
+.paytable table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.paytable th, .paytable td { padding: 6px 4px; text-align: right; font-size: .9rem; }
+.paytable th { font-size: .7rem; color: var(--muted); font-weight: 700; letter-spacing: .08em; }
+.paytable td:first-child, .paytable th:first-child { text-align: left; font-size: 1.3rem; }
+.paytable tr + tr td { border-top: 1px solid var(--velvet-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .frame::before, .frame::after { animation: none; }
+  .cell.win { animation: none; }
+  .track.settle { animation: none; }
+}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn" id="muteBtn" aria-label="Mute sound" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor"/>
+        <g id="waves"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></g>
+        <g id="cross" hidden><path d="m16 9 6 6"/><path d="m22 9-6 6"/></g>
+      </svg>
+    </button>
+    <button class="icon-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="drawer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M3 6h18M6 12h15M9 18h12"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="frame" id="frame">
+    <div class="window" id="window" aria-label="Reels"></div>
+  </div>
+  <div class="status" id="status" role="status">Add credits to play</div>
+
+  <section class="controls">
+    <div class="left">
+      <div class="bank" id="bank">
+        <div class="bank-top">
+          <div>
+            <div class="label">Credits</div>
+            <div class="win-line">Win <b id="win">0</b></div>
+          </div>
+          <div class="balance" id="balance">0</div>
+        </div>
+        <div class="bank-actions">
+          <button id="addBtn">+ Add credits</button>
+          <button id="cashBtn">Cash out</button>
+        </div>
+      </div>
+      <div class="bet-row">
+        <button class="round" id="minusBtn" aria-label="Lower bet">&minus;</button>
+        <div class="bet-readout"><span class="label">Bet</span><span class="bet" id="bet">10</span></div>
+        <button class="round" id="plusBtn" aria-label="Raise bet">+</button>
+        <button class="max" id="maxBtn">MAX</button>
+      </div>
+    </div>
+    <div class="lever-col">
+      <div class="lever" id="lever" role="button" tabindex="0" aria-label="Pull lever to spin">
+        <div class="slot"></div>
+        <div class="rod" id="rod"></div>
+        <div class="pivot"></div>
+        <div class="knob" id="knob"></div>
+      </div>
+      <div class="pull-hint" id="pullHint">Pull</div>
+    </div>
+  </section>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Kino Kaveri menu">
+  <div class="drawer-head">
+    <span class="brand">Kino Kaveri</span>
+    <button class="icon-btn" id="closeBtn" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <nav class="nav">
+    <a href="#">Home</a>
+    <a href="#">Films</a>
+    <a href="#">Events</a>
+    <a href="#" aria-current="page">Games</a>
+    <a href="#">Profile</a>
+  </nav>
+  <div class="paytable">
+    <h2>Paytable</h2>
+    <p>Pays left to right on each of the 3 rows. Payout is your bet multiplied by the number below.</p>
+    <table id="payTable">
+      <tr><th>Symbol</th><th>×3</th><th>×4</th><th>×5</th></tr>
+    </table>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- Symbols (weights make wins frequent enough to feel) ----------
+  const SYM = [
+    { s: '🎟️', w: 30, pay: [2, 5, 10] },
+    { s: '🍿', w: 25, pay: [3, 8, 15] },
+    { s: '🎬', w: 20, pay: [5, 12, 25] },
+    { s: '🎞️', w: 15, pay: [8, 20, 50] },
+    { s: '⭐', w: 10, pay: [15, 50, 200] },
+  ];
+  const TOTAL_W = SYM.reduce((a, b) => a + b.w, 0);
+  const pick = () => { let r = Math.random() * TOTAL_W; for (let i = 0; i < SYM.length; i++) { r -= SYM[i].w; if (r < 0) return i; } return 0; };
+
+  const payTable = $('payTable');
+  SYM.forEach(x => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${x.s}</td><td>${x.pay[0]}×</td><td>${x.pay[1]}×</td><td>${x.pay[2]}×</td>`;
+    payTable.appendChild(tr);
+  });
+
+  // ---------- State ----------
+  const BETS = [10, 20, 50, 100, 200];
+  let betIdx = 0, balance = 0, spinning = false;
+  const grid = Array.from({ length: 5 }, () => [pick(), pick(), pick()]);
+
+  // ---------- Sound ----------
+  let ctx = null, muted = false;
+  const ac = () => {
+    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    return ctx;
+  };
+  const tone = (freq, dur, type = 'square', vol = .04, when = 0) => {
+    if (muted) return; const c = ac(); if (!c) return;
+    const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + .02);
+  };
+  // ---------- Haptics ----------
+  // Android: Vibration API with real patterns ([on, off, on, ...] in ms).
+  // iPhone: no Vibration API. Safari 18+ gives one light "tick" when a switch
+  // checkbox is toggled, so patterns are approximated as one tick per "on" pulse.
+  const HAPTIC = {
+    press:     10,                                        // any button
+    grab:      8,                                         // finger touches the lever
+    bottom:    35,                                        // lever hits the bottom of its travel
+    snapUp:    [15, 70, 15],                              // lever flicks back: double tap
+    win:       [120, 280, 120, 280, 120],                 // small win: 3 slow buzzes
+    bigWin:    Array.from({ length: 23 }, () => 40),      // big win: 12 fast buzzes
+  };
+  const canVibrate = typeof navigator.vibrate === 'function';
+  let iosSwitch = null;
+  const iosTick = () => {
+    if (!iosSwitch) {
+      const label = document.createElement('label');
+      label.style.cssText = 'position:fixed;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none';
+      label.innerHTML = '<input type="checkbox" switch tabindex="-1" aria-hidden="true">';
+      document.body.appendChild(label);
+      iosSwitch = label;
+    }
+    iosSwitch.click();
+  };
+  const haptic = pattern => {
+    const seq = Array.isArray(pattern) ? pattern : [pattern];
+    if (canVibrate) { try { navigator.vibrate(seq); } catch (e) {} return; }
+    let t = 0;
+    seq.forEach((ms, i) => {
+      if (i % 2 === 0) setTimeout(iosTick, t);
+      t += ms;
+    });
+  };
+
+  document.addEventListener('pointerdown', () => ac(), { passive: true });
+  document.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', () => haptic(HAPTIC.press)));
+
+  $('muteBtn').addEventListener('click', () => {
+    muted = !muted;
+    $('waves').hidden = muted; $('cross').hidden = !muted;
+    $('muteBtn').setAttribute('aria-pressed', String(muted));
+    $('muteBtn').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+  });
+
+  // ---------- Reels ----------
+  const win = $('window');
+  const reels = [];
+  const cellHTML = i => `<div class="cell"><span>${SYM[i].s}</span></div>`;
+  let cellH = 68;
+
+  for (let c = 0; c < 5; c++) {
+    const reel = document.createElement('div'); reel.className = 'reel';
+    const track = document.createElement('div'); track.className = 'track';
+    const strip = document.createElement('div'); strip.className = 'strip';
+    track.appendChild(strip); reel.appendChild(track); win.appendChild(reel);
+    reels.push({ reel, track, strip });
+  }
+  // Strip at rest: [hidden extra, row0, row1, row2, hidden extra], shifted up one cell
+  const restStrip = c => {
+    const s = reels[c].strip;
+    s.style.transition = 'none';
+    s.innerHTML = cellHTML(pick()) + grid[c].map(cellHTML).join('') + cellHTML(pick());
+    s.style.transform = `translateY(${-cellH}px)`;
+  };
+  const measure = () => {
+    cellH = reels[0].reel.clientHeight / 3;
+    document.documentElement.style.setProperty('--cell', cellH + 'px');
+    if (!spinning) for (let c = 0; c < 5; c++) restStrip(c);
+  };
+  measure();
+  addEventListener('resize', measure);
+
+  const spinReel = (c, final, dur) => new Promise(done => {
+    const { strip, track } = reels[c];
+    const fillers = Array.from({ length: 14 + c * 4 }, pick);
+    const seq = [pick(), ...final, ...fillers, ...grid[c], pick()];
+    strip.innerHTML = seq.map(cellHTML).join('');
+    strip.style.transition = 'none';
+    strip.style.transform = `translateY(${-(seq.length - 4) * cellH}px)`;
+    void strip.offsetHeight;
+    strip.classList.add('blur');
+    strip.style.transition = `transform ${dur}ms cubic-bezier(.25,.6,.3,1)`;
+    strip.style.transform = `translateY(${-cellH}px)`;
+    setTimeout(() => strip.classList.remove('blur'), dur * .72);
+    setTimeout(() => {
+      grid[c] = final;
+      restStrip(c);
+      track.classList.remove('settle'); void track.offsetWidth; track.classList.add('settle');
+      tone(130, .14, 'triangle', .16);
+      done();
+    }, dur);
+  });
+
+  // ---------- UI helpers ----------
+  const status = $('status');
+  const say = (text, kind = '') => { status.textContent = text; status.className = 'status' + (kind ? ' ' + kind : ''); };
+  let toastTimer;
+  const toast = text => { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); };
+  const countTo = (el, from, to, ms = 500) => {
+    if (reduce || from === to) { el.textContent = to; return; }
+    const t0 = performance.now();
+    const step = t => { const k = Math.min(1, (t - t0) / ms); el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  };
+  const setBalance = (v, animate = true) => { const old = balance; balance = v; animate ? countTo($('balance'), old, v) : ($('balance').textContent = v); };
+  const nudgeBank = () => { const b = $('bank'); b.classList.remove('nudge'); void b.offsetWidth; b.classList.add('nudge'); };
+
+  const syncControls = () => {
+    $('bet').textContent = BETS[betIdx];
+    $('minusBtn').disabled = spinning || betIdx === 0;
+    $('plusBtn').disabled = spinning || betIdx === BETS.length - 1;
+    $('maxBtn').disabled = spinning;
+    $('addBtn').disabled = spinning;
+    $('cashBtn').disabled = spinning;
+    $('lever').classList.toggle('locked', spinning);
+  };
+  syncControls();
+
+  $('minusBtn').addEventListener('click', () => { betIdx = Math.max(0, betIdx - 1); tone(500, .04); syncControls(); });
+  $('plusBtn').addEventListener('click', () => { betIdx = Math.min(BETS.length - 1, betIdx + 1); tone(700, .04); syncControls(); });
+  $('addBtn').addEventListener('click', () => {
+    setBalance(balance + 500); toast('Added 500 credits');
+    tone(880, .08, 'triangle', .08); tone(1320, .1, 'triangle', .08, .07);
+    say('Pull the lever');
+  });
+  $('cashBtn').addEventListener('click', () => {
+    if (balance === 0) { say('Nothing to cash out', 'alert'); nudgeBank(); return; }
+    toast(`Cashed out ${balance} credits`); setBalance(0); $('win').textContent = 0;
+    say('Add credits to play');
+  });
+  $('maxBtn').addEventListener('click', () => {
+    if (spinning) return;
+    let idx = BETS.length - 1;
+    while (idx > 0 && BETS[idx] > balance) idx--;
+    if (BETS[idx] > balance) { say('Add credits first', 'alert'); nudgeBank(); return; }
+    betIdx = idx; syncControls();
+    autoPull();
+  });
+
+  // ---------- Spin + payout ----------
+  const startSpin = async () => {
+    const bet = BETS[betIdx];
+    if (balance < bet) { say(balance === 0 ? 'Add credits first' : 'Lower your bet', 'alert'); nudgeBank(); return; }
+    spinning = true; syncControls();
+    setBalance(balance - bet, false);
+    $('win').textContent = 0;
+    say('Rolling…');
+    $('frame').classList.add('spinning');
+
+    let ticks = setInterval(() => tone(700 + Math.random() * 500, .015, 'square', .02), 70);
+    const base = reduce ? 350 : 1050, stagger = reduce ? 120 : 260;
+    const finals = Array.from({ length: 5 }, () => [pick(), pick(), pick()]);
+    await Promise.all(finals.map((f, c) => spinReel(c, f, base + c * stagger)));
+    clearInterval(ticks);
+    $('frame').classList.remove('spinning');
+
+    // Evaluate each row, left to right
+    let total = 0;
+    for (let r = 0; r < 3; r++) {
+      const first = grid[0][r]; let n = 1;
+      while (n < 5 && grid[n][r] === first) n++;
+      if (n >= 3) {
+        total += bet * SYM[first].pay[n - 3];
+        for (let c = 0; c < n; c++) reels[c].strip.children[r + 1].classList.add('win');
+      }
+    }
+    if (total > 0) {
+      countTo($('win'), 0, total, 700);
+      setBalance(balance + total);
+      const big = total >= bet * 20;
+      say(big ? `Big win! +${total}` : `Win +${total}`, 'win');
+      [0, .09, .18, .3].forEach((w, i) => tone([660, 880, 1100, 1320][i], .16, 'triangle', .09, w));
+      haptic(big ? HAPTIC.bigWin : HAPTIC.win);
+    } else {
+      say(balance >= BETS[betIdx] ? 'No win. Pull again' : 'Out of credits', balance >= BETS[betIdx] ? '' : 'alert');
+    }
+    spinning = false; syncControls();
+  };
+
+  // ---------- Lever physics ----------
+  const lever = $('lever'), knob = $('knob'), rod = $('rod');
+  const D = 48;
+  let p = 0, v = 0, raf = 0, dragging = false, startY = 0, startP = 0, moved = 0, lastNotch = 0, pointerType = 'mouse', atBottom = false;
+  const travel = () => lever.clientHeight - D;
+
+  const render = () => {
+    const L = lever.clientHeight, pivot = L / 2, ballC = D / 2 + p;
+    const half = L / 2 - D / 2;
+    const near = 1 - Math.min(1, Math.abs(ballC - pivot) / half); // 1 when ball passes the pivot (closest to viewer)
+    knob.style.transform = `translate(-50%, ${p}px) scale(${1 + .22 * near})`;
+    knob.style.zIndex = ballC > pivot ? 3 : 2;
+    rod.style.top = Math.min(ballC, pivot) + 'px';
+    rod.style.height = Math.abs(ballC - pivot) + 'px';
+  };
+  render();
+  addEventListener('resize', render);
+
+  const springBack = () => {
+    cancelAnimationFrame(raf);
+    let last = performance.now(), tapped = false;
+    const k = 420, c = 15;
+    const step = t => {
+      const dt = Math.min(.032, (t - last) / 1000); last = t;
+      v += (-k * p - c * v) * dt;
+      p += v * dt;
+      if (p < 0) { // hit the top stop and bounce
+        p = 0;
+        if (Math.abs(v) > 80) {
+          if (!tapped) { tapped = true; haptic(HAPTIC.snapUp); }
+          v = -v * .28; tone(420, .04, 'square', .05);
+        } else v = 0;
+      }
+      render();
+      if (p > .3 || Math.abs(v) > 3) raf = requestAnimationFrame(step);
+      else { p = 0; v = 0; render(); }
+    };
+    raf = requestAnimationFrame(step);
+  };
+
+  const release = () => {
+    const pulled = p > travel() * .72;
+    lever.classList.remove('held');
+    if (pulled) tone(90, .18, 'sawtooth', .07);
+    v = 0;
+    springBack();
+    if (pulled) startSpin();
+    else if (p > 12) say('Pull it all the way down');
+  };
+
+  const autoPull = () => {
+    if (spinning) return;
+    cancelAnimationFrame(raf);
+    const from = p, to = travel(), t0 = performance.now(), ms = 240;
+    const step = t => {
+      const k = Math.min(1, (t - t0) / ms);
+      p = from + (to - from) * k * k;
+      const notch = Math.floor(p / 16);
+      if (notch !== lastNotch) { lastNotch = notch; tone(1800, .015, 'square', .025); }
+      render();
+      if (k < 1) raf = requestAnimationFrame(step);
+      else { haptic(HAPTIC.bottom); atBottom = false; release(); }
+    };
+    raf = requestAnimationFrame(step);
+  };
+
+  lever.addEventListener('pointerdown', e => {
+    if (spinning) return;
+    cancelAnimationFrame(raf);
+    dragging = true; pointerType = e.pointerType;
+    startY = e.clientY; startP = p; moved = 0; lastNotch = Math.floor(p / 16);
+    lever.setPointerCapture(e.pointerId);
+    lever.classList.add('held');
+    if (e.pointerType !== 'mouse') haptic(HAPTIC.grab);
+  });
+  lever.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dy = e.clientY - startY;
+    moved = Math.max(moved, Math.abs(dy));
+    p = Math.max(0, Math.min(travel(), startP + dy));
+    const notch = Math.floor(p / 16);
+    if (notch !== lastNotch) { lastNotch = notch; tone(1800, .015, 'square', .025); }
+    // Bottom of travel: one solid thud, re-armed once the lever leaves the bottom
+    if (p >= travel() - .5) {
+      if (!atBottom) { atBottom = true; haptic(HAPTIC.bottom); tone(110, .08, 'triangle', .12); }
+    } else if (p < travel() - 8) atBottom = false;
+    render();
+  });
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    if (pointerType === 'mouse' && moved < 6) autoPull(); // click to pull on PC
+    else release();
+  };
+  lever.addEventListener('pointerup', end);
+  lever.addEventListener('pointercancel', end);
+  lever.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); autoPull(); } });
+
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) $('pullHint').textContent = 'Click';
+
+  // ---------- Drawer ----------
+  const openDrawer = open => {
+    $('drawer').classList.toggle('open', open);
+    $('scrim').classList.toggle('open', open);
+    $('menuBtn').setAttribute('aria-expanded', String(open));
+  };
+  $('menuBtn').addEventListener('click', () => openDrawer(true));
+  $('closeBtn').addEventListener('click', () => openDrawer(false));
+  $('scrim').addEventListener('click', () => openDrawer(false));
+  document.querySelectorAll('.nav a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); openDrawer(false); }));
+  addEventListener('keydown', e => { if (e.key === 'Escape') openDrawer(false); });
+})();
+</script>

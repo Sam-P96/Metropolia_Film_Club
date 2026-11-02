@@ -4,6 +4,7 @@ import GiftForm from '../components/wallet/GiftForm'
 import useWallet from '../hooks/useWallet'
 import { WALLET_CHANGED_EVENT, getWalletHistory } from '../services/wallet'
 import { timeAgo } from '../utils/timeAgo'
+import { SLOTS } from '../../../shared/slots/config.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md'
 
@@ -23,6 +24,8 @@ const REASONS = {
   doubleBet: 'Double or Nothing bet',
   doubleWin: 'Double or Nothing win',
   doubleBonus: 'Double or Nothing bonus pot!',
+  slotCredits: `${SLOTS.name}: credits added`,
+  slotCashOut: `${SLOTS.name}: cashed out`,
 }
 
 // What a history row was. Gifts say who to or from.

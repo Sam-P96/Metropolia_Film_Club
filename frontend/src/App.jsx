@@ -38,6 +38,7 @@ import FarkleLobby from "./pages/FarkleLobby";
 import Games from "./pages/Games";
 import ScratchGame from "./pages/ScratchGame";
 import DoubleOrNothing from "./pages/DoubleOrNothing";
+import SlotMachine from "./pages/SlotMachine";
 import Wallet from "./pages/Wallet";
 
 
@@ -119,6 +120,9 @@ function App() {
           } />
           <Route path="/games/scratch" element={
             isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/slots" element={
+            isAuthenticated ? (<SlotMachine />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/games/double-or-nothing" element={
             isAuthenticated ? (<DoubleOrNothing />) : (<Navigate to="/login" state={{ from: location.pathname }} />)

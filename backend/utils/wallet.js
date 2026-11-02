@@ -182,6 +182,18 @@ async function giftPpp(fromId, toId, amount) {
     return taken;
 }
 
+// The PP Leaderboard's order, as aggregation stages: each member's PP and
+// P-PP added together as `pp`, most first, ties A to Z by username.
+// `fields`: what else to keep, as a $project ({ username: 1, ... }). The
+// leaderboard (controllers/walletController.js) and the Slot Machine's
+// daily snapshot (utils/slots.js) both use it, so they always agree.
+function leaderboardStages(fields = {}) {
+    return [
+        { $project: { ...fields, pp: { $add: [{ $ifNull: ["$wallet.pp", 0] }, { $ifNull: ["$wallet.ppp", 0] }] } } },
+        { $sort: { pp: -1, username: 1 } },
+    ];
+}
+
 // Today's date in Helsinki, like "2026-10-30". The payout uses it to pay
 // each member once a day, however many times it runs.
 function helsinkiDay(date = new Date()) {
@@ -249,6 +261,7 @@ module.exports = {
     credit,
     GIFT_FEE,
     giftPpp,
+    leaderboardStages,
     helsinkiDay,
     helsinkiHour,
     payEveryone,
