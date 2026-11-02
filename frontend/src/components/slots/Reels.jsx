@@ -29,10 +29,16 @@ const wait = (ms) => new Promise((done) => setTimeout(done, ms))
 //                 server), left to right; resolves once they've all stopped
 //   stop()        lands them back on what they showed (a spin that failed)
 //   highlight(cells)  lights up the winning cells, [[reel, row], ...]
+//   highlightLinked(cells)  adds a rainbow glow to the Gauntlets that linked
 //   clear()       puts the lights out
+//   cellRects(cells)  where those cells are on screen (for the effects)
+//   windowRect()  where the reel window is on screen
+//   glow()        a brief rainbow glow round the reel window (lightning)
+//   show(grid)    shows `grid` at once, no spin (the dev effects preview)
 // Each reel's strip at rest is [hidden, row 0, row 1, row 2, hidden],
 // shifted up one cell.
 export default function Reels({ ref, cell, spinning, reduce }) {
+  const frame = useRef(null)
   const strips = useRef([])
   const tracks = useRef([])
   const loops = useRef([])
@@ -40,6 +46,9 @@ export default function Reels({ ref, cell, spinning, reduce }) {
   const busy = useRef(false)
   const startedAt = useRef(0)
   const size = useRef(cell)
+
+  // A showing cell: row 0 to 2 of `reel` (the strip's first cell is hidden).
+  const cellAt = (reel, row) => strips.current[reel]?.children[row + 1] ?? null
 
   const rest = (reel) => {
     const strip = strips.current[reel]
@@ -128,17 +137,39 @@ export default function Reels({ ref, cell, spinning, reduce }) {
       return land(grid.current.map((rows) => [...rows]))
     },
     highlight(cells) {
-      for (const [reel, row] of cells) strips.current[reel]?.children[row + 1]?.classList.add('is-win')
+      for (const [reel, row] of cells) cellAt(reel, row)?.classList.add('is-win')
+    },
+    highlightLinked(cells) {
+      for (const [reel, row] of cells) cellAt(reel, row)?.classList.add('is-linked')
     },
     clear() {
       for (const strip of strips.current) {
-        for (const cellEl of strip?.children ?? []) cellEl.classList.remove('is-win')
+        for (const cellEl of strip?.children ?? []) cellEl.classList.remove('is-win', 'is-linked')
       }
+      frame.current?.classList.remove('is-charged')
+    },
+    cellRects(cells) {
+      return cells.map(([reel, row]) => cellAt(reel, row)?.getBoundingClientRect()).filter(Boolean)
+    },
+    windowRect() {
+      return frame.current?.getBoundingClientRect() ?? null
+    },
+    show(final) {
+      if (busy.current) return
+      grid.current = final.map((rows) => [...rows])
+      REELS.forEach(rest)
+    },
+    glow() {
+      const el = frame.current
+      if (!el) return
+      el.classList.remove('is-charged')
+      void el.offsetWidth
+      el.classList.add('is-charged')
     },
   }))
 
   return (
-    <div className={`slot-frame${spinning ? ' is-spinning' : ''}`}>
+    <div ref={frame} className={`slot-frame${spinning ? ' is-spinning' : ''}`}>
       <div className="slot-window" style={{ '--cell': `${cell}px` }} role="img" aria-label="The reels">
         {REELS.map((reel) => (
           <div key={reel} className="slot-reel">

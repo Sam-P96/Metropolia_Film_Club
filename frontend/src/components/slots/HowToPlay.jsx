@@ -3,8 +3,8 @@ import { SLOTS } from '../../../../shared/slots/config.js'
 
 const GLASS = 'rounded-2xl border border-white/10 bg-black/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md'
 
-// How to play: the controls, the five paylines and the full paytable, from
-// the commonest symbol to the rarest.
+// How to play: the controls, the eleven paylines, the Infinity Gauntlet and
+// the full paytable.
 export default function HowToPlay() {
   return (
     <div className="flex flex-col gap-4 text-sm text-white/80">
@@ -17,7 +17,7 @@ export default function HowToPlay() {
           </li>
           <li>
             <span className="font-semibold text-white">− and +</span> set your bet, {SLOTS.minBet} PP at a time. Hold them down to change it
-            quickly. The bet covers all five lines.
+            quickly. The bet covers all {SLOTS.paylines.length} lines.
           </li>
           <li>
             <span className="font-semibold text-white">MAX</span> goes all in: it bets everything in the machine and pulls the lever for you.
@@ -37,12 +37,31 @@ export default function HowToPlay() {
       </section>
 
       <section className={GLASS}>
-        <h2 className="font-['Bebas_Neue'] text-2xl tracking-wide text-brand-gold">The five lines</h2>
+        <h2 className="font-['Bebas_Neue'] text-2xl tracking-wide text-brand-gold">The {SLOTS.paylines.length} lines</h2>
         <p className="mt-1 mb-3">
           A line pays when it starts on the leftmost reel with 3, 4 or 5 of the same symbol in a row. Every line is paid on its own, and wins on
           several lines add up.
         </p>
         <Paylines />
+      </section>
+
+      <section className={GLASS}>
+        <h2 className="font-['Bebas_Neue'] text-2xl tracking-wide text-brand-gold">The Infinity Gauntlet</h2>
+        <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-5">
+          <li>
+            The Gauntlet links <span className="font-semibold text-white">Maps</span> and <span className="font-semibold text-white">Rings</span>.
+            A line that starts with 3 or more of them in a row, with at least one Gauntlet among them, pays as that many Maps or Rings: Maps and
+            Gauntlets pay as Maps, Rings and Gauntlets as Rings.
+          </li>
+          <li>
+            A line with Maps <em>and</em> Rings pays as one or the other. When it pays as Rings, that&apos;s a{' '}
+            <span className="font-semibold text-white">CRITICAL HIT!</span>
+          </li>
+          <li>
+            3 or more Gauntlets on their own are <span className="font-semibold text-white">INFINITY</span>, and pay the Gauntlet&apos;s own prize.
+          </li>
+          <li>The Gauntlet never links the Kino Kaveri logo or any other symbol. If a line can be read more than one way, it pays the best.</li>
+        </ul>
       </section>
 
       <section className={GLASS}>

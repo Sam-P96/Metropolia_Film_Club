@@ -55,8 +55,8 @@ export default function SlotMachine() {
                 <GameTitle />
               </h1>
               <p className="mt-2 max-w-xl text-white/70">
-                Five reels, five lines, eight symbols from the films. Put some points in the machine, pull the lever, and line up three or more
-                from the left. Land five Kino Kaveri logos on a line for the jackpot.
+                Five reels, {SLOTS.paylines.length} lines, eight symbols from the films. Put some points in the machine, pull the lever, and line up
+                three or more from the left. The Infinity Gauntlet links Maps and Rings, and five Kino Kaveri logos on a line is the jackpot.
               </p>
             </header>
 

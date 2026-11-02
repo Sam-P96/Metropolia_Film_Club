@@ -250,7 +250,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where the rest of the profile shows.
 - Kino Kasino, a slot machine (`/games/slots`, a new card on the Games
   page; the name is one constant in `shared/slots/config.js`). An intro with Play and How
-  to Play (the controls, the five paylines and the paytable), then a machine
+  to Play (the controls, the eleven paylines, the Infinity Gauntlet and the
+  paytable), then a machine
   that fills the screen under the nav without scrolling: 5 reels by 3 rows
   in a marquee-bulb frame, a status line, the credits with Add credits and
   Cash out, the bet (− and + hold to repeat, MAX goes all in and pulls),
@@ -258,7 +259,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remembered), haptics and a simplified paytable. Eight symbols, commonest
   first: Movie Ticket, Popcorn, Clapperboard, Film Strip, The Marauder's
   Map, The One Ring, the Infinity Gauntlet, and the Kino Kaveri logo
-  (the favicon), whose 5 in a row is the 28,500x jackpot.
+  (the favicon), whose 5 in a row is the 2,000x jackpot. Lines pay from 1x
+  the bet up. The Infinity Gauntlet links Maps and Rings: a line starting
+  with 3+ of them, with a Gauntlet among them, pays as Maps (rainbow
+  fireworks from the Gauntlets) or Rings (rainbow lightning from the
+  Gauntlets and Rings); with both, a coin flipped on the server decides,
+  and Rings is a CRITICAL HIT!. 3+ Gauntlets alone are INFINITY (lightning).
+  A line pays its best reading. The effects play on the spinner's screen
+  only, the words flash over the reels, linked Gauntlets glow rainbow, and
+  with reduced motion only the words and highlights show. Each effect has
+  its own synthesised sound, timed to it (a whoosh and pops for fireworks,
+  a crack and rumble for each lightning strike, a stinger for CRITICAL
+  HIT!, a ringing chord for INFINITY), all mixed through one compressor,
+  with the volumes and pitches in `SOUND_FX` in
+  `frontend/src/components/slots/feedback.js`. In development only
+  (`npm run dev`), an FX button in the slot screen's corner plays any
+  effect on demand.
   Every spin happens on the server with a crypto RNG, is logged, can't
   spend the same credits twice and is played once however often it's sent
   (`GET /api/slots`, `POST /api/slots/credits`, `POST /api/slots/spins`,
@@ -272,9 +288,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   border, and the jackpot fills the winner's screen with gold.
   Hidden from players, how often symbols land depends on where they stand
   on a snapshot of the PP Leaderboard taken at 12:00 after the payout:
-  95% RTP for the richest member who has reviewed in the last 30 days, up
+  97% RTP for the richest member who has reviewed in the last 30 days, up
   to 103% for the poorest, 101% for the only one, and 95% for everyone else
-  (`backend/games/slots/`, tables made by `npm run slots:tune` and checked
+  (`backend/games/slots/`, tables from 92% to 109% made by
+  `npm run slots:tune` and checked exactly, by reading every possible line,
   by `npm run slots:rtp` and the tests). Wins always pay the paytable.
 
 ### Changed

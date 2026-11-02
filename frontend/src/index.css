@@ -227,6 +227,33 @@ img.slot-symbol {
 .slot-cell.is-win { background: var(--slot-win); animation: slot-win-pulse 0.7s ease-in-out 3; }
 @keyframes slot-win-pulse { 50% { background: var(--slot-reel); } }
 
+/* A Gauntlet that linked its line: a rainbow glow running round inside the
+   cell, on top of the winning gold. */
+.slot-cell.is-win.is-linked { animation: slot-win-pulse 0.7s ease-in-out 3, slot-rainbow 1.1s linear infinite; }
+@keyframes slot-rainbow {
+  0%, 100% { box-shadow: inset 0 0 0 3px #ff4d6d, inset 0 0 16px 4px #ff4d6d; }
+  17%      { box-shadow: inset 0 0 0 3px #ffa94d, inset 0 0 16px 4px #ffa94d; }
+  33%      { box-shadow: inset 0 0 0 3px #f9f871, inset 0 0 16px 4px #f9f871; }
+  50%      { box-shadow: inset 0 0 0 3px #51f08a, inset 0 0 16px 4px #51f08a; }
+  67%      { box-shadow: inset 0 0 0 3px #4dd2ff, inset 0 0 16px 4px #4dd2ff; }
+  83%      { box-shadow: inset 0 0 0 3px #b06bff, inset 0 0 16px 4px #b06bff; }
+}
+
+/* CRITICAL HIT! and INFINITY (components/slots/EffectText.jsx): the
+   rainbow running along the word. */
+.slot-rainbow-text { animation: slot-rainbow-run 1.2s linear infinite; }
+@keyframes slot-rainbow-run { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+
+/* Lightning: the reel window flashes a rainbow glow for a moment. */
+.slot-frame.is-charged { animation: slot-charge 0.9s ease-out; }
+@keyframes slot-charge {
+  0%   { box-shadow: inset 0 0 0 1.5px var(--slot-gold-dim), 0 0 0 0 transparent; }
+  15%  { box-shadow: inset 0 0 0 1.5px #ffffff, 0 0 36px 8px #4dd2ff; }
+  40%  { box-shadow: inset 0 0 0 1.5px #b06bff, 0 0 30px 6px #b06bff; }
+  65%  { box-shadow: inset 0 0 0 1.5px #ff4d6d, 0 0 22px 4px #ff4d6d; }
+  100% { box-shadow: inset 0 0 0 1.5px var(--slot-gold-dim), 0 10px 30px rgb(0 0 0 / 0.45); }
+}
+
 /* The credits box shakes when there's nothing to bet. */
 .slot-bank.is-nudged { animation: slot-nudge 0.38s; }
 @keyframes slot-nudge { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
@@ -290,6 +317,11 @@ img.slot-symbol {
   .slot-frame::before,
   .slot-frame::after,
   .slot-cell.is-win,
+  .slot-cell.is-win.is-linked,
+  .slot-frame.is-charged,
+  .slot-rainbow-text,
   .slot-track.is-settling,
   .slot-bank.is-nudged { animation: none; }
+  /* Still marked, just still. */
+  .slot-cell.is-win.is-linked { box-shadow: inset 0 0 0 3px #b06bff, inset 0 0 16px 4px #4dd2ff; }
 }

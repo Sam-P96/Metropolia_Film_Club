@@ -7,14 +7,24 @@ const { SLOTS, SYMBOL_BY_KEY } = require("../../../shared/slots/config.js");
 //
 // Money: the machine keeps PP in hundredths (cents), as whole numbers, so
 // sums never pick up floating-point dust. A bet is whole PP, or everything
-// in the machine (MAX), which can have cents. Wins are the paytable exactly,
-// to the cent: only 2.5x of a bet with an odd number of cents has a half
-// cent, and that half is dropped.
+// in the machine (MAX), which can have cents. Pays are added up in
+// hundredths of a multiple too (1.2x is 120), so a win is the paytable
+// exactly, to the cent: only a fraction of a cent from a pay like 1.3x on
+// a bet with cents is dropped.
 
 const CENTS = 100;
+// Multiples of the bet are added up in hundredths: every pay has at most
+// two decimals.
+const PAY_SCALE = 100;
 
 const toCents = (pp) => Math.round(pp * CENTS);
 const toPp = (cents) => cents / CENTS;
+
+const GAUNTLET = SLOTS.link.by;
+const [MAP, RING] = SLOTS.link.links;
+const LINKED = new Set([GAUNTLET, ...SLOTS.link.links]);
+const INFINITY = "INFINITY";
+const CRITICAL_HIT = "CRITICAL HIT!";
 
 // A spin or a machine change that isn't allowed. The routes send `message`
 // back with `status`.
@@ -63,35 +73,99 @@ function multiplierFor(symbolKey, count) {
     return symbol.pays[count - 3];
 }
 
-// What `grid` pays on a bet of `betCents`: each winning line ({ line, symbol,
-// count, multiplier, cells: [[reel, row], ...] }), the total win in cents,
-// and whether any line hit the jackpot.
-function evaluate(grid, betCents) {
+// The coin for a mixed link line: "map" or "ring", 50:50, from
+// crypto.randomInt unless a test passes its own.
+const fairFlip = () => (crypto.randomInt(2) === 0 ? MAP : RING);
+
+// What one line pays: the symbols along it, left to right, read the best
+// way they can be, or null if nothing pays. Two readings, both from the
+// leftmost reel:
+//   The same symbol 3, 4 or 5 in a row. 3+ Gauntlets on their own are
+//   INFINITY (lightning).
+//   The Gauntlet link: a run of only Maps, Rings and Gauntlets, 3 or more
+//   long, with at least one Gauntlet and at least one Map or Ring. Only
+//   Maps beside the Gauntlets: it pays as Maps of that length (fireworks).
+//   Only Rings: as Rings (lightning). Both: `flip()` decides, "map" (as
+//   Maps, fireworks) or "ring" (as Rings, lightning and a CRITICAL HIT!).
+// The link never takes in the logo or a Common or Uncommon symbol, so the
+// jackpot is still only 5 logos. The higher reading pays (the first, on a
+// tie), and the effect and text are that reading's. Returns { symbol,
+// count, multiplier, effect, text, jackpot }: `symbol` is what it paid as.
+function readLine(symbols, flip = fairFlip) {
+    const first = symbols[0];
+    let same = 1;
+    while (same < symbols.length && symbols[same] === first) same += 1;
+
+    let best = null;
+    const plain = multiplierFor(first, same);
+    if (plain > 0) {
+        const infinity = first === GAUNTLET;
+        best = {
+            symbol: first,
+            count: same,
+            multiplier: plain,
+            effect: infinity ? "lightning" : null,
+            text: infinity ? INFINITY : null,
+            jackpot: same === SLOTS.reels && Boolean(SYMBOL_BY_KEY[first].jackpot),
+        };
+    }
+
+    let run = 0;
+    while (run < symbols.length && LINKED.has(symbols[run])) run += 1;
+    if (run >= 3) {
+        const linked = symbols.slice(0, run);
+        const hasMap = linked.includes(MAP);
+        const hasRing = linked.includes(RING);
+        if (linked.includes(GAUNTLET) && (hasMap || hasRing)) {
+            const as = hasMap && hasRing ? flip() : hasMap ? MAP : RING;
+            const link = {
+                symbol: as,
+                count: run,
+                multiplier: multiplierFor(as, run),
+                effect: as === MAP ? "fireworks" : "lightning",
+                text: hasMap && hasRing && as === RING ? CRITICAL_HIT : null,
+                jackpot: false,
+            };
+            if (!best || link.multiplier > best.multiplier) best = link;
+        }
+    }
+
+    return best;
+}
+
+// What `grid` pays on a bet of `betCents`, flipping a coin of its own for
+// each mixed link line (`flip`): each winning line ({ line, symbol, count,
+// multiplier, cells: [[reel, row], ...], effect, text, gauntlets: the
+// Gauntlet cells among them }), the total multiple of the bet, the total
+// win in cents, and whether any line hit the jackpot.
+function evaluate(grid, betCents, flip = fairFlip) {
     const lines = [];
 
     SLOTS.paylines.forEach((payline, line) => {
-        const symbol = grid[0][payline.rows[0]];
-        let count = 1;
-        while (count < SLOTS.reels && grid[count][payline.rows[count]] === symbol) count += 1;
+        const symbols = payline.rows.map((row, reel) => grid[reel][row]);
+        const reading = readLine(symbols, flip);
+        if (!reading) return;
 
-        const multiplier = multiplierFor(symbol, count);
-        if (multiplier > 0) {
-            lines.push({
-                line,
-                symbol,
-                count,
-                multiplier,
-                cells: payline.rows.slice(0, count).map((row, reel) => [reel, row]),
-            });
-        }
+        const cells = payline.rows.slice(0, reading.count).map((row, reel) => [reel, row]);
+        lines.push({
+            line,
+            symbol: reading.symbol,
+            count: reading.count,
+            multiplier: reading.multiplier,
+            cells,
+            effect: reading.effect,
+            text: reading.text,
+            gauntlets: cells.filter(([reel, row]) => grid[reel][row] === GAUNTLET),
+            jackpot: reading.jackpot,
+        });
     });
 
-    const multiplier = lines.reduce((sum, win) => sum + win.multiplier, 0);
+    const scaled = lines.reduce((sum, won) => sum + Math.round(won.multiplier * PAY_SCALE), 0);
     return {
-        lines,
-        multiplier,
-        win: Math.floor(multiplier * betCents),
-        jackpot: lines.some((win) => win.multiplier === SLOTS.jackpotMultiplier),
+        lines: lines.map(({ jackpot, ...won }) => won),
+        multiplier: scaled / PAY_SCALE,
+        win: Math.floor((scaled * betCents) / PAY_SCALE),
+        jackpot: lines.some((won) => won.jackpot),
     };
 }
 
@@ -128,12 +202,17 @@ function checkBet(bet, balanceCents) {
 
 module.exports = {
     CENTS,
+    PAY_SCALE,
+    INFINITY,
+    CRITICAL_HIT,
     toCents,
     toPp,
     SlotError,
     drawTable,
     drawGrid,
     multiplierFor,
+    fairFlip,
+    readLine,
     evaluate,
     splitBet,
     checkBet,

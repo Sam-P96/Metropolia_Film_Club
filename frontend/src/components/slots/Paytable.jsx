@@ -22,10 +22,10 @@ function FivePays({ symbol, compact }) {
   )
 }
 
-// The five paylines, each drawn with its name.
-export function Paylines({ width = 56, named = true }) {
+// The paylines, each drawn (with its name, unless `named` is false).
+export function Paylines({ width = 56, named = true, className = 'gap-x-4 gap-y-2' }) {
   return (
-    <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+    <ul className={`flex flex-wrap justify-center ${className}`}>
       {SLOTS.paylines.map((line) => (
         <li key={line.key} className="flex flex-col items-center gap-1">
           <PaylineDiagram rows={line.rows} name={line.name} width={width} />
@@ -56,7 +56,10 @@ export default function Paytable() {
                 <SymbolTile symbolKey={symbol.key} size={36} />
                 <span className="min-w-0">
                   <span className="block text-white">{symbol.name}</span>
-                  <span className={`block text-[0.65rem] tracking-widest uppercase ${RARITY_COLOUR[symbol.rarity]}`}>{symbol.rarity}</span>
+                  <span className={`block text-[0.65rem] tracking-widest uppercase ${RARITY_COLOUR[symbol.rarity]}`}>
+                    {symbol.rarity}
+                    {symbol.key === SLOTS.link.by && ' · links Maps & Rings'}
+                  </span>
                 </span>
               </span>
             </td>
@@ -72,11 +75,11 @@ export default function Paytable() {
   )
 }
 
-// The simplified paytable on the machine: what 3, 4 and 5 pay, and the
-// lines. Small enough for one phone screen.
+// The simplified paytable on the machine: what 3, 4 and 5 pay, the
+// Gauntlet link, and the lines. Small enough for one phone screen.
 export function CompactPaytable() {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <table className="w-full tabular-nums">
         <thead className="text-[0.65rem] tracking-widest text-white/50 uppercase">
           <tr>
@@ -91,25 +94,26 @@ export function CompactPaytable() {
         <tbody className="text-sm">
           {SLOTS.symbols.map((symbol) => (
             <tr key={symbol.key} className="border-t border-white/5">
-              <td className="py-0.5">
+              <td className="py-px">
                 <span className="flex items-center gap-2">
-                  <SymbolTile symbolKey={symbol.key} size={28} />
+                  <SymbolTile symbolKey={symbol.key} size={24} />
                   <span className="sr-only">{symbol.name}</span>
                 </span>
               </td>
-              <td className="py-0.5 text-right text-white/80">{times(symbol.pays[0])}</td>
-              <td className="py-0.5 text-right text-white/80">{times(symbol.pays[1])}</td>
-              <td className="py-0.5 text-right font-semibold text-white">
+              <td className="py-px text-right text-white/80">{times(symbol.pays[0])}</td>
+              <td className="py-px text-right text-white/80">{times(symbol.pays[1])}</td>
+              <td className="py-px text-right font-semibold text-white">
                 <FivePays symbol={symbol} compact />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="text-center text-[0.7rem] text-white/50">
-        Pays left to right, times your bet. 5 logos on a line: {times(SLOTS.jackpotMultiplier)}.
+      <p className="text-center text-[0.7rem] leading-snug text-white/55">
+        Pays left to right on {SLOTS.paylines.length} lines, times your bet. 5 logos: {times(SLOTS.jackpotMultiplier)}. The Gauntlet links
+        Maps and Rings (both: a CRITICAL HIT! when it pays as Rings); 3+ Gauntlets alone: INFINITY.
       </p>
-      <Paylines width={44} named={false} />
+      <Paylines width={36} named={false} className="gap-x-2.5 gap-y-1.5" />
     </div>
   )
 }
