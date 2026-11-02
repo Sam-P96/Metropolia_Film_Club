@@ -102,7 +102,7 @@ export default function Games() {
                 <GameTitle />
               </h2>
               <p className="text-white/70">
-                Five reels, five lines. Load it with points, pull the lever, and line up five Kino Kaveri logos for the jackpot.
+                Five reels, {SLOTS.paylines.length} lines. Load it with points, pull the lever, and line up five Kino Kaveri logos for the jackpot.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play {SLOTS.name} →</span>
             </Link>

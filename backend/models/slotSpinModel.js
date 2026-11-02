@@ -20,10 +20,16 @@ const slotSpinSchema = new Schema({
             new Schema(
                 {
                     line: Number,
+                    // What it paid as (a Gauntlet link pays as Maps or Rings).
                     symbol: String,
                     count: Number,
                     multiplier: Number,
                     cells: [[Number]],
+                    // "fireworks", "lightning" or null; "CRITICAL HIT!",
+                    // "INFINITY" or null; and the Gauntlet cells among `cells`.
+                    effect: {type: String, default: null},
+                    text: {type: String, default: null},
+                    gauntlets: {type: [[Number]], default: []},
                 },
                 {_id: false}
             ),

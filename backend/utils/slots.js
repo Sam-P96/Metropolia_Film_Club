@@ -178,12 +178,22 @@ function machineView(machine) {
 }
 
 // A spin as the page gets it: the grid to land on, the winning lines and
-// cells, the win and the machine after. Never the luck it was played with.
+// cells (with each line's effect, text and Gauntlet cells), the win and the
+// machine after. Never the luck it was played with.
 function spinView(spin) {
     return {
         spinId: spin.spinId,
         grid: spin.grid,
-        lines: spin.lines.map(({ line, symbol, count, multiplier, cells }) => ({ line, symbol, count, multiplier, cells })),
+        lines: spin.lines.map(({ line, symbol, count, multiplier, cells, effect, text, gauntlets }) => ({
+            line,
+            symbol,
+            count,
+            multiplier,
+            cells,
+            effect: effect ?? null,
+            text: text ?? null,
+            gauntlets: gauntlets ?? [],
+        })),
         bet: toPp(spin.bet),
         win: toPp(spin.win),
         bigWin: spin.win >= SLOTS.bigWinMultiple * spin.bet,
@@ -232,12 +242,17 @@ async function addCredits(userId, amount, now = new Date()) {
 
 // ---- Spinning ----
 
-// Where the random numbers come from: crypto.randomInt, which can't be
-// predicted. Only the tests swap it, to land the grid they need.
+// Where the random numbers come from, for the grid and for the coin a
+// mixed Gauntlet link line flips: crypto.randomInt, which can't be
+// predicted. Only the tests swap them, to land the grid (and the coin) they
+// need.
 let randomInt = crypto.randomInt;
-function useRandomSource(source) {
+let coinInt = crypto.randomInt;
+function useRandomSource(source, coin = null) {
     randomInt = source ?? crypto.randomInt;
+    coinInt = coin ?? crypto.randomInt;
 }
+const flipCoin = () => (coinInt(2) === 0 ? SLOTS.link.links[0] : SLOTS.link.links[1]);
 
 const SPIN_ID = /^[A-Za-z0-9-]{8,64}$/;
 
@@ -270,7 +285,7 @@ async function spin(userId, { spinId, bet } = {}, now = new Date()) {
             const betCents = checkBet(bet, held);
 
             const grid = drawGrid(weights, randomInt);
-            const result = evaluate(grid, betCents);
+            const result = evaluate(grid, betCents, flipCoin);
             const fromBet = splitBet(machine, betCents);
             const after = { pp: machine.pp - fromBet.pp, ppp: machine.ppp - fromBet.ppp + result.win };
             const total = after.pp + after.ppp;

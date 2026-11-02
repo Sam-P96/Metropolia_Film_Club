@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import AnimatedNumber from '../AnimatedNumber'
 import AddCreditsSheet from './AddCreditsSheet'
 import CashOutSheet from './CashOutSheet'
+import EffectText from './EffectText'
 import HoldButton from './HoldButton'
 import JackpotCelebration from './JackpotCelebration'
 import Lever from './Lever'
 import Reels from './Reels'
 import Sheet from './Sheet'
+import SlotEffects from './SlotEffects'
 import { CompactPaytable } from './Paytable'
 import { HAPTIC, SOUNDS, haptic, isMuted, setMuted, wakeAudio } from './feedback'
 import { formatPoints } from './format'
@@ -16,6 +18,11 @@ import useSlotMachine from '../../hooks/useSlotMachine'
 import useWallet from '../../hooks/useWallet'
 import { ApiError } from '../../services/api'
 import { SLOTS } from '../../../../shared/slots/config.js'
+
+// Development only (npm run dev): a panel for playing the effects on demand
+// (EffectsPreview.jsx). A production build replaces import.meta.env.DEV
+// with false, so the panel and its file are left out of it entirely.
+const EffectsPreview = import.meta.env.DEV ? lazy(() => import('./EffectsPreview')) : null
 
 // The frame's padding, the window's padding and the gaps between reels,
 // around the cells: what's left over is shared by the 5 x 3 cells.
@@ -30,6 +37,12 @@ const ROOM_BELOW = 0.06
 // If the lever's flick never reaches the top stop, the reels set off anyway
 // after this long.
 const LEVER_TOP_FALLBACK_MS = 700
+
+// The symbols lightning shoots from: the Gauntlet and the Ring.
+const SPARKS = new Set([SLOTS.link.by, SLOTS.link.links[1]])
+
+// Cells once each, however many lines they're on.
+const uniqueCells = (cells) => [...new Map(cells.map((cell) => [cell.join(','), cell])).values()]
 
 // Where the nav ends: the top of the page's <main>, which comes straight
 // after it. The nav itself is left alone.
@@ -108,6 +121,10 @@ export default function SlotScreen() {
   const [muted, setMutedState] = useState(isMuted)
   const [jackpot, setJackpot] = useState(null)
   const [toast, setToast] = useState(null)
+  // The last spin's effects: fireworks and lightning (SlotEffects), and
+  // CRITICAL HIT! or INFINITY over the reels (EffectText).
+  const [burst, setBurst] = useState(null)
+  const [effectText, setEffectText] = useState(null)
 
   const machine = game.machine
   const balance = machine?.balance ?? 0
@@ -184,6 +201,8 @@ export default function SlotScreen() {
     spinningNow.current = true
     setSpinning(true)
     reels.current.clear()
+    setBurst(null)
+    setEffectText(null)
     setDuring({ balance: Math.round((balance - amount) * 100) / 100 })
     say('Rolling…')
 
@@ -220,28 +239,80 @@ export default function SlotScreen() {
     setDuring(null)
 
     if (result.win > 0) {
-      reels.current.highlight(result.lines.flatMap((won) => won.cells))
       const win = formatPoints(result.win)
-      if (result.jackpot) {
-        say(`Jackpot! +${win}`, 'win')
-        SOUNDS.jackpot()
-        haptic(HAPTIC.bigWin)
-        setJackpot(result.win)
-      } else if (result.bigWin) {
-        say(`Big win! +${win}`, 'win')
-        SOUNDS.win()
-        haptic(HAPTIC.bigWin)
-      } else {
-        say(`Win +${win}`, 'win')
-        SOUNDS.win()
-        haptic(HAPTIC.win)
-      }
+      say(result.jackpot ? `Jackpot! +${win}` : result.bigWin ? `Big win! +${win}` : `Win +${win}`, 'win')
+      celebrate(result)
     } else {
       say(result.balance > 0 ? 'No win. Pull again' : 'Out of credits', result.balance > 0 ? '' : 'alert')
     }
 
     spinningNow.current = false
     setSpinning(false)
+  }
+
+  // Everything a winning spin sets off once the reels have landed on
+  // `result.grid`: the winning cells lit, the linked Gauntlets glowing, and
+  // then either the jackpot's gold celebration, or the win jingle and the
+  // lines' effects (showEffects). Real spins and the dev effects preview
+  // both come here, so they always match.
+  const celebrate = (result) => {
+    reels.current.highlight(result.lines.flatMap((won) => won.cells))
+    reels.current.highlightLinked(uniqueCells(result.lines.flatMap((won) => won.gauntlets)))
+    if (result.jackpot) {
+      SOUNDS.jackpot()
+      haptic(HAPTIC.bigWin)
+      setJackpot(result.win)
+      return
+    }
+    SOUNDS.win()
+    haptic(result.bigWin ? HAPTIC.bigWin : HAPTIC.win)
+    showEffects(result)
+  }
+
+  // What a spin's winning lines set off: fireworks from the Gauntlets of
+  // lines paid as Maps, lightning from the Gauntlets and Rings of lines
+  // paid as Rings (or INFINITY), all at once, with the reel window glowing;
+  // and CRITICAL HIT! and INFINITY over the reels, one after the other. The
+  // sounds come with them: the fireworks' whoosh here, each burst's pops,
+  // each strike's crack and each word's sound as they happen (the props on
+  // SlotEffects and EffectText below). With reduced motion there are only
+  // the words (the cells are lit either way), and a single firework and
+  // lightning sound stand in for the bursts and strikes.
+  const showEffects = (result) => {
+    const won = result.lines
+    const texts = [...new Set(won.map((line) => line.text).filter(Boolean))]
+    if (texts.length) setEffectText({ id: result.spinId, texts })
+
+    const fireworks = won.filter((line) => line.effect === 'fireworks').flatMap((line) => line.gauntlets)
+    const lightning = won
+      .filter((line) => line.effect === 'lightning')
+      .flatMap((line) => line.cells.filter(([reel, row]) => SPARKS.has(result.grid[reel][row])))
+    if (fireworks.length === 0 && lightning.length === 0) return
+    if (fireworks.length) SOUNDS.fireworksLaunch()
+
+    if (reduce) {
+      if (fireworks.length) SOUNDS.fireworkBurst(0)
+      if (lightning.length) SOUNDS.lightningStrike(true)
+      return
+    }
+
+    const centres = (cells) =>
+      reels.current.cellRects(uniqueCells(cells)).map((rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }))
+    setBurst({ id: result.spinId, fireworks: centres(fireworks), lightning: centres(lightning), window: reels.current.windowRect() })
+    if (lightning.length) reels.current.glow()
+  }
+
+  // The dev-only effects preview: a made-up winning `result` (from
+  // EffectsPreview.jsx) shown on the reels at once and celebrated exactly as
+  // a real spin would be. Nothing is sent to the server, and the machine's
+  // balance doesn't change.
+  const previewEffects = (result) => {
+    if (spinningNow.current) return
+    reels.current.clear()
+    reels.current.show(result.grid)
+    setBurst(null)
+    setEffectText(null)
+    celebrate(result)
   }
 
   // − and +: whole PP, from the minimum up to what the machine holds.
@@ -297,6 +368,8 @@ export default function SlotScreen() {
           if (e.target.closest('button')) haptic(HAPTIC.press)
         }}
       >
+        {/* Fireworks and lightning: over the machine, under the words. */}
+        <SlotEffects burst={burst} onBurst={SOUNDS.fireworkBurst} onStrike={SOUNDS.lightningStrike} />
         <div className="mx-auto flex h-full w-full max-w-[30rem] flex-col px-[max(1rem,env(safe-area-inset-left))] pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {/* Top row: mute, and the simplified paytable. */}
           <div className="flex items-center gap-1">
@@ -325,8 +398,9 @@ export default function SlotScreen() {
               left (a little higher than the middle, with room kept below),
               the reels as big as fit. */}
           <div ref={group} className="flex min-h-0 flex-1 flex-col justify-center gap-3">
-            <div className="flex justify-center">
+            <div className="relative flex justify-center">
               <Reels ref={reels} cell={cell} spinning={spinning} reduce={reduce} />
+              <EffectText id={effectText?.id} texts={effectText?.texts} onWord={SOUNDS.word} />
             </div>
 
             <p ref={statusLine} role="status" className={`min-h-[1.4em] text-center font-['Bebas_Neue'] text-xl tracking-[0.14em] uppercase ${statusColour}`}>
@@ -445,6 +519,12 @@ export default function SlotScreen() {
             </motion.p>
           )}
         </AnimatePresence>
+
+        {EffectsPreview && (
+          <Suspense fallback={null}>
+            <EffectsPreview bet={bet} disabled={spinning} onPlay={previewEffects} />
+          </Suspense>
+        )}
       </motion.div>
 
       {/* Outside the machine, so it covers the nav too. */}
