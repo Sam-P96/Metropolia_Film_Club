@@ -6,6 +6,7 @@ import { formatPoints } from '../../hooks/useDoubleOrNothing'
 import { getCurrentUserId } from '../../utils/currentUser'
 import { timeAgo } from '../../utils/timeAgo'
 import { GLASS } from './glass'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const BUTTON = 'inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-gold px-4 font-bold text-ink transition hover:brightness-110'
 const GLOW_SMALL = '0 0 14px 1px rgba(16,185,129,0.4)'
@@ -21,9 +22,12 @@ function playerParts(user) {
       </Link>
     ),
     name: (
-      <Link to={`/users/${user._id}`} className="font-semibold text-white hover:text-brand-gold">
-        {user.username}
-      </Link>
+      <>
+        <Link to={`/users/${user._id}`} className="font-semibold text-white hover:text-brand-gold">
+          {user.username}
+        </Link>
+        <ResonanceIcon userId={user._id} className="ml-1" />
+      </>
     ),
   }
 }

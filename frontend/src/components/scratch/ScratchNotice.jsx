@@ -5,6 +5,7 @@ import MemberAvatar from '../profile/MemberAvatar'
 import { GoldenTicketIcon, StarIcon } from './TileFace'
 import { timeAgo } from '../../utils/timeAgo'
 import { SCRATCH } from '../../../../shared/scratch/config.js'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const BUTTON = 'inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-gold px-4 font-bold text-ink transition hover:brightness-110'
 const GLOW_SMALL = '0 0 14px 1px rgba(250,188,63,0.45)'
@@ -22,9 +23,12 @@ function winnerParts(user) {
       </Link>
     ),
     name: (
-      <Link to={`/users/${user._id}`} className="font-semibold text-white hover:text-brand-gold">
-        {user.username}
-      </Link>
+      <>
+        <Link to={`/users/${user._id}`} className="font-semibold text-white hover:text-brand-gold">
+          {user.username}
+        </Link>
+        <ResonanceIcon userId={user._id} className="ml-1" />
+      </>
     ),
   }
 }

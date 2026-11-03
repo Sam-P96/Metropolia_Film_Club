@@ -1,4 +1,5 @@
 import SettingRow from './SettingRow'
+import { RESONANCE_SETTINGS } from '../../utils/resonance'
 import PillToggle from '../PillToggle'
 
 // Match the limits in backend/controllers/userControllers.js.
@@ -178,6 +179,23 @@ function ProfileEditor({ draft, onChange, onSave, onCancel }) {
             value={draft.followPrivacy ?? 'public'}
             onChange={(followPrivacy) => onChange('followPrivacy', followPrivacy)}
           />
+        </div>
+
+        <div className="space-y-5 border-t border-white/10 pt-5">
+          {/* The same two switches are on the Resonance page. */}
+          {Object.entries(RESONANCE_SETTINGS).map(([field, setting]) => {
+            const on = draft[field] ?? true
+
+            return (
+              <SettingRow
+                key={field}
+                label={setting.label}
+                description={on ? setting.on : setting.off}
+                on={on}
+                onChange={(value) => onChange(field, value)}
+              />
+            )
+          })}
         </div>
 
         <div className="space-y-5 border-t border-white/10 pt-5">

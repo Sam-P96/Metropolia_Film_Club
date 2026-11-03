@@ -10,6 +10,7 @@ import CoinIcon from '../components/wallet/CoinIcon'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import { getLobby } from '../services/farkle'
 import { BOT_MODE, BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
 const HEADING = "font-['Cinzel'] text-xl text-brand-gold"
@@ -30,7 +31,10 @@ function GameRow({ match }) {
       <span className="flex min-w-0 items-center gap-3">
         <MemberAvatar user={opponentOf(match)} />
         <span className="min-w-0">
-          <span className="font-semibold text-white">vs {opponentOf(match).username}</span>
+          <span className="font-semibold text-white">
+            vs {opponentOf(match).username}
+            <ResonanceIcon userId={opponentOf(match)._id} className="ml-1" />
+          </span>
           <span className="block text-sm text-white/60 tabular-nums">
             {formatPoints(match.scores[match.mySeat])} to {formatPoints(match.scores[1 - match.mySeat])} · first to{' '}
             {formatPoints(match.target)} · winner takes {formatPoints(match.prize)} P-PP
@@ -64,7 +68,10 @@ function RecentRow({ match }) {
   const row = 'flex flex-wrap items-center justify-between gap-x-4 py-2'
   const text = (
     <>
-      <span className="text-white">vs {opponentOf(match).username}</span>
+      <span className="text-white">
+        vs {opponentOf(match).username}
+        <ResonanceIcon userId={opponentOf(match)._id} className="ml-1" />
+      </span>
       <span className="text-sm">{outcome}</span>
     </>
   )

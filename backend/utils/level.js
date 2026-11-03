@@ -1,5 +1,5 @@
 const Review = require("../models/reviewModel");
-const { topCriticRanks } = require("./critics");
+const { everyCritic, topCriticRanks } = require("./critics");
 
 // A member's level: reviews / 20 + likes / 5 - dislikes / 3, counting the
 // likes and dislikes on their reviews. Reviews can make up at most 75% of
@@ -67,4 +67,19 @@ async function withStanding(profile) {
     return { ...profile, ...standing(profile, stats, ranks) };
 }
 
-module.exports = { levelOf, withAuthorStanding, withStanding };
+// The Critics Leaderboard's Level view: members by level, highest first,
+// at most `limit`, ties going to whoever has more likes, then more reviews.
+// Nobody at level 0 is on it. rankCritics's shape (utils/critics.js) with
+// `level` added. Levels are worked out here rather than in the database,
+// so this goes through every reviewer.
+async function rankByLevel({ limit }) {
+    const rows = await everyCritic();
+
+    return rows
+        .map((row) => ({ ...row, level: levelOf(row.user[0], row) }))
+        .filter((row) => row.level > 0)
+        .sort((a, b) => b.level - a.level || b.likes - a.likes || b.reviews - a.reviews || String(a._id).localeCompare(String(b._id)))
+        .slice(0, limit);
+}
+
+module.exports = { levelOf, rankByLevel, withAuthorStanding, withStanding };

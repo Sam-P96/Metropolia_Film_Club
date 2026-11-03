@@ -11,7 +11,7 @@ function Home({ isAuthenticated }) {
 
   return (
     <>
-      <Hero />
+      <Hero isAuthenticated={isAuthenticated} />
       <NextEvent />
       <ReviewSection
         title={reviews.title}

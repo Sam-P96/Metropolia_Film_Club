@@ -1,9 +1,10 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import MemberCard from '../components/profile/MemberCard'
 import { searchUsers } from '../utils/search'
 import { getUsers } from '../services/users'
 import useApi from '../hooks/useApi'
+import { getCurrentUser } from '../utils/currentUser'
 
 function Members() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -28,6 +29,16 @@ function Members() {
         </h1>
 
         <div className="mt-4 mb-8 h-1 w-10 rounded-full bg-brand-gold" />
+
+        {/* Resonance needs a login. */}
+        {getCurrentUser() && (
+          <p className="-mt-3 mb-6 text-sm text-white/60">
+            Looking for people who like what you like?{' '}
+            <Link to="/resonance" className="font-medium text-brand-gold transition-colors hover:text-white">
+              See your Resonance
+            </Link>
+          </p>
+        )}
 
         <input
           type="search"

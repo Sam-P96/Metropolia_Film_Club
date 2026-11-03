@@ -4,6 +4,7 @@ import BannerStrip from '../components/profile/BannerStrip'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import usePagedList from '../hooks/usePagedList'
 import { getFollowList } from '../services/users'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 // A member's followers ('followers') or the members they follow
 // ('following'), newest first, in the Critics Leaderboard's style, 10 at a
@@ -76,8 +77,9 @@ function FollowList({ kind }) {
                   <MemberAvatar user={user} />
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium drop-shadow transition-colors group-hover:text-brand-gold">
-                      {user.username}
+                    <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
+                      <span className="truncate">{user.username}</span>
+                      <ResonanceIcon userId={user._id} />
                     </p>
                     <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                       {user.memberTitle}

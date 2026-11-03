@@ -112,6 +112,17 @@ const userSchema = new Schema(
             default: "public",
         },
 
+        // Resonance, the taste match from their film ratings
+        // (utils/resonance.js). Off keeps them out of everyone's suggestions,
+        // rankings and icons, and hides it from them too. Their matches are
+        // still worked out, so turning it back on brings them straight back.
+        resonance: { type: Boolean, default: true },
+
+        // The Resonance icon after the names of members they share a Soul
+        // Resonance with. Off: no icon after their name for anyone, and none
+        // after anyone else's for them.
+        resonanceIcon: { type: Boolean, default: true },
+
         // Recorded at signup so we can show, if ever asked, that the member
         // agreed to the privacy policy and which version they saw.
         consent: {

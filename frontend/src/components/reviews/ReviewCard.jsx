@@ -7,12 +7,21 @@ import { timeAgo } from '../../utils/timeAgo'
 import { levelTextStyle } from '../../utils/levelStyle'
 import { bannerLayerStyle } from '../../utils/bannerStyle'
 import { RANK_TITLES, rankRing } from '../../utils/rankRings'
+import ResonanceIcon from '../resonance/ResonanceIcon'
+import CardShine from '../CardShine'
+import useSoulResonance from '../../hooks/useSoulResonance'
+import useFriends from '../../hooks/useFriends'
 
 // showLevel keeps "Level: X" on screen, for the preview while editing the card.
 // solid gives the card an opaque background, for a light page where the
 // usual see-through one would wash out (the Notifications page on white).
 function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) {
   const { user } = review
+  // The author and the logged-in member: a Soul Resonance glows blue with a
+  // glass edge (whatever their icon settings), friends a softer purple.
+  const soul = useSoulResonance()[String(user?._id)] !== undefined
+  const friend = useFriends().has(String(user?._id))
+  const glow = soul ? 'soul' : friend ? 'friend' : null
 
   // The profile's "No reviews yet" stand-in has no film, so there's nothing
   // to link to or vote on.
@@ -33,7 +42,7 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) 
     ? `https://image.tmdb.org/t/p/w342${review.posterPath}`
     : null
 
-  return (
+  const card = (
     <article
       className={`overflow-hidden rounded-2xl border border-white/10 text-white shadow-xl shadow-black/40 backdrop-blur-md ${
         solid ? 'bg-plum' : 'bg-plum/40'
@@ -150,8 +159,9 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) 
           className="group relative flex items-center justify-end gap-4 px-5 py-4"
         >
           <div className="text-right">
-            <p className="font-semibold drop-shadow transition-colors group-hover:text-brand-gold">
+            <p className="flex items-center justify-end gap-1.5 font-semibold drop-shadow transition-colors group-hover:text-brand-gold">
               {user.username}
+              <ResonanceIcon userId={user._id} />
             </p>
             <p className="text-sm text-white/60">{user.memberTitle}</p>
           </div>
@@ -188,6 +198,15 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) 
       </div>
 
     </article>
+  )
+
+  if (!glow) return card
+
+  return (
+    <div className="relative">
+      {card}
+      <CardShine tone={glow} />
+    </div>
   )
 }
 

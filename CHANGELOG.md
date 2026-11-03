@@ -293,6 +293,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`backend/games/slots/`, tables from 92% to 109% made by
   `npm run slots:tune` and checked exactly, by reading every possible line,
   by `npm run slots:rtp` and the tests). Wins always pay the paytable.
+- Resonance, a 0 to 100% taste match between two members from their film
+  ratings (`backend/utils/resonance.js`, with the weights at the top):
+  the films both rated and how alike their ratings are once each member's
+  usual rating is taken out (50%, scaled down below 10 shared films), how
+  they rate each genre (25%), and how much of what they rate shares genres
+  (20%), decades (2.5%) and US age ratings (2.5%). 80% or more is a Soul
+  Resonance, 50% or more a Resonance, and below that a Dissonance, shown the
+  other way round ("Dissonance: 60%" for a 40% match; `shared/resonance.js`).
+  Members need 20 rated films. Every pair is worked out again at 04:00
+  Helsinki time, and on starting up if the last run was over a day ago or
+  used different scoring settings, so changing a weight and restarting is
+  enough (`jobs/resonanceSweep.js`, stored once per pair in
+  `models/resonanceModel.js` with the settings' fingerprint). Settings, privacy and friendships are checked
+  each time it's asked for, so changes show straight away: private profiles
+  never appear, friends-only ones only to friends, and members who turn
+  Resonance off in Edit profile drop out of everyone's lists (and see none
+  themselves) until they turn it back on, there, with the same switches
+  at the top of the Resonance page, or with its "Turn on Resonance?"
+  (`GET /api/resonance/me`,
+  `/suggestions`, `/ranking`, `/soul`). The home page's hero is now a
+  carousel: the welcome, with Post Reviews and Play Games, and for members
+  with a 75%+ match a random one of their best matches on a Resonance card,
+  with Show more and Find more friends; arrows on a computer, a swipe and
+  dots on a phone. The Resonance page (`/resonance`, linked from the hero,
+  your profile and Members) ranks everyone you may see, Resonance and
+  Dissonance, with a name search (each keeping their rank) and each
+  member's card opening on hover or tap. A blue
+  Resonance icon follows the names of your Soul Resonances around the site,
+  with "Soul Resonance: 87%" on hover or tap (an Edit profile setting turns
+  it off both ways), and their review cards and Resonance cards glow blue
+  with a glass edge. Film logs now keep the US age rating from TMDB, and
+  `npm run backfill:certifications` fills it in for older entries;
+  `npm run resonance:sweep` works everyone out again straight away.
+  `/SECRETresonance` (linked from nowhere, admins only,
+  `GET /api/resonance/all`) lists every pair worked out live with the
+  current weights and all five factors, whatever members' settings, for
+  members with 20 rated films or any, or one member's pairs.
+- A Level view on the Critics Leaderboard (Top | Controversial | Level):
+  members by level, highest first, ties to whoever has more likes
+  (`GET /api/reviews/critics?sort=level`).
+- Friends' review cards glow a softer purple, the same glass edge as a Soul
+  Resonance's blue (which wins for a friend who's both). The friend list
+  comes from `GET /api/users/me/friends`, shared by every card and asked
+  for again after following or unfollowing someone. Account
+  deletion removes a member's matches, and the data download includes them.
 
 ### Changed
 - The full navigation bar shows from 1280px wide; narrower screens get the

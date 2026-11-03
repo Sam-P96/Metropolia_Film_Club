@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { followUser, unfollowUser } from '../../services/users'
+import { refreshFriends } from '../../hooks/useFriends'
 import { getCurrentUser } from '../../utils/currentUser'
 
 // Follow / Unfollow beside a member's name, in brand red, with a little pop
@@ -41,6 +42,8 @@ function FollowButton({ profileUser, onChange, followLabel = 'Follow', showFollo
 
     try {
       onChange(await (isFollowing ? unfollowUser : followUser)(profileUser._id))
+      // Their review cards glow purple while you're friends.
+      refreshFriends()
     } catch (err) {
       onChange(before)
       setError(err.message)

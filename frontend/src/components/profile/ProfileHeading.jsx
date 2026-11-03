@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import FollowButton from './FollowButton'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 import SettingRow from './SettingRow'
 import { deleteUser, setBans } from '../../services/users'
 import { BAN_RIGHTS, lostRights } from '../../utils/bans'
@@ -154,7 +155,10 @@ function ProfileHeading({ name, profileUser, isOwner, onChange }) {
       {banning && profileUser.canBan && <BanPanel profileUser={profileUser} onChange={onChange} />}
 
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl font-bold">{name}</h1>
+        <h1 className="flex min-w-0 items-center gap-2 text-3xl font-bold">
+          <span className="min-w-0 break-words">{name}</span>
+          <ResonanceIcon userId={profileUser._id} />
+        </h1>
 
         {!isOwner && <FollowButton profileUser={profileUser} onChange={onChange} />}
 

@@ -28,6 +28,11 @@ export async function updateMe(changes) {
   return profile
 }
 
+// The ids of the logged-in member's friends (mutual follows): { friends }.
+export function getMyFriendIds() {
+  return api('/users/me/friends')
+}
+
 // Follow or unfollow a member. Resolves to their follow state: followerCount,
 // followingCount, isFollowing, followsYou, isFriend and followListAccess.
 export function followUser(id) {

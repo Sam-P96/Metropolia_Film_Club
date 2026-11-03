@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import MemberAvatar from './MemberAvatar'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // Used by the members page and the search results page.
 function MemberCard({ user }) {
@@ -11,8 +12,9 @@ function MemberCard({ user }) {
     >
       <MemberAvatar user={user} size="lg" />
       <div className="min-w-0">
-        <p className="truncate font-semibold transition-colors group-hover:text-brand-gold">
-          {user.username}
+        <p className="flex min-w-0 items-center gap-1.5 font-semibold transition-colors group-hover:text-brand-gold">
+          <span className="truncate">{user.username}</span>
+          <ResonanceIcon userId={user._id} />
         </p>
         <p className="truncate text-sm text-white/50">{user.memberTitle}</p>
       </div>

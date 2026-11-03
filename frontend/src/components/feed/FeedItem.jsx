@@ -21,6 +21,7 @@ import { timeAgo } from '../../utils/timeAgo'
 import { resolveReports } from '../../services/films'
 import { deleteCut, setCutVote } from '../../services/cuts'
 import useDominantColor from '../../hooks/useDominantColor'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // How many names a vote notification lists before "+N others".
 const SHOWN_NAMES = 3
@@ -69,11 +70,15 @@ const VOTES = {
 // The light glass behind new and trending reviews: blurred, but only a little.
 const GLASS = 'backdrop-blur-[6px]'
 
+// With the Resonance icon after it, for a Soul Resonance.
 function NameLink({ user, className }) {
   return (
-    <Link to={`/users/${user._id}`} className={className}>
-      {user.username}
-    </Link>
+    <>
+      <Link to={`/users/${user._id}`} className={className}>
+        {user.username}
+      </Link>
+      <ResonanceIcon userId={user._id} className="ml-1" />
+    </>
   )
 }
 
@@ -142,6 +147,7 @@ function VoteNotice({ item, tone, solid }) {
                   <Link to={`/users/${person._id}`} className="flex items-center gap-3 text-sm">
                     <MemberAvatar user={person} size="sm" />
                     <span className={tone.name}>{person.username}</span>
+                    <ResonanceIcon userId={person._id} className="-ml-1.5" />
                   </Link>
                 </li>
               ))}
@@ -636,9 +642,12 @@ function EventNotice({ item, light }) {
                 {yours ? (
                   'you'
                 ) : host ? (
-                  <Link to={`/users/${host._id}`} className={`font-semibold transition-colors ${look.title}`}>
-                    {host.username}
-                  </Link>
+                  <>
+                    <Link to={`/users/${host._id}`} className={`font-semibold transition-colors ${look.title}`}>
+                      {host.username}
+                    </Link>
+                    <ResonanceIcon userId={host._id} className="ml-1" />
+                  </>
                 ) : (
                   'a former member'
                 )}

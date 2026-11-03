@@ -68,6 +68,14 @@ async function getMovie(tmdbId) {
     return result;
 }
 
+// The film's US age rating from getMovie: the first one TMDB lists that
+// isn't NR (an unrated festival screening is often listed before the
+// cinema release), or NR if that's all there is, or null for none.
+function usCertification(film) {
+    const ratings = (film?.usCertifications ?? []).map((rating) => rating.trim()).filter(Boolean);
+    return ratings.find((rating) => rating !== "NR") ?? ratings[0] ?? null;
+}
+
 // Several films, a few requests at a time so a long list doesn't trip TMDB's
 // rate limit. Films TMDB doesn't know come back as null.
 async function getMovies(tmdbIds, concurrency = 8) {
@@ -86,4 +94,4 @@ async function getMovies(tmdbIds, concurrency = 8) {
     return films;
 }
 
-module.exports = { TMDB_BASE, tmdbHeaders, getMovie, getMovies };
+module.exports = { TMDB_BASE, tmdbHeaders, getMovie, getMovies, usCertification };

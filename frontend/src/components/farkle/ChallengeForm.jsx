@@ -4,6 +4,7 @@ import MemberPicker from '../profile/MemberPicker'
 import TermsPicker from './TermsPicker'
 import { getStakeLimit, sendChallenge } from '../../services/farkle'
 import { stakeHint } from '../../utils/farkle'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // Challenging another member: find them by name, then pick the winning
 // score and the stake (up to what the poorer of the two has). Any member
@@ -61,6 +62,7 @@ export default function ChallengeForm({ onSent, initialOpponent = null }) {
       <div className="flex flex-wrap items-center gap-3">
         <MemberAvatar user={opponent} size="sm" />
         <span className="min-w-0 truncate text-lg font-semibold text-white">{opponent.username}</span>
+        <ResonanceIcon userId={opponent._id} className="-ml-1.5" />
         <button type="button" onClick={() => setOpponent(null)} className="cursor-pointer text-sm text-brand-gold underline underline-offset-4">
           Someone else
         </button>

@@ -17,6 +17,12 @@ const filmLogSchema = new Schema(
         posterPath: {type: String, default: null},
         genres: {type: [String], default: []},
 
+        // The film's US age rating (G, PG, PG-13, R, NC-17 or NR), for
+        // Resonance (utils/resonance.js). null when TMDB has none. Entries
+        // from before it existed don't have it until
+        // scripts/backfill-certifications.js fills it in.
+        certification: {type: String, default: null},
+
         status: {type: String, enum: ["plan_to_watch", "completed"], required: true},
 
         // A completed film they want to see again. Puts it back on their

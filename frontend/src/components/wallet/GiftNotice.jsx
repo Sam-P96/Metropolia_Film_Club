@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import CoinIcon from './CoinIcon'
 import { timeAgo } from '../../utils/timeAgo'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const TONES = {
   dark: { text: 'text-white/90', muted: 'text-white/50', name: 'font-semibold text-white hover:text-brand-gold', link: 'text-brand-gold hover:text-white' },
@@ -21,6 +22,7 @@ export default function GiftNotice({ item, light = false }) {
         <Link to={`/users/${giver._id}`} className={tone.name}>
           {giver.username}
         </Link>
+        <ResonanceIcon userId={giver._id} />
       </p>
       <p className={`mt-1 text-sm ${tone.muted}`}>
         {timeAgo(item.at)} ·{' '}

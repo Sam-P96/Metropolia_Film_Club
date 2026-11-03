@@ -5,6 +5,7 @@ import MemberAvatar from '../components/profile/MemberAvatar'
 import usePagedList from '../hooks/usePagedList'
 import { getBanned } from '../services/users'
 import { lostRights } from '../utils/bans'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 // Moderators and admins: every member with at least one ban, A to Z, in the
 // Critics Leaderboard's style, with the rights each has lost. Their name
@@ -62,8 +63,9 @@ function BannedList() {
                   <MemberAvatar user={user} />
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium drop-shadow transition-colors group-hover:text-brand-gold">
-                      {user.username}
+                    <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
+                      <span className="truncate">{user.username}</span>
+                      <ResonanceIcon userId={user._id} />
                     </p>
                     <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                       {user.memberTitle}

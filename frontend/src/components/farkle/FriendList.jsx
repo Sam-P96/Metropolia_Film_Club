@@ -5,6 +5,7 @@ import MemberAvatar from '../profile/MemberAvatar'
 import usePagedList from '../../hooks/usePagedList'
 import { getFriends } from '../../services/farkle'
 import { formatPoints } from '../../../../shared/farkle/rules.js'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const SMALL_BUTTON = 'inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg px-3 text-sm font-bold transition'
 
@@ -93,9 +94,12 @@ export default function FriendList({ className, onChallenge, reloads }) {
                     <MemberAvatar user={friend} size="sm" />
                   </Link>
                   <div className="min-w-0 flex-1">
-                    <Link to={`/users/${friend._id}`} className="block truncate font-semibold text-white hover:text-brand-gold">
-                      {friend.username}
-                    </Link>
+                    <p className="flex min-w-0 items-center gap-1.5">
+                      <Link to={`/users/${friend._id}`} className="truncate font-semibold text-white hover:text-brand-gold">
+                        {friend.username}
+                      </Link>
+                      <ResonanceIcon userId={friend._id} />
+                    </p>
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 tabular-nums">
                       <CoinIcon kind="pp" size={14} /> {formatPoints(friend.points)} PP
                     </p>
