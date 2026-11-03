@@ -302,21 +302,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Resonance, 50% or more a Resonance, and below that a Dissonance, shown the
   other way round ("Dissonance: 60%" for a 40% match; `shared/resonance.js`).
   Members need 20 rated films. Every pair is worked out again at 04:00
-  Helsinki time, and on starting up if the last run was over a day ago
-  (`jobs/resonanceSweep.js`, stored once per pair in
-  `models/resonanceModel.js`). Settings, privacy and friendships are checked
+  Helsinki time, and on starting up if the last run was over a day ago or
+  used different scoring settings, so changing a weight and restarting is
+  enough (`jobs/resonanceSweep.js`, stored once per pair in
+  `models/resonanceModel.js` with the settings' fingerprint). Settings, privacy and friendships are checked
   each time it's asked for, so changes show straight away: private profiles
   never appear, friends-only ones only to friends, and members who turn
   Resonance off in Edit profile drop out of everyone's lists (and see none
-  themselves) until they turn it back on, there or with "Turn on
-  Resonance?" on the Resonance page (`GET /api/resonance/me`,
+  themselves) until they turn it back on, there, with the same switches
+  at the top of the Resonance page, or with its "Turn on Resonance?"
+  (`GET /api/resonance/me`,
   `/suggestions`, `/ranking`, `/soul`). The home page's hero is now a
   carousel: the welcome, with Post Reviews and Play Games, and for members
   with a 75%+ match a random one of their best matches on a Resonance card,
   with Show more and Find more friends; arrows on a computer, a swipe and
   dots on a phone. The Resonance page (`/resonance`, linked from the hero,
   your profile and Members) ranks everyone you may see, Resonance and
-  Dissonance, with each member's card opening on hover or tap. A blue
+  Dissonance, with a name search (each keeping their rank) and each
+  member's card opening on hover or tap. A blue
   Resonance icon follows the names of your Soul Resonances around the site,
   with "Soul Resonance: 87%" on hover or tap (an Edit profile setting turns
   it off both ways), and their review cards and Resonance cards glow blue
@@ -327,6 +330,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET /api/resonance/all`) lists every pair worked out live with the
   current weights and all five factors, whatever members' settings, for
   members with 20 rated films or any, or one member's pairs.
+- A Level view on the Critics Leaderboard (Top | Controversial | Level):
+  members by level, highest first, ties to whoever has more likes
+  (`GET /api/reviews/critics?sort=level`).
 - Friends' review cards glow a softer purple, the same glass edge as a Soul
   Resonance's blue (which wins for a friend who's both). The friend list
   comes from `GET /api/users/me/friends`, shared by every card and asked

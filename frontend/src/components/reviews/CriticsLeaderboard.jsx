@@ -8,30 +8,38 @@ import { getCritics } from '../../services/films'
 import BannerStrip from '../profile/BannerStrip'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 
+// What each view ranks by, and what it shows on the right of each row.
+const count = (total, one, many) => `${total} ${total === 1 ? one : many}`
+
 const MODES = [
   {
     value: 'top',
     label: 'Top',
-    total: 'likes',
-    noun: ['like', 'likes'],
+    show: (critic) => count(critic.likes, 'like', 'likes'),
     color: 'text-emerald-300',
     empty: "Nobody's reviews have been liked yet.",
   },
   {
     value: 'controversial',
     label: 'Controversial',
-    total: 'dislikes',
-    noun: ['dislike', 'dislikes'],
+    show: (critic) => count(critic.dislikes, 'dislike', 'dislikes'),
     color: 'text-red-300',
     empty: "Nobody's reviews have been disliked yet.",
+  },
+  {
+    value: 'level',
+    label: 'Level',
+    show: (critic) => `Level ${critic.user.level}`,
+    color: 'text-brand-gold',
+    empty: 'Nobody has reached level 1 yet.',
   },
 ]
 
 const COLLAPSED = 4
 
 // The members whose reviews have collected the most likes (Top) or dislikes
-// (Controversial). Shows the top 4, and "Show top 10" lengthens it to 10.
-// The server never sends more than that.
+// (Controversial), or with the highest level (Level). Shows the top 4, and
+// "Show top 10" lengthens it to 10. The server never sends more than that.
 function CriticsLeaderboard() {
   const [mode, setMode] = useState('top')
   const [expanded, setExpanded] = useState(false)
@@ -40,6 +48,7 @@ function CriticsLeaderboard() {
   const lists = {
     top: useApi(() => getCritics('top'), []),
     controversial: useApi(() => getCritics('controversial'), []),
+    level: useApi(() => getCritics('level'), []),
   }
 
   const current = MODES.find((option) => option.value === mode)
@@ -66,8 +75,6 @@ function CriticsLeaderboard() {
         ) : (
           <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
             {shown.map((critic, index) => {
-              const total = critic[current.total]
-
               return (
                 <li key={critic.user._id}>
                   <Link
@@ -100,7 +107,7 @@ function CriticsLeaderboard() {
                     </div>
 
                     <p className={`shrink-0 text-sm font-semibold tabular-nums ${current.color}`}>
-                      {total} {current.noun[total === 1 ? 0 : 1]}
+                      {current.show(critic)}
                     </p>
                   </Link>
                 </li>

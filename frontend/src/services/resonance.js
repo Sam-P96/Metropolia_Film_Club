@@ -14,10 +14,13 @@ export function getResonanceSuggestions() {
   return api('/resonance/suggestions')
 }
 
-// A page of the Resonance page. `side` is 'resonance' or 'dissonance'.
-// Resolves to { standing, matches, total, hasMore, next }.
-export function getResonanceRanking(side, offset = 0) {
-  return api(`/resonance/ranking?side=${encodeURIComponent(side)}&offset=${offset}`)
+// A page of the Resonance page. `side` is 'resonance' or 'dissonance';
+// `search` keeps only the names with it in. Resolves to
+// { standing, matches (each with its `rank`), total, hasMore, next }.
+export function getResonanceRanking(side, offset = 0, search = '') {
+  const params = new URLSearchParams({ side, offset })
+  if (search) params.set('q', search)
+  return api(`/resonance/ranking?${params}`)
 }
 
 // /SECRETresonance, admins only: every pair, a page at a time. `min` is

@@ -3,7 +3,7 @@ const FilmLog = require("../models/filmLogModel");
 const Follow = require("../models/followModel");
 const Resonance = require("../models/resonanceModel");
 const User = require("../models/userModel");
-const { MIN_RATED, SUGGEST_FROM, tasteOf, resonanceBetween, suggestionCount } = require("./resonance");
+const { MIN_RATED, SUGGEST_FROM, SCORING_VERSION, tasteOf, resonanceBetween, suggestionCount } = require("./resonance");
 const { RESONANCE_TIERS } = require("../../shared/resonance.js");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
 
@@ -68,7 +68,7 @@ async function recalculateResonance() {
             writes.push({
                 updateOne: {
                     filter: { userA: members[a], userB: members[b] },
-                    update: { $set: { percent, movies, genre, sharedCount, sharedFilms, computedAt: startedAt } },
+                    update: { $set: { percent, movies, genre, sharedCount, sharedFilms, computedAt: startedAt, version: SCORING_VERSION } },
                     upsert: true,
                 },
             });
@@ -84,11 +84,12 @@ async function recalculateResonance() {
     return { members: members.length, pairs };
 }
 
-// When the last sweep ran, or null if nothing's stored (nobody has enough
-// rated films yet, or it's never run).
-async function lastCalculatedAt() {
-    const latest = await Resonance.findOne().sort({ computedAt: -1 }).select("computedAt").lean();
-    return latest?.computedAt ?? null;
+// The last sweep: { at, version } (when it ran, and the scoring settings
+// it used), or null if nothing's stored (nobody has enough rated films yet,
+// or it's never run).
+async function lastSweep() {
+    const latest = await Resonance.findOne().sort({ computedAt: -1 }).select("computedAt version").lean();
+    return latest ? { at: latest.computedAt, version: latest.version ?? null } : null;
 }
 
 // ---------- reading it back ----------
@@ -228,9 +229,11 @@ async function suggestionsFor(userId) {
 
 // The Resonance page, a page at a time from `offset`: "resonance" is
 // everyone at 50% or more, best first; "dissonance" everyone below, the
-// strongest Dissonance (the lowest match) first. With the member's
-// standing, so the page knows what to say when there's nothing.
-async function rankingFor(userId, side, offset) {
+// strongest Dissonance (the lowest match) first. `search` keeps only the
+// names with it in (any case), each keeping its `rank` in the whole list.
+// With the member's standing, so the page knows what to say when there's
+// nothing.
+async function rankingFor(userId, side, offset, search = "") {
     const standing = await standingOf(userId);
     const matches = await visibleMatches(userId, standing);
 
@@ -239,11 +242,16 @@ async function rankingFor(userId, side, offset) {
             ? matches.filter((match) => match.pair.percent < RESONANCE_TIERS.resonance).sort(byPercent(true))
             : matches.filter((match) => match.pair.percent >= RESONANCE_TIERS.resonance);
 
+    const needle = search.trim().toLowerCase();
+    const found = list
+        .map((match, index) => ({ match, rank: index + 1 }))
+        .filter(({ match }) => !needle || match.other.username.toLowerCase().includes(needle));
+
     return {
         standing,
-        matches: list.slice(offset, offset + PAGE_SIZE).map(matchView),
-        total: list.length,
-        hasMore: offset + PAGE_SIZE < list.length,
+        matches: found.slice(offset, offset + PAGE_SIZE).map(({ match, rank }) => ({ ...matchView(match), rank })),
+        total: found.length,
+        hasMore: offset + PAGE_SIZE < found.length,
         next: offset + PAGE_SIZE,
     };
 }
@@ -362,7 +370,7 @@ async function forgetResonance(userId) {
 
 module.exports = {
     recalculateResonance,
-    lastCalculatedAt,
+    lastSweep,
     standingOf,
     suggestionsFor,
     rankingFor,

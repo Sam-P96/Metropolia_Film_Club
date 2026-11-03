@@ -55,7 +55,8 @@ describe("deleting a review", { skip: !uri ? "set MONGO_TEST_URI to run these" :
         tokens.set(String(user._id), jwt.sign({ _id: user._id }, process.env.SECRET));
         return user;
     }
-    const reviewBy = (user) => Review.create({ user: user._id, tmdbId: 1000 + count, filmTitle: "Test Film", rating: 4, text: "Good." });
+    const reviewBy = (user, votes = {}) =>
+        Review.create({ user: user._id, tmdbId: 1000 + count, filmTitle: "Test Film", rating: 4, text: "Good.", ...votes });
     const remove = async (user, id) => {
         const response = await fetch(`${base}/${id}`, {
             method: "DELETE",
@@ -63,6 +64,33 @@ describe("deleting a review", { skip: !uri ? "set MONGO_TEST_URI to run these" :
         });
         return { status: response.status, body: await response.json().catch(() => null) };
     };
+
+    test("the Critics Leaderboard's Level view: highest level first, ties by likes, nobody at level 0", async () => {
+        await Review.deleteMany({});
+        const level = (likes, dislikes = 0) => Math.floor((12 * likes - 20 * dislikes + Math.min(3, 3 * (12 * likes - 20 * dislikes))) / 60);
+        // One review each. With PVP off, dislikes don't count against them.
+        const high = await member();
+        await reviewBy(high, { likeCount: 20 });
+        const tied = await member();
+        await reviewBy(tied, { likeCount: 16 });
+        const tiedMoreLikes = await member();
+        await reviewBy(tiedMoreLikes, { likeCount: 19, dislikeCount: 30 });
+        const none = await member();
+        await reviewBy(none, { likeCount: 2 });
+
+        const critics = await (await fetch(`${base}/critics?sort=level`)).json();
+        assert.deepEqual(critics.map((critic) => [critic.user.username, critic.user.level]), [
+            [high.username, level(20)],
+            [tiedMoreLikes.username, level(19)],
+            [tied.username, level(16)],
+        ]);
+        assert.equal(level(19), level(16));
+        assert.ok(!critics.some((critic) => critic.user.username === none.username));
+
+        // The others still sort the way they did.
+        const top = await (await fetch(`${base}/critics?sort=top`)).json();
+        assert.deepEqual(top.map((critic) => critic.likes), [20, 19, 16, 2]);
+    });
 
     test("the author deletes their own review, and its comments go with it", async () => {
         const [author, fan] = [await member(), await member()];

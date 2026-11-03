@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import PillToggle from '../components/PillToggle'
+import SettingRow from '../components/profile/SettingRow'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import BannerStrip from '../components/profile/BannerStrip'
 import ResonanceCard from '../components/resonance/ResonanceCard'
@@ -12,7 +13,7 @@ import usePagedList from '../hooks/usePagedList'
 import { noteSoulMatches, refreshSoulResonance } from '../hooks/useSoulResonance'
 import { getMyResonance, getResonanceRanking } from '../services/resonance'
 import { updateMe } from '../services/users'
-import { RELATIONS, TIER_COLOURS } from '../utils/resonance'
+import { RELATIONS, RESONANCE_SETTINGS, TIER_COLOURS } from '../utils/resonance'
 import { resonanceTier } from '../../../shared/resonance.js'
 
 const SIDES = [
@@ -20,11 +21,17 @@ const SIDES = [
   { value: 'dissonance', label: 'Dissonance', empty: 'Nobody is in Dissonance with you.' },
 ]
 
+// How long typing has to pause before the list is searched.
+const SEARCH_DELAY_MS = 250
+
 const button =
   'inline-block rounded-md border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-brand-gold/60 hover:bg-white/10'
 
 const primaryButton =
   'inline-block rounded-md bg-brand-red px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60'
+
+// Where each setting is in the member's standing (GET /api/resonance/me).
+const STANDING_KEYS = { resonance: 'on', resonanceIcon: 'icon' }
 
 // A message in place of the list.
 function Notice({ children }) {
@@ -34,9 +41,33 @@ function Notice({ children }) {
 // Everyone the logged-in member has a Resonance with and may see, styled
 // like the leaderboards: Resonance (50% or more) best first, Dissonance
 // (under 50%) the strongest first. Hovering over a row on a computer opens
-// that member's Resonance card under it; on a phone, tapping it does.
+// that member's Resonance card under it; on a phone, tapping it does. The
+// Resonance and Resonance icon switches from Edit profile are here too.
 function Resonance() {
-  const { data: standing, loading, error, reload } = useApi(getMyResonance, [])
+  const { data: standing, loading, error, reload, setData } = useApi(getMyResonance, [])
+  const [saveError, setSaveError] = useState(null)
+
+  // A switch saves straight away. The page follows it at once, then
+  // catches up with the server (whether there's anything to wait for).
+  const change = async (field, value) => {
+    const before = standing
+    const key = STANDING_KEYS[field]
+    setSaveError(null)
+    setData((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === 'on' && { eligible: value && current.rated >= current.needed }),
+    }))
+
+    try {
+      await updateMe({ [field]: value })
+      refreshSoulResonance()
+      reload()
+    } catch (err) {
+      setData(before)
+      setSaveError(err.message)
+    }
+  }
 
   let body
   if (loading) {
@@ -44,7 +75,7 @@ function Resonance() {
   } else if (error || !standing) {
     body = <p className="mt-8 text-white/60">Couldn't load Resonance. Try refreshing the page.</p>
   } else if (!standing.on) {
-    body = <TurnOn onTurnedOn={reload} />
+    body = <TurnOn onTurnOn={() => change('resonance', true)} />
   } else if (!standing.eligible) {
     body = (
       <Notice>
@@ -78,49 +109,63 @@ function Resonance() {
           again every night.
         </p>
 
+        {standing && <ResonanceSettings standing={standing} onChange={change} error={saveError} />}
+
         {body}
       </div>
     </section>
   )
 }
 
-// Resonance is off: one button turns it back on, and the page then shows
-// what there is. Turning it off again is in Edit profile.
-function TurnOn({ onTurnedOn }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
+// The Resonance and Resonance icon switches, the same as Edit profile's.
+// Each saves as soon as it's flipped.
+function ResonanceSettings({ standing, onChange, error }) {
+  return (
+    <div className="mt-6 space-y-5 rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+      {Object.entries(RESONANCE_SETTINGS).map(([field, setting]) => {
+        const on = standing[STANDING_KEYS[field]]
 
-  const turnOn = async () => {
-    setBusy(true)
-    setError(null)
+        return (
+          <SettingRow
+            key={field}
+            label={setting.label}
+            description={on ? setting.on : setting.off}
+            on={on}
+            onChange={(value) => onChange(field, value)}
+          />
+        )
+      })}
 
-    try {
-      await updateMe({ resonance: true })
-      refreshSoulResonance()
-      // Stays "Turning on…" until the page has their matches.
-      onTurnedOn()
-    } catch (err) {
-      setError(err.message)
-      setBusy(false)
-    }
-  }
+      {error && <p className="text-sm text-brand-red">{error}</p>}
+    </div>
+  )
+}
 
+// Resonance is off: the question, and one button to turn it back on.
+function TurnOn({ onTurnOn }) {
   return (
     <Notice>
       <p className="font-medium">Turn on Resonance?</p>
-      <button type="button" onClick={turnOn} disabled={busy} className={`${primaryButton} mt-4`}>
-        {busy ? 'Turning on…' : 'Turn on'}
+      <button type="button" onClick={onTurnOn} className={`${primaryButton} mt-4`}>
+        Turn on
       </button>
-      {error && <p className="mt-3 text-sm text-brand-red">{error}</p>}
     </Notice>
   )
 }
 
 function Ranking({ waiting }) {
   const [side, setSide] = useState('resonance')
-  const list = usePagedList((offset) => getResonanceRanking(side, offset), [side], 'matches')
+  // What's typed, and what's searched for once typing pauses.
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  const list = usePagedList((offset) => getResonanceRanking(side, offset, search), [side, search], 'matches')
   const current = SIDES.find((option) => option.value === side)
   const matches = list.data?.matches ?? []
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [query])
 
   // Fresher than the Soul map, if they've just been worked out.
   useEffect(() => {
@@ -129,9 +174,17 @@ function Ranking({ waiting }) {
 
   return (
     <>
-      {/* As wide as its options, not the page. */}
-      <div className="mt-8 flex">
+      <div className="mt-8 flex flex-wrap items-center gap-3">
         <PillToggle options={SIDES} value={side} onChange={setSide} label="Show" />
+
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search names..."
+          aria-label="Search names"
+          className="w-full max-w-xs rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10 sm:w-64"
+        />
       </div>
 
       {list.loading ? (
@@ -140,14 +193,16 @@ function Ranking({ waiting }) {
         <p className="mt-8 text-white/60">Couldn't load the list. Try refreshing the page.</p>
       ) : matches.length === 0 ? (
         <p className="mt-8 text-white/60">
-          {waiting
-            ? "You've just unlocked Resonance. It's worked out every night at 04:00, so check back tomorrow."
-            : current.empty}
+          {search
+            ? `Nobody called “${search}” in ${current.label}.`
+            : waiting
+              ? "You've just unlocked Resonance. It's worked out every night at 04:00, so check back tomorrow."
+              : current.empty}
         </p>
       ) : (
         <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-          {matches.map((match, index) => (
-            <Row key={match.user._id} match={match} rank={index + 1} />
+          {matches.map((match) => (
+            <Row key={match.user._id} match={match} rank={match.rank} />
           ))}
         </ol>
       )}

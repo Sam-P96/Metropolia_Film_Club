@@ -11,6 +11,7 @@ const assert = require("node:assert/strict");
 
 const {
     WEIGHTS,
+    SCORING_VERSION,
     similarity,
     shares,
     overlap,
@@ -205,6 +206,19 @@ describe("Resonance scoring", () => {
         assert.deepEqual(resonanceTier(0), { key: "dissonance", label: "Dissonance", shown: 100 });
     });
 
+    test("the server works everyone out again on starting up when the scores are stale", () => {
+        const { needsSweep } = require("../jobs/resonanceSweep");
+        const now = Date.now();
+        const hoursAgo = (hours) => new Date(now - hours * 60 * 60 * 1000);
+
+        assert.equal(needsSweep(null, now), true);
+        assert.equal(needsSweep({ at: hoursAgo(2), version: SCORING_VERSION }, now), false);
+        assert.equal(needsSweep({ at: hoursAgo(25), version: SCORING_VERSION }, now), true);
+        // Worked out with other weights, or before scores carried a version.
+        assert.equal(needsSweep({ at: hoursAgo(2), version: "different" }, now), true);
+        assert.equal(needsSweep({ at: hoursAgo(2), version: null }, now), true);
+    });
+
     test("suggestions come from the top 5% of eligible members, at least 3", () => {
         assert.equal(suggestionCount(0), 3);
         assert.equal(suggestionCount(60), 3);
@@ -330,7 +344,10 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         await FilmLog.updateOne({ user: a._id, tmdbId: 1 }, { $set: { rating: null } });
         assert.deepEqual(await store.recalculateResonance(), { members: 3, pairs: 3 });
         assert.equal(await Resonance.countDocuments({ $or: [{ userA: a._id }, { userB: a._id }] }), 0);
-        assert.ok(await store.lastCalculatedAt());
+        // Each stored score says which scoring settings made it.
+        const last = await store.lastSweep();
+        assert.equal(last.version, SCORING_VERSION);
+        assert.ok(last.at instanceof Date);
     });
 
     test("standing: how many films they've rated, Resonance off, and waiting for the next sweep", async () => {
@@ -380,7 +397,7 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(ranking.total, 2);
         assert.equal(ranking.standing.eligible, true);
         const [first] = ranking.matches;
-        assert.deepEqual(Object.keys(first).sort(), ["genre", "movies", "percent", "relation", "sharedCount", "sharedFilms", "user"]);
+        assert.deepEqual(Object.keys(first).sort(), ["genre", "movies", "percent", "rank", "relation", "sharedCount", "sharedFilms", "user"]);
         assert.deepEqual(Object.keys(first.user).sort(), ["_id", "avatarUrl", "reviewCardBanner", "username"]);
         assert.equal(ranking.matches[1].relation, "friends");
 
@@ -434,6 +451,14 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         const next = (await call(me, `/resonance/ranking?offset=${page.next}`)).body;
         assert.deepEqual(percents(next.matches), [60, 60, 50]);
         assert.equal(next.hasMore, false);
+
+        // Searching keeps each one's place in the whole list.
+        const found = (await call(me, `/resonance/ranking?q=${others[80].username.toUpperCase()}`)).body;
+        assert.deepEqual(found.matches.map((match) => [match.user.username, match.rank]), [[others[80].username, 2]]);
+        assert.equal(found.total, 1);
+        const lowest = (await call(me, `/resonance/ranking?side=dissonance&q=${others[30].username}`)).body;
+        assert.deepEqual(lowest.matches.map((match) => match.rank), [3]);
+        assert.deepEqual((await call(me, "/resonance/ranking?q=nobody-by-this-name")).body.matches, []);
     });
 
     test("suggestions: matches at 75%+, the top 5% of eligible members (at least 3), friends included", async () => {

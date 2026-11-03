@@ -1,5 +1,6 @@
 const cron = require("node-cron");
-const { lastCalculatedAt, recalculateResonance } = require("../utils/resonanceStore");
+const { SCORING_VERSION } = require("../utils/resonance");
+const { lastSweep, recalculateResonance } = require("../utils/resonanceStore");
 
 // Works out everyone's Resonance again every night at 04:00 Helsinki time,
 // when hardly anyone is rating films (utils/resonanceStore.js
@@ -22,19 +23,24 @@ function runSweep() {
     return running;
 }
 
-// Call once, after the database is connected. If the last sweep was more
-// than a day ago (the server was down at 04:00), or nothing's stored yet,
-// it sweeps straight away too.
+// Whether to sweep on starting up, from lastSweep(): nothing's stored yet,
+// the last sweep was more than a day ago (the server was down at 04:00), or
+// it used different scoring settings (the weights have changed since).
+function needsSweep(last, now = Date.now()) {
+    return !last || now - last.at.getTime() >= DAY_MS || last.version !== SCORING_VERSION;
+}
+
+// Call once, after the database is connected.
 function startResonanceSweep() {
     if (task) return;
 
     task = cron.schedule("0 4 * * *", runSweep, { timezone: "Europe/Helsinki", name: "resonance-sweep" });
 
-    lastCalculatedAt()
-        .then((at) => {
-            if (!at || Date.now() - at.getTime() >= DAY_MS) runSweep();
+    lastSweep()
+        .then((last) => {
+            if (needsSweep(last)) runSweep();
         })
         .catch((error) => console.error("Couldn't check the last Resonance sweep:", error.message));
 }
 
-module.exports = { startResonanceSweep, runSweep };
+module.exports = { startResonanceSweep, runSweep, needsSweep };

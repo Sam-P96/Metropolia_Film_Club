@@ -1,4 +1,5 @@
 import SettingRow from './SettingRow'
+import { RESONANCE_SETTINGS } from '../../utils/resonance'
 import PillToggle from '../PillToggle'
 
 // Match the limits in backend/controllers/userControllers.js.
@@ -181,27 +182,20 @@ function ProfileEditor({ draft, onChange, onSave, onCancel }) {
         </div>
 
         <div className="space-y-5 border-t border-white/10 pt-5">
-          <SettingRow
-            label="Resonance"
-            description={
-              draft.resonance ?? true
-                ? 'Your taste match with other members, from your film ratings, shows on the home page and the Resonance page. It needs 20 rated films.'
-                : "You don't appear in anyone's suggestions, rankings or icons, and you won't see Resonance yourself. Turning it back on brings it all straight back."
-            }
-            on={draft.resonance ?? true}
-            onChange={(on) => onChange('resonance', on)}
-          />
+          {/* The same two switches are on the Resonance page. */}
+          {Object.entries(RESONANCE_SETTINGS).map(([field, setting]) => {
+            const on = draft[field] ?? true
 
-          <SettingRow
-            label="Resonance icon"
-            description={
-              draft.resonanceIcon ?? true
-                ? 'The Resonance icon shows after the names of members you share a Soul Resonance (80%+) with, and after yours for them.'
-                : "No Resonance icon after your name for anyone, and none after anyone else's for you."
-            }
-            on={draft.resonanceIcon ?? true}
-            onChange={(on) => onChange('resonanceIcon', on)}
-          />
+            return (
+              <SettingRow
+                key={field}
+                label={setting.label}
+                description={on ? setting.on : setting.off}
+                on={on}
+                onChange={(value) => onChange(field, value)}
+              />
+            )
+          })}
         </div>
 
         <div className="space-y-5 border-t border-white/10 pt-5">

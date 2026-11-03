@@ -6,7 +6,7 @@ const User = require("../models/userModel");
 const { parseVote } = require("../models/votable");
 const { getMovie, getMovies, usCertification } = require("../services/tmdbService");
 const { AUTHOR_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
-const { levelOf, withAuthorStanding } = require("../utils/level");
+const { levelOf, rankByLevel, withAuthorStanding } = require("../utils/level");
 const { rankCritics } = require("../utils/critics");
 const { parseOffset } = require("../utils/paging");
 const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
@@ -327,14 +327,15 @@ async function getReviews(req, res) {
 }
 
 // The Critics Leaderboard: members by how many likes (?sort=top) or dislikes
-// (?sort=controversial) their reviews have collected, at most 10, with their
-// level. Members with none yet aren't on it, and members with PVP off are
-// never on Controversial.
+// (?sort=controversial) their reviews have collected, or by level
+// (?sort=level), at most 10, with their level. Members with none yet aren't
+// on it, and members with PVP off are never on Controversial.
 async function getCritics(req, res) {
-    const rows = await rankCritics({
-        controversial: req.query.sort === "controversial",
-        limit: parseLimit(req.query.limit, 10, 10),
-    });
+    const limit = parseLimit(req.query.limit, 10, 10);
+    const rows =
+        req.query.sort === "level"
+            ? await rankByLevel({ limit })
+            : await rankCritics({ controversial: req.query.sort === "controversial", limit });
 
     res.json(
         rows.map((row) => ({

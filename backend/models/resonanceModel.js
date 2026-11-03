@@ -33,6 +33,9 @@ const resonanceSchema = new Schema({
 
     // The sweep that worked it out. Pairs it didn't reach are removed.
     computedAt: {type: Date, required: true},
+    // The scoring settings it was worked out with (utils/resonance.js
+    // SCORING_VERSION), so a change to them is noticed.
+    version: {type: String, default: null},
 });
 
 resonanceSchema.index({userA: 1, userB: 1}, {unique: true});

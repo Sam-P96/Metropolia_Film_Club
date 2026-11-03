@@ -18,10 +18,11 @@ async function getSuggestions(req, res) {
 }
 
 // The Resonance page: ?side=resonance (the default) or dissonance, a page
-// at a time from ?offset.
+// at a time from ?offset, only the names with ?q in them if it's given.
 async function getRanking(req, res) {
     const side = req.query.side === "dissonance" ? "dissonance" : "resonance";
-    res.json(await rankingFor(req.user._id, side, parseOffset(req.query.offset)));
+    const search = typeof req.query.q === "string" ? req.query.q.slice(0, 50) : "";
+    res.json(await rankingFor(req.user._id, side, parseOffset(req.query.offset), search));
 }
 
 // { [member id]: { percent, icon } } for everyone they have a Soul

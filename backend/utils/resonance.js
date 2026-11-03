@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+
 // Resonance: a 0 to 100% match between two members' taste in films, from
 // the films they've rated (completed film log entries with a rating). Five
 // factors, each 0 to 1, weighted into one score. Nothing here touches the
@@ -46,6 +48,16 @@ const MIN_SUGGESTIONS = 3;
 
 // Shared films shown on a Resonance card.
 const TOP_SHARED = 3;
+
+// A fingerprint of everything above that changes a score. Each stored
+// score carries the one it was worked out with, so changing a setting and
+// restarting the server works everyone out again (jobs/resonanceSweep.js)
+// instead of showing old scores until 04:00.
+const SCORING_VERSION = crypto
+    .createHash("sha1")
+    .update(JSON.stringify([WEIGHTS, RATING_SPREAD, FULL_CONFIDENCE_AT, MIN_GENRE_FILMS, [...AGE_RATINGS], MIN_RATED, TOP_SHARED]))
+    .digest("hex")
+    .slice(0, 12);
 
 // ---------- the factors ----------
 
@@ -224,6 +236,7 @@ function suggestionCount(eligibleCount) {
 
 module.exports = {
     WEIGHTS,
+    SCORING_VERSION,
     MIN_RATED,
     SUGGEST_FROM,
     similarity,
