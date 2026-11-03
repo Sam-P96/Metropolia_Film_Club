@@ -14,11 +14,11 @@ const WEIGHTS = {
     // How alike they rate each genre.
     genreRating: 0.25,
     // How much of what they've rated is in the same genres...
-    genreOverlap: 0.15,
+    genreOverlap: 0.2,
     // ...from the same decades...
-    year: 0.05,
+    year: 0.025,
     // ...and with the same US age ratings.
-    ageRating: 0.05,
+    ageRating: 0.025,
 };
 
 // The furthest apart two ratings can be (5 - 0.5). Ratings this far apart,

@@ -298,7 +298,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the films both rated and how alike their ratings are once each member's
   usual rating is taken out (50%, scaled down below 10 shared films), how
   they rate each genre (25%), and how much of what they rate shares genres
-  (15%), decades (5%) and US age ratings (5%). 80% or more is a Soul
+  (20%), decades (2.5%) and US age ratings (2.5%). 80% or more is a Soul
   Resonance, 50% or more a Resonance, and below that a Dissonance, shown the
   other way round ("Dissonance: 60%" for a 40% match; `shared/resonance.js`).
   Members need 20 rated films. Every pair is worked out again at 04:00

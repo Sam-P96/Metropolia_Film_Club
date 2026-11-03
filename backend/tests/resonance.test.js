@@ -191,7 +191,7 @@ describe("Resonance scoring", () => {
 
         const result = resonanceBetween(tasteOf(list), tasteOf(films(20, () => 3, undefined, 500)));
         const { factors } = result;
-        const total = 0.5 * factors.movies + 0.25 * factors.genreRating + 0.15 * factors.genreOverlap + 0.05 * factors.year + 0.05 * factors.ageRating;
+        const total = 0.5 * factors.movies + 0.25 * factors.genreRating + 0.2 * factors.genreOverlap + 0.025 * factors.year + 0.025 * factors.ageRating;
         assert.equal(result.percent, Math.round(total * 100));
     });
 
