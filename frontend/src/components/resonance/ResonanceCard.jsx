@@ -51,7 +51,11 @@ function ResonanceCard({ match, className = '' }) {
             </span>
           )}
 
-          <MemberAvatar user={user} size="xl" />
+          {/* A Soul Resonance's picture gets the card's glass rim too. */}
+          <div className="relative flex shrink-0 rounded-full">
+            <MemberAvatar user={user} size="xl" />
+            {tier.key === 'soul' && <CardShine tone="soul" shape="circle" />}
+          </div>
 
           <div className="w-full min-w-0 flex-1">
             <p className="flex min-w-0 items-center gap-1.5 text-xl font-semibold transition-colors group-hover:text-brand-gold sm:pr-24">

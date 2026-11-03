@@ -331,8 +331,11 @@ img.slot-symbol {
    bright where the light hits (top left), fading along the edge, a fainter
    glint in the opposite corner, and a soft reflection just inside. The
    light drifts a little, as if the card tilts. Blue for a Soul Resonance,
-   a softer purple for a friend. The settings for each: */
-.card-glow-soul {
+   a softer purple for a friend. The settings for each (the Soul ones also
+   colour the "Soul Resonance" text's glow): */
+.card-glow-soul,
+.soul-text,
+.resonance-breathe {
   /* The colour, as red green blue. */
   --glow: 79 168 255;
   /* How strong the glow round the card is (1 is full). */
@@ -404,6 +407,38 @@ img.slot-symbol {
   to { --glow-angle: 155deg; }
 }
 
+/* "Soul Resonance: 97%": white letters with a blue glow, the card rim's
+   blue, tight round the letters and hazier further out, and a drop shadow
+   under it all. */
+.soul-text {
+  color: #fff;
+  text-shadow:
+    0 0 2px rgb(var(--glow)),
+    0 0 7px rgb(var(--glow)),
+    0 0 16px rgb(var(--glow) / 0.85),
+    0 0 30px rgb(var(--glow) / 0.55),
+    0 3px 4px rgb(0 0 0 / 0.9);
+}
+
+/* The Resonance icon after a name: a blue glow that breathes, dimming and
+   brightening. Both ends list the same filters, so it eases between them. */
+.resonance-breathe {
+  animation: resonance-breathe 2.8s ease-in-out infinite;
+}
+@keyframes resonance-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 1px rgb(var(--glow) / 0.45)) drop-shadow(0 0 3px rgb(var(--glow) / 0)) brightness(0.9);
+  }
+  50% {
+    filter: drop-shadow(0 0 3px rgb(var(--glow) / 0.95)) drop-shadow(0 0 8px rgb(var(--glow) / 0.6)) brightness(1.15);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card-glow::before { animation: none; }
+  /* Still glowing, just not breathing. */
+  .resonance-breathe {
+    animation: none;
+    filter: drop-shadow(0 0 3px rgb(var(--glow) / 0.8));
+  }
 }

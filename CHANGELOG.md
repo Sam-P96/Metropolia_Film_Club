@@ -323,7 +323,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Resonance icon follows the names of your Soul Resonances around the site,
   with "Soul Resonance: 87%" on hover or tap (an Edit profile setting turns
   it off both ways), and their review cards and Resonance cards glow blue
-  with a glass edge. Film logs now keep the US age rating from TMDB, and
+  with a glass edge, the Resonance card's profile picture too. "Soul
+  Resonance" itself is white with a blue glow and a drop shadow, and the
+  icon after names breathes a blue glow. Film logs now keep the US age rating from TMDB, and
   `npm run backfill:certifications` fills it in for older entries;
   `npm run resonance:sweep` works everyone out again straight away.
   `/SECRETresonance` (linked from nowhere, admins only,

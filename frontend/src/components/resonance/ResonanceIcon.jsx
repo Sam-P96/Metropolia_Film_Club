@@ -107,7 +107,7 @@ function ResonanceIcon({ userId, className = '' }) {
         if (pointer.current !== 'mouse') setPinned(!pinned)
       }}
     >
-      <ResonanceMark />
+      <ResonanceMark className="resonance-breathe" />
 
       {open &&
         createPortal(

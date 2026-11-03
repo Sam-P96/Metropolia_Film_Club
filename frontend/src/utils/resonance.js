@@ -25,9 +25,10 @@ export const RESONANCE_SETTINGS = {
   },
 }
 
-// The colour of each tier's number.
+// The colour of each tier's number. Soul Resonance is white with a blue glow
+// (index.css .soul-text).
 export const TIER_COLOURS = {
-  soul: 'text-brand-gold',
+  soul: 'soul-text',
   resonance: 'text-emerald-300',
   dissonance: 'text-red-300',
 }
