@@ -15,7 +15,7 @@ const {
     setBans,
     getBanned,
 } = require("../controllers/userControllers");
-const { followUser, unfollowUser, getFollowers, getFollowing } = require("../controllers/followController");
+const { followUser, unfollowUser, getFollowers, getFollowing, getMyFriendIds } = require("../controllers/followController");
 const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth");
 
 // login route
@@ -28,6 +28,7 @@ router.get("/", getUsers);
 
 // Before "/:id", or Express would read "me" as an id.
 router.patch("/me", requireAuth, updateMe);
+router.get("/me/friends", requireAuth, getMyFriendIds);
 
 // GDPR: download everything we hold, or delete the account entirely.
 router.get("/me/export", requireAuth, exportMe);

@@ -15,6 +15,7 @@ import ReviewComments from '../components/reviews/ReviewComments'
 import { timeAgo } from '../utils/timeAgo'
 import { getCurrentUser } from '../utils/currentUser'
 import { canDeleteAnyReview, canMarkSpoilers } from '../utils/permissions'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 function formatFullDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-GB', {
@@ -217,8 +218,9 @@ function ReviewDetail({ isAuthenticated }) {
                 )}
 
                 <div>
-                  <p className="font-semibold transition-colors group-hover:text-brand-gold">
+                  <p className="flex items-center gap-1.5 font-semibold transition-colors group-hover:text-brand-gold">
                     {author.username}
+                    <ResonanceIcon userId={author._id} />
                   </p>
                   <p className="text-sm text-white/50">{author.memberTitle}</p>
                 </div>

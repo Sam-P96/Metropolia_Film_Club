@@ -6,6 +6,7 @@ import MemberAvatar from '../profile/MemberAvatar'
 import { formatDeadline } from '../../utils/farkle'
 import { timeAgo } from '../../utils/timeAgo'
 import { formatPoints } from '../../../../shared/farkle/rules.js'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // Dark enough to read on every Notifications background, the white one too.
 const BOX = 'rounded-2xl border bg-plum/90 p-5 shadow-xl shadow-black/30 backdrop-blur-md sm:p-6'
@@ -42,9 +43,12 @@ function LiveDot() {
 function PlayerName({ player }) {
   if (!player?._id) return player?.username ?? 'A former member'
   return (
-    <Link to={`/users/${player._id}`} className="font-semibold text-white hover:text-brand-gold">
-      {player.username}
-    </Link>
+    <>
+      <Link to={`/users/${player._id}`} className="font-semibold text-white hover:text-brand-gold">
+        {player.username}
+      </Link>
+      <ResonanceIcon userId={player._id} className="ml-1" />
+    </>
   )
 }
 

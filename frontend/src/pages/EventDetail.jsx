@@ -15,6 +15,7 @@ import { getCurrentUser } from '../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../utils/eventDates'
 import { googleCalendarUrl } from '../utils/googleCalendar'
 import { canMakeEventsOfficial, canManageEvent, canRemoveSeats } from '../utils/permissions'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 function EventDetail({ isAuthenticated }) {
   const { eventId } = useParams()
@@ -141,6 +142,7 @@ function EventDetail({ isAuthenticated }) {
                     >
                       {event.host.username}
                     </Link>
+                    <ResonanceIcon userId={event.host._id} className="ml-1.5" />
                   </dd>
                 </div>
               )}
@@ -353,8 +355,9 @@ function Attendance({ event, isPast, isAuthenticated, myId, canRemoveSeats, onCh
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
-                      {user.username}
+                    <p className="flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold">
+                      <span className="truncate">{user.username}</span>
+                      <ResonanceIcon userId={user._id} />
                       {user._id === myId && (
                         <span className="ml-2 text-xs font-normal text-white/40">you</span>
                       )}

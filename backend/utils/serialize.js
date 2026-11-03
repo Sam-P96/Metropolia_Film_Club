@@ -66,6 +66,8 @@ function userProfile(user) {
         bio: user.bio ?? "",
         privacy: user.privacy ?? "public",
         followPrivacy: user.followPrivacy ?? "public",
+        resonance: user.resonance ?? true,
+        resonanceIcon: user.resonanceIcon ?? true,
         feedBackground: user.feedBackground ?? "default",
         favouriteFilms: user.favouriteFilms ?? [],
         joinedAt: joinedAtOf(user),

@@ -3,6 +3,7 @@ import CoinIcon from './CoinIcon'
 import MemberAvatar from '../profile/MemberAvatar'
 import MemberPicker from '../profile/MemberPicker'
 import { sendGift, walletChanged } from '../../services/wallet'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // What a gift costs on top of itself, whatever its size. Matches GIFT_FEE
 // in backend/utils/wallet.js.
@@ -72,6 +73,7 @@ export default function GiftForm({ wallet }) {
           <div className="flex flex-wrap items-center gap-3">
             <MemberAvatar user={to} size="sm" />
             <span className="min-w-0 truncate text-lg font-semibold text-white">{to.username}</span>
+            <ResonanceIcon userId={to._id} className="-ml-1.5" />
             <button type="button" onClick={() => setTo(null)} className="cursor-pointer text-sm text-brand-gold underline underline-offset-4">
               Someone else
             </button>

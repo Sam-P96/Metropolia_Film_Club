@@ -8,6 +8,7 @@ import { answerChallenge, getMatch } from '../../services/farkle'
 import { walletChanged } from '../../services/wallet'
 import { roughTimeLeft, stakeHint } from '../../utils/farkle'
 import { formatPoints, pvpPrize } from '../../../../shared/farkle/rules.js'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const BUTTON = 'min-h-11 cursor-pointer rounded-xl px-4 py-2 font-bold transition disabled:cursor-default disabled:opacity-40'
 const PRIMARY = `${BUTTON} bg-brand-gold text-ink hover:brightness-110`
@@ -31,7 +32,12 @@ export default function ChallengeCard({ match, onChange }) {
   const [stakeText, setStakeText] = useState(String(Math.min(match.stake, match.counterMax ?? match.stake)))
 
   const them = match.players[1 - match.mySeat]
-  const name = <Link to={`/users/${them._id}`} className="font-semibold text-white hover:text-brand-gold">{them.username}</Link>
+  const name = (
+    <>
+      <Link to={`/users/${them._id}`} className="font-semibold text-white hover:text-brand-gold">{them.username}</Link>
+      <ResonanceIcon userId={them._id} className="ml-1" />
+    </>
+  )
   const countered = match.counters > 0
   const lowered = match.myAnswer && match.acceptStake < match.stake
 

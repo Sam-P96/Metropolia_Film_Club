@@ -97,4 +97,13 @@ async function listFollows(req, res, kind) {
 const getFollowers = (req, res) => listFollows(req, res, "followers");
 const getFollowing = (req, res) => listFollows(req, res, "following");
 
-module.exports = { followUser, unfollowUser, getFollowers, getFollowing };
+// The ids of the logged-in member's friends (members they follow who follow
+// them back), for the purple glow on friends' review cards: { friends }.
+async function getMyFriendIds(req, res) {
+    const following = await Follow.find({ follower: req.user._id }).distinct("following");
+    const friends = await Follow.find({ follower: { $in: following }, following: req.user._id }).distinct("follower");
+
+    res.json({ friends: friends.map(String) });
+}
+
+module.exports = { followUser, unfollowUser, getFollowers, getFollowing, getMyFriendIds };

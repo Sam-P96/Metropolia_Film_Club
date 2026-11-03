@@ -6,6 +6,7 @@ import BannerStrip from '../profile/BannerStrip'
 import MemberAvatar from '../profile/MemberAvatar'
 import useApi from '../../hooks/useApi'
 import { getPpLeaderboard } from '../../services/wallet'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const COLLAPSED = 4
 
@@ -46,7 +47,10 @@ export default function PpLeaderboard() {
                   <MemberAvatar user={leader.user} rank={index + 1} />
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium drop-shadow transition-colors group-hover:text-brand-gold">{leader.user.username}</p>
+                    <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
+                      <span className="truncate">{leader.user.username}</span>
+                      <ResonanceIcon userId={leader.user._id} />
+                    </p>
                     <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{leader.user.memberTitle}</p>
                   </div>
 

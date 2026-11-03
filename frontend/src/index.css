@@ -325,3 +325,85 @@ img.slot-symbol {
   /* Still marked, just still. */
   .slot-cell.is-win.is-linked { box-shadow: inset 0 0 0 3px #b06bff, inset 0 0 16px 4px #4dd2ff; }
 }
+
+/* ---------- Card glows (components/CardShine.jsx) ---------- */
+/* A glowing border whose edge catches the light like the rim of a glass:
+   bright where the light hits (top left), fading along the edge, a fainter
+   glint in the opposite corner, and a soft reflection just inside. The
+   light drifts a little, as if the card tilts. Blue for a Soul Resonance,
+   a softer purple for a friend. The settings for each: */
+.card-glow-soul {
+  /* The colour, as red green blue. */
+  --glow: 79 168 255;
+  /* How strong the glow round the card is (1 is full). */
+  --glow-strength: 1;
+  /* How bright the edge gets where the light hits it, and the glint opposite. */
+  --glint: 0.95;
+  --glint-far: 0.55;
+}
+.card-glow-friend {
+  --glow: 176 132 255;
+  --glow-strength: 0.5;
+  --glint: 0.5;
+  --glint-far: 0.3;
+}
+:root {
+  /* How long the light takes to drift there and back. */
+  --glow-drift: 7s;
+}
+
+@property --glow-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 135deg;
+}
+
+.card-glow {
+  border: 1.5px solid rgb(var(--glow) / calc(0.35 + 0.5 * var(--glow-strength)));
+  box-shadow:
+    0 0 12px rgb(var(--glow) / calc(0.45 * var(--glow-strength))),
+    0 0 30px rgb(var(--glow) / calc(0.22 * var(--glow-strength))),
+    inset 0 0 12px rgb(var(--glow) / calc(0.25 * var(--glow-strength)));
+}
+
+/* The rim catching the light: a gradient shown only on the border. */
+.card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: linear-gradient(
+    var(--glow-angle),
+    rgb(255 255 255 / var(--glint)) 0%,
+    rgb(var(--glow) / calc(0.55 * var(--glint))) 9%,
+    transparent 30%,
+    transparent 72%,
+    rgb(var(--glow) / var(--glint-far)) 96%,
+    rgb(255 255 255 / var(--glint-far)) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 3px rgb(var(--glow) / calc(0.8 * var(--glow-strength))));
+  animation: glow-drift var(--glow-drift) ease-in-out infinite alternate;
+}
+
+/* The reflection just inside the rim, strongest where the light comes in. */
+.card-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / calc(0.22 * var(--glow-strength)));
+  background: radial-gradient(140% 70% at 0% 0%, rgb(var(--glow) / calc(0.1 * var(--glow-strength))), transparent 45%);
+}
+
+@keyframes glow-drift {
+  from { --glow-angle: 120deg; }
+  to { --glow-angle: 155deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-glow::before { animation: none; }
+}

@@ -182,6 +182,30 @@ function ProfileEditor({ draft, onChange, onSave, onCancel }) {
 
         <div className="space-y-5 border-t border-white/10 pt-5">
           <SettingRow
+            label="Resonance"
+            description={
+              draft.resonance ?? true
+                ? 'Your taste match with other members, from your film ratings, shows on the home page and the Resonance page. It needs 20 rated films.'
+                : "You don't appear in anyone's suggestions, rankings or icons, and you won't see Resonance yourself. Turning it back on brings it all straight back."
+            }
+            on={draft.resonance ?? true}
+            onChange={(on) => onChange('resonance', on)}
+          />
+
+          <SettingRow
+            label="Resonance icon"
+            description={
+              draft.resonanceIcon ?? true
+                ? 'The Resonance icon shows after the names of members you share a Soul Resonance (80%+) with, and after yours for them.'
+                : "No Resonance icon after your name for anyone, and none after anyone else's for you."
+            }
+            on={draft.resonanceIcon ?? true}
+            onChange={(on) => onChange('resonanceIcon', on)}
+          />
+        </div>
+
+        <div className="space-y-5 border-t border-white/10 pt-5">
+          <SettingRow
             label="PVP"
             description={
               draft.pvp

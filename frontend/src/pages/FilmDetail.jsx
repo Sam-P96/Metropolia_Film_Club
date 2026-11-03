@@ -8,6 +8,7 @@ import ReviewCard from '../components/reviews/ReviewCard'
 import StarRating from '../components/reviews/StarRating'
 import { isWanted } from '../utils/watchlist'
 import { getCurrentUser } from '../utils/currentUser'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 const REVIEWS_PER_PAGE = 4
 
@@ -275,8 +276,9 @@ function FilmDetail({ isAuthenticated }) {
                       )}
 
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium transition-colors group-hover:text-brand-gold">
-                          {user.username}
+                        <p className="flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold">
+                          <span className="truncate">{user.username}</span>
+                          <ResonanceIcon userId={user._id} />
                           {isYou && (
                             <span className="ml-2 text-xs font-normal text-white/40">
                               you

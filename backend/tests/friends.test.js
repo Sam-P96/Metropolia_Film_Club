@@ -111,6 +111,18 @@ describe("friends and points", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         assert.equal((await call(null, "/farkle/friends")).status, 401);
     });
 
+    test("your friends' ids: mutual follows only", async () => {
+        const [me, friend, fan, idol] = [await member(), await member(), await member(), await member()];
+        await befriend(me, friend);
+        await Follow.create({ follower: fan._id, following: me._id });
+        await Follow.create({ follower: me._id, following: idol._id });
+
+        assert.deepEqual((await call(me, "/users/me/friends")).body, { friends: [String(friend._id)] });
+        assert.deepEqual((await call(friend, "/users/me/friends")).body, { friends: [String(me._id)] });
+        assert.deepEqual((await call(fan, "/users/me/friends")).body, { friends: [] });
+        assert.equal((await call(null, "/users/me/friends")).status, 401);
+    });
+
     test("a profile shows its PP and P-PP, but a private one doesn't", async () => {
         const visitor = await member();
         const open = await member(12, 345);

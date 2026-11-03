@@ -21,11 +21,13 @@ const farkleRouter = require("./routes/farkleRouter");
 const scratchRouter = require("./routes/scratchRouter");
 const doubleRouter = require("./routes/doubleRouter");
 const slotRouter = require("./routes/slotRouter");
+const resonanceRouter = require("./routes/resonanceRouter");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
 const { startFarkleSweep } = require("./jobs/farkleSweep");
 const { startScratchSweep } = require("./jobs/scratchSweep");
+const { startResonanceSweep } = require("./jobs/resonanceSweep");
 
 const app = express();
 
@@ -78,6 +80,12 @@ connected
     .then(() => startScratchSweep())
     .catch((error) => console.error("Couldn't start the scratch sweep:", error.message));
 
+// Resonance: everyone's taste matches, worked out again at 04:00
+// (jobs/resonanceSweep.js).
+connected
+    .then(() => startResonanceSweep())
+    .catch((error) => console.error("Couldn't start the Resonance sweep:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -121,6 +129,7 @@ app.use("/api/farkle", farkleRouter);
 app.use("/api/scratch", scratchRouter);
 app.use("/api/double-or-nothing", doubleRouter);
 app.use("/api/slots", slotRouter);
+app.use("/api/resonance", resonanceRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

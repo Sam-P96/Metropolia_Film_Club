@@ -10,6 +10,7 @@ import {
   membersPageUrl,
   searchPageUrl,
 } from '../../utils/search'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // Each section shows this many, then a "show all" link to the full page.
 const PER_SECTION = 3
@@ -250,8 +251,9 @@ function UserResult({ user }) {
       <Link to={`/users/${user._id}`} className={resultLinkClasses}>
         <MemberAvatar user={user} size="sm" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-white transition-colors group-hover:text-brand-gold">
-            {user.username}
+          <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-white transition-colors group-hover:text-brand-gold">
+            <span className="truncate">{user.username}</span>
+            <ResonanceIcon userId={user._id} />
           </p>
           <p className="truncate text-xs text-white/40">{user.memberTitle}</p>
         </div>

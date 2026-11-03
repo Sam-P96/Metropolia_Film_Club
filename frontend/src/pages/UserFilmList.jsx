@@ -4,6 +4,7 @@ import StarRating from '../components/reviews/StarRating'
 import { getUser, getUserFilms } from '../services/users'
 import useApi from '../hooks/useApi'
 import { isWanted } from '../utils/watchlist'
+import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 const TABS = [
   { id: 'all', label: 'All Films' },
@@ -167,6 +168,7 @@ function UserFilmList() {
           <h1 className="mt-3 text-3xl font-bold">
             {profileUser.username}
             <span className="font-normal text-white/40">’s films</span>
+            <ResonanceIcon userId={profileUser._id} className="ml-2" />
           </h1>
         </div>
 

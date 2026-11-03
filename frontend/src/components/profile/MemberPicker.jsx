@@ -3,6 +3,7 @@ import MemberAvatar from './MemberAvatar'
 import useApi from '../../hooks/useApi'
 import { getUsers } from '../../services/users'
 import { getCurrentUserId } from '../../utils/currentUser'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // How many members the search lists at once.
 const SHOWN = 6
@@ -50,6 +51,7 @@ export default function MemberPicker({ label, onPick }) {
               >
                 <MemberAvatar user={member} size="sm" />
                 <span className="min-w-0 truncate">{member.username}</span>
+                <ResonanceIcon userId={member._id} className="-ml-1.5" />
               </button>
             </li>
           ))}

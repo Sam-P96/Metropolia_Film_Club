@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "nodemon --watch . --watch ../shared server.js",
     "start": "node server.js",
     "test": "node --test --test-concurrency=1 tests/*.test.js",
     "simulate:scratch": "node scripts/simulate-scratch.js",
     "slots:rtp": "node scripts/slots-rtp.js",
-    "slots:tune": "node scripts/tune-slots.js"
+    "slots:tune": "node scripts/tune-slots.js",
+    "backfill:certifications": "node scripts/backfill-certifications.js",
+    "resonance:sweep": "node scripts/resonance-sweep.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

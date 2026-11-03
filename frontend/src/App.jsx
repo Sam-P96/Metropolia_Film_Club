@@ -40,6 +40,8 @@ import ScratchGame from "./pages/ScratchGame";
 import DoubleOrNothing from "./pages/DoubleOrNothing";
 import SlotMachine from "./pages/SlotMachine";
 import Wallet from "./pages/Wallet";
+import Resonance from "./pages/Resonance";
+import SecretResonance from "./pages/SecretResonance";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -91,7 +93,16 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           {/* Not linked from anywhere on purpose. */}
           <Route path="/SECRETpfp" element={<SecretPfp isAuthenticated={isAuthenticated} />} />
+          {/* Not linked from anywhere either. Admins only (the server checks). */}
+          <Route path="/SECRETresonance" element={
+            isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
+          } />
           <Route path="/members" element={<Members />} />
+          {/* Resonance: everyone's taste match with you. Reached from the
+              home page's Resonance slide, your profile and Members. */}
+          <Route path="/resonance" element={
+            isAuthenticated ? (<Resonance />) : (<Navigate to="/login" state={{ from: '/resonance' }} />)
+          } />
           <Route path="/users/:userId" element={<Profile />} />
           <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />
           <Route path="/users/:userId/following" element={<FollowList key="following" kind="following" />} />

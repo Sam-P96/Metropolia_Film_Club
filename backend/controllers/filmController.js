@@ -4,7 +4,7 @@ const Review = require("../models/reviewModel");
 const Comment = require("../models/commentModel");
 const User = require("../models/userModel");
 const { parseVote } = require("../models/votable");
-const { getMovie, getMovies } = require("../services/tmdbService");
+const { getMovie, getMovies, usCertification } = require("../services/tmdbService");
 const { AUTHOR_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { levelOf, withAuthorStanding } = require("../utils/level");
 const { rankCritics } = require("../utils/critics");
@@ -43,8 +43,9 @@ function parseLimit(value, fallback, max) {
     return Number.isInteger(limit) && limit > 0 ? Math.min(limit, max) : fallback;
 }
 
-// The title, year, poster and genres copied onto log entries and reviews.
-// Sends the error response itself and returns null if TMDB can't help.
+// The title, year, poster, genres and US age rating copied onto log
+// entries (reviews take all but the age rating). Sends the error response
+// itself and returns null if TMDB can't help.
 async function filmDetailsOr404(tmdbId, res) {
     let film;
 
@@ -66,6 +67,7 @@ async function filmDetailsOr404(tmdbId, res) {
         year: film.year ? Number(film.year) : null,
         posterPath: film.posterPath ?? null,
         genres: film.genres ?? [],
+        certification: usCertification(film),
     };
 }
 

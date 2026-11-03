@@ -10,6 +10,7 @@ import { addCutReply, getCutReplies } from '../../services/cuts'
 import { getCurrentUser } from '../../utils/currentUser'
 import { canDeleteAnyComment } from '../../utils/permissions'
 import { timeAgo } from '../../utils/timeAgo'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const SORTS = [
   { value: 'recent', label: 'Recent' },
@@ -375,6 +376,7 @@ function Comment({ comment, words, flash, canDelete, canReply, onReply, onVoteCh
           >
             {user.username}
           </Link>
+          <ResonanceIcon userId={user._id} className="ml-1" />
           <span className="ml-2 text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
         </p>
 

@@ -12,6 +12,7 @@ import FilmSearchPicker from '../components/profile/FilmSearchPicker'
 import Watchlist from '../components/profile/Watchlist'
 import { getUser, getUserFilms, getUserReviews, updateMe, exportMyData, deleteMe } from '../services/users'
 import useApi from '../hooks/useApi'
+import { refreshSoulResonance } from '../hooks/useSoulResonance'
 import { getCurrentUser, updateCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
 import { isWanted } from '../utils/watchlist'
@@ -25,6 +26,8 @@ const EDITABLE_FIELDS = [
   'bio',
   'privacy',
   'followPrivacy',
+  'resonance',
+  'resonanceIcon',
   'feedBackground',
   'pvp',
   'allowComments',
@@ -174,6 +177,10 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
       // The like and dislike buttons read PVP from the stored login, and the
       // Notifications page its background before the feed itself has loaded.
       updateCurrentUser({ pvp: saved.pvp, feedBackground: saved.feedBackground })
+      // The Resonance icons around the site follow both settings.
+      if (saved.resonance !== profileUser.resonance || saved.resonanceIcon !== profileUser.resonanceIcon) {
+        refreshSoulResonance()
+      }
       onSaved(saved)
       setDraft(null)
       setEditing(null)
@@ -293,6 +300,9 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
                 <button onClick={() => startEditing('profile')} className={buttonClasses}>
                   Edit profile
                 </button>
+                <Link to="/resonance" className={buttonClasses}>
+                  Resonance
+                </Link>
                 {canModerate(profileUser) && (
                   <Link to="/banned" className={buttonClasses}>
                     Banned list

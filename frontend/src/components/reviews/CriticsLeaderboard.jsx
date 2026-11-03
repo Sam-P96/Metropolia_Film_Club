@@ -6,6 +6,7 @@ import MemberAvatar from '../profile/MemberAvatar'
 import useApi from '../../hooks/useApi'
 import { getCritics } from '../../services/films'
 import BannerStrip from '../profile/BannerStrip'
+import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const MODES = [
   {
@@ -88,8 +89,9 @@ function CriticsLeaderboard() {
                     <MemberAvatar user={critic.user} rank={index + 1} />
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium drop-shadow transition-colors group-hover:text-brand-gold">
-                        {critic.user.username}
+                      <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
+                        <span className="truncate">{critic.user.username}</span>
+                        <ResonanceIcon userId={critic.user._id} />
                       </p>
                       <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                         {critic.user.memberTitle} · Level {critic.user.level} · {critic.reviews}{' '}
