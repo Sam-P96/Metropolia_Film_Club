@@ -16,6 +16,7 @@ const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require(".
 const { withAuthorStanding } = require("../utils/level");
 const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
 const { parseOffset } = require("../utils/paging");
+const { getTable: getPokerTable } = require("../games/poker/live");
 
 // The Feed shows a member's newest notifications, this many at most, a page
 // at a time. Older ones are deleted after 90 days (models/notificationModel.js).
@@ -28,14 +29,14 @@ const PAGE_SIZE = 10;
 //   reviews  votes on their reviews, replies, new reviews from members they
 //            follow, trending reviews, and members turning PvP on (which
 //            decides who can dislike reviews)
-//   games    Farkle, Box Office Scratch, Double or Nothing and the Slot
-//            Machine, and the daily PP payout and gifts (points are only
-//            for games)
+//   games    Farkle, Box Office Scratch, Double or Nothing, the Slot
+//            Machine and Kino Poker, and the daily PP payout and gifts
+//            (points are only for games)
 // New followers, cuts and replies to cuts are only in "all".
 const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
-    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES],
+    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
@@ -220,6 +221,10 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
         }
 
+        if (row.type === "pokerWin") {
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, poker: { hands: row.poker?.hands ?? 0, best: row.poker?.best ?? null } }];
+        }
+
         if (row.type === "slotTriple" || row.type === "slotJackpot") {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
         }
@@ -336,6 +341,9 @@ const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 // (FEED_FILTERS above). The first page also brings:
 //   games     the Farkle games they're playing, near the very top (with
 //             "all" and "games")
+//   poker     the Kino Poker table while members are playing at it, beside
+//             the games: who's there, and whether the reader is (table.js
+//             liveFor), or null
 //   jackpots  jackpot notices they haven't seen yet, just under the games
 //             (they're in `items` too, in date order: the page leaves
 //             those out)
@@ -367,6 +375,7 @@ async function getFeed(req, res) {
         // Only with the first page, so loading more never wipes them.
         ...(skip === 0 && {
             games: filter === "all" || filter === "games" ? await ongoingGames(req.user) : [],
+            poker: filter === "all" || filter === "games" ? (getPokerTable()?.liveFor(req.user._id) ?? null) : null,
             jackpots: await unreadJackpots(req.user, seenSince(req.user)),
             seenAt: req.user.notificationsSeenAt ?? null,
             now,

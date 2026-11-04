@@ -4,6 +4,7 @@ const PokerSeat = require("../../models/pokerSeatModel");
 const { PokerTable } = require("./table");
 const { PokerError } = require("./betting");
 const pokerWallet = require("../../utils/pokerWallet");
+const { notePokerWin } = require("../../utils/notify");
 
 // Kino Poker, live (spec): the one table, played over the same socket.io
 // connection as Kino Farkle's Play Live (games/farkle/live.js, which checks
@@ -80,6 +81,8 @@ function startPoker(io, options = {}) {
         store: pokerWallet.store,
         onChange: broadcast,
         onEvent: ({ to, ...event }) => io.to(to ? memberRoom(to) : ROOM).emit("poker:event", event),
+        // A member left ahead: everyone hears about it.
+        announce: ({ userId, profit, hands, best }) => notePokerWin(userId, profit, { hands, best }),
         ...options,
     });
 

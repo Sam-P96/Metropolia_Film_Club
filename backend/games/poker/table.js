@@ -40,8 +40,10 @@ const newId = () => crypto.randomBytes(6).toString("hex");
 class PokerTable {
     // `timers` and `thinkMs` override POKER.timers and POKER.bot.thinkMs
     // (only the tests, to play quickly).
-    constructor({ wallet, store, schedule = setTimeout, cancel = clearTimeout, random = crypto.randomInt, chance = Math.random, now = () => Date.now(), onChange = () => {}, onEvent = () => {}, timers = {}, thinkMs = POKER.bot.thinkMs } = {}) {
-        Object.assign(this, { wallet, store, schedule, cancel, random, chance, now, onChange, onEvent, thinkMs });
+    // `announce({ userId, profit, hands, best })` hears about a member leaving
+    // the table ahead (POKER.announce), for Notifications.
+    constructor({ wallet, store, schedule = setTimeout, cancel = clearTimeout, random = crypto.randomInt, chance = Math.random, now = () => Date.now(), onChange = () => {}, onEvent = () => {}, announce = () => {}, timers = {}, thinkMs = POKER.bot.thinkMs } = {}) {
+        Object.assign(this, { wallet, store, schedule, cancel, random, chance, now, onChange, onEvent, announce, thinkMs });
         this.timers = { ...POKER.timers, ...timers };
         this.chain = Promise.resolve();
         this.seats = Array(POKER.seats).fill(null);
@@ -159,6 +161,9 @@ class PokerTable {
             connected: true,
             graceTimer: null,
             leaving: false,
+            // This sitting so far: hands won, and the best hand they won a
+            // showdown with (for the notice if they leave ahead).
+            record: { hands: 0, best: null, bestScore: -1 },
         };
         this.seats[index] = seat;
         await this.store?.save(seat);
@@ -223,6 +228,15 @@ class PokerTable {
         const paid = await this.wallet.cashOut(seat.userId, seat.funds, seat.stack);
         await this.store?.remove(seat.userId);
         this.event("cashedOut", { to: seat.userId, stack: seat.stack, paid });
+        // Left ahead: a win, for everyone's Notifications. Never holds up the
+        // table, and never stops the cash-out if it goes wrong.
+        const profit = seat.stack - ((seat.funds?.pp ?? 0) + (seat.funds?.ppp ?? 0));
+        if (profit >= POKER.announce.minWin) {
+            const { hands = 0, best = null } = seat.record ?? {};
+            Promise.resolve()
+                .then(() => this.announce({ userId: seat.userId, profit, hands, best }))
+                .catch((error) => console.error("Kino Poker couldn't announce a win:", error.message));
+        }
         seat.stack = 0;
         if (!keepSeat) this.seats[seat.index] = null;
         return paid;
@@ -626,6 +640,19 @@ class PokerTable {
         };
         this.event("win", { handId: hand.id, winners, showdown });
 
+        // Each member's sitting: one more hand won, and their best at a
+        // showdown (a hand nobody saw stays secret).
+        for (const winner of winners) {
+            const seat = this.seats[winner.seat];
+            if (!isHuman(seat) || winner.won <= 0 || !seat.record) continue;
+            seat.record.hands += 1;
+            const result = hands.get(winner.seat);
+            if (showdown && result && scoreNumber(result.score) > seat.record.bestScore) {
+                seat.record.best = result.label;
+                seat.record.bestScore = scoreNumber(result.score);
+            }
+        }
+
         // Who won and who lost, in the bots' words.
         const winnerSeats = new Set(winners.filter((w) => w.won > 0).map((w) => w.seat));
         for (const player of hand.players) {
@@ -713,6 +740,23 @@ class PokerTable {
                 mustDraw: myTurn && hand.phase === "draw",
                 maxDraw: POKER.maxDraw,
             },
+        };
+    }
+
+    // For the "Kino Poker is live" card at the top of Notifications: the
+    // members at the table, how many bots and how many waiting, and whether
+    // `userId` is sitting there or queued. Null while no member is playing.
+    liveFor(userId) {
+        const members = this.humans().filter((seat) => !seat.leaving && !seat.gone);
+        if (members.length === 0) return null;
+        const id = userId ? String(userId) : null;
+        return {
+            members: members.map((seat) => ({ _id: seat.userId, username: seat.name, avatarUrl: seat.avatarUrl ?? null })),
+            bots: this.seats.filter(isBot).length,
+            queue: this.queue.length,
+            seats: POKER.seats,
+            playing: this.status === "playing",
+            you: id && this.seatOf(id) ? "seated" : id && this.queuePosition(id) ? "queued" : null,
         };
     }
 

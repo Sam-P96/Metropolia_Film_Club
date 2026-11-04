@@ -389,11 +389,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the winner, speech bubbles and emoji reactions (four presets or any
   one emoji). The cards of your best hand glow like a Soul Resonance, blue
   unless you pick another colour (a preset, your own, or by suit) in
-  Options on the intro page, fading in slowly, with small lightning
-  crackling round them now and then (VFX turns it off). Sound effects for the deal, flips,
-  the draw, chips, checks, folds, wins, your turn and its last seconds,
-  the glow and its lightning (synthesised, with a mute button), and
-  haptics on a phone for tapping cards and buttons, your turn and a win.
+  Options on the intro page, fading in slowly, with one or two small bolts
+  of lightning crackling round them now and then (VFX turns it off).
+  Sound effects for the deal, flips, the draw, chips, checks, folds, wins,
+  your turn and its last seconds, the glow and its lightning (synthesised,
+  with a mute button), and haptics on a phone for tapping cards and
+  buttons, your turn and a win. In Notifications: while members are
+  playing, the table shows at the top beside the Farkle games, with who's
+  there and a Join button; and a member leaving the table ahead is a win
+  every member hears about (`pokerWin`: how much, hands won, best hand).
   Every number is in `shared/poker/config.js` and every bot
   line in `shared/poker/lines.js`. Chips at the table are kept in
   `PokerSeat` and refunded if the server restarts.

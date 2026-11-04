@@ -48,6 +48,10 @@ const KEEP_FOR_DAYS = 90;
 //                   Machine this session. Goes to every member.
 //   slotJackpot     `actors[0]` hit the Slot Machine jackpot, winning
 //                   `amount` PP on that spin. Goes to every member.
+//   pokerWin        `actors[0]` left the Kino Poker table `amount` P-PP up
+//                   (`poker`: how many hands they won, and their best at a
+//                   showdown, or null). Goes to every member, the winner
+//                   included.
 // Farkle against `actors[0]`, about `match` (utils/notify.js). No review.
 //   farkleChallenge  their challenge or counter, waiting on an answer. Pinned.
 //   farkleTurn       no longer sent: games being played are listed at the
@@ -78,7 +82,7 @@ const STEAL_TYPES = ["stealAttacked", "stealResult", "stealCrit", "stealFlag"];
 // more, so it never counts as unread at all.
 const GAME_TYPES = [
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
-    "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot",
+    "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin",
     "stealAttacked", "stealResult", "stealCrit",
 ];
 
@@ -86,7 +90,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES, ...STEAL_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES],
         required: true,
     },
     review: {
@@ -94,7 +98,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES, ...STEAL_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -104,6 +108,11 @@ const notificationSchema = new Schema({
     stealAttack: {type: Schema.Types.ObjectId, ref: "StealAttack", default: null},
     stealFlag: {type: Schema.Types.ObjectId, ref: "StealFlag", default: null},
     amount: {type: Number, default: null},
+    // Kino Poker: a win's hands won and best hand.
+    poker: {
+        hands: {type: Number},
+        best: {type: String},
+    },
     // Box Office Scratch: the tier won, by its key in shared/scratch/config.js.
     tier: {type: String, default: null},
     // Pinned ones sit at the top of the Notifications page until the member
