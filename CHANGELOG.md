@@ -390,6 +390,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/SECRETresonance` is for moderators as well as admins, and the
   Resonance icon in the Resonance page's heading links to it for them
   (for everyone else it isn't a link).
+- Double or Nothing's page fades from the club's purple into golden yellow
+  (was green).
+- Scrollbars across the site, the page's own and any box that scrolls, are
+  thin and brand gold instead of the browser's grey (`index.css`).
 - For Steal and Defend: P-PP can go below 0 as a debt from a fine (the next
   P-PP or 12:00 payout pays it off first), and a wallet in an attack is
   frozen against spending until it's over (`utils/wallet.js`). Logins are
