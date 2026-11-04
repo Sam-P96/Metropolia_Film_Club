@@ -34,7 +34,9 @@ const TONES = {
 // glass of their own.
 function GifBackdrop() {
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+    // On a phone it runs on past the bottom, so the address bar sliding
+    // away never uncovers a black bar (like GameBackdrop).
+    <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 bottom-0 -z-10 max-lg:-bottom-[10%]">
       <GifBackground src={pinkGlowGif} />
       <div className="absolute inset-0 bg-black/65" />
     </div>

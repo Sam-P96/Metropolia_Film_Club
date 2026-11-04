@@ -123,6 +123,23 @@ body {
   color: #E8E3ED;
 }
 
+/* On a phone or tablet the address bar slides away as you scroll, and the
+   strip it uncovers at the bottom takes a moment to be painted: a black
+   bar. So there the gradient is also a layer of its own, fixed to the
+   screen and running on 10% past its bottom, so it's already there when
+   the bar goes. It sits under every page's own background (GameBackdrop,
+   the Notifications GIF), which run on the same way. */
+@media (max-width: 1023px) {
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 -10% 0;
+    z-index: -20;
+    pointer-events: none;
+    background: linear-gradient(160deg, #0B0710 0%, #1A1024 45%, #2D1B47 100%);
+  }
+}
+
 /* Scrollbars, on every page: a thin brand-gold thumb that brightens under
    the pointer, on a clear track (the page's own on the site's dark ink),
    instead of the browser's grey. Firefox and Chrome read scrollbar-width

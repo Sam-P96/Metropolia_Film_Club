@@ -2,7 +2,7 @@ import '@fontsource/bebas-neue'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
-import GameBackdrop from '../components/GameBackdrop'
+import GameBackdrop, { FrameBackdrop } from '../components/GameBackdrop'
 import { backdropImage } from '../utils/gameBackdrop'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import StealPage from '../components/steal/StealPage'
@@ -222,80 +222,83 @@ function Quiz({ view, clock, onView }) {
   // the space; if a long one doesn't fit, only that area scrolls, and with
   // the keyboard up everything moves to the top, just under the timer.
   return (
-    <div
-      className="fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-ink"
-      style={{ top: frame.top, height: frame.height, backgroundImage: backdropImage(STEAL_FADE), backgroundAttachment: 'fixed' }}
-    >
-      <div className={`mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col px-4 ${frame.keyboard ? 'gap-2 py-2' : 'gap-3 py-3 sm:py-6'}`}>
-        <div className="flex shrink-0 items-center gap-3">
-          {view.victim && <MemberAvatar user={view.victim} size="sm" />}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">Stealing from {view.victim?.username}</p>
-            <p className="text-xs text-white/50">
-              Question {Math.min(quiz.index + 1, view.questionCount)} of {view.questionCount} · {quiz.correct} right
-              {quiz.retrying ? ' · DeLorean retry' : ''}
+    <>
+      <FrameBackdrop top={frame.top} to={STEAL_FADE} className="z-49" />
+      <div
+        className="fixed inset-x-0 z-50 flex flex-col overflow-hidden bg-ink"
+        style={{ top: frame.top, height: frame.height, backgroundImage: backdropImage(STEAL_FADE), backgroundAttachment: 'fixed' }}
+      >
+        <div className={`mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col px-4 ${frame.keyboard ? 'gap-2 py-2' : 'gap-3 py-3 sm:py-6'}`}>
+          <div className="flex shrink-0 items-center gap-3">
+            {view.victim && <MemberAvatar user={view.victim} size="sm" />}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">Stealing from {view.victim?.username}</p>
+              <p className="text-xs text-white/50">
+                Question {Math.min(quiz.index + 1, view.questionCount)} of {view.questionCount} · {quiz.correct} right
+                {quiz.retrying ? ' · DeLorean retry' : ''}
+              </p>
+            </div>
+            <p className="text-right text-xs text-white/50">
+              {view.percent}% · {formatPp(view.attempted)}
             </p>
           </div>
-          <p className="text-right text-xs text-white/50">
-            {view.percent}% · {formatPp(view.attempted)}
-          </p>
-        </div>
 
-        {view.defenderItems && !frame.keyboard && (
-          <p className="shrink-0 truncate rounded-lg bg-black/40 px-3 py-1.5 text-xs text-white/70">
-            Marauder&apos;s Map: {view.defenderItems.length ? view.defenderItems.map((item) => item.name).join(', ') : 'nothing equipped'}
-          </p>
-        )}
+          {view.defenderItems && !frame.keyboard && (
+            <p className="shrink-0 truncate rounded-lg bg-black/40 px-3 py-1.5 text-xs text-white/70">
+              Marauder&apos;s Map: {view.defenderItems.length ? view.defenderItems.map((item) => item.name).join(', ') : 'nothing equipped'}
+            </p>
+          )}
 
-        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${SCROLL}`}>
-          <AnimatePresence mode="wait">
-            {!question ? (
-              <motion.div key={`wait-${quiz.index}-${quiz.opensAt}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="my-auto py-2 text-center">
-                {last && (
-                  <p className={`mb-4 text-2xl font-bold ${last.right ? 'text-emerald-400' : 'text-brand-red'}`}>
-                    {last.right ? 'Right!' : last.timedOut ? 'Out of time' : 'Wrong'}
-                    {mine?.retry || quiz.retrying ? ' · the DeLorean gives you another go' : ''}
-                  </p>
-                )}
-                <p className="text-sm tracking-widest text-white/50 uppercase">{quiz.index === 0 && !last ? 'Get ready' : 'Next question in'}</p>
-                <p className="font-['Bebas_Neue'] text-9xl leading-none text-brand-gold tabular-nums">{countdown || '…'}</p>
-              </motion.div>
-            ) : (
-              <motion.div
-                key={`q-${quiz.index}-${quiz.opensAt}`}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                className={`flex flex-col py-1 ${frame.keyboard ? 'mb-auto gap-2' : 'my-auto gap-4'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <p
-                    className={`font-['Bebas_Neue'] leading-none tabular-nums ${frame.keyboard ? 'text-4xl' : 'text-6xl'} ${secondsLeft <= 3 ? 'text-brand-red' : 'text-white'}`}
-                    aria-live="off"
-                  >
-                    {secondsLeft}
-                  </p>
-                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
-                    <div className={`h-full rounded-full ${secondsLeft <= 3 ? 'bg-brand-red' : 'bg-brand-gold'}`} style={{ width: `${share * 100}%` }} />
-                  </div>
-                </div>
-                <h1
-                  className={`font-bold leading-snug ${frame.keyboard ? 'text-lg' : 'text-xl sm:text-2xl'} ${question.foggy ? 'italic text-white/70' : 'text-white'}`}
+          <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${SCROLL}`}>
+            <AnimatePresence mode="wait">
+              {!question ? (
+                <motion.div key={`wait-${quiz.index}-${quiz.opensAt}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="my-auto py-2 text-center">
+                  {last && (
+                    <p className={`mb-4 text-2xl font-bold ${last.right ? 'text-emerald-400' : 'text-brand-red'}`}>
+                      {last.right ? 'Right!' : last.timedOut ? 'Out of time' : 'Wrong'}
+                      {mine?.retry || quiz.retrying ? ' · the DeLorean gives you another go' : ''}
+                    </p>
+                  )}
+                  <p className="text-sm tracking-widest text-white/50 uppercase">{quiz.index === 0 && !last ? 'Get ready' : 'Next question in'}</p>
+                  <p className="font-['Bebas_Neue'] text-9xl leading-none text-brand-gold tabular-nums">{countdown || '…'}</p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={`q-${quiz.index}-${quiz.opensAt}`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  className={`flex flex-col py-1 ${frame.keyboard ? 'mb-auto gap-2' : 'my-auto gap-4'}`}
                 >
-                  {question.prompt}
-                </h1>
-                {question.hint && <p className={`text-sm text-white/50 ${frame.keyboard ? '' : '-mt-2'}`}>{question.hint}</p>}
-                {question.input === 'choice' ? (
-                  <Options question={question} quiz={quiz} now={now} onPick={send} disabled={sending} />
-                ) : (
-                  <TypedAnswer key={`${quiz.index}-${quiz.opensAt}`} question={question} onSubmit={send} disabled={sending} frameHeight={frame.height} />
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <div className="flex items-center gap-3">
+                    <p
+                      className={`font-['Bebas_Neue'] leading-none tabular-nums ${frame.keyboard ? 'text-4xl' : 'text-6xl'} ${secondsLeft <= 3 ? 'text-brand-red' : 'text-white'}`}
+                      aria-live="off"
+                    >
+                      {secondsLeft}
+                    </p>
+                    <div className="h-3 flex-1 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+                      <div className={`h-full rounded-full ${secondsLeft <= 3 ? 'bg-brand-red' : 'bg-brand-gold'}`} style={{ width: `${share * 100}%` }} />
+                    </div>
+                  </div>
+                  <h1
+                    className={`font-bold leading-snug ${frame.keyboard ? 'text-lg' : 'text-xl sm:text-2xl'} ${question.foggy ? 'italic text-white/70' : 'text-white'}`}
+                  >
+                    {question.prompt}
+                  </h1>
+                  {question.hint && <p className={`text-sm text-white/50 ${frame.keyboard ? '' : '-mt-2'}`}>{question.hint}</p>}
+                  {question.input === 'choice' ? (
+                    <Options question={question} quiz={quiz} now={now} onPick={send} disabled={sending} />
+                  ) : (
+                    <TypedAnswer key={`${quiz.index}-${quiz.opensAt}`} question={question} onSubmit={send} disabled={sending} frameHeight={frame.height} />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

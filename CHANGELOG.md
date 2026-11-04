@@ -447,6 +447,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out of 5, like club ratings (★ 2.5 to ★ 4.0 and up), instead of out of 10.
 
 ### Fixed
+- On phones and tablets, a black bar no longer flashes at the bottom when
+  the address bar slides away: the site's background, every game page's,
+  the Notifications GIF, and the full-screen Kino Poker table and Steal
+  and Defend quiz all run on 10% past the bottom of the screen there
+  (under 1024px wide; desktops are unchanged).
 - The Notifications page's GIF background and the sign-up page's starfield
   show again: the dark base colour that stops phones flashing white at the
   bottom now sits under the body's gradient, instead of on `<html>`, where
