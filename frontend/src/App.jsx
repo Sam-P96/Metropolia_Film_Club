@@ -49,6 +49,8 @@ import StealMarket from "./pages/StealMarket";
 import StealAttack from "./pages/StealAttack";
 import StealAdmin from "./pages/StealAdmin";
 import StealAlert from "./components/steal/StealAlert";
+import Poker from "./pages/Poker";
+import PokerTable from "./pages/PokerTable";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -166,6 +168,14 @@ function App() {
           } />
           <Route path="/games/steal-and-defend/admin" element={
             isAuthenticated ? (<StealAdmin />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          {/* Kino Poker: the intro, then the one table (played live, over
+              the socket: backend/games/poker/live.js). */}
+          <Route path="/games/poker" element={
+            isAuthenticated ? (<Poker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/poker/table" element={
+            isAuthenticated ? (<PokerTable />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />

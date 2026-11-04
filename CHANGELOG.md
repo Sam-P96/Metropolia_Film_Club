@@ -370,6 +370,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   steal limit over, so everyone can steal and be stolen from again.
   Item data is `backend/data/steal-and-defend-items.json`; every other
   number is in `shared/steal/config.js` (`/api/steal`, `jobs/stealSweep.js`).
+- Kino Poker, 5-Card Draw, on the Games page (`/games/poker`, then
+  `/games/poker/table`). One live table for up to 6, played over the same
+  socket.io connection as Farkle's Play Live (`backend/games/poker/`). The
+  first member to sit down gets three bots (King Loan Shark, Kaveri and
+  Bret Maverick, each with their own style of play, lines and picture;
+  Kaveri's is one of three, picked each time Kaveri sits down). Newcomers
+  sit down between hands, with a bot getting up to make room, and once the
+  bots are gone anyone past 6 waits in a queue. Bots come back below 4
+  players, and the table starts over when the last member leaves. No-limit
+  with 1/2 blinds, one draw of up to 3 cards, side pots, turn timers, and a
+  20-second grace for a dropped connection. The server deals with a crypto
+  shuffle, checks every action, and sends each player only their own cards.
+  Buy-ins (20 to 300) spend PP first, then P-PP. Cashing out gives back
+  the PP (less losses) and pays everything won in P-PP. Chips won from a
+  bot pay half, like Farkle against Clanker. The table is drawn in 3D:
+  cards flying out of the deck and flipping, chip stacks, the pot sliding
+  to the winner, speech bubbles and emoji reactions (four presets or any
+  one emoji). Every number is in `shared/poker/config.js` and every bot
+  line in `shared/poker/lines.js`. Chips at the table are kept in
+  `PokerSeat` and refunded if the server restarts.
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated

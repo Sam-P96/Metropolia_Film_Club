@@ -23,6 +23,7 @@ const doubleRouter = require("./routes/doubleRouter");
 const slotRouter = require("./routes/slotRouter");
 const resonanceRouter = require("./routes/resonanceRouter");
 const stealRouter = require("./routes/stealRouter");
+const pokerRouter = require("./routes/pokerRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -141,6 +142,8 @@ app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
 app.use("/api/slots", refuseGameBans, slotRouter);
 app.use("/api/resonance", resonanceRouter);
 app.use("/api/steal", stealRouter);
+// Kino Poker's table summary (the game itself is live: games/poker/live.js).
+app.use("/api/poker", pokerRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

@@ -14,6 +14,8 @@ const { forgetDoublePlayer, doubleGamesOf } = require("../utils/double");
 const { forgetSlotPlayer, slotMachineOf } = require("../utils/slots");
 const { forgetResonance, resonanceOf } = require("../utils/resonanceStore");
 const { forgetStealPlayer, stealDataOf } = require("../utils/steal/upkeep");
+const { forgetPokerPlayer } = require("../games/poker/live");
+const PokerSeat = require("../models/pokerSeatModel");
 const { siteBanOf, banMessage, recordSighting } = require("../utils/steal/moderation");
 const { takeBackSteals } = require("../utils/steal/players");
 const { StealError } = require("../games/steal/rules");
@@ -487,7 +489,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -502,6 +504,8 @@ const exportMe = async (req, res) => {
         // Steal and Defend: settings, items, attacks, trades, and the
         // hashed IP and device sightings.
         stealDataOf(userId),
+        // Their Kino Poker seat, if they're at the table: buy-in and chips.
+        PokerSeat.findById(userId).lean(),
     ]);
 
     if (!account) {
@@ -521,6 +525,7 @@ const exportMe = async (req, res) => {
         slotMachine,
         resonance,
         stealAndDefend,
+        pokerSeat,
     });
 }
 
@@ -565,6 +570,7 @@ async function deleteAccount(user) {
     await forgetSlotPlayer(userId);
     await forgetResonance(userId);
     await forgetStealPlayer(userId);
+    await forgetPokerPlayer(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

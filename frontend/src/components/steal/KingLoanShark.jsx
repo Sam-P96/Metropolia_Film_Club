@@ -1,18 +1,17 @@
-import onsenShark from '../../assets/Onsen_Shark.webp'
+import { LOAN_SHARK_PICTURE } from './loanSharkPicture'
 import { STEAL } from '../../../../shared/steal/config.js'
 
 const SIZES = { sm: 'size-10', md: 'size-14', lg: 'size-20' }
 
-// King Loan Shark's profile picture: assets/Onsen_Shark.webp, framed on the
-// shark's head (the picture is a wide scene, so a plain centre crop would
-// mostly be splash). The framing is the backgroundSize/Position below.
+// King Loan Shark's profile picture, framed on his head (the framing is
+// in ./loanSharkPicture.js, shared with his seat at Kino Poker).
 export function LoanSharkAvatar({ size = 'md' }) {
   return (
     <span
       role="img"
       aria-label="King Loan Shark"
       className={`${SIZES[size] ?? SIZES.md} block shrink-0 rounded-full bg-ink bg-no-repeat ring-2 ring-brand-gold shadow-[0_0_14px_rgba(250,188,63,0.45)]`}
-      style={{ backgroundImage: `url(${onsenShark})`, backgroundSize: '120% auto', backgroundPosition: '68% 35%' }}
+      style={{ backgroundImage: `url(${LOAN_SHARK_PICTURE.src})`, backgroundSize: LOAN_SHARK_PICTURE.size, backgroundPosition: LOAN_SHARK_PICTURE.position }}
     />
   )
 }
