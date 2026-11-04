@@ -14,6 +14,7 @@ import usePokerTable from '../hooks/usePokerTable'
 import useWallet from '../hooks/useWallet'
 import { walletChanged } from '../services/wallet'
 import { backdropImage } from '../utils/gameBackdrop'
+import { FrameBackdrop } from '../components/GameBackdrop'
 import { POKER } from '../../../shared/poker/config.js'
 
 let nextId = 0
@@ -219,6 +220,7 @@ export default function PokerTable() {
 
   return (
     <MotionConfig reducedMotion="user">
+      <FrameBackdrop top={frame.top} to={POKER_FADE} className="z-39" />
       <div
         className="fixed inset-x-0 z-40 flex flex-col overflow-hidden bg-ink"
         // Browsers only allow sound after a tap: the first one wakes it.
