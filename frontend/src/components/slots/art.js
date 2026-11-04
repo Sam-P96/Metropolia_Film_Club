@@ -8,22 +8,29 @@ const IMAGES = Object.fromEntries(
   ).map(([path, url]) => [path.split('/').pop(), url])
 )
 
+// A symbol the machine no longer has (a spin saved before it was taken out,
+// sent back when that spin is asked for again): a plain placeholder rather
+// than a crash.
+const UNKNOWN = { emoji: '▫️' }
+
 // What a symbol looks like: { emoji } or { src } (a path from the site's
 // root, like /favicon.svg, is used as it is).
 export function artOf(key) {
-  const { art } = SYMBOL_BY_KEY[key]
+  const art = SYMBOL_BY_KEY[key]?.art
+  if (!art) return UNKNOWN
   if (art.emoji) return { emoji: art.emoji }
   return { src: art.image.startsWith('/') ? art.image : IMAGES[art.image] }
 }
 
 // One reel cell as HTML, for the reels, which draw their strips directly
-// (components/slots/Reels.jsx). Only ever our own config goes in here.
+// (components/slots/Reels.jsx). Only ever our own config goes in here: a
+// key it doesn't know is written as "unknown".
 export function cellHtml(key) {
   const art = artOf(key)
   const face = art.emoji
     ? `<span class="slot-symbol" aria-hidden="true">${art.emoji}</span>`
     : `<img class="slot-symbol" src="${art.src}" alt="" draggable="false">`
-  return `<div class="slot-cell" data-symbol="${key}">${face}</div>`
+  return `<div class="slot-cell" data-symbol="${SYMBOL_BY_KEY[key] ? key : 'unknown'}">${face}</div>`
 }
 
 const KEYS = SLOTS.symbols.map((symbol) => symbol.key)

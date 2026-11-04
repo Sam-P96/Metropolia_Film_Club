@@ -4,18 +4,24 @@
 //   node scripts/slots-rtp.js '{"ticket":25,...}'   any weights (shared by their total)
 //   node scripts/slots-rtp.js --simulate 2000000    also play that many spins
 //                                                    on the base table
+//   node scripts/slots-rtp.js --sessions 40000      also play that many
+//                                                    sessions on a few tables
 // The RTP is always worked out exactly (games/slots/rtp.js), by reading
 // every possible line. The simulation plays real spins through the game
 // itself (games/slots/engine.js, coin flips included), to compare with the
 // exact numbers and to see how often spins win: the jackpot is too rare for
 // a simulation to pin the RTP down on its own, so it also prints how far
-// off chance alone would leave it.
+// off chance alone would leave it. The sessions show what a visit feels
+// like: SESSION.pulls pulls at 1 PP from SESSION.start PP, on each of
+// SESSION.tables, and how many end ahead.
 const crypto = require("crypto");
 const { SLOTS } = require("../../shared/slots/config.js");
 const { BASE_WEIGHTS, WEIGHT_TOTAL, keepsRarityOrder } = require("../games/slots/weights");
 const { TABLES } = require("../games/slots/luck");
 const { rtpOf, jackpotShare, lineOdds } = require("../games/slots/rtp");
-const { drawGrid, evaluate } = require("../games/slots/engine");
+const { CENTS, drawGrid, evaluate } = require("../games/slots/engine");
+
+const SESSION = { tables: [100, 103, 105], start: 20, pulls: 50, bet: 1 };
 
 const percent = (x, digits = 3) => `${(x * 100).toFixed(digits)}%`;
 
@@ -28,7 +34,9 @@ function report(label, weights) {
 const args = process.argv.slice(2);
 const simulateAt = args.indexOf("--simulate");
 const spins = simulateAt >= 0 ? Number(args[simulateAt + 1]) || 1_000_000 : 0;
-const custom = args.find((arg, i) => arg.startsWith("{") && i !== simulateAt + 1);
+const sessionsAt = args.indexOf("--sessions");
+const sessions = sessionsAt >= 0 ? Number(args[sessionsAt + 1]) || 10_000 : 0;
+const custom = args.find((arg) => arg.startsWith("{"));
 
 if (custom) {
     report("custom", JSON.parse(custom));
@@ -92,4 +100,33 @@ if (spins > 0) {
     console.log(
         `  effects, per spin: fireworks ${percent(effects.fireworks / spins, 3)}, lightning ${percent(effects.lightning / spins, 3)}, CRITICAL HIT! ${percent(effects["CRITICAL HIT!"] / spins, 3)}, INFINITY ${percent(effects.INFINITY / spins, 3)}`
     );
+}
+
+if (sessions > 0) {
+    const start = SESSION.start * CENTS;
+    const bet = SESSION.bet * CENTS;
+    console.log(
+        `\n${sessions.toLocaleString("en-US")} sessions of ${SESSION.pulls} pulls at ${SESSION.bet} PP from ${SESSION.start} PP (stopping early under ${SESSION.bet} PP):`
+    );
+    for (const bucket of SESSION.tables) {
+        const weights = TABLES[bucket];
+        let ahead = 0;
+        let broke = 0;
+        let pulls = 0;
+        let wins = 0;
+        for (let i = 0; i < sessions; i++) {
+            let balance = start;
+            for (let pull = 0; pull < SESSION.pulls && balance >= bet; pull++) {
+                const result = evaluate(drawGrid(weights, crypto.randomInt), bet);
+                balance += result.win - bet;
+                pulls += 1;
+                if (result.win > 0) wins += 1;
+            }
+            if (balance > start) ahead += 1;
+            if (balance < bet) broke += 1;
+        }
+        console.log(
+            `  ${`${bucket}%`.padEnd(5)} ${percent(ahead / sessions, 1).padStart(6)} end above ${SESSION.start} PP, ${percent(broke / sessions, 1).padStart(5)} run out; a pull wins ${percent(wins / pulls, 1)} of the time (1 in ${(pulls / wins).toFixed(2)})`
+        );
+    }
 }

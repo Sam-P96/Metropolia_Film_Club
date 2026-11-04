@@ -34,15 +34,14 @@ export const SLOTS = {
   // image (a file in frontend/src/assets/Slot_Machine_Icons/reel/, or a
   // path from the site's root like /favicon.svg), to swap freely.
   symbols: [
-    { key: 'ticket', name: 'Movie Ticket', rarity: 'Common', art: { emoji: '🎟️' }, pays: [1, 2, 5] },
-    { key: 'popcorn', name: 'Popcorn', rarity: 'Common', art: { emoji: '🍿' }, pays: [1.2, 3, 8] },
-    { key: 'clapper', name: 'Clapperboard', rarity: 'Uncommon', art: { emoji: '🎬' }, pays: [1.3, 4, 12] },
-    { key: 'film', name: 'Film Strip', rarity: 'Uncommon', art: { emoji: '🎞️' }, pays: [1.5, 5, 15] },
-    { key: 'map', name: "The Marauder's Map", rarity: 'Rare', art: { image: 'map.webp' }, pays: [1.7, 6, 25] },
-    { key: 'ring', name: 'The One Ring', rarity: 'Rare', art: { image: 'ring.webp' }, pays: [2.4, 11, 60] },
-    { key: 'gauntlet', name: 'Infinity Gauntlet', rarity: 'Epic', art: { image: 'gauntlet.webp' }, pays: [4, 20, 150] },
+    { key: 'ticket', name: 'Movie Ticket', rarity: 'Common', art: { emoji: '🎟️' }, pays: [1.2, 1.5, 2] },
+    { key: 'popcorn', name: 'Popcorn', rarity: 'Common', art: { emoji: '🍿' }, pays: [1.3, 1.8, 3] },
+    { key: 'clapper', name: 'Clapperboard', rarity: 'Uncommon', art: { emoji: '🎬' }, pays: [1.4, 2, 4] },
+    { key: 'map', name: "The Marauder's Map", rarity: 'Rare', art: { image: 'map.webp' }, pays: [1.5, 2.5, 5] },
+    { key: 'ring', name: 'The One Ring', rarity: 'Rare', art: { image: 'ring.webp' }, pays: [1.6, 3, 6] },
+    { key: 'gauntlet', name: 'Infinity Gauntlet', rarity: 'Epic', art: { image: 'gauntlet.webp' }, pays: [2, 4, 12] },
     // 5 in a row on any line is the jackpot instead of a 5-in-a-row pay.
-    { key: 'logo', name: 'Kino Kaveri', rarity: 'Legendary', art: { image: '/favicon.svg' }, pays: [3, 15, null], jackpot: true },
+    { key: 'logo', name: 'Kino Kaveri', rarity: 'Legendary', art: { image: '/favicon.svg' }, pays: [2.5, 5, null], jackpot: true },
   ],
 
   // The Infinity Gauntlet links Maps and Rings (backend/games/slots/engine.js):
