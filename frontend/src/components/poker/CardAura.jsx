@@ -19,6 +19,9 @@ const AURA = {
   strikeEvery: [2.6, 6.5],
   // How long a strike flickers.
   strikeSeconds: 0.34,
+  // Each strike is one bolt or two: the chance of two (0 is always one, 1
+  // always two). Two go on different edges of the card.
+  twoBolts: 0.5,
 }
 
 const between = (low, high) => low + Math.random() * (high - low)
@@ -28,10 +31,10 @@ const W = 100
 const H = 140
 const M = 26
 
-// One jagged arc crawling along the card's edge from a random point, drifting
-// in and out of it, sometimes with a short fork.
-function arc() {
-  const side = Math.floor(Math.random() * 4)
+// One jagged bolt crawling along the card's `side` (0 top, 1 right, 2 bottom,
+// 3 left) from a random point, drifting in and out of it, sometimes with a
+// short fork: its lines, each { d, fork }.
+function bolt(side) {
   const t = between(0.1, 0.9)
   const [x0, y0, nx, ny] = [
     [t * W, 0, 0, -1],
@@ -64,7 +67,15 @@ function arc() {
     }
     paths.push(fork)
   }
-  return paths.map((line) => `M${line.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' L')}`)
+  return paths.map((line, index) => ({ d: `M${line.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' L')}`, fork: index > 0 }))
+}
+
+// One strike: one bolt, or sometimes two (AURA.twoBolts) on different edges.
+function strikeLines() {
+  const first = Math.floor(Math.random() * 4)
+  if (Math.random() >= AURA.twoBolts) return { bolts: 1, lines: bolt(first) }
+  const second = (first + 1 + Math.floor(Math.random() * 3)) % 4
+  return { bolts: 2, lines: [...bolt(first), ...bolt(second)] }
 }
 
 function Lightning({ strike, onDone }) {
@@ -80,10 +91,10 @@ function Lightning({ strike, onDone }) {
       transition={{ duration: AURA.strikeSeconds, times: [0, 0.08, 0.3, 0.45, 0.7, 1], ease: 'linear' }}
       onAnimationComplete={onDone}
     >
-      {strike.paths.map((d, i) => (
+      {strike.lines.map(({ d, fork }, i) => (
         <g key={i} fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d={d} style={{ stroke: 'rgb(var(--glow))' }} strokeWidth={i ? 2.6 : 3.6} opacity={0.75} />
-          <path d={d} stroke="#fff" strokeWidth={i ? 0.9 : 1.3} />
+          <path d={d} style={{ stroke: 'rgb(var(--glow))' }} strokeWidth={fork ? 2.6 : 3.6} opacity={0.75} />
+          <path d={d} stroke="#fff" strokeWidth={fork ? 0.9 : 1.3} />
         </g>
       ))}
     </motion.svg>
@@ -106,8 +117,9 @@ export default function CardAura({ colour, lit, company = 1 }) {
     let timer
     const next = (range) => {
       timer = setTimeout(() => {
-        setStrike({ id: Math.random(), paths: arc() })
-        FX.crackle()
+        const { bolts, lines } = strikeLines()
+        setStrike({ id: Math.random(), lines })
+        FX.crackle(bolts)
         next(AURA.strikeEvery)
       }, between(...range) * spread * 1000)
     }

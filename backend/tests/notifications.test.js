@@ -276,6 +276,49 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         );
     });
 
+    test("a Kino Poker win goes to every member, red, with All and Games", async () => {
+        const { notePokerWin } = require("../utils/notify");
+        const [winner, reader] = [await member(), await member()];
+        await openPage(reader);
+        await later();
+        await notePokerWin(winner._id, 85, { hands: 6, best: "Full house, Kings over Fours" });
+
+        assert.ok(await Notification.exists({ recipient: winner._id, type: "pokerWin" }), "the winner hears too");
+        assert.deepEqual(await unread(reader), { unread: true, games: true });
+        const shown = async (filter) => (await call(reader, "GET", `/?filter=${filter}`)).body.items.find((item) => item.type === "pokerWin");
+        const win = await shown("all");
+        assert.equal(win.amount, 85);
+        assert.deepEqual(win.poker, { hands: 6, best: "Full house, Kings over Fours" });
+        assert.equal(String(win.actors[0]._id), String(winner._id));
+        assert.ok(await shown("games"));
+        assert.equal(await shown("reviews"), undefined);
+    });
+
+    test("while members are playing Kino Poker, the page shows the table at the top, with a way in", async () => {
+        // The live table, on a stand-in for socket.io.
+        const quiet = { emit() {} };
+        const io = { on() {}, to: () => quiet, in: () => ({ fetchSockets: async () => [] }) };
+        const table = require("../games/poker/live").startPoker(io, { timers: { firstHandSeconds: 600 } });
+        try {
+            const [player, reader] = [await member(), await member()];
+            assert.equal((await call(reader, "GET", "/")).body.poker, null, "nobody playing: no card");
+
+            await User.collection.updateOne({ _id: player._id }, { $set: { wallet: { pp: 100, ppp: 0, lastPayoutDay: null } } });
+            await table.join({ _id: player._id, username: player.username, avatarUrl: null }, 40);
+
+            const page = async (who, filter = "all") => (await call(who, "GET", `/?filter=${filter}`)).body.poker;
+            const live = await page(reader);
+            assert.deepEqual(live.members.map((seat) => seat.username), [player.username]);
+            assert.equal(live.bots, 3);
+            assert.equal(live.you, null);
+            assert.equal((await page(player)).you, "seated");
+            assert.ok(await page(reader, "games"));
+            assert.equal(await page(reader, "events"), null);
+        } finally {
+            await table.run(() => table.reset());
+        }
+    });
+
     test("logged out: 401", async () => {
         assert.equal((await fetch(`${base}/unread`)).status, 401);
         assert.equal((await fetch(`${base}/seen`, { method: "POST" })).status, 401);

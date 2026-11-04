@@ -226,12 +226,13 @@ export const FX = {
     playNoise(c, { at, ms: swellMs + 300, type: 'highpass', fromHz: 1200, toHz: 7000, q: 0.6, volume: air, attackMs: swellMs })
   },
 
-  // One lightning strike round a glowing card.
-  crackle() {
+  // One lightning strike round a glowing card, of `bolts` bolts (1 or 2):
+  // two crackle a little longer.
+  crackle(bolts = 1) {
     const c = ready()
     if (!c) return
     const { bursts, hz, ms, gapMs, volume, zap } = SOUND_FX.crackle
-    const count = Math.round(between(bursts[0], bursts[1]))
+    const count = Math.round(between(bursts[0], bursts[1])) + (bolts > 1 ? 2 : 0)
     for (let i = 0; i < count; i++) {
       const at = c.currentTime + (i * gapMs * between(0.6, 1.4)) / 1000
       playNoise(c, { at, ms: ms * between(0.6, 1.2), fromHz: hz * between(0.8, 1.2), toHz: hz * 0.6, q: 1.6, volume: volume * between(0.5, 1), attackMs: 1 })

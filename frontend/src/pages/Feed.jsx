@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom'
 import CutComposer from '../components/feed/CutComposer'
 import FeedItem, { ReportNotice } from '../components/feed/FeedItem'
 import { OngoingGame } from '../components/farkle/FarkleNotice'
+import { PokerLive } from '../components/poker/PokerNotice'
 import GifBackground from '../components/GifBackground'
 import PillToggle from '../components/PillToggle'
 import usePagedList from '../hooks/usePagedList'
@@ -49,7 +50,7 @@ const FILTERS = [
     value: 'all',
     label: 'All',
     about:
-      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the top, and challenges stay pinned until you answer), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, and every jackpot, Double or Nothing win, Kino Kasino tripling and Steal and Defend Critical Hit (new jackpots up top until you've seen them). Your last 100, kept for three months.",
+      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events, what's trending or viral, your daily PP, your Farkle games (games you're playing stay at the top, and challenges stay pinned until you answer), the Kino Poker table while anyone's playing (up top, with a way in), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, and every jackpot, Double or Nothing win, Kino Poker win, Kino Kasino tripling and Steal and Defend Critical Hit (new jackpots up top until you've seen them). Your last 100, kept for three months.",
     empty: 'Nothing here yet. Follow some members, write a review, or join in the comments.',
   },
   {
@@ -69,7 +70,7 @@ const FILTERS = [
     value: 'games',
     label: 'Games',
     about:
-      'Your Farkle games and challenges, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, jackpots, wins, Kino Kasino triplings and Critical Hits, your daily PP and gifts. Events and the big news show here too.',
+      'Your Farkle games and challenges, the Kino Poker table while anyone is playing, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, jackpots, wins (Kino Poker ones too), Kino Kasino triplings and Critical Hits, your daily PP and gifts. Events and the big news show here too.',
     empty: 'No games yet. Find one on the Games page.',
   },
 ]
@@ -87,8 +88,8 @@ const withoutCut = (cutId) => (previous) => {
 // reviews, replies, new followers, cuts and new reviews from members they
 // follow, and trending reviews. The newest 100, 10 at a time. Above it all,
 // the box for posting a cut of their own. From the top: for moderators and
-// admins, open reports; then the Farkle games
-// they're playing; then jackpots they haven't seen yet; then everything
+// admins, open reports; then the Kino Poker table while members are
+// playing, and the Farkle games they're playing; then jackpots they haven't seen yet; then everything
 // else as usual (pinned challenges, then newest first). Opening the page
 // marks it all seen, so the bell in the nav goes dark. The All / Events /
 // Reviews / Games toggle narrows it down (FILTERS above). App.jsx sends
@@ -112,6 +113,8 @@ function Feed() {
   // Farkle games they're playing, under those (with All and Games). A game
   // that's over is an ordinary notification, down in the list by its date.
   const games = feed.data?.games ?? []
+  // The Kino Poker table while members are playing at it, with the games.
+  const poker = feed.data?.poker ?? null
   // Jackpots they hadn't seen when the page opened, under the games. The
   // same notices are in the list by date too, so they're left out there.
   const jackpots = feed.data?.jackpots ?? []
@@ -165,6 +168,12 @@ function Feed() {
               </li>
             ))}
           </ul>
+        )}
+
+        {poker && (
+          <div className="mt-10">
+            <PokerLive table={poker} />
+          </div>
         )}
 
         {games.length > 0 && (

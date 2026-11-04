@@ -26,6 +26,11 @@ export const POKER = {
   // (your stake back plus half). Chips won from members pay in full.
   botWinShare: 0.5,
 
+  // Leaving the table ahead (cashing out more than you sat down with) is a
+  // win: every member hears about it in Notifications, at least this many
+  // points up. One notice a sitting, however many hands it took.
+  announce: { minWin: 1 },
+
   // Each player draws up to this many cards.
   maxDraw: 3,
 

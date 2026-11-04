@@ -292,6 +292,7 @@ function fakes({ chance = () => 0.5 } = {}) {
     const wallets = new Map();
     const cashOuts = [];
     const events = [];
+    const wins = [];
     const wallet = {
         async buyIn(user, amount) {
             const w = wallets.get(String(user._id)) ?? { pp: 1000, ppp: 0 };
@@ -323,6 +324,7 @@ function fakes({ chance = () => 0.5 } = {}) {
         now: () => now,
         chance,
         onEvent: (event) => events.push(event),
+        announce: (win) => wins.push(win),
     });
     async function settle() {
         for (let i = 0; i < 50; i++) {
@@ -347,7 +349,7 @@ function fakes({ chance = () => 0.5 } = {}) {
         await settle();
     }
     const user = (n) => ({ _id: `user${n}`, username: `player${n}` });
-    return { table, wallets, cashOuts, events, advance, settle, user, setWallet: (id, w) => wallets.set(id, w) };
+    return { table, wallets, cashOuts, events, wins, advance, settle, user, setWallet: (id, w) => wallets.set(id, w) };
 }
 
 const kinds = (table) => table.occupied().map((seat) => seat.kind).sort();
@@ -391,6 +393,50 @@ describe("the table", () => {
         const actions = events.filter((event) => event.type === "action");
         assert.ok(actions.some((event) => event.amount > 0), "some bets were made");
         for (const event of events) if (event.to !== undefined) assert.ok(typeof event.to === "string" && event.to.startsWith("user"), `${event.type} to ${event.to}`);
+    });
+
+    test("leaving the table ahead is a win for everyone's Notifications; leaving behind or even isn't", async () => {
+        const { table, wins, settle, user } = fakes();
+        // Before the first hand, so the stack is just what they sat down with.
+        await table.join(user(1), 60);
+        table.seatOf("user1").stack = 95;
+        await table.leave("user1");
+        await settle();
+        assert.deepEqual(wins, [{ userId: "user1", profit: 35, hands: 0, best: null }]);
+
+        for (const stack of [60, 20]) {
+            const { table: other, wins: none, settle: done, user: someone } = fakes();
+            await other.join(someone(2), 60);
+            other.seatOf("user2").stack = stack;
+            await other.leave("user2");
+            await done();
+            assert.deepEqual(none, [], `left with ${stack}`);
+        }
+    });
+
+    test("a sitting counts the hands a member wins, and their best hand at a showdown", async () => {
+        const { table, events, advance, user } = fakes({ chance: Math.random });
+        await table.join(user(1), 300);
+        await advance(10 * 60 * 1000);
+        const seat = table.seatOf("user1");
+        if (!seat) return; // Busted: nothing left to count.
+        const won = events.filter((event) => event.type === "win").filter((event) => event.winners.some((winner) => winner.seat === seat.index && winner.won > 0));
+        assert.equal(seat.record.hands, won.length);
+        const atShowdown = won.filter((event) => event.showdown);
+        if (atShowdown.length === 0) assert.equal(seat.record.best, null);
+        else assert.equal(typeof seat.record.best, "string");
+    });
+
+    test("the live table for Notifications: who's there, and whether you are", async () => {
+        const { table, user } = fakes();
+        assert.equal(table.liveFor("user1"), null, "nobody playing: no card");
+        await table.join({ ...user(1), avatarUrl: "/a.png" }, 60);
+        const live = table.liveFor("user9");
+        assert.deepEqual(live.members, [{ _id: "user1", username: "player1", avatarUrl: "/a.png" }]);
+        assert.equal(live.bots, 3);
+        assert.equal(live.you, null);
+        assert.equal(table.liveFor("user1").you, "seated");
+        assert.equal(table.liveFor(null).you, null);
     });
 
     test("each bot sits down with one of its own pictures, the same for everyone", async () => {

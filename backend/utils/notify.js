@@ -17,7 +17,7 @@ const VIRAL_LIKES = 5;
 const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
-    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES,
+    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES,
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -284,6 +284,14 @@ async function noteSlotJackpot(playerId, amount) {
     await sendToEach(members, { type: "slotJackpot", amount, actors: [playerId] });
 }
 
+// Kino Poker (games/poker/live.js): `winnerId` left the table `amount` P-PP
+// up, having won `hands` hands, the best at a showdown `best` (or null).
+// Every member hears about it, the winner included.
+async function notePokerWin(winnerId, amount, { hands = 0, best = null } = {}) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, { type: "pokerWin", amount, poker: { hands, best }, actors: [winnerId] });
+}
+
 // A game of Double or Nothing ended (utils/double.js). A win is big news:
 // every member hears about it, the winner included, like the jackpot.
 // Otherwise (the Ban List or the Waiting List), everyone who follows the
@@ -452,6 +460,7 @@ module.exports = {
     noteSlotTriple,
     noteSlotJackpot,
     noteDoubleResult,
+    notePokerWin,
     noteStealAttacked,
     noteStealResult,
     noteStealCrit,
