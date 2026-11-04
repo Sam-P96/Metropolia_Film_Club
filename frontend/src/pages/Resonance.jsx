@@ -13,6 +13,8 @@ import usePagedList from '../hooks/usePagedList'
 import { noteSoulMatches, refreshSoulResonance } from '../hooks/useSoulResonance'
 import { getMyResonance, getResonanceRanking } from '../services/resonance'
 import { updateMe } from '../services/users'
+import { getCurrentUser } from '../utils/currentUser'
+import { canSeeEveryonesResonance } from '../utils/permissions'
 import { RELATIONS, RESONANCE_SETTINGS, TIER_COLOURS } from '../utils/resonance'
 import { resonanceTier } from '../../../shared/resonance.js'
 
@@ -43,9 +45,11 @@ function Notice({ children }) {
 // (under 50%) the strongest first. Hovering over a row on a computer opens
 // that member's Resonance card under it; on a phone, tapping it does. The
 // Resonance and Resonance icon switches from Edit profile are here too.
+// For moderators and admins, the icon in the heading opens /SECRETresonance.
 function Resonance() {
   const { data: standing, loading, error, reload, setData } = useApi(getMyResonance, [])
   const [saveError, setSaveError] = useState(null)
+  const [currentUser] = useState(getCurrentUser)
 
   // A switch saves straight away. The page follows it at once, then
   // catches up with the server (whether there's anything to wait for).
@@ -99,7 +103,17 @@ function Resonance() {
           <span>
             Your <span className="text-brand-gold">Resonance</span>
           </span>
-          <ResonanceMark />
+          {canSeeEveryonesResonance(currentUser) ? (
+            <Link
+              to="/SECRETresonance"
+              aria-label="Everyone's Resonance"
+              className="inline-flex rounded-sm transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-gold"
+            >
+              <ResonanceMark />
+            </Link>
+          ) : (
+            <ResonanceMark />
+          )}
         </h1>
 
         <div className="mt-4 mb-6 h-1 w-10 rounded-full bg-brand-gold" />

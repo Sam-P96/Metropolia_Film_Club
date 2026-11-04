@@ -42,8 +42,9 @@ router.post("/:id/report", requireAuth, reportReview);
 // on the review.
 router.put("/:id/reports", requireAuth, requireRole("moderator"), resolveReports);
 
-// Its author, or an admin. (Authors can also delete theirs by clearing the
-// text when editing.)
+// Its author, or a moderator or admin: ?remove=review, rating or both. The
+// controller checks. (Authors can also delete their review by clearing the
+// text when editing, and their rating by clicking it again.)
 router.delete("/:id", requireAuth, deleteReview);
 
 module.exports = router;

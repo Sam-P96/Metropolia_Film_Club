@@ -315,6 +315,12 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
     const names = (matches) => matches.map((match) => match.user.username);
     const percents = (matches) => matches.map((match) => match.percent);
     const clear = () => Promise.all([User, Follow, FilmLog, Resonance].map((model) => model.deleteMany({})));
+    // A sweep's counts, without when it ran.
+    async function sweep() {
+        const { members, pairs, at } = await store.recalculateResonance();
+        assert.ok(at instanceof Date);
+        return { members, pairs };
+    }
 
     test("the sweep stores each pair of members with 20+ rated films once, and removes pairs that no longer qualify", async () => {
         await clear();
@@ -325,7 +331,7 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         // Resonance off and a private profile still count: they only hide.
         const off = await member(20, { resonance: false, privacy: "private" });
 
-        assert.deepEqual(await store.recalculateResonance(), { members: 4, pairs: 6 });
+        assert.deepEqual(await sweep(), { members: 4, pairs: 6 });
         const stored = await Resonance.find().lean();
         assert.equal(stored.length, 6);
         for (const entry of stored) {
@@ -337,12 +343,12 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.ok(stored.some((entry) => [String(entry.userA), String(entry.userB)].includes(String(off._id))));
 
         // Twice is the same as once.
-        assert.deepEqual(await store.recalculateResonance(), { members: 4, pairs: 6 });
+        assert.deepEqual(await sweep(), { members: 4, pairs: 6 });
         assert.equal(await Resonance.countDocuments(), 6);
 
         // Down to 19 rated films: their pairs go at the next sweep.
         await FilmLog.updateOne({ user: a._id, tmdbId: 1 }, { $set: { rating: null } });
-        assert.deepEqual(await store.recalculateResonance(), { members: 3, pairs: 3 });
+        assert.deepEqual(await sweep(), { members: 3, pairs: 3 });
         assert.equal(await Resonance.countDocuments({ $or: [{ userA: a._id }, { userB: a._id }] }), 0);
         // Each stored score says which scoring settings made it.
         const last = await store.lastSweep();
@@ -524,7 +530,7 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(profile.resonanceIcon, false);
     });
 
-    test("/SECRETresonance: admins see every pair, worked out now, with 20+ or any rated films", async () => {
+    test("/SECRETresonance: moderators and admins see every pair, worked out now, with 20+ or any rated films", async () => {
         await clear();
         const admin = await member(20, { role: "admin" });
         const hidden = await member(20, { privacy: "private", resonance: false });
@@ -549,9 +555,48 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(theirs.total, 2);
         assert.ok(theirs.pairs.every((entry) => String(entry.a._id) === String(few._id)));
 
-        // Nobody else.
+        // Moderators too, and nobody else.
+        assert.equal((await call(await member(0, { role: "moderator" }), "/resonance/all")).status, 200);
         assert.equal((await call(few, "/resonance/all")).status, 403);
-        assert.equal((await call(await member(20, { role: "moderator" }), "/resonance/all")).status, 403);
+        assert.equal((await call(null, "/resonance/all")).status, 401);
+    });
+
+    test("/SECRETresonance's Update Resonance now: moderators and admins store everyone's straight away", async () => {
+        await clear();
+        const moderator = await member(0, { role: "moderator" });
+        const admin = await member(0, { role: "admin" });
+        const a = await member();
+        const b = await member();
+        await member();
+
+        // Nothing stored yet.
+        assert.equal((await call(moderator, "/resonance/all")).body.updatedAt, null);
+        assert.equal((await call(a, "/resonance/ranking")).body.matches.length, 0);
+
+        // Members can't.
+        assert.equal((await call(a, "/resonance/update", { method: "POST" })).status, 403);
+        assert.equal((await call(null, "/resonance/update", { method: "POST" })).status, 401);
+        assert.equal(await Resonance.countDocuments(), 0);
+
+        const { status, body } = await call(moderator, "/resonance/update", { method: "POST" });
+        assert.equal(status, 200);
+        assert.equal(body.members, 3);
+        assert.equal(body.pairs, 3);
+        assert.equal(await Resonance.countDocuments(), 3);
+        assert.equal((await call(a, "/resonance/ranking")).body.matches.length, 2);
+        assert.equal((await call(moderator, "/resonance/all")).body.updatedAt, body.updatedAt);
+
+        // Admins too, and it's a new sweep each time.
+        const again = await call(admin, "/resonance/update", { method: "POST" });
+        assert.equal(again.status, 200);
+        assert.ok(again.body.updatedAt > body.updatedAt);
+        assert.equal(await Resonance.countDocuments({ $or: [{ userA: b._id }, { userB: b._id }] }), 2);
+
+        // Asked for while one is running (04:00's, say): it waits for that one.
+        const { runSweep } = require("../jobs/resonanceSweep");
+        const running = runSweep();
+        assert.equal(runSweep(), running);
+        assert.equal((await running).pairs, 3);
     });
 
     test("their matches are in their data download, and go with their account", async () => {

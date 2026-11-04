@@ -73,10 +73,14 @@ export function resolveReports(reviewId, status) {
   return api(`/reviews/${encodeURIComponent(reviewId)}/reports`, { method: 'PUT', body: { status } })
 }
 
-// The review's author, or an admin. Deletes the review with its comments;
-// the author's rating stays in their film log. Resolves to { deleted: true }.
-export function deleteReview(id) {
-  return api(`/reviews/${encodeURIComponent(id)}`, { method: 'DELETE' })
+// The review's author, or a moderator or admin. `remove` is 'review' (the
+// review and its comments; the rating stays in the author's film log),
+// 'rating' (the rating, from both; the review stays) or 'both'. The film
+// stays on their list as watched. Resolves to { deleted: true, removed }.
+export async function deleteReview(id, remove = 'review') {
+  const result = await api(`/reviews/${encodeURIComponent(id)}?remove=${remove}`, { method: 'DELETE' })
+  clearCache('/films/stats')
+  return result
 }
 
 // The review's author only. Off hides its comments without deleting them.

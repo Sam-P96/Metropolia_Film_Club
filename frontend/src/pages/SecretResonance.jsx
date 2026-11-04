@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 import PillToggle from '../components/PillToggle'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import usePagedList from '../hooks/usePagedList'
-import { getEveryonesResonance } from '../services/resonance'
+import { refreshSoulResonance } from '../hooks/useSoulResonance'
+import { getEveryonesResonance, updateResonanceNow } from '../services/resonance'
 import { TIER_COLOURS } from '../utils/resonance'
 import { resonanceTier } from '../../../shared/resonance.js'
 
@@ -46,12 +47,78 @@ function Person({ user, info }) {
   )
 }
 
-// Not linked from anywhere: only at /SECRETresonance, and only for admins
-// (the server checks). Every pair of members, worked out now with the
-// current weights rather than last night's, whatever their settings and
-// privacy, with all five factors. "20 ratings" is the members Resonance is
-// worked out for; "Any ratings" is everyone who has rated a film. Pick a
-// member to see only theirs.
+// When members' Resonance was last worked out, in Helsinki time.
+function formatUpdated(isoString) {
+  return new Date(isoString).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Helsinki',
+  })
+}
+
+// "Update Resonance now": works out everyone's stored Resonance (what
+// members see) straight away, instead of waiting for 04:00, which still
+// runs. The list below doesn't change: it's always worked out live.
+// `updatedAt` is when it last was: undefined while the list loads, null if
+// it never has been.
+function UpdateNow({ updatedAt }) {
+  const [updating, setUpdating] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  let status = null
+  if (result) {
+    status = `Updated ${formatUpdated(result.updatedAt)}: ${result.pairs} ${result.pairs === 1 ? 'pair' : 'pairs'} between ${result.members} ${result.members === 1 ? 'member' : 'members'}.`
+  } else if (updatedAt) {
+    status = `Members' Resonance was last worked out ${formatUpdated(updatedAt)}.`
+  } else if (updatedAt === null) {
+    status = "Members' Resonance hasn't been worked out yet."
+  }
+
+  const handleUpdate = async () => {
+    setUpdating(true)
+    setError(null)
+
+    try {
+      setResult(await updateResonanceNow())
+      refreshSoulResonance()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={handleUpdate}
+        disabled={updating}
+        className="rounded-md bg-brand-red px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-orange disabled:cursor-wait disabled:opacity-60"
+      >
+        {updating ? 'Updating…' : 'Update Resonance now'}
+      </button>
+
+      <p className="min-w-0 flex-1 text-sm text-white/60">
+        {status && <>{status} </>}
+        <span className="text-white/40">It's worked out again every night at 04:00 either way.</span>
+      </p>
+
+      {error && <p className="w-full text-sm text-brand-red">{error}</p>}
+    </div>
+  )
+}
+
+// Only at /SECRETresonance, for moderators and admins (the server checks):
+// the icon in the Resonance page's heading links here for them. Every pair
+// of members, worked out now with the current weights rather than last
+// night's, whatever their settings and privacy, with all five factors. "20
+// ratings" is the members Resonance is worked out for; "Any ratings" is
+// everyone who has rated a film. Pick a member to see only theirs.
+// "Update Resonance now" works out what members see early.
 function SecretResonance() {
   const [min, setMin] = useState('20')
   const [member, setMember] = useState('')
@@ -72,8 +139,10 @@ function SecretResonance() {
 
         <p className="max-w-2xl text-white/60">
           Every pair of members, worked out now with the current weights, whatever their settings and privacy.
-          Admins only.
+          Moderators and admins only.
         </p>
+
+        {list.error?.status !== 403 && <UpdateNow updatedAt={list.data?.updatedAt} />}
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <PillToggle
@@ -114,7 +183,9 @@ function SecretResonance() {
           <p className="mt-8 text-sm text-white/40">Working it out…</p>
         ) : list.error ? (
           <p className="mt-8 text-white/60">
-            {list.error.status === 403 ? 'This page is for admins.' : "Couldn't load it. Try refreshing the page."}
+            {list.error.status === 403
+              ? 'This page is for moderators and admins.'
+              : "Couldn't load it. Try refreshing the page."}
           </p>
         ) : pairs.length === 0 ? (
           <p className="mt-8 text-white/60">No pairs yet: it needs two members who have rated films.</p>

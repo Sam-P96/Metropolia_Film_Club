@@ -411,24 +411,51 @@ async function removeReview(filter) {
     return removed._id;
 }
 
-// Deleting a review: its author, or an admin (anyone's). The page asks
-// twice first. Anyone else is refused, and the review stays.
+// What DELETE /api/reviews/:id?remove= takes away: the written review, the
+// rating on the author's film list (and the review's copy of it), or both.
+const REMOVALS = {
+    review: { review: true, rating: false },
+    rating: { review: false, rating: true },
+    both: { review: true, rating: true },
+};
+
+// Deleting from a review's page: its author, or a moderator or admin
+// (anyone's). ?remove=review (the default) deletes the written review and
+// keeps the rating, ?remove=rating takes the rating off and keeps the
+// review, and ?remove=both does both. The film stays on the author's list
+// as watched either way. The page asks twice first. Anyone else is
+// refused, and nothing changes. Resolves to { deleted: true, removed }.
 async function deleteReview(req, res) {
-    if (!mongoose.isValidObjectId(req.params.id)) {
+    const removed = req.query.remove ?? "review";
+    const remove = Object.hasOwn(REMOVALS, removed) ? REMOVALS[removed] : null;
+
+    if (!remove) {
+        return res.status(400).json({ error: "Delete the review, the rating, or both." });
+    }
+
+    const review = mongoose.isValidObjectId(req.params.id)
+        ? await Review.findById(req.params.id).select("user tmdbId").lean()
+        : null;
+
+    if (!review) {
         return res.status(404).json({ error: "Review not found." });
     }
 
-    const filter = hasRole(req.user, "admin")
-        ? { _id: req.params.id }
-        : { _id: req.params.id, user: req.user._id };
-
-    if (!(await removeReview(filter))) {
-        return (await Review.exists({ _id: req.params.id }))
-            ? res.status(403).json({ error: "You can only delete your own reviews." })
-            : res.status(404).json({ error: "Review not found." });
+    if (String(review.user) !== String(req.user._id) && !hasRole(req.user, "moderator")) {
+        return res.status(403).json({ error: "You can only delete your own reviews." });
     }
 
-    res.json({ deleted: true });
+    // The review first: if someone else has just deleted it, nothing changes.
+    if (remove.review && !(await removeReview({ _id: review._id }))) {
+        return res.status(404).json({ error: "Review not found." });
+    }
+
+    if (remove.rating) {
+        await FilmLog.updateOne({ user: review.user, tmdbId: review.tmdbId }, { $set: { rating: null } });
+        if (!remove.review) await Review.updateOne({ _id: review._id }, { $set: { rating: null } }, { timestamps: false });
+    }
+
+    res.json({ deleted: true, removed });
 }
 
 // The author turning comments under one of their reviews off or on.
@@ -598,7 +625,9 @@ function isValidRating(value) {
 
 // The write-a-review form: a rating, some text, or both. Saving marks the
 // film as watched. Sending no text removes any written review but keeps the
-// rating on their film list.
+// rating on their film list, and no rating takes the rating off. Sending
+// neither is only for a film they've already rated or reviewed: both come
+// off, and the film stays on their list as watched.
 async function saveReview(req, res) {
     const tmdbId = parseTmdbId(req.params.tmdbId);
     if (!tmdbId) return res.status(404).json({ error: "Film not found." });
@@ -611,7 +640,9 @@ async function saveReview(req, res) {
         return res.status(400).json({ error: "Ratings go from 0.5 to 5 in half stars." });
     }
 
-    if (rating === null && !text) {
+    let entry = await FilmLog.findOne({ user: req.user._id, tmdbId });
+
+    if (rating === null && !text && entry?.rating == null && !(await Review.exists({ user: req.user._id, tmdbId }))) {
         return res.status(400).json({ error: "Give it a rating, write something, or both." });
     }
 
@@ -627,8 +658,6 @@ async function saveReview(req, res) {
 
     const details = await filmDetailsOr404(tmdbId, res);
     if (!details) return;
-
-    let entry = await FilmLog.findOne({ user: req.user._id, tmdbId });
 
     if (entry) {
         // They planned to watch it and now have. A rewatch flag only makes

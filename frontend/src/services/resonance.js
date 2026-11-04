@@ -23,13 +23,21 @@ export function getResonanceRanking(side, offset = 0, search = '') {
   return api(`/resonance/ranking?${params}`)
 }
 
-// /SECRETresonance, admins only: every pair, a page at a time. `min` is
-// '20' or 'any'; `member` an id to see only theirs, or ''. Resolves to
-// { members, pairs, total, hasMore, next }.
+// /SECRETresonance, moderators and admins only: every pair, a page at a
+// time. `min` is '20' or 'any'; `member` an id to see only theirs, or ''.
+// Resolves to { members, pairs, total, hasMore, next, updatedAt }, where
+// `updatedAt` is when members' stored Resonance was last worked out.
 export function getEveryonesResonance({ min, member, offset = 0 }) {
   const params = new URLSearchParams({ min, offset })
   if (member) params.set('member', member)
   return api(`/resonance/all?${params}`)
+}
+
+// /SECRETresonance's "Update Resonance now", moderators and admins only:
+// works everyone's out again straight away instead of at 04:00. Resolves to
+// { members, pairs, updatedAt }.
+export function updateResonanceNow() {
+  return api('/resonance/update', { method: 'POST' })
 }
 
 // { [member id]: { percent, icon } } for everyone they share a Soul
