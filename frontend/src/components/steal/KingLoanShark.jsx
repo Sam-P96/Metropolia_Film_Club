@@ -12,7 +12,7 @@ export function LoanSharkAvatar({ size = 'md' }) {
       role="img"
       aria-label="King Loan Shark"
       className={`${SIZES[size] ?? SIZES.md} block shrink-0 rounded-full bg-ink bg-no-repeat ring-2 ring-brand-gold shadow-[0_0_14px_rgba(250,188,63,0.45)]`}
-      style={{ backgroundImage: `url(${onsenShark})`, backgroundSize: '276% auto', backgroundPosition: '68% 46%' }}
+      style={{ backgroundImage: `url(${onsenShark})`, backgroundSize: '120% auto', backgroundPosition: '68% 35%' }}
     />
   )
 }
