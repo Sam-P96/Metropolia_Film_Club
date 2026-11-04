@@ -16,12 +16,14 @@ import GameTitle from '../components/slots/GameTitle'
 import { SLOTS } from '../../../shared/slots/config.js'
 import StealLogo from '../components/steal/StealLogo'
 import { getStealStatus } from '../services/steal'
+import PokerLogo from '../components/poker/PokerLogo'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Farkle, Box Office Scratch, Double or Nothing, Kino Kasino and Steal and
-// Defend (whose picture says "Require PvP" until its PvP is on). Every row
+// Farkle, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
+// Defend (whose picture says "Require PvP" until its PvP is on) and Kino
+// Poker. Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
 // Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
 // look; playing needs a login, since games are played for points. Double or
@@ -129,6 +131,18 @@ export default function Games() {
                 Follow a member, win a quiz about them, and steal a slice of their points. Defend your own with items from the daily shop.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Steal and Defend →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/poker" className={CARD}>
+              <PokerLogo />
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Kino <span className="text-brand-gold">Poker</span>
+              </h2>
+              <p className="text-white/70">
+                5-Card Draw at one live table for up to six. Take on the house bots, or fill the seats with other members. Winnings pay in P-PP.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Kino Poker →</span>
             </Link>
           </li>
         </ul>

@@ -1,4 +1,5 @@
-// The Slot Machine's sounds and haptics, shared by its parts. Sounds are
+// The Slot Machine's sounds and haptics, shared by its parts (Kino Poker
+// plays its own through playNoise, playVoice and haptic too). Sounds are
 // synthesised with Web Audio (no audio files), muted with the mute button;
 // the choice is remembered on this device.
 
@@ -138,7 +139,7 @@ function envelope(param, at, { ms, volume, attackMs = 4 }) {
 }
 
 // Noise through a filter swept from `fromHz` to `toHz`.
-function playNoise(context, { at, ms, type = 'bandpass', fromHz, toHz = fromHz, q = 1, volume, attackMs = 4 }) {
+export function playNoise(context, { at, ms, type = 'bandpass', fromHz, toHz = fromHz, q = 1, volume, attackMs = 4 }) {
   const source = context.createBufferSource()
   source.buffer = noiseBuffer(context)
   const filter = context.createBiquadFilter()
@@ -155,7 +156,7 @@ function playNoise(context, { at, ms, type = 'bandpass', fromHz, toHz = fromHz, 
 }
 
 // One note sliding from `fromHz` to `toHz`, into `to` (the master unless said).
-function playVoice(context, { at, ms, type = 'sine', fromHz, toHz = fromHz, volume, attackMs = 4, detune = 0, to = null }) {
+export function playVoice(context, { at, ms, type = 'sine', fromHz, toHz = fromHz, volume, attackMs = 4, detune = 0, to = null }) {
   const oscillator = context.createOscillator()
   oscillator.type = type
   oscillator.detune.value = detune

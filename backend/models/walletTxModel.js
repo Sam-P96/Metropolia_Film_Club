@@ -33,6 +33,8 @@ const Schema = mongoose.Schema;
 //   stealSell       an item sold back to the shop, or to another player, in P-PP
 //   stealTrade      PP in a trade: put in escrow, handed back, paid or received
 //   stealTakeback   turning PvP off: steals taken back, or a victim paid back
+//   pokerBuyIn      chips for the Kino Poker table (PP first, then P-PP)
+//   pokerCashOut    leaving the table: the stake back as it went in, winnings as P-PP
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -44,6 +46,7 @@ const walletTxSchema = new Schema({
             "slotCredits", "slotCashOut",
             "stealWin", "stealLoss", "stealWilson", "stealFine", "stealFineWon",
             "stealBuy", "stealSell", "stealTrade", "stealTakeback",
+            "pokerBuyIn", "pokerCashOut",
         ],
         required: true,
     },
