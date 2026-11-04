@@ -5,6 +5,9 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import TableScene from '../components/poker/TableScene'
 import { ActionBar, DrawBar, EmojiButton, JoinPanel } from '../components/poker/Controls'
 import { GLASS, POKER_FADE, QUIET, RED } from '../components/poker/style'
+import { FX, HAPTIC, haptic, isMuted, setMuted, wakeAudio } from '../components/poker/feedback'
+import { setVfx, vfxOn } from '../components/poker/vfx'
+import { loadGlow } from '../components/poker/glow'
 import CoinIcon from '../components/wallet/CoinIcon'
 import useGameFrame from '../hooks/useGameFrame'
 import usePokerTable from '../hooks/usePokerTable'
@@ -48,6 +51,7 @@ function useBubbles() {
     (bubble, delayMs = 0) =>
       later(() => {
         setBubbles((list) => [...list.filter((other) => other.seat !== bubble.seat), bubble])
+        FX.speech()
         later(() => setBubbles((list) => list.filter((other) => other.id !== bubble.id)), POKER.speech.bubbleSeconds * 1000)
       }, delayMs),
     [later]
@@ -100,6 +104,12 @@ export default function PokerTable() {
   const [busy, setBusy] = useState(false)
   const [pick, setPick] = useState({ key: null, cards: [] })
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [sound, setSound] = useState(() => !isMuted())
+  const [vfx, setVfxShown] = useState(vfxOn)
+  // The glow's colour, picked in Options on the intro page.
+  const [glow] = useState(loadGlow)
+  // Your seat, for the events' sounds (a pot you won sounds different).
+  const me = useRef(null)
 
   const flash = useCallback((text) => {
     const item = { id: id(), text }
@@ -115,7 +125,23 @@ export default function PokerTable() {
         setEmojis((list) => [...list, item])
         setTimeout(() => setEmojis((list) => list.filter((other) => other.id !== item.id)), POKER.emoji.showSeconds * 1000)
       }
+      // The sounds of the table (components/poker/feedback.js).
+      if (event.type === 'deal') FX.deal((event.order?.length ?? 0) * 5)
+      if (event.type === 'action') {
+        if (event.action === 'fold') FX.fold()
+        else if (event.action === 'check') FX.check()
+        else FX.chips(event.amount, { allIn: event.action === 'allIn' })
+      }
+      if (event.type === 'draw') {
+        if (event.count) FX.draw(event.count)
+        else FX.standPat()
+      }
+      if (event.type === 'reshuffle') FX.reshuffle()
+      if (event.type === 'emoji') FX.emoji()
       if (event.type === 'win') {
+        const won = event.winners.some((winner) => winner.seat === me.current && winner.amount > 0)
+        FX.win(won)
+        if (won) haptic(HAPTIC.win)
         const items = event.winners.filter((winner) => winner.amount > 0).map((winner) => ({ id: id(), seat: winner.seat, amount: winner.amount }))
         setSlides(items)
         setTimeout(() => setSlides([]), 1400)
@@ -131,8 +157,12 @@ export default function PokerTable() {
 
   const { state: view, connected, offset, send } = usePokerTable({ onEvent })
   const now = useNow(offset)
+  useEffect(() => {
+    me.current = view?.you.seat ?? null
+  })
 
   const run = async (event, payload) => {
+    haptic(HAPTIC.press)
     setBusy(true)
     const reply = await send(event, payload)
     setBusy(false)
@@ -148,11 +178,39 @@ export default function PokerTable() {
   const inHand = Boolean(hand && hand.phase !== 'done' && mySeat?.inHand && !mySeat.folded)
   const pickKey = hand ? `${hand.id}:${hand.phase}` : null
   const picked = pick.key === pickKey ? pick.cards : []
-  const toggle = (index) =>
-    setPick(() => {
-      const cards = picked.includes(index) ? picked.filter((i) => i !== index) : picked.length < POKER.maxDraw ? [...picked, index] : picked
-      return { key: pickKey, cards }
-    })
+  const toggle = (index) => {
+    const cards = picked.includes(index) ? picked.filter((i) => i !== index) : picked.length < POKER.maxDraw ? [...picked, index] : picked
+    FX.select(cards.includes(index))
+    haptic(HAPTIC.card)
+    setPick({ key: pickKey, cards })
+  }
+
+  // Your turn: a ping and a buzz as it comes round, then a tick for each of
+  // its last 5 seconds.
+  const turnKey = you?.myTurn ? hand?.deadline : null
+  const secondsLeft = turnKey ? Math.ceil((turnKey - now) / 1000) : null
+  useEffect(() => {
+    if (!turnKey) return
+    FX.turn()
+    haptic(HAPTIC.turn)
+  }, [turnKey])
+  useEffect(() => {
+    if (secondsLeft !== null && secondsLeft >= 1 && secondsLeft <= 5) FX.tick(secondsLeft <= 2)
+  }, [secondsLeft])
+
+  const toggleSound = () => {
+    setMuted(sound)
+    setSound(!sound)
+    if (!sound) FX.select(true)
+  }
+
+  // The VFX button: your best hand's glow and lightning, on or off.
+  const toggleVfx = () => {
+    setVfx(!vfx)
+    setVfxShown(!vfx)
+    FX.select(!vfx)
+    haptic(HAPTIC.press)
+  }
 
   // Full of members: the queue. Mid-hand: a seat between hands. Otherwise
   // straight in.
@@ -163,9 +221,11 @@ export default function PokerTable() {
     <MotionConfig reducedMotion="user">
       <div
         className="fixed inset-x-0 z-40 flex flex-col overflow-hidden bg-ink"
+        // Browsers only allow sound after a tap: the first one wakes it.
+        onPointerDown={wakeAudio}
         style={{ top: frame.top, height: frame.height, backgroundImage: backdropImage(POKER_FADE), backgroundAttachment: 'fixed' }}
       >
-        <header className="relative flex shrink-0 items-center gap-2 px-3 py-1.5">
+        <header className="relative flex shrink-0 items-center gap-1.5 px-3 py-1.5 sm:gap-2">
           <Link to="/games/poker" aria-label="Back to Kino Poker" className="px-1 text-white/60 transition-colors duration-300 hover:text-white">
             ←
           </Link>
@@ -181,6 +241,26 @@ export default function PokerTable() {
               <CoinIcon kind="ppp" size={14} /> {wallet.ppp}
             </span>
           )}
+          <button
+            type="button"
+            onClick={toggleVfx}
+            aria-pressed={vfx}
+            aria-label={vfx ? 'Turn off the glow and lightning on your best hand' : 'Turn on the glow and lightning on your best hand'}
+            title={vfx ? 'Glow and lightning: on' : 'Glow and lightning: off'}
+            className={`${QUIET} min-h-9 px-2 text-xs tracking-wider ${vfx ? 'text-brand-gold!' : 'text-white/45! line-through'}`}
+          >
+            VFX
+          </button>
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={!sound}
+            aria-label={sound ? 'Mute the sound' : 'Turn the sound on'}
+            title={sound ? 'Mute' : 'Sound on'}
+            className={`${QUIET} min-h-9 px-2 text-base`}
+          >
+            {sound ? '🔊' : '🔇'}
+          </button>
           {seated && <EmojiButton disabled={!connected} onSend={(emoji) => run('poker:emoji', { emoji })} />}
           {seated &&
             (confirmLeave ? (
@@ -208,7 +288,17 @@ export default function PokerTable() {
 
         <div className="relative min-h-0 flex-1">
           {view ? (
-            <TableScene view={view} selected={picked} onToggle={you?.mustDraw ? toggle : undefined} bubbles={bubbles} emojis={emojis} slides={slides} now={now} />
+            <TableScene
+              view={view}
+              selected={picked}
+              onToggle={you?.mustDraw ? toggle : undefined}
+              bubbles={bubbles}
+              emojis={emojis}
+              slides={slides}
+              now={now}
+              vfx={vfx}
+              glow={glow}
+            />
           ) : (
             <p className="absolute inset-0 grid place-items-center text-white/60">Finding the table…</p>
           )}

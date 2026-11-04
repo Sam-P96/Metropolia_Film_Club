@@ -499,7 +499,8 @@ class PokerTable {
         const labels = { fold: "Fold", check: "Check", call: `Call ${result.amount}`, bet: `Bet ${result.to}`, raise: `Raise to ${result.to}`, allIn: "All in" };
         hand.lastAction[seatIndex] = labels[result.action];
         this.syncStacks();
-        this.event("action", { seat: seatIndex, action: result.action, amount: result.amount, to: result.to });
+        // (`betTo`, not `to`: an event's `to` sends it to one member only.)
+        this.event("action", { seat: seatIndex, action: result.action, amount: result.amount, betTo: result.to });
         this.say(this.seats[seatIndex], result.action);
         return this.afterAction(seatIndex);
     }

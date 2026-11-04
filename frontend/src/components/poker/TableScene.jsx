@@ -1,13 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react'
 import PlayingCard from './cards'
 import ChipStack from './ChipStack'
 import Seat from './Seat'
-import { glide } from './style'
+import CardAura from './CardAura'
+import { madeHand } from './bestHand'
+import { DEFAULT_GLOW, glowRgb } from './glow'
+import { FX } from './feedback'
+import { DEAL_GAP, FLIGHT, glide } from './style'
 import { POKER } from '../../../../shared/poker/config.js'
 
-const DEAL_GAP = 0.09 // seconds between cards in the deal
-const FLIGHT = 0.5 // seconds a card is in the air
 const EASE = [0.25, 0.8, 0.25, 1]
 // A card lying on the table, and hovered.
 const REST = { x: 0, y: 0, scale: 1, opacity: 1, boxShadow: '0 3px 6px rgba(0,0,0,0.45)' }
@@ -93,7 +95,9 @@ function layout({ width, height, seats, anchor, seated }) {
 // goes round the table one card at a time; they turn face up as they land
 // if they're yours. Cards leaving (thrown away, folded, collected at the
 // end) fly back to the middle.
-function TableCard({ card, slot, width, deck, delay: dealtDelay, fresh: dealtFresh, tilt = 0, selected, lift = 0, onClick, label, front = false }) {
+// `aura` (a colour, "red green blue") makes it glow as part of your best
+// hand, one of `company` cards that do.
+function TableCard({ card, slot, width, deck, delay: dealtDelay, fresh: dealtFresh, tilt = 0, selected, lift = 0, onClick, label, front = false, aura = null, company = 1 }) {
   const reduce = useReducedMotion()
   const dx = deck.x - slot.x
   const dy = deck.y - slot.y
@@ -104,6 +108,7 @@ function TableCard({ card, slot, width, deck, delay: dealtDelay, fresh: dealtFre
     fresh: dealtFresh,
     delay: dealtFresh ? dealtDelay : 0,
     flipOnLanding: dealtFresh && faceUp,
+    startedFaceUp: faceUp,
     flight:
       dealtFresh && !reduce
         ? {
@@ -128,6 +133,17 @@ function TableCard({ card, slot, width, deck, delay: dealtDelay, fresh: dealtFre
   // Picked cards stand up out of the row; the one under the mouse rises a
   // little more, its shadow falling further away.
   const rest = { ...REST, y: -lift - (lifted ? 6 : 0), scale: lifted ? 1.04 : 1, boxShadow: lifted ? HOVER_SHADOW : REST.boxShadow }
+
+  // The snap of it turning over: as yours land face up, and as anyone's are
+  // shown at a showdown.
+  useEffect(() => {
+    if (!arrival.flipOnLanding) return
+    const timer = setTimeout(FX.flip, (arrival.delay + FLIGHT * 0.8) * 1000)
+    return () => clearTimeout(timer)
+  }, [arrival])
+  useEffect(() => {
+    if (faceUp && !arrival.startedFaceUp) FX.flip()
+  }, [faceUp, arrival.startedFaceUp])
 
   return (
     <>
@@ -166,7 +182,9 @@ function TableCard({ card, slot, width, deck, delay: dealtDelay, fresh: dealtFre
                 opacity: { duration: 0.2, delay },
               }
         }
-      />
+      >
+        <AnimatePresence>{aura && <CardAura key="aura" colour={aura} lit={landed} company={company} />}</AnimatePresence>
+      </PlayingCard>
       {/* Your own cards in the draw: tapped and hovered through a still
           area over the card and the room it rises into, so a card moving
           up never slips out from under the mouse and jitters. */}
@@ -192,7 +210,9 @@ function TableCard({ card, slot, width, deck, delay: dealtDelay, fresh: dealtFre
 //   emojis    [{ id, seat, emoji }]: reactions floating up
 //   slides    [{ id, seat, amount }]: pots sliding to winners
 //   now       the server's time, for the turn timers
-export default function TableScene({ view, selected = [], onToggle, bubbles = [], emojis = [], slides = [], now }) {
+//   vfx       whether your best hand glows (the VFX button)
+//   glow      its colour: the member's pick in Options (glow.js)
+export default function TableScene({ view, selected = [], onToggle, bubbles = [], emojis = [], slides = [], now, vfx = true, glow = DEFAULT_GLOW }) {
   const ref = useRef(null)
   // Measured before anything is drawn, so the table opens at its real size
   // and only glides when that changes afterwards.
@@ -232,6 +252,10 @@ export default function TableScene({ view, selected = [], onToggle, bubbles = []
   const dealDelay = (seat, index) => (index * order.length + Math.max(0, order.indexOf(seat))) * DEAL_GAP
   const potAmount = hand && hand.phase !== 'done' ? hand.pot - view.seats.reduce((sum, seat) => sum + seat.bet, 0) : 0
 
+  // Your best hand glows (bestHand.js), unless VFX is off.
+  const mine = seated ? view.seats.find((seat) => seat.seat === mySeat) : null
+  const made = vfx && mine ? madeHand(mine.cards.map((card) => card.code)) : null
+
   const cards = []
   for (const seat of view.seats) {
     const place = L.places.get(seat.seat)
@@ -255,6 +279,8 @@ export default function TableScene({ view, selected = [], onToggle, bubbles = []
             lift={isSelected ? MAX_LIFT : 0}
             onClick={onToggle ? () => onToggle(index) : undefined}
             label={`Card ${index + 1}: ${isSelected ? 'picked to swap' : 'tap to swap'}`}
+            aura={made?.cards.includes(index) ? glowRgb(glow, card.code) : null}
+            company={made?.cards.length ?? 1}
           />
         )
       } else {

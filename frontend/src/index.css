@@ -476,8 +476,37 @@ img.slot-symbol {
   }
 }
 
+/* Kino Poker's glowing cards (components/poker/CardAura.jsx): the cards of
+   your best hand get the same glass rim as a Soul Resonance, breathing
+   slowly, with lightning the same colour. The colour is the member's pick
+   in Options (components/poker/glow.js), set on each card as --glow; the
+   Soul Resonance's own blue to start with. */
+.card-aura {
+  --glow: 79 168 255;
+  /* How strong the glow is (1 is full), and how bright the rim gets where
+     the light hits it, and the glint opposite. */
+  --glow-strength: 1;
+  --glint: 0.95;
+  --glint-far: 0.55;
+  /* The feather: how far the glow's soft edge spreads round the card (and
+     into it), as a share of the Soul Resonance's. 1 is the same; 0.8 is
+     20% tighter. */
+  --aura-feather: 0.6;
+  box-shadow:
+    0 0 calc(12px * var(--aura-feather)) rgb(var(--glow) / calc(0.45 * var(--glow-strength))),
+    0 0 calc(30px * var(--aura-feather)) rgb(var(--glow) / calc(0.22 * var(--glow-strength))),
+    inset 0 0 calc(12px * var(--aura-feather)) rgb(var(--glow) / calc(0.25 * var(--glow-strength)));
+  animation: card-aura-breathe 1.6s ease-in-out infinite;
+}
+/* Breathing: the glow swells out and back. Its spread follows the feather. */
+@keyframes card-aura-breathe {
+  0%, 100% { filter: brightness(0.95) drop-shadow(0 0 calc(2px * var(--aura-feather)) rgb(var(--glow) / 0.35)); }
+  50% { filter: brightness(1.12) drop-shadow(0 0 calc(8px * var(--aura-feather)) rgb(var(--glow) / 0.75)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card-glow::before { animation: none; }
+  .card-aura { animation: none; }
   /* Still glowing, just not breathing. */
   .resonance-breathe {
     animation: none;

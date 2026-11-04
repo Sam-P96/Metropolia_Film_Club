@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import GameBackdrop from '../components/GameBackdrop'
 import HowToPlay from '../components/poker/HowToPlay'
+import Options from '../components/poker/Options'
 import PokerLogo from '../components/poker/PokerLogo'
 import { GOLD, POKER_FADE, QUIET } from '../components/poker/style'
 import useApi from '../hooks/useApi'
@@ -22,11 +23,14 @@ function tableLine(table) {
   return `${parts.join(' and ')} at the table${table.queue ? `, ${table.queue} waiting` : ''}.`
 }
 
-// Kino Poker's intro, like the other games: what it is, Play, and How to
-// play. Play goes to the table (games/poker/table).
+// Kino Poker's intro, like the other games: what it is, Play, How to play,
+// and Options (your glow's colour, the glow and the sound). Play goes to
+// the table (games/poker/table).
 export default function Poker() {
   const navigate = useNavigate()
-  const [rules, setRules] = useState(false)
+  // Which panel is open under the buttons: 'rules', 'options' or none.
+  const [panel, setPanel] = useState(null)
+  const toggle = (name) => setPanel((open) => (open === name ? null : name))
   const table = useApi(getPokerTable, [])
   const line = tableLine(table.data)
 
@@ -67,22 +71,25 @@ export default function Poker() {
           <button type="button" onClick={() => navigate('/games/poker/table')} className={`${GOLD} min-h-13 flex-1 text-lg`}>
             Play
           </button>
-          <button type="button" onClick={() => setRules(!rules)} aria-expanded={rules} className={`${QUIET} min-h-13 flex-1 text-lg`}>
+          <button type="button" onClick={() => toggle('rules')} aria-expanded={panel === 'rules'} className={`${QUIET} min-h-13 flex-1 text-lg`}>
             How to play
+          </button>
+          <button type="button" onClick={() => toggle('options')} aria-expanded={panel === 'options'} className={`${QUIET} min-h-13 flex-1 text-lg`}>
+            Options
           </button>
         </div>
 
-        <AnimatePresence initial={false}>
-          {rules && (
+        <AnimatePresence initial={false} mode="wait">
+          {panel && (
             <motion.div
-              key="rules"
+              key={panel}
               initial={{ opacity: 0, y: -16, height: 0 }}
               animate={{ opacity: 1, y: 0, height: 'auto' }}
               exit={{ opacity: 0, y: -16, height: 0 }}
               transition={{ duration: 0.35, ease: EASE }}
               className="overflow-hidden"
             >
-              <HowToPlay />
+              {panel === 'rules' ? <HowToPlay /> : <Options />}
             </motion.div>
           )}
         </AnimatePresence>

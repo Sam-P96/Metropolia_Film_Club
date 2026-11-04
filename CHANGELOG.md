@@ -387,7 +387,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bot pay half, like Farkle against Clanker. The table is drawn in 3D:
   cards flying out of the deck and flipping, chip stacks, the pot sliding
   to the winner, speech bubbles and emoji reactions (four presets or any
-  one emoji). Every number is in `shared/poker/config.js` and every bot
+  one emoji). The cards of your best hand glow like a Soul Resonance, blue
+  unless you pick another colour (a preset, your own, or by suit) in
+  Options on the intro page, fading in slowly, with small lightning
+  crackling round them now and then (VFX turns it off). Sound effects for the deal, flips,
+  the draw, chips, checks, folds, wins, your turn and its last seconds,
+  the glow and its lightning (synthesised, with a mute button), and
+  haptics on a phone for tapping cards and buttons, your turn and a win.
+  Every number is in `shared/poker/config.js` and every bot
   line in `shared/poker/lines.js`. Chips at the table are kept in
   `PokerSeat` and refunded if the server restarts.
 

@@ -118,6 +118,7 @@ export default function HowToPlay() {
           <li>{strong(POKER.bots.maverick.name)} plays the odds, and bluffs only when it&apos;s smart.</li>
         </ul>
         <p className="mt-2">Tap the 😊 button at the table to react with an emoji, or type one of your own.</p>
+        <p className="mt-2">The cards that make your best hand glow, with a little lightning now and then. Pick the colour in Options, or turn it off there or with VFX at the table.</p>
       </section>
     </div>
   )

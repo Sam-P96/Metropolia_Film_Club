@@ -9,6 +9,12 @@ export const QUIET = `${BUTTON} border border-white/20 bg-white/10 text-white ho
 export const RED = `${BUTTON} bg-brand-red text-white hover:shadow-[0_6px_22px_rgba(199,37,62,0.45)]`
 export const GLASS = 'rounded-2xl border border-white/10 bg-ink/70 shadow-xl shadow-black/40'
 
+// The deal's timing, shared by the table's animation and its sounds
+// (./feedback.js): seconds between one card leaving the deck and the next,
+// and how long each is in the air.
+export const DEAL_GAP = 0.09
+export const FLIGHT = 0.5
+
 // The page's background: the club's purple into wine red.
 export const POKER_FADE = '#722F37'
 

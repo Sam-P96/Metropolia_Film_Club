@@ -384,6 +384,15 @@ describe("the table", () => {
         assert.equal(says().filter((event) => event.event === "start").length, 3, "only the first hand");
     });
 
+    test("table events only ever go to one member when they name a member", async () => {
+        const { table, events, advance, user } = fakes({ chance: Math.random });
+        await table.join(user(1), 60);
+        await advance(5 * 60 * 1000);
+        const actions = events.filter((event) => event.type === "action");
+        assert.ok(actions.some((event) => event.amount > 0), "some bets were made");
+        for (const event of events) if (event.to !== undefined) assert.ok(typeof event.to === "string" && event.to.startsWith("user"), `${event.type} to ${event.to}`);
+    });
+
     test("each bot sits down with one of its own pictures, the same for everyone", async () => {
         for (const roll of [0, 0.5, 0.99]) {
             const { table, user } = fakes({ chance: () => roll });

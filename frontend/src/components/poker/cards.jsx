@@ -65,8 +65,9 @@ export function CardBack({ width }) {
 
 // A whole card, `width` wide (height 1.4 times that), showing its face if
 // `code` is known and its back otherwise. Every motion prop goes on the
-// card, so the table can fly it about; `faceUp` turns it face up.
-export default function PlayingCard({ code, width, faceUp = Boolean(code), selected = false, className = '', style, ...motionProps }) {
+// card, so the table can fly it about; `faceUp` turns it face up. Anything
+// inside it (a best-hand glow) moves and turns with it.
+export default function PlayingCard({ code, width, faceUp = Boolean(code), selected = false, className = '', style, children, ...motionProps }) {
   return (
     <motion.div
       role="img"
@@ -78,6 +79,7 @@ export default function PlayingCard({ code, width, faceUp = Boolean(code), selec
       {code && <CardFace code={code} width={width} />}
       <CardBack width={width} />
       {selected && <div className="pointer-events-none absolute -inset-1 rounded-[12%] ring-2 ring-brand-gold [backface-visibility:hidden]" />}
+      {children}
     </motion.div>
   )
 }
