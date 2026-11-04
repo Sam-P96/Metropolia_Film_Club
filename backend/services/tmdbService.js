@@ -40,6 +40,9 @@ async function getMovie(tmdbId) {
     const result = {
         tmdbId: film.id,
         title: film.title,
+        // The title in its own language ("Le fabuleux destin d'Amélie
+        // Poulain"), which Steal and Defend accepts for typed answers too.
+        originalTitle: film.original_title || null,
         tagline: film.tagline || null,
         year: film.release_date ? film.release_date.slice(0, 4) : null,
         posterPath: film.poster_path,

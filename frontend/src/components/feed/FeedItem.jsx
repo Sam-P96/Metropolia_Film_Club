@@ -12,6 +12,7 @@ import GiftNotice from '../wallet/GiftNotice'
 import ScratchNotice from '../scratch/ScratchNotice'
 import DoubleNotice from '../double/DoubleNotice'
 import SlotNotice from '../slots/SlotNotice'
+import StealNotice from '../steal/StealNotice'
 import { bannerFillStyle, bannerFrameStyle, bannerLayerStyle } from '../../utils/bannerStyle'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
@@ -722,7 +723,7 @@ function PvpNotice({ item }) {
           <h2 className="mt-1 text-lg font-bold text-white sm:text-xl">{line(name)}</h2>
           <p className="mt-1 text-sm text-white/70">
             {fighter.username} has enabled PvP: they can dislike reviews and comments, and theirs
-            can be disliked.
+            can be disliked. They&apos;re in Steal and Defend too.
             <span className="text-white/50"> · {timeAgo(item.at)}</span>
           </p>
         </div>
@@ -833,6 +834,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'scratchWin' || item.type === 'scratchJackpot') return <ScratchNotice item={item} />
   if (item.type === 'doublePlay' || item.type === 'doubleWin') return <DoubleNotice item={item} />
   if (item.type === 'slotTriple' || item.type === 'slotJackpot') return <SlotNotice item={item} />
+  if (item.type.startsWith('steal')) return <StealNotice item={item} />
   if (item.type.startsWith('farkle')) return <FarkleNotice item={item} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }

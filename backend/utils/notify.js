@@ -17,7 +17,7 @@ const VIRAL_LIKES = 5;
 const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
-    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES,
+    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES,
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -303,6 +303,39 @@ async function noteDoubleResult(game) {
     await sendToEach(followers, { type: "doublePlay", doubleGame: game._id, actors: [game.userId] });
 }
 
+// Steal and Defend (utils/steal/attacks.js). `attackerId` has started an
+// attack on `victimId`: they hear about it straight away, so there's time
+// to swap items.
+function noteStealAttacked(victimId, attackerId, attackId) {
+    return Notification.create({ recipient: victimId, type: "stealAttacked", stealAttack: attackId, actors: [attackerId] });
+}
+
+// The attack is over: the "attack started" notice goes, and both players
+// hear how it ended. Only the two of them ever hear about a failure.
+async function noteStealResult(attack) {
+    await Notification.deleteMany({ stealAttack: attack._id, type: "stealAttacked" });
+    const actors = [attack.attacker, attack.victim];
+    await Notification.insertMany([
+        { recipient: attack.attacker, type: "stealResult", stealAttack: attack._id, actors },
+        { recipient: attack.victim, type: "stealResult", stealAttack: attack._id, actors },
+    ]);
+}
+
+// A Critical Hit: every member hears about it, in gold, like a jackpot.
+async function noteStealCrit(attack) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, {
+        type: "stealCrit",
+        stealAttack: attack._id,
+        amount: attack.amounts?.attackerGot ?? 0,
+        actors: [attack.attacker, attack.victim],
+    });
+}
+
+function forgetStealAttacks(attackIds) {
+    return Notification.deleteMany({ stealAttack: { $in: attackIds } });
+}
+
 // Farkle between members (utils/farkle.js). A challenge waiting on someone
 // is pinned: it sits at the top of their Notifications until they answer.
 // Each new one for a game takes the place of the last, so there's only
@@ -419,6 +452,10 @@ module.exports = {
     noteSlotTriple,
     noteSlotJackpot,
     noteDoubleResult,
+    noteStealAttacked,
+    noteStealResult,
+    noteStealCrit,
+    forgetStealAttacks,
     noteFarkleChallenge,
     noteFarkleAnswer,
     noteFarkleOver,

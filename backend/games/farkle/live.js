@@ -153,4 +153,12 @@ function announceJackpot(amount) {
     io.to(SCRATCH_ROOM).emit("scratch:jackpot", { amount });
 }
 
-module.exports = { startLive, announceMatch, playersAt, announceJackpot };
+// Steal and Defend (utils/steal/attacks.js): tells every page `userId` has
+// open that an attack involving them started or ended, so a defender can
+// swap items in time. { kind: "attacked" | "resolved", attackId }.
+function announceSteal(userId, event) {
+    if (!io) return;
+    io.to(memberRoom(String(userId))).emit("steal:attack", event);
+}
+
+module.exports = { startLive, announceMatch, playersAt, announceJackpot, announceSteal };

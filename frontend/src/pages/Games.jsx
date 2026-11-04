@@ -14,11 +14,14 @@ import { SCRATCH } from '../../../shared/scratch/config.js'
 import SymbolArt from '../components/slots/SymbolArt'
 import GameTitle from '../components/slots/GameTitle'
 import { SLOTS } from '../../../shared/slots/config.js'
+import StealLogo from '../components/steal/StealLogo'
+import { getStealStatus } from '../services/steal'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Farkle, Box Office Scratch, Double or Nothing and Kino Kasino. Every row
+// Farkle, Box Office Scratch, Double or Nothing, Kino Kasino and Steal and
+// Defend (whose picture says "Require PvP" until its PvP is on). Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
 // Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
 // look; playing needs a login, since games are played for points. Double or
@@ -28,6 +31,9 @@ export default function Games() {
   const [loggedIn] = useState(() => Boolean(getCurrentUser()))
   const double = useApi(() => getDoubleStatus(), [loggedIn], { enabled: loggedIn })
   const doubleStatus = loggedIn ? (double.data?.status ?? (double.error ? 'AVAILABLE' : null)) : 'AVAILABLE'
+  // Steal and Defend's card shows its logo only to members with its PvP on.
+  const steal = useApi(() => getStealStatus(), [loggedIn], { enabled: loggedIn })
+  const stealPvp = Boolean(steal.data?.pvp)
 
   return (
     <>
@@ -105,6 +111,24 @@ export default function Games() {
                 Five reels, {SLOTS.paylines.length} lines. Load it with points, pull the lever, and line up five Kino Kaveri logos for the jackpot.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play {SLOTS.name} →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/steal-and-defend" className={CARD}>
+              {stealPvp ? (
+                <StealLogo />
+              ) : (
+                <span className="self-start rounded-lg border border-brand-red/60 bg-brand-red/15 px-3 py-1.5 font-['Bebas_Neue'] text-2xl leading-none tracking-wide text-white">
+                  Require PvP
+                </span>
+              )}
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Steal and <span className="text-brand-gold">Defend</span>
+              </h2>
+              <p className="text-white/70">
+                Follow a member, win a quiz about them, and steal a slice of their points. Defend your own with items from the daily shop.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Steal and Defend →</span>
             </Link>
           </li>
         </ul>

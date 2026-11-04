@@ -13,6 +13,10 @@ const { forgetScratchPlayer, scratchCardsOf } = require("../utils/scratch");
 const { forgetDoublePlayer, doubleGamesOf } = require("../utils/double");
 const { forgetSlotPlayer, slotMachineOf } = require("../utils/slots");
 const { forgetResonance, resonanceOf } = require("../utils/resonanceStore");
+const { forgetStealPlayer, stealDataOf } = require("../utils/steal/upkeep");
+const { siteBanOf, banMessage, recordSighting } = require("../utils/steal/moderation");
+const { takeBackSteals } = require("../utils/steal/players");
+const { StealError } = require("../games/steal/rules");
 const bcrypt = require("bcryptjs");
 const { sessionFor } = require("../utils/session");
 const { MEMBER_FIELDS, userSummary, userProfile, restrictedProfile } = require("../utils/serialize");
@@ -104,6 +108,19 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email });
 
         if (user && (await bcrypt.compare(password, user.password))) {
+            // An admin's site-wide ban (Steal and Defend's moderation).
+            const siteBan = await siteBanOf(user._id);
+            if (siteBan) {
+                return res.status(403).json({ error: banMessage(siteBan, "site"), code: "BANNED" });
+            }
+
+            // When they last logged in: Steal and Defend takes back an
+            // Infinity Stone from a holder who hasn't for 3 months. Players
+            // with its PvP on also have their IP and device noted (hashed),
+            // to spot alt accounts.
+            await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }, { timestamps: false });
+            if (user.pvp) await recordSighting(req, user._id).catch(() => {});
+
             res.status(200).json(sessionFor(user));
         } else {
             res.status(400);
@@ -422,6 +439,23 @@ const updateMe = async (req, res) => {
         }
     }
 
+    // PVP is also Steal and Defend's switch (utils/steal/players.js).
+    // Turning it off isn't allowed while an attack they're in is being
+    // played, and takes back this week's steals first, before anything is
+    // saved. Turning it on notes their IP and device (hashed) for the
+    // game's alt-account check.
+    let stealTakenBack = null;
+    const pvpChanged = "pvp" in set && set.pvp !== Boolean(req.user.pvp);
+    if (pvpChanged && !set.pvp) {
+        try {
+            stealTakenBack = await takeBackSteals(req.user._id);
+        } catch (error) {
+            if (error instanceof StealError) return res.status(error.status).json({ error: error.message, code: error.code });
+            throw error;
+        }
+    }
+    if (pvpChanged && set.pvp) await recordSighting(req, req.user._id).catch(() => {});
+
     // $unset clears the flattened banner colour older accounts still carry.
     // `value` isn't in the schema any more, so Mongoose would drop it from the
     // update unless strict is off. Everything in `set` is already whitelisted.
@@ -439,7 +473,12 @@ const updateMe = async (req, res) => {
     }
 
     const user = await User.findById(req.user._id).select("-password -email").lean();
-    res.json({ ...(await withStanding(userProfile(user))), ...(await followState(user, req.user)) });
+    res.json({
+        ...(await withStanding(userProfile(user))),
+        ...(await followState(user, req.user)),
+        // What turning PVP off took back in Steal and Defend, if anything.
+        ...(stealTakenBack ? { stealTakenBack } : {}),
+    });
 }
 
 // GDPR right of access / portability: everything we hold about the member,
@@ -448,7 +487,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -460,6 +499,9 @@ const exportMe = async (req, res) => {
         slotMachineOf(userId),
         // Their taste matches, with the members they may see.
         resonanceOf(userId),
+        // Steal and Defend: settings, items, attacks, trades, and the
+        // hashed IP and device sightings.
+        stealDataOf(userId),
     ]);
 
     if (!account) {
@@ -478,6 +520,7 @@ const exportMe = async (req, res) => {
         doubleOrNothingGames,
         slotMachine,
         resonance,
+        stealAndDefend,
     });
 }
 
@@ -521,6 +564,7 @@ async function deleteAccount(user) {
     await forgetDoublePlayer(userId);
     await forgetSlotPlayer(userId);
     await forgetResonance(userId);
+    await forgetStealPlayer(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

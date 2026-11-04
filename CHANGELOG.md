@@ -350,6 +350,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   review takes the rating off. Saving with no rating and no text removes
   both from a film you'd rated or reviewed, and the film stays on your list
   as watched.
+- Steal and Defend, a PvP game on the Games page (spec and build notes in
+  `shared/doc/steal-and-defend/`). Members with PVP on (the same switch
+  as for dislikes, off by default; it can't be turned off mid-attack, and
+  turning it off takes back the week's steals) are in, everyone as a
+  Warrior until they change class once a week. They can try to steal 1, 2,
+  3, 4, 5, 10, 20, 30, 40 or 50% of the net worth of someone they've
+  followed for 72 hours, by winning a timed quiz about them, with math and
+  trivia.
+  Everything is decided on the server: questions, timers, answers, rolls,
+  fines, debt and durability. Defenders use items from a daily shop of 9
+  single-purchase listings at 12:00; items can be equipped (3), sold back,
+  sold on a player market, traded with escrow, or given away. Six unique
+  Infinity Stones. A live alert, notifications for both players, a public
+  feed of steals and a gold site-wide notice on a Critical Hit. Admins get
+  flags (possible alts, collusion, debt and refund patterns, extreme
+  trades), scoped, timed bans with a reason and a Ban List, and a "Reset
+  steal timer for everyone" button (two confirmations) that starts every
+  steal limit over, so everyone can steal and be stolen from again.
+  Item data is `backend/data/steal-and-defend-items.json`; every other
+  number is in `shared/steal/config.js` (`/api/steal`, `jobs/stealSweep.js`).
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
@@ -370,6 +390,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/SECRETresonance` is for moderators as well as admins, and the
   Resonance icon in the Resonance page's heading links to it for them
   (for everyone else it isn't a link).
+- Double or Nothing's page fades from the club's purple into golden yellow
+  (was green).
+- Scrollbars across the site, the page's own and any box that scrolls, are
+  thin and brand gold instead of the browser's grey (`index.css`).
+- For Steal and Defend: P-PP can go below 0 as a debt from a fine (the next
+  P-PP or 12:00 payout pays it off first), and a wallet in an attack is
+  frozen against spending until it's over (`utils/wallet.js`). Logins are
+  dated (`lastLoginAt`). Every request sends a random browser id
+  (`X-Device-Id`); only Steal and Defend players' are kept, hashed with
+  their IP, for 90 days. An admin's "All games" ban stops the other games
+  being played (cash-outs still work), and a site-wide ban stops logging in
+  (downloading or deleting your data still works). TMDB lookups also bring
+  a film's original title.
 - The full navigation bar shows from 1280px wide; narrower screens get the
   menu button. With the bell added, the search box was squeezed too narrow
   to use below about 1200px.

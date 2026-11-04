@@ -1,6 +1,7 @@
 import SettingRow from './SettingRow'
 import { RESONANCE_SETTINGS } from '../../utils/resonance'
 import PillToggle from '../PillToggle'
+import StealPvpNote from '../steal/StealPvpNote'
 
 // Match the limits in backend/controllers/userControllers.js.
 const USERNAME_LIMIT = 30
@@ -199,16 +200,20 @@ function ProfileEditor({ draft, onChange, onSave, onCancel }) {
         </div>
 
         <div className="space-y-5 border-t border-white/10 pt-5">
-          <SettingRow
-            label="PVP"
-            description={
-              draft.pvp
-                ? 'You can like and dislike. Other members with PVP on can dislike your reviews and comments.'
-                : "You can only like, and dislikes you've given stop counting. Nobody can dislike your reviews or comments, and dislikes you already have don't count."
-            }
-            on={draft.pvp}
-            onChange={(on) => onChange('pvp', on)}
-          />
+          <div className="space-y-2">
+            <SettingRow
+              label="PVP"
+              description={
+                draft.pvp
+                  ? 'You can like and dislike. Other members with PVP on can dislike your reviews and comments. You can steal from them in Steal and Defend, and they can steal from you.'
+                  : "You can only like, and dislikes you've given stop counting. Nobody can dislike your reviews or comments, and dislikes you already have don't count. You're out of Steal and Defend."
+              }
+              on={draft.pvp}
+              onChange={(on) => onChange('pvp', on)}
+            />
+            {/* PVP is Steal and Defend's switch too. */}
+            <StealPvpNote on={Boolean(draft.pvp)} />
+          </div>
 
           <SettingRow
             label="Comments on your reviews"

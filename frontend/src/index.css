@@ -111,7 +111,7 @@
 /* The body's background is the whole page's: with nothing set on <html>,
    the browser paints it as the bottom layer, under everything, so the
    backgrounds pages put behind themselves (the Notifications GIF, the
-   sign-up starfield, Double or Nothing's green) show on top of it. The dark
+   sign-up starfield, Double or Nothing's golden yellow) show on top of it. The dark
    ink under the gradient is what phones show when you bounce past the
    bottom or the address bar slides away; without it they show white. Don't
    give <html> a background of its own: that would lift this one above
@@ -121,6 +121,48 @@ body {
   background: #0B0710 linear-gradient(160deg, #0B0710 0%, #1A1024 45%, #2D1B47 100%);
   background-attachment: fixed;
   color: #E8E3ED;
+}
+
+/* Scrollbars, on every page: a thin brand-gold thumb that brightens under
+   the pointer, on a clear track (the page's own on the site's dark ink),
+   instead of the browser's grey. Firefox and Chrome read scrollbar-width
+   and scrollbar-color; Safari reads the ::-webkit-scrollbar rules. In the
+   base layer, so a list that hides its scrollbar on purpose can still. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(250 188 63 / 0.55) transparent;
+  }
+
+  html {
+    scrollbar-color: rgb(250 188 63 / 0.55) #0B0710;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: #0B0710;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgb(250 188 63 / 0.5);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(250 188 63 / 0.8);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @keyframes marquee-left {

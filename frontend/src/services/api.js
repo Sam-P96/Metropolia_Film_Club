@@ -1,4 +1,5 @@
 import { getCurrentUser, forgetExpiredLogin } from '../utils/currentUser'
+import { getDeviceId } from '../utils/deviceId'
 
 // `data` is the server's whole answer, for the pages that act on more than
 // the message (Double or Nothing's `code`, like POT_CHANGED).
@@ -17,6 +18,10 @@ export async function api(path, { method = 'GET', body } = {}) {
 
   const token = getCurrentUser()?.token
   if (token) headers.Authorization = `Bearer ${token}`
+
+  // Steal and Defend's alt-account check (utils/deviceId.js).
+  const device = getDeviceId()
+  if (device) headers['X-Device-Id'] = device
 
   if (body !== undefined) headers['Content-Type'] = 'application/json'
 

@@ -54,7 +54,7 @@ function PotCard({ bet, bonusPot, bonusEligible }) {
 // screen the pot and the throw box sit beside the rest. Coming back
 // mid-game picks the game up again. The page fades in and slides up a
 // little as it opens (with reduced motion, it only fades), over its own
-// purple-to-green background.
+// purple-to-golden-yellow background.
 export default function DoubleOrNothing() {
   const wallet = useWallet()
   const play = useDoubleOrNothing()
@@ -62,9 +62,9 @@ export default function DoubleOrNothing() {
 
   return (
     <MotionConfig reducedMotion="user">
-      {/* The club's purple running into green. Outside the sliding
+      {/* The club's purple running into golden yellow. Outside the sliding
           wrapper: a moving parent would carry a fixed background along. */}
-      <GameBackdrop to="#064E3B" />
+      <GameBackdrop to="#D4A017" />
       <motion.div
         initial={{ opacity: 0, y: 18, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
