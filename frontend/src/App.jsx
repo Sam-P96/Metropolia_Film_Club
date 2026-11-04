@@ -93,7 +93,8 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           {/* Not linked from anywhere on purpose. */}
           <Route path="/SECRETpfp" element={<SecretPfp isAuthenticated={isAuthenticated} />} />
-          {/* Not linked from anywhere either. Admins only (the server checks). */}
+          {/* Moderators and admins only (the server checks): the icon in
+              the Resonance page's heading links here for them. */}
           <Route path="/SECRETresonance" element={
             isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
           } />

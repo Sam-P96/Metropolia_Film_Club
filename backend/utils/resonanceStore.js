@@ -33,7 +33,7 @@ const toObjectId = (id) => new mongoose.Types.ObjectId(String(id));
 // stores them, whatever their settings: Resonance off and privacy only hide
 // a member when it's asked for (below), so changing them shows straight
 // away. Pairs this didn't reach (a member who's rated fewer films since, or
-// gone) are removed. Resolves to { members, pairs }.
+// gone) are removed. Resolves to { members, pairs, at (when it started) }.
 async function recalculateResonance() {
     const startedAt = new Date();
 
@@ -81,7 +81,7 @@ async function recalculateResonance() {
     await flush();
     await Resonance.deleteMany({ computedAt: { $lt: startedAt } });
 
-    return { members: members.length, pairs };
+    return { members: members.length, pairs, at: startedAt };
 }
 
 // The last sweep: { at, version } (when it ran, and the scoring settings

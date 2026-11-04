@@ -11,11 +11,20 @@ let running = null;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// One sweep at a time: the startup one and 04:00's never overlap.
+// One sweep at a time: the startup one, 04:00's and one a moderator starts
+// from /SECRETresonance never overlap; asking while one runs waits for that
+// one. Resolves to { members, pairs, at } (recalculateResonance), or null
+// if it failed.
 function runSweep() {
     running ??= recalculateResonance()
-        .then(({ members, pairs }) => console.log(`Resonance sweep: ${pairs} pair(s) between ${members} member(s).`))
-        .catch((error) => console.error("Resonance sweep failed:", error.message))
+        .then((result) => {
+            console.log(`Resonance sweep: ${result.pairs} pair(s) between ${result.members} member(s).`);
+            return result;
+        })
+        .catch((error) => {
+            console.error("Resonance sweep failed:", error.message);
+            return null;
+        })
         .finally(() => {
             running = null;
         });

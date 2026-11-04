@@ -2,12 +2,25 @@ import { useState } from 'react'
 
 const STARS = [1, 2, 3, 4, 5]
 
+// Half stars from 0.5 to 5. Clicking the rating that's already chosen
+// takes it off again (0, "No rating"), the same as "clear".
 function RatingInput({ value, onChange }) {
   const [hover, setHover] = useState(null)
 
   // What the stars actually show: the hovered value while the mouse is
   // over them, otherwise the chosen value, otherwise nothing.
   const shown = hover ?? value ?? 0
+
+  const pick = (stars) => {
+    if (stars === value) {
+      onChange(0)
+      // Still under the mouse, it would go on showing the rating that's
+      // just been taken off, until the mouse moves to another half.
+      setHover(null)
+    } else {
+      onChange(stars)
+    }
+  }
 
   return (
     <div className="flex items-center gap-3">
@@ -39,20 +52,18 @@ function RatingInput({ value, onChange }) {
               </div>
 
               {/* two invisible halves on top, so half stars are clickable */}
-              <button
-                type="button"
-                aria-label={`${star - 0.5} stars`}
-                onMouseEnter={() => setHover(star - 0.5)}
-                onClick={() => onChange(star - 0.5)}
-                className="absolute inset-y-0 left-0 w-1/2 cursor-pointer"
-              />
-              <button
-                type="button"
-                aria-label={`${star} stars`}
-                onMouseEnter={() => setHover(star)}
-                onClick={() => onChange(star)}
-                className="absolute inset-y-0 right-0 w-1/2 cursor-pointer"
-              />
+              {[star - 0.5, star].map((stars, half) => (
+                <button
+                  key={stars}
+                  type="button"
+                  aria-label={`${stars} stars`}
+                  aria-pressed={stars === value}
+                  title={stars === value ? 'Click again to remove your rating' : undefined}
+                  onMouseEnter={() => setHover(stars)}
+                  onClick={() => pick(stars)}
+                  className={`absolute inset-y-0 w-1/2 cursor-pointer ${half === 0 ? 'left-0' : 'right-0'}`}
+                />
+              ))}
             </div>
           )
         })}

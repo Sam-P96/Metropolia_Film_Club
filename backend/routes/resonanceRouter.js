@@ -1,5 +1,12 @@
 const express = require("express");
-const { getMyResonance, getSuggestions, getRanking, getSoulResonance, getEveryonesResonance } = require("../controllers/resonanceController");
+const {
+    getMyResonance,
+    getSuggestions,
+    getRanking,
+    getSoulResonance,
+    getEveryonesResonance,
+    updateResonanceNow,
+} = require("../controllers/resonanceController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
@@ -11,7 +18,9 @@ router.get("/ranking", requireAuth, getRanking);
 router.get("/soul", requireAuth, getSoulResonance);
 
 // /SECRETresonance: everyone's, whatever their settings and privacy, so
-// admins only.
-router.get("/all", requireAuth, requireRole("admin"), getEveryonesResonance);
+// moderators and admins only. They can also work everyone's out again
+// early, without waiting for 04:00.
+router.get("/all", requireAuth, requireRole("moderator"), getEveryonesResonance);
+router.post("/update", requireAuth, requireRole("moderator"), updateResonanceNow);
 
 module.exports = router;

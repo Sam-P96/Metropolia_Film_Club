@@ -76,10 +76,11 @@ export function canModerate(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 
-// Deleting someone else's review (after confirming twice). Authors delete
-// their own by clearing the text when editing it. Matches the backend.
+// Deleting someone else's review, rating, or both (after confirming twice).
+// Authors can delete their own review and rating together. Matches the
+// backend.
 export function canDeleteAnyReview(currentUser) {
-  return hasAtLeast(currentUser, 'admin')
+  return hasAtLeast(currentUser, 'moderator')
 }
 
 export function canEditAnyReview(currentUser) {
@@ -98,6 +99,13 @@ export function canDeleteAnyComment(currentUser) {
 
 // Deleting anyone's cut. Everyone can delete their own.
 export function canDeleteAnyCut(currentUser) {
+  return hasAtLeast(currentUser, 'moderator')
+}
+
+// /SECRETresonance: everyone's Resonance whatever their settings, and
+// working it out again early. The icon in the Resonance page's heading
+// links there for them, and for nobody else.
+export function canSeeEveryonesResonance(currentUser) {
   return hasAtLeast(currentUser, 'moderator')
 }
 

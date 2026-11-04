@@ -340,8 +340,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comes from `GET /api/users/me/friends`, shared by every card and asked
   for again after following or unfollowing someone. Account
   deletion removes a member's matches, and the data download includes them.
+- "Update Resonance now" on `/SECRETresonance` works everyone's Resonance
+  out again straight away, with when it was last worked out; the 04:00
+  run still happens (`POST /api/resonance/update`, moderators and admins,
+  sharing the nightly run's one-at-a-time guard).
+- An Edit review button on your own review's page, which comes back to the
+  review after saving.
+- Clicking the star rating you've already chosen when writing or editing a
+  review takes the rating off. Saving with no rating and no text removes
+  both from a film you'd rated or reviewed, and the film stays on your list
+  as watched.
 
 ### Changed
+- Profile Stats: Average rating shows how many films the member has rated
+  at each star (rounded up, so 3.5 counts as 4), and Expand splits it into
+  half stars. Most watched genre shows their top 5 genres with a bar each,
+  coloured round the colour wheel from green, and Expand shows every genre
+  they've watched, down to red; a film in two genres counts once in each.
+  Both now come from the member's film list, so films rated without a
+  review count too. The Reviews card opens their full list. Expanded bars
+  slide open and fade in (and back out), the counts count to their new
+  numbers, and the three boxes are always as tall as the tallest.
+- Deleting from a review's page: the author's "Delete review" now deletes
+  their rating too (the film stays on their list as watched). Moderators
+  and admins get a Delete menu instead, with Delete review, Delete rating
+  and Delete review and rating, on anyone's review; moderators couldn't
+  delete other people's reviews before (`DELETE /api/reviews/:id?remove=`
+  `review`, `rating` or `both`; `review` is the default).
+- `/SECRETresonance` is for moderators as well as admins, and the
+  Resonance icon in the Resonance page's heading links to it for them
+  (for everyone else it isn't a link).
 - The full navigation bar shows from 1280px wide; narrower screens get the
   menu button. With the bell added, the search box was squeezed too narrow
   to use below about 1200px.

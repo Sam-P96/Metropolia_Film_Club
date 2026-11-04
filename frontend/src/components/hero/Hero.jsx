@@ -146,7 +146,7 @@ function Hero({ isAuthenticated }) {
           ) : (
             <div className="w-full max-w-xl">
               <h2 className="mb-3 text-sm font-semibold tracking-widest text-brand-gold uppercase">
-                This Person Resonates With Yours
+                This Person Resonates With Your
               </h2>
 
               <AnimatePresence mode="wait" initial={false}>

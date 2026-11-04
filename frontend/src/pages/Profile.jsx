@@ -240,9 +240,10 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
   const userReviews = reviewsResult.data ?? []
 
   // The level comes from the server, which works it out the same way for
-  // every review card.
+  // every review card. Ratings and genres come from their film list once
+  // it's loaded, so films rated without a review count too.
   const stats = {
-    ...getProfileStats(userReviews),
+    ...getProfileStats(userReviews, filmsResult.data ?? null),
     level: profileUser.level,
     userId: profileUser._id,
     followerCount: profileUser.followerCount,
