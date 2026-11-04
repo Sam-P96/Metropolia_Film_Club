@@ -50,7 +50,20 @@ const TRIES = 5;
 // `session`: a MongoDB transaction to make the change part of, so it only
 // happens if everything else in the transaction does (Double or Nothing,
 // utils/double.js). Without one, it stands on its own.
-async function changeWallet(userId, decide, { reason, match = null, card = null, game = null, other = null, session = null } = {}) {
+//
+// Steal and Defend (utils/steal/) adds two things:
+//   - While an attack a member is in is being played, their wallet is
+//     frozen (wallet.frozenUntil): nothing can take points from it, so
+//     neither player can spend their way out of it. Points can still come
+//     in. The game's own changes pass `steal: true` to get through.
+//   - A fine they can't pay leaves P-PP below 0 (`allowDebt`). Anything
+//     coming in pays that off first, since it's added to the same P-PP.
+//     Nothing else can take a wallet below 0.
+// `stealRef` is the attack, listing or trade, for the receipt.
+async function changeWallet(userId, decide, {
+    reason, match = null, card = null, game = null, other = null, session = null,
+    steal = false, allowDebt = false, stealRef = null,
+} = {}) {
     for (let attempt = 0; attempt < TRIES; attempt++) {
         const user = await User.findById(userId).select("wallet").session(session).lean();
         if (!user) throw new WalletError("That member doesn't exist any more.", 404);
@@ -59,6 +72,7 @@ async function changeWallet(userId, decide, { reason, match = null, card = null,
             pp: user.wallet?.pp ?? 0,
             ppp: user.wallet?.ppp ?? 0,
             lastPayoutDay: user.wallet?.lastPayoutDay ?? null,
+            frozenUntil: user.wallet?.frozenUntil ?? null,
         };
 
         const change = decide(wallet);
@@ -68,7 +82,13 @@ async function changeWallet(userId, decide, { reason, match = null, card = null,
         const ppp = change.ppp ?? 0;
         const balance = { pp: wallet.pp + pp, ppp: wallet.ppp + ppp };
 
-        if (balance.pp < 0 || balance.ppp < 0) {
+        if ((pp < 0 || ppp < 0) && !steal && wallet.frozenUntil && wallet.frozenUntil > new Date()) {
+            throw new WalletError("Your points are frozen while a Steal and Defend attack you're in is being played. Try again in a few minutes.", 409);
+        }
+
+        // A debt can only be paid off, never made bigger, except by the
+        // fine that made it.
+        if (balance.pp < 0 || (balance.ppp < 0 && ppp < 0 && !allowDebt)) {
             throw new WalletError("That's more points than you have.");
         }
 
@@ -81,6 +101,8 @@ async function changeWallet(userId, decide, { reason, match = null, card = null,
                 "wallet.pp": wallet.pp,
                 "wallet.ppp": wallet.ppp,
                 "wallet.lastPayoutDay": wallet.lastPayoutDay,
+                // null also matches wallets from before freezing existed.
+                "wallet.frozenUntil": wallet.frozenUntil,
             },
             { $set: set },
             { timestamps: false, session }
@@ -89,7 +111,7 @@ async function changeWallet(userId, decide, { reason, match = null, card = null,
         if (result.matchedCount === 0) continue; // changed under us: try again
 
         if (pp !== 0 || ppp !== 0) {
-            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other }], { session });
+            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other, steal: stealRef }], { session });
         }
 
         return { pp, ppp, balance };
@@ -211,6 +233,9 @@ function helsinkiHour(date = new Date()) {
 // review, but never past their cap, and only once per Helsinki day. A
 // member already at their cap still counts as paid, but isn't told, since
 // they got nothing. Returns how many members got PP.
+//
+// A member in debt from Steal and Defend (P-PP below 0) has it paid off
+// first, as P-PP; whatever's left of the day's PP comes in as usual.
 async function payEveryone(day = helsinkiDay()) {
     const writers = await Review.aggregate([{ $group: { _id: "$user", reviews: { $sum: 1 } } }]);
 
@@ -222,14 +247,17 @@ async function payEveryone(day = helsinkiDay()) {
                 userId,
                 (wallet) => {
                     if (wallet.lastPayoutDay === day) return null;
+                    const daily = dailyPp(reviews);
+                    const toDebt = wallet.ppp < 0 ? Math.min(daily, 0 - wallet.ppp) : 0;
                     const room = Math.max(0, ppCap(reviews) - wallet.pp);
-                    return { pp: Math.min(dailyPp(reviews), room), lastPayoutDay: day };
+                    return { pp: Math.min(daily - toDebt, room), ppp: toDebt, lastPayoutDay: day };
                 },
                 { reason: "dailyPayout" }
             );
-            if (result?.pp > 0) {
+            const amount = (result?.pp ?? 0) + (result?.ppp ?? 0);
+            if (amount > 0) {
                 paid += 1;
-                await notePayout(userId, result.pp);
+                await notePayout(userId, amount);
             }
         } catch (error) {
             // One member's trouble (say, their account was just deleted)

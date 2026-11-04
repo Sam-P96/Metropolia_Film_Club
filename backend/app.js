@@ -22,12 +22,15 @@ const scratchRouter = require("./routes/scratchRouter");
 const doubleRouter = require("./routes/doubleRouter");
 const slotRouter = require("./routes/slotRouter");
 const resonanceRouter = require("./routes/resonanceRouter");
+const stealRouter = require("./routes/stealRouter");
+const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
 const { startFarkleSweep } = require("./jobs/farkleSweep");
 const { startScratchSweep } = require("./jobs/scratchSweep");
 const { startResonanceSweep } = require("./jobs/resonanceSweep");
+const { startStealSweep } = require("./jobs/stealSweep");
 
 const app = express();
 
@@ -86,6 +89,12 @@ connected
     .then(() => startResonanceSweep())
     .catch((error) => console.error("Couldn't start the Resonance sweep:", error.message));
 
+// Steal and Defend: attacks timing out, and the 12:00 shop, durability and
+// idle Infinity Stones (jobs/stealSweep.js).
+connected
+    .then(() => startStealSweep())
+    .catch((error) => console.error("Couldn't start the Steal and Defend sweep:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -125,11 +134,13 @@ app.use("/api/comments", commentRouter);
 app.use("/api/feed", feedRouter);
 app.use("/api/cuts", cutRouter);
 app.use("/api/wallet", walletRouter);
-app.use("/api/farkle", farkleRouter);
-app.use("/api/scratch", scratchRouter);
-app.use("/api/double-or-nothing", doubleRouter);
-app.use("/api/slots", slotRouter);
+// An admin's "All games" ban stops anything being played (middleware/gameBans.js).
+app.use("/api/farkle", refuseGameBans, farkleRouter);
+app.use("/api/scratch", refuseGameBans, scratchRouter);
+app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
+app.use("/api/slots", refuseGameBans, slotRouter);
 app.use("/api/resonance", resonanceRouter);
+app.use("/api/steal", stealRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

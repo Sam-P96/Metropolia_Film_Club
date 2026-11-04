@@ -79,6 +79,13 @@ into a replica set of one takes a few minutes and keeps all your data:
 The tests need the same: point `MONGO_TEST_URI` at a replica set, or the
 Double or Nothing and Slot Machine route tests skip themselves.
 
+Steal and Defend (`backend/utils/steal/`) uses transactions too when the
+database has them, and runs the same steps one after another when it
+doesn't, so it works on a standalone MongoDB for development. In production
+use a replica set, so a crash halfway through paying out an attack can't
+leave it half paid. How it all works is in
+`shared/doc/steal-and-defend/IMPLEMENTATION.md`.
+
 ## Where things are
 
 ```

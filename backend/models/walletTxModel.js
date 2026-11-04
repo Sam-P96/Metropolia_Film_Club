@@ -23,6 +23,16 @@ const Schema = mongoose.Schema;
 //   doubleBonus     the Double or Nothing bonus pot, won with a win
 //   slotCredits     points moved into the Slot Machine (PP first, then P-PP)
 //   slotCashOut     the Slot Machine cashed out: PP back as PP, P-PP as P-PP
+// Steal and Defend (utils/steal/), with the attack, listing or trade in `steal`:
+//   stealWin        a successful steal, crit and Rogue extras included, in P-PP
+//   stealLoss       robbed: what the victim lost (PP first, then P-PP)
+//   stealWilson     Wilson giving a robbed victim some back, in P-PP
+//   stealFine       a failed thief's fine (and Revenge Dagger), into debt if need be
+//   stealFineWon    the defender's share of that fine, in P-PP
+//   stealBuy        an item bought from the shop or the player market
+//   stealSell       an item sold back to the shop, or to another player, in P-PP
+//   stealTrade      PP in a trade: put in escrow, handed back, paid or received
+//   stealTakeback   turning PvP off: steals taken back, or a victim paid back
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -32,6 +42,8 @@ const walletTxSchema = new Schema({
             "scratchTicket", "scratchWin", "scratchRefund", "jackpot",
             "doubleBet", "doubleWin", "doubleBonus",
             "slotCredits", "slotCashOut",
+            "stealWin", "stealLoss", "stealWilson", "stealFine", "stealFineWon",
+            "stealBuy", "stealSell", "stealTrade", "stealTakeback",
         ],
         required: true,
     },
@@ -49,6 +61,8 @@ const walletTxSchema = new Schema({
     game: {type: Schema.Types.ObjectId, ref: "DoubleGame", default: null},
     // The other member in a gift: who it went to, or came from.
     other: {type: Schema.Types.ObjectId, ref: "User", default: null},
+    // Steal and Defend: the attack, shop listing, market listing or trade.
+    steal: {type: Schema.Types.ObjectId, default: null},
     at: {type: Date, default: Date.now},
 });
 

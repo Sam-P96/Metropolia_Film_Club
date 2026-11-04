@@ -8,6 +8,8 @@ const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
 const FarkleMatch = require("../models/farkleMatchModel");
 const DoubleGame = require("../models/doubleGameModel");
+const StealAttack = require("../models/stealAttackModel");
+const StealFlag = require("../models/stealFlagModel");
 const { hasRole } = require("../middleware/auth");
 const { catchUp, matchViews } = require("../utils/farkle");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
@@ -33,13 +35,13 @@ const PAGE_SIZE = 10;
 const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
-    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES],
+    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
-// tripling their Slot Machine credits, and a viral cut, found by its cut in
-// feedQuery).
-const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot"];
+// tripling their Slot Machine credits, a Steal and Defend Critical Hit, and
+// a viral cut, found by its cut in feedQuery).
+const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit"];
 
 // The jackpots, which wait just under the games until they've been seen.
 const JACKPOT_TYPES = ["scratchJackpot", "slotJackpot"];
@@ -122,6 +124,12 @@ async function hydrate(rows, viewer) {
     const matches = await FarkleMatch.find({ _id: { $in: idsOf((row) => row.match) } }).lean();
     const doubleGames = await DoubleGame.find({ _id: { $in: idsOf((row) => row.doubleGame) } }).lean();
     const doubleById = new Map(doubleGames.map((game) => [String(game._id), game]));
+    const stealAttacks = await StealAttack.find({ _id: { $in: idsOf((row) => row.stealAttack) } })
+        .select("attacker victim status outcome crit stone percent attempted amounts resolvedAt")
+        .lean();
+    const stealById = new Map(stealAttacks.map((attack) => [String(attack._id), attack]));
+    const stealFlags = await StealFlag.find({ _id: { $in: idsOf((row) => row.stealFlag) } }).lean();
+    const flagById = new Map(stealFlags.map((flag) => [String(flag._id), flag]));
     const matchById = new Map((await matchViews(matches, viewer._id)).map((match) => [String(match._id), match]));
 
     const [reviewById, actors, comments, followedBack, events, cuts] = await Promise.all([
@@ -169,6 +177,44 @@ async function hydrate(rows, viewer) {
         }
 
         if (members.length === 0) return [];
+
+        // Steal and Defend: the attack as it is now, from the reader's side.
+        if (row.type === "stealAttacked" || row.type === "stealResult" || row.type === "stealCrit") {
+            const attack = stealById.get(String(row.stealAttack));
+            if (!attack) return [];
+            const role = String(attack.attacker) === String(viewer._id) ? "attacker" : String(attack.victim) === String(viewer._id) ? "defender" : null;
+            return [{
+                _id: row._id,
+                type: row.type,
+                at: row.at,
+                actors: members,
+                amount: row.amount,
+                attack: {
+                    _id: attack._id,
+                    role,
+                    playing: attack.status !== "done",
+                    outcome: attack.outcome,
+                    crit: attack.crit,
+                    stone: attack.stone,
+                    percent: attack.percent,
+                    attempted: attack.attempted,
+                    // Only the two players see a failure's sums.
+                    amounts: role || attack.outcome === "success" ? attack.amounts : null,
+                },
+            }];
+        }
+
+        if (row.type === "stealFlag") {
+            const flag = flagById.get(String(row.stealFlag));
+            if (!flag) return [];
+            return [{
+                _id: row._id,
+                type: row.type,
+                at: row.at,
+                actors: members,
+                flag: { _id: flag._id, kind: flag.kind, details: flag.details, count: flag.count, status: flag.status },
+            }];
+        }
 
         if (row.type === "gift") {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];

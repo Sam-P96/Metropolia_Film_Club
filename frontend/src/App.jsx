@@ -42,6 +42,13 @@ import SlotMachine from "./pages/SlotMachine";
 import Wallet from "./pages/Wallet";
 import Resonance from "./pages/Resonance";
 import SecretResonance from "./pages/SecretResonance";
+import StealAndDefend from "./pages/StealAndDefend";
+import StealHub from "./pages/StealHub";
+import StealShop from "./pages/StealShop";
+import StealMarket from "./pages/StealMarket";
+import StealAttack from "./pages/StealAttack";
+import StealAdmin from "./pages/StealAdmin";
+import StealAlert from "./components/steal/StealAlert";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -139,6 +146,27 @@ function App() {
           <Route path="/games/double-or-nothing" element={
             isAuthenticated ? (<DoubleOrNothing />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
+          {/* Steal and Defend: the intro, the hub, the shop, the market and
+              trades, one attack (its quiz, then its result), and admins'
+              flags and Ban List (the server checks who's an admin). */}
+          <Route path="/games/steal-and-defend" element={
+            isAuthenticated ? (<StealAndDefend />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/steal-and-defend/play" element={
+            isAuthenticated ? (<StealHub />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/steal-and-defend/shop" element={
+            isAuthenticated ? (<StealShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/steal-and-defend/market" element={
+            isAuthenticated ? (<StealMarket />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/steal-and-defend/attacks/:attackId" element={
+            isAuthenticated ? (<StealAttack />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/steal-and-defend/admin" element={
+            isAuthenticated ? (<StealAdmin />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
           <Route path="/movie_reviews" element={<MovieReviews />} />
@@ -167,6 +195,9 @@ function App() {
           } />
         </Routes>
       </main>
+
+      {/* Steal and Defend's "you're being attacked" alert, on any page. */}
+      {isAuthenticated && <StealAlert />}
 
       <Footer />
     </div>

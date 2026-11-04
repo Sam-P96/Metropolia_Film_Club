@@ -5,6 +5,7 @@ const { MEMBER_FIELDS, userSummary } = require("../utils/serialize");
 const { areFriends, listAccess, followState } = require("../utils/follows");
 const { parseOffset } = require("../utils/paging");
 const { noteFollow, forgetFollow } = require("../utils/notify");
+const { onUnfollow: onStealUnfollow } = require("../utils/steal/players");
 
 const PAGE_SIZE = 10;
 
@@ -40,7 +41,14 @@ async function setFollow(req, res, follow) {
         }
     } else {
         const result = await Follow.deleteOne(pair);
-        if (result.deletedCount === 1) await forgetFollow(req.user._id, owner._id);
+        if (result.deletedCount === 1) {
+            await forgetFollow(req.user._id, owner._id);
+            // Steal and Defend: unfollowing someone you've stolen from
+            // doubles how long you must follow them again (utils/steal/players.js).
+            await onStealUnfollow(req.user._id, owner._id).catch((error) =>
+                console.error("Steal and Defend couldn't note an unfollow:", error.message)
+            );
+        }
     }
 
     res.json(await followState(owner, req.user));

@@ -61,16 +61,32 @@ const KEEP_FOR_DAYS = 90;
 //                    how much from whom. Against the bot too.
 const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkleDeclined", "farkleExpired", "farkleOver", "farkleResult"];
 
+// Steal and Defend (utils/steal/), about `stealAttack`. No review.
+//   stealAttacked  `actors[0]` has started an attack on them: there's still
+//                  time to swap items
+//   stealResult    an attack they were in ended (`actors`: the attacker,
+//                  then the defender): success, failure or fizzle. Only the
+//                  two of them hear about a failure.
+//   stealCrit      `actors[0]` landed a Critical Hit on `actors[1]`,
+//                  winning `amount` P-PP. Goes to every member, in gold.
+//   stealFlag      for admins: the game spotted something suspicious
+//                  (`stealFlag`, with the members in `actors`)
+const STEAL_TYPES = ["stealAttacked", "stealResult", "stealCrit", "stealFlag"];
+
 // The game ones: unread, they make the bell blink red rather than just
 // glow purple (controllers/feedController.js). farkleTurn isn't shown any
 // more, so it never counts as unread at all.
-const GAME_TYPES = [...FARKLE_TYPES.filter((type) => type !== "farkleTurn"), "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot"];
+const GAME_TYPES = [
+    ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
+    "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot",
+    "stealAttacked", "stealResult", "stealCrit",
+];
 
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES, ...STEAL_TYPES],
         required: true,
     },
     review: {
@@ -78,12 +94,15 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", ...FARKLE_TYPES, ...STEAL_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
     // Double or Nothing: the game it's about.
     doubleGame: {type: Schema.Types.ObjectId, ref: "DoubleGame", default: null},
+    // Steal and Defend: the attack it's about, or the admin flag.
+    stealAttack: {type: Schema.Types.ObjectId, ref: "StealAttack", default: null},
+    stealFlag: {type: Schema.Types.ObjectId, ref: "StealFlag", default: null},
     amount: {type: Number, default: null},
     // Box Office Scratch: the tier won, by its key in shared/scratch/config.js.
     tier: {type: String, default: null},
@@ -110,11 +129,13 @@ notificationSchema.index({event: 1});
 notificationSchema.index({cut: 1});
 notificationSchema.index({match: 1});
 notificationSchema.index({doubleGame: 1});
+notificationSchema.index({stealAttack: 1});
 // The Notifications page: pinned first, then newest first.
 notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 
 const Notification = mongoose.model("Notification", notificationSchema);
 Notification.FARKLE_TYPES = FARKLE_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
+Notification.STEAL_TYPES = STEAL_TYPES;
 
 module.exports = Notification;

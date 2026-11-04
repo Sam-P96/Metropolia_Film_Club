@@ -25,12 +25,24 @@ async function userFromToken(token) {
     }
 }
 
-// The route needs a logged-in member.
+// What a member banned from the whole site can still do: download their
+// data and delete their account (GDPR).
+const ALWAYS_ALLOWED = [["GET", "/api/users/me/export"], ["DELETE", "/api/users/me"]];
+
+// The route needs a logged-in member, who isn't banned from the site
+// (an admin's ban from Steal and Defend's moderation, utils/steal/moderation.js).
 async function requireAuth(req, res, next) {
     const user = await userFromRequest(req);
 
     if (!user) {
         return res.status(401).json({ error: "Please log in again." });
+    }
+
+    const path = (req.originalUrl ?? "").split("?")[0];
+    if (!ALWAYS_ALLOWED.some(([method, allowed]) => req.method === method && path === allowed)) {
+        const { siteBanOf, banMessage } = require("../utils/steal/moderation");
+        const ban = await siteBanOf(user._id);
+        if (ban) return res.status(403).json({ error: banMessage(ban, "site"), code: "BANNED" });
     }
 
     req.user = user;

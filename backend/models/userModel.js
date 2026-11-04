@@ -138,11 +138,24 @@ const userSchema = new Schema(
         // lastPayoutDay is the Helsinki date they were last paid, so the
         // payout never pays anyone twice in a day. Only ever changed through
         // utils/wallet.js, which also keeps the receipts (models/walletTxModel.js).
+        //
+        // Steal and Defend (utils/steal/): P-PP below 0 is a debt from a fine
+        // they couldn't pay, and the next P-PP or payout they get pays it off
+        // first. frozenUntil: while an attack they're in is being played,
+        // nothing can spend their points until then (or until it ends).
+        // Missing (no default) until their first attack, which reads the
+        // same as null, so wallets that never play don't change.
         wallet: {
             pp: { type: Number, default: 0, min: 0 },
-            ppp: { type: Number, default: 0, min: 0 },
+            ppp: { type: Number, default: 0 },
             lastPayoutDay: { type: String, default: null },
+            frozenUntil: { type: Date },
         },
+
+        // When they last logged in. Steal and Defend takes an Infinity Stone
+        // back from a holder who hasn't for 3 months. Missing: not since
+        // this was added.
+        lastLoginAt: { type: Date },
     },
     { timestamps: { createdAt: "joinedAt", updatedAt: "updatedAt" } }
 );
