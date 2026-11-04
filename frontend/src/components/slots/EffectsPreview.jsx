@@ -23,11 +23,11 @@ const PREVIEWS = [
     label: 'Fireworks',
     // Maps linked by a Gauntlet in the middle of the middle row.
     grid: [
-      ['film', 'map', 'ticket'],
+      ['clapper', 'map', 'ticket'],
       ['popcorn', 'map', 'clapper'],
-      ['ticket', 'gauntlet', 'film'],
+      ['ticket', 'gauntlet', 'popcorn'],
       ['clapper', 'map', 'popcorn'],
-      ['film', 'clapper', 'ticket'],
+      ['popcorn', 'clapper', 'ticket'],
     ],
     lines: [['middle', 'map', 4, 'fireworks']],
   },
@@ -36,11 +36,11 @@ const PREVIEWS = [
     label: 'Lightning',
     // Rings linked by a Gauntlet in the middle row.
     grid: [
-      ['film', 'ring', 'ticket'],
+      ['clapper', 'ring', 'ticket'],
       ['popcorn', 'ring', 'clapper'],
-      ['ticket', 'gauntlet', 'film'],
+      ['ticket', 'gauntlet', 'popcorn'],
       ['clapper', 'ring', 'popcorn'],
-      ['film', 'clapper', 'ticket'],
+      ['popcorn', 'clapper', 'ticket'],
     ],
     lines: [['middle', 'ring', 4, 'lightning']],
   },
@@ -49,11 +49,11 @@ const PREVIEWS = [
     label: 'CRITICAL HIT!',
     // A Map and Rings linked by a Gauntlet, the coin landing on Rings.
     grid: [
-      ['film', 'ring', 'ticket'],
+      ['clapper', 'ring', 'ticket'],
       ['popcorn', 'map', 'clapper'],
-      ['ticket', 'gauntlet', 'film'],
+      ['ticket', 'gauntlet', 'popcorn'],
       ['clapper', 'ring', 'popcorn'],
-      ['film', 'clapper', 'ticket'],
+      ['popcorn', 'clapper', 'ticket'],
     ],
     lines: [['middle', 'ring', 4, 'lightning', 'CRITICAL HIT!']],
   },
@@ -62,11 +62,11 @@ const PREVIEWS = [
     label: 'INFINITY',
     // 4 Gauntlets along the middle row.
     grid: [
-      ['film', 'gauntlet', 'ticket'],
+      ['clapper', 'gauntlet', 'ticket'],
       ['popcorn', 'gauntlet', 'clapper'],
-      ['ticket', 'gauntlet', 'film'],
+      ['ticket', 'gauntlet', 'popcorn'],
       ['clapper', 'gauntlet', 'popcorn'],
-      ['film', 'clapper', 'ticket'],
+      ['popcorn', 'clapper', 'ticket'],
     ],
     lines: [['middle', 'gauntlet', 4, 'lightning', 'INFINITY']],
   },
@@ -79,8 +79,8 @@ const PREVIEWS = [
       ['map', 'map', 'gauntlet'],
       ['gauntlet', 'clapper', 'gauntlet'],
       ['ring', 'gauntlet', 'popcorn'],
-      ['ticket', 'clapper', 'film'],
-      ['popcorn', 'film', 'ticket'],
+      ['ticket', 'clapper', 'ticket'],
+      ['popcorn', 'clapper', 'ticket'],
     ],
     lines: [
       ['top', 'ring', 3, 'lightning', 'CRITICAL HIT!'],
@@ -93,11 +93,11 @@ const PREVIEWS = [
     label: 'Jackpot',
     // 5 logos along the middle row.
     grid: [
-      ['film', 'logo', 'ticket'],
+      ['clapper', 'logo', 'ticket'],
       ['popcorn', 'logo', 'clapper'],
-      ['ticket', 'logo', 'film'],
+      ['ticket', 'logo', 'popcorn'],
       ['clapper', 'logo', 'popcorn'],
-      ['film', 'logo', 'ticket'],
+      ['popcorn', 'logo', 'ticket'],
     ],
     lines: [['middle', 'logo', 5]],
   },

@@ -16,15 +16,15 @@ const LUCK = {
     activeDays: 30,
     // Active players, from the richest active player to the poorest, in a
     // straight line by rank between them.
-    richestRtp: 0.97,
-    poorestRtp: 1.03,
+    richestRtp: 1.0,
+    poorestRtp: 1.05,
     // The only active player.
-    soloRtp: 1.01,
+    soloRtp: 1.03,
     // Players with no review in activeDays.
     inactiveRtp: 0.95,
 };
 
-// The tables there are, as whole percentages ("92" to "109").
+// The tables there are, as whole percentages ("93" to "110").
 const BUCKETS = Object.keys(TABLES).map(Number).sort((a, b) => a - b);
 
 // The RTP a player gets. `active`: they've reviewed lately. `rank`: their
