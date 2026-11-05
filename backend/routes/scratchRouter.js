@@ -1,11 +1,12 @@
 const express = require("express");
-const { getJackpot, getCurrentCard, postCard, postScratch, postCollect, getReveal } = require("../controllers/scratchController");
+const { getJackpot, getHours, getCurrentCard, postCard, postScratch, postCollect, getReveal } = require("../controllers/scratchController");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-// The jackpot, for anyone.
+// The jackpots, and which ticket types are on sale now, for anyone.
 router.get("/jackpot", getJackpot);
+router.get("/hours", getHours);
 
 // Their card: the one to show, a new one, and what they do with it. The
 // controller checks each card is theirs.

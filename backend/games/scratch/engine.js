@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { SCRATCH } = require("../../../shared/scratch/config.js");
+const { DEFAULT_TICKET_TYPE, ticketTiers } = require("../../../shared/scratch/tickets.js");
 
 // Box Office Scratch as plain functions, with no database: dealing a card,
 // sealing it, and what one scratch reveals. The server (utils/scratch.js)
@@ -56,13 +57,16 @@ function sealLayout(layout) {
     return { salt, hash: hashLayout(layout, salt) };
 }
 
-// The tier a win on scratch `scratchNumber` pays, or null.
+// The tier a win on scratch `scratchNumber` locks in ({ scratch, key, name },
+// the same on every ticket), or null.
 function tierForScratch(scratchNumber) {
     return SCRATCH.tiers.find((tier) => tier.scratch === scratchNumber) ?? null;
 }
 
-function tierByKey(key) {
-    return SCRATCH.tiers.find((tier) => tier.key === key) ?? null;
+// The tier `key` as a `type` ticket pays it: { scratch, key, name, ppp,
+// refund } (shared/scratch/tickets.js), or null.
+function tierByKey(key, type = DEFAULT_TICKET_TYPE) {
+    return ticketTiers(type).find((tier) => tier.key === key) ?? null;
 }
 
 // One scratch of tile `tile` on `card` ({ layout, scratched, starsFound,

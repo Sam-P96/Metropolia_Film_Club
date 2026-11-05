@@ -35,10 +35,13 @@ const KEEP_FOR_DAYS = 90;
 //   gift            `actors[0]` gifted them `amount` P-PP ("Gift PP" in the
 //                   Wallet). No review.
 //   scratchWin      `actors[0]`, whom they follow, won `tier` (a key in
-//                   shared/scratch/config.js) on Box Office Scratch: `amount`
-//                   P-PP, or for the refund tier, the ticket price back.
-//   scratchJackpot  `actors[0]` won the Box Office Scratch jackpot, `amount`
-//                   P-PP. Goes to every member.
+//                   shared/scratch/config.js) on a Box Office Scratch
+//                   `ticketType` ticket: `amount` P-PP, or for the refund
+//                   tier, the ticket price back.
+//   scratchJackpot  `actors[0]` won the jackpot of Box Office Scratch's
+//                   `ticketType` tickets, `amount` P-PP. Goes to every member.
+//                   Both: no `ticketType` means Standard (from before there
+//                   were ticket types).
 //   doublePlay      `actors[0]`, whom they follow, played Double or Nothing
 //                   and didn't win (`doubleGame`: how it went).
 //   doubleWin       `actors[0]` won Double or Nothing: `amount` P-PP in all,
@@ -113,8 +116,11 @@ const notificationSchema = new Schema({
         hands: {type: Number},
         best: {type: String},
     },
-    // Box Office Scratch: the tier won, by its key in shared/scratch/config.js.
+    // Box Office Scratch: the tier won, by its key in shared/scratch/config.js,
+    // and the ticket type it was won on (only set on scratchWin and
+    // scratchJackpot).
     tier: {type: String, default: null},
+    ticketType: {type: String},
     // Pinned ones sit at the top of the Notifications page until the member
     // acts on them. Only ever true or missing (never false), so that sorting
     // by it leaves every other notification in date order.

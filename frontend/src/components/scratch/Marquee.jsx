@@ -1,7 +1,8 @@
 import { motion, useReducedMotion } from 'motion/react'
 
 // A row of cinema marquee bulbs, lighting up one after another like a
-// sign outside a theatre. Still bulbs with reduced motion.
+// sign outside a theatre. Still bulbs with reduced motion. Their colour is
+// the ticket's (--tk-bulb, ticketThemes.js): gold, or red on a VIP ticket.
 export function Bulbs({ count = 14, className = '' }) {
   const reduce = useReducedMotion()
 
@@ -10,7 +11,7 @@ export function Bulbs({ count = 14, className = '' }) {
       {Array.from({ length: count }, (_, i) => (
         <motion.span
           key={i}
-          className="size-1.5 rounded-full bg-brand-gold shadow-[0_0_6px_1px_rgba(250,188,63,0.8)]"
+          className="size-1.5 rounded-full bg-(--tk-bulb) shadow-[0_0_6px_1px_var(--tk-bulb-glow)]"
           initial={{ opacity: 0.45 }}
           animate={reduce ? { opacity: 0.85 } : { opacity: [0.3, 1, 0.3] }}
           transition={reduce ? { duration: 0.2 } : { duration: 1.4, repeat: Infinity, delay: (i % 7) * 0.2, ease: 'easeInOut' }}

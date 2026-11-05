@@ -1,4 +1,5 @@
 import { SCRATCH } from './config.js'
+import { DEFAULT_TICKET_TYPE, ticketTiers, ticketType } from './tickets.js'
 
 // The real odds of Box Office Scratch, worked out from config.js, for checking
 // the simulation (backend/scripts/simulate-scratch.js).
@@ -13,31 +14,36 @@ function choose(n, k) {
 
 // The chance your last needed star turns up on scratch `k`, scratching tiles
 // in any order: the other needed stars somewhere in the first k - 1 tiles, a
-// star on tile k, and the stars left over somewhere after it.
+// star on tile k, and the stars left over somewhere after it. The same on
+// every ticket type: only what the tiers pay differs.
 export function tierChance(k, s = SCRATCH) {
   const tiles = s.rows * s.cols
   return (choose(k - 1, s.starsToWin - 1) * choose(tiles - k, s.stars - s.starsToWin)) / choose(tiles, s.stars)
 }
 
-// Each tier's chance, the chance of a loss,
-// the chance of finding a Golden Ticket (when you use all your scratches),
-// and the share of what's spent on tickets that comes back to players over
-// time ("return to player"). The jackpot's share counts each ticket's
-// contribution, which all gets won in the end, plus the seed it starts from.
-export function scratchOdds(s = SCRATCH) {
+// For a ticket type (its key in config.js ticketTypes): each tier's chance,
+// the chance of a loss, the chance of finding a Golden Ticket (when you use
+// all your scratches), and the share of what's spent on that type's tickets
+// that comes back to players over time ("return to player"). The jackpot's
+// share counts each ticket's contribution to its type's pool, which all gets
+// won in the end, plus the seed it starts from.
+export function scratchOdds(key = DEFAULT_TICKET_TYPE, s = SCRATCH) {
+  const type = ticketType(key, s)
   const tiles = s.rows * s.cols
-  const tiers = s.tiers.map((tier) => ({ ...tier, chance: tierChance(tier.scratch, s) }))
+  const tiers = ticketTiers(type.key, s).map((tier) => ({ ...tier, chance: tierChance(tier.scratch, s) }))
   const win = tiers.reduce((sum, tier) => sum + tier.chance, 0)
   const golden = (1 / s.goldenTicketOneIn) * (s.scratches / tiles)
 
-  const fromTiers = tiers.reduce((sum, tier) => sum + tier.chance * (tier.refund ? s.ticketPrice : tier.ppp), 0)
-  const fromJackpot = s.jackpotContribution + golden * s.jackpotSeed
+  const fromTiers = tiers.reduce((sum, tier) => sum + tier.chance * (tier.refund ? type.price : tier.ppp), 0)
+  const fromJackpot = type.jackpotContribution + golden * type.jackpotSeed
 
   return {
+    type: type.key,
+    price: type.price,
     tiers,
     loss: 1 - win,
     golden,
     goldenOneIn: 1 / golden,
-    rtp: (fromTiers + fromJackpot) / s.ticketPrice,
+    rtp: (fromTiers + fromJackpot) / type.price,
   }
 }

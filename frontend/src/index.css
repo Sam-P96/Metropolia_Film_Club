@@ -530,3 +530,75 @@ img.slot-symbol {
     filter: drop-shadow(0 0 3px rgb(var(--glow) / 0.8));
   }
 }
+
+/* ---------- Box Office Scratch tickets (components/scratch/) ----------
+   Each ticket type's colours are in components/scratch/ticketThemes.js, as
+   CSS variables (--tk-*) set on the ticket. These are the parts that move. */
+
+/* VIP's gold ticket (and its win notifications): a purple rim, a slow light
+   sweeping across the gold, and glitter twinkling, both under the words and
+   tiles. They move by transform and opacity only, so a phone's graphics
+   chip does the work, and the ticket clips them, so they can never widen
+   the page. Any Tailwind shadow on it (shadow-xl) is kept outside the rim. */
+.ticket-gold {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--tk-edge), inset 0 0 26px var(--tk-edge-glow), var(--tw-shadow, 0 0 #0000);
+}
+.ticket-gold::before,
+.ticket-gold::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.ticket-gold::before {
+  background: linear-gradient(
+    105deg,
+    transparent 32%,
+    rgb(255 252 235 / 0.42) 48%,
+    rgb(255 255 255 / 0.6) 50%,
+    rgb(255 252 235 / 0.42) 52%,
+    transparent 68%
+  );
+  transform: translateX(-100%);
+  animation: ticket-sheen 7s ease-in-out infinite;
+}
+.ticket-gold::after {
+  background-image:
+    radial-gradient(circle, rgb(255 255 255 / 0.95) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle, rgb(255 246 214 / 0.9) 0 0.6px, transparent 1.4px),
+    radial-gradient(circle, rgb(255 255 255 / 0.75) 0 1px, transparent 2px);
+  background-size: 37px 41px, 53px 47px, 79px 89px;
+  background-position: 0 0, 19px 23px, 41px 7px;
+  animation: ticket-glitter 2.6s ease-in-out infinite alternate;
+}
+@keyframes ticket-sheen {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(100%); }
+}
+@keyframes ticket-glitter {
+  from { opacity: 0.3; }
+  to { opacity: 0.85; }
+}
+
+/* VIP's red stars, once revealed: the glow behind each one swells and fades
+   gently every 1.2 s. Opacity and scale, so nothing is repainted. */
+.star-pulse {
+  animation: star-pulse 1.2s ease-in-out infinite;
+}
+@keyframes star-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.92); }
+  50% { opacity: 0.85; transform: scale(1.04); }
+}
+
+/* With reduced motion: the gold stays, the light doesn't sweep, the glitter
+   doesn't twinkle, and the stars' glow holds still. */
+@media (prefers-reduced-motion: reduce) {
+  .ticket-gold::before { animation: none; opacity: 0; }
+  .ticket-gold::after { animation: none; opacity: 0.6; }
+  .star-pulse { animation: none; opacity: 0.65; }
+}

@@ -230,7 +230,7 @@ async function hydrate(rows, viewer) {
         }
 
         if (row.type === "scratchWin" || row.type === "scratchJackpot") {
-            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, tier: row.tier }];
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, tier: row.tier, ticketType: row.ticketType ?? null }];
         }
 
         // Double or Nothing: how the game went, as it ended.

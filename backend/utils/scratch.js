@@ -8,13 +8,27 @@ const { noteScratchJackpot, noteScratchWin } = require("./notify");
 const { announceJackpot } = require("../games/farkle/live");
 const { ScratchError, TILE_COUNT, newLayout, scratchTile, sealLayout, tierByKey } = require("../games/scratch/engine");
 const { SCRATCH } = require("../../shared/scratch/config.js");
+const {
+    DEFAULT_TICKET_TYPE,
+    TICKET_TYPES,
+    describeHours,
+    isTicketType,
+    ticketHours,
+    ticketType,
+    ticketTypeOf,
+} = require("../../shared/scratch/tickets.js");
 
 // Box Office Scratch in the database: buying a card, scratching it, paying
-// out, and the jackpot. The game itself is in games/scratch/engine.js and
+// out, and the jackpots. The game itself is in games/scratch/engine.js and
 // its numbers in shared/scratch/config.js.
 
-// The one jackpot document, and how many wins its "Recent jackpots" keeps.
-const JACKPOT_ID = "main";
+// Each ticket type's jackpot pool is a document of its own, with the type's
+// key as its id, except Standard's: it keeps "main", the one pool there was
+// before there were ticket types, so its amount and winners carry on.
+const jackpotId = (type) => (type === DEFAULT_TICKET_TYPE ? "main" : type);
+const JACKPOT_IDS = TICKET_TYPES.map(jackpotId);
+
+// How many wins "Recent jackpots" keeps, per pool and in all.
 const RECENT_JACKPOTS = 10;
 
 // A card is bought within a second. One still "pending" after this never
@@ -26,83 +40,134 @@ const STUCK_PENDING_MS = 10 * 60 * 1000;
 // they come back, with its "Reveal card" button.
 const UNREVEALED_KEPT_MS = 24 * 60 * 60 * 1000;
 
-// ---- The jackpot ----
+// ---- The jackpots ----
 
-// The pool as the page shows it: { amount, recent: [{ username, amount, at }] }.
-// Makes the pool at the seed if there isn't one yet.
-async function jackpotView() {
-    const pool = await Jackpot.collection.findOneAndUpdate(
-        { _id: JACKPOT_ID },
-        { $setOnInsert: { amount: SCRATCH.jackpotSeed, recent: [] } },
-        { upsert: true, returnDocument: "after" }
+// Makes any ticket type's pool that doesn't exist yet, at its seed. Pools
+// already there are left alone.
+async function seedJackpots() {
+    await Promise.all(
+        TICKET_TYPES.map((type) =>
+            Jackpot.collection.updateOne(
+                { _id: jackpotId(type) },
+                { $setOnInsert: { amount: ticketType(type).jackpotSeed, recent: [] } },
+                { upsert: true }
+            )
+        )
     );
-    return {
-        amount: pool.amount,
-        recent: pool.recent.map(({ username, amount, at }) => ({ username, amount, at })),
-    };
 }
 
-// A ticket was sold: its share goes into the pool, in one atomic step
-// ($inc, starting from the seed if there's no pool yet), and every page
-// showing the game hears the new amount.
-async function addToJackpot() {
+// The pools as the page shows them: { amounts: { standard, premium, vip },
+// recent: [{ username, amount, at, ticketType }] }, the recent wins of every
+// type together, newest first. Makes any pool that isn't there yet.
+async function jackpotView() {
+    let pools = await Jackpot.find({ _id: { $in: JACKPOT_IDS } }).lean();
+    if (pools.length < JACKPOT_IDS.length) {
+        await seedJackpots();
+        pools = await Jackpot.find({ _id: { $in: JACKPOT_IDS } }).lean();
+    }
+
+    const byId = new Map(pools.map((pool) => [pool._id, pool]));
+    const amounts = {};
+    const recent = [];
+    for (const type of TICKET_TYPES) {
+        const pool = byId.get(jackpotId(type));
+        amounts[type] = pool.amount;
+        for (const win of pool.recent) {
+            recent.push({ username: win.username, amount: win.amount, at: win.at, ticketType: win.ticketType ?? type });
+        }
+    }
+    recent.sort((a, b) => new Date(b.at) - new Date(a.at));
+
+    return { amounts, recent: recent.slice(0, RECENT_JACKPOTS) };
+}
+
+// A `type` ticket was sold: its share goes into that type's pool, in one
+// atomic step (starting from the seed if there's no pool yet), and every
+// page showing the game hears the new amount.
+async function addToJackpot(type) {
+    const { jackpotSeed, jackpotContribution } = ticketType(type);
     const pool = await Jackpot.collection.findOneAndUpdate(
-        { _id: JACKPOT_ID },
+        { _id: jackpotId(type) },
         [{
             $set: {
-                amount: { $add: [{ $ifNull: ["$amount", SCRATCH.jackpotSeed] }, SCRATCH.jackpotContribution] },
+                amount: { $add: [{ $ifNull: ["$amount", jackpotSeed] }, jackpotContribution] },
                 recent: { $ifNull: ["$recent", []] },
             },
         }],
         { upsert: true, returnDocument: "after" }
     );
-    announceJackpot(pool.amount);
+    announceJackpot(type, pool.amount);
 }
 
-// `card` found the Golden Ticket: it wins the whole pool. One atomic step
-// empties the pool back to the seed and adds the win to "Recent jackpots",
-// both from the pool as it was at that instant, so two winners at the same
-// moment can't both take the same pool: the second gets what has built up
-// since. A card can only claim once ("recent.card" can't already be it), so
-// paying again after a failure gets the same amount, not a second pool.
-// Returns the amount won.
+// `card` found the Golden Ticket: it wins the whole pool of its ticket type.
+// One atomic step empties that pool back to its seed and adds the win to
+// "Recent jackpots", both from the pool as it was at that instant, so two
+// winners at the same moment can't both take the same pool: the second gets
+// what has built up since. A card can only claim once ("recent.card" can't
+// already be it), so paying again after a failure gets the same amount, not
+// a second pool. Returns the amount won.
 async function claimJackpot(card) {
+    const type = ticketTypeOf(card);
+    const { jackpotSeed } = ticketType(type);
     const winner = await User.findById(card.user).select("username").lean();
 
     const before = await Jackpot.collection.findOneAndUpdate(
-        { _id: JACKPOT_ID, "recent.card": { $ne: card._id } },
+        { _id: jackpotId(type), "recent.card": { $ne: card._id } },
         [{
             $set: {
                 recent: {
                     $slice: [
                         {
                             $concatArrays: [
-                                [{ user: card.user, username: winner?.username ?? "A former member", amount: "$amount", card: card._id, at: "$$NOW" }],
+                                [{
+                                    user: card.user,
+                                    username: winner?.username ?? "A former member",
+                                    amount: "$amount",
+                                    card: card._id,
+                                    ticketType: type,
+                                    at: "$$NOW",
+                                }],
                                 "$recent",
                             ],
                         },
                         RECENT_JACKPOTS,
                     ],
                 },
-                amount: SCRATCH.jackpotSeed,
+                amount: jackpotSeed,
             },
         }],
         { returnDocument: "before" }
     );
 
     if (before) {
-        announceJackpot(SCRATCH.jackpotSeed);
+        announceJackpot(type, jackpotSeed, { won: true });
         return before.amount;
     }
 
     // Already claimed for this card (paying again after a failure), or there
     // was no pool yet.
-    const pool = await Jackpot.findById(JACKPOT_ID).lean();
+    const pool = await Jackpot.findById(jackpotId(type)).lean();
     const claimed = pool?.recent.find((win) => String(win.card) === String(card._id));
     if (claimed) return claimed.amount;
 
-    await jackpotView();
+    await seedJackpots();
     return claimJackpot(card);
+}
+
+// ---- Opening hours ----
+
+// Whether each ticket type is on sale right now, for the page: { standard:
+// { open, opensAt, closesAt, changesIn }, ... }. `changesIn` is how many ms
+// until it opens or closes (null if it never does), so the page can switch
+// the button over on time by its own timer, without trusting its own clock.
+function hoursView(now = new Date()) {
+    return Object.fromEntries(
+        TICKET_TYPES.map((type) => {
+            const { open, opensAt, closesAt } = ticketHours(type, now);
+            const next = opensAt ?? closesAt;
+            return [type, { open, opensAt, closesAt, changesIn: next ? next.getTime() - now.getTime() : null }];
+        })
+    );
 }
 
 // ---- Cards ----
@@ -114,9 +179,11 @@ function cardView(card) {
     const tiles = Array(TILE_COUNT).fill(null);
     for (const tile of card.scratched) tiles[tile] = card.layout[tile];
 
-    const tier = card.tier ? tierByKey(card.tier) : null;
+    const type = ticketTypeOf(card);
+    const tier = card.tier ? tierByKey(card.tier, type) : null;
     return {
         _id: card._id,
+        ticketType: type,
         status: card.status,
         hash: card.hash,
         price: card.price,
@@ -163,19 +230,29 @@ async function currentCard(userId) {
     return cardView(await ScratchCard.findById(card._id).lean());
 }
 
-// A new ticket. The card is made first, as "pending", holding their
-// activeFor: it's unique, so a second Buy tap (or a card already going)
-// fails here, before anything is taken. Then the price is taken, PP first
-// and then P-PP, and the card goes live. If taking the price fails (not
-// enough points), the card is deleted again. Each ticket sold adds to the
-// jackpot. Returns the card, with its seal (`hash`).
-async function buyCard(userId) {
+// A new ticket of type `type` (a key in config.js ticketTypes), if it's on
+// sale at `now`: a VIP ticket only in its hours, by the clocks in Helsinki.
+// The card is made first, as "pending", holding their activeFor: it's
+// unique, so a second Buy tap (or a card already going) fails here, before
+// anything is taken. Then the price is taken, PP first and then P-PP, and
+// the card goes live. If taking the price fails (not enough points), the
+// card is deleted again. Each ticket sold adds to its type's jackpot.
+// Returns the card, with its seal (`hash`).
+async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
+    if (!isTicketType(type)) {
+        throw new ScratchError(`Pick a ticket: ${TICKET_TYPES.join(", ")}.`);
+    }
+    const kind = ticketType(type);
+    if (!ticketHours(type, now).open) {
+        throw new ScratchError(`${kind.name} tickets are on sale ${describeHours(kind.hours)}.`, 403);
+    }
+
     const layout = newLayout();
     const { salt, hash } = sealLayout(layout);
 
     let card;
     try {
-        card = await ScratchCard.create({ user: userId, layout, salt, hash, price: SCRATCH.ticketPrice, activeFor: userId });
+        card = await ScratchCard.create({ user: userId, ticketType: type, layout, salt, hash, price: kind.price, activeFor: userId });
     } catch (error) {
         if (error.code === 11000) {
             throw new ScratchError("You already have a card going. Finish it first.", 409);
@@ -185,7 +262,7 @@ async function buyCard(userId) {
 
     let paid;
     try {
-        paid = await spend(userId, SCRATCH.ticketPrice, { reason: "scratchTicket", card: card._id });
+        paid = await spend(userId, kind.price, { reason: "scratchTicket", card: card._id });
     } catch (error) {
         await ScratchCard.deleteOne({ _id: card._id });
         throw error;
@@ -199,7 +276,7 @@ async function buyCard(userId) {
     if (!active) throw new Error(`Scratch card ${card._id} changed before it went live`);
 
     try {
-        await addToJackpot();
+        await addToJackpot(type);
     } catch (error) {
         // The ticket is theirs either way; the pool just misses one share.
         console.error("Couldn't add to the jackpot:", error.message);
@@ -274,9 +351,9 @@ async function revealCard(userId, cardId) {
 
 // Pays the tier `card` locked in, once: claimed first (prizePaid false to
 // true), so two requests can never both pay it, and let go again if paying
-// fails, for the sweep to try later. A win pays P-PP; the refund tier hands
-// back exactly what the ticket took, PP as PP and P-PP as P-PP. Their
-// followers hear about it.
+// fails, for the sweep to try later. A win pays P-PP, as much as the card's
+// ticket type pays for that tier; the refund tier hands back exactly what
+// the ticket took, PP as PP and P-PP as P-PP. Their followers hear about it.
 async function payPrize(cardId) {
     const card = await ScratchCard.findOneAndUpdate(
         { _id: cardId, tier: { $ne: null }, prizePaid: false },
@@ -285,7 +362,8 @@ async function payPrize(cardId) {
     ).lean();
     if (!card) return;
 
-    const tier = tierByKey(card.tier);
+    const type = ticketTypeOf(card);
+    const tier = tierByKey(card.tier, type);
     const amount = tier.refund ? card.price : tier.ppp;
 
     try {
@@ -302,12 +380,12 @@ async function payPrize(cardId) {
         throw error;
     }
 
-    await noteScratchWin(card.user, tier.key, amount);
+    await noteScratchWin(card.user, tier.key, amount, type);
 }
 
 // Pays the jackpot `card` won with the Golden Ticket, once, the same way:
-// the pool is claimed (claimJackpot), then the card is claimed for paying.
-// Every member hears about it.
+// its type's pool is claimed (claimJackpot), then the card is claimed for
+// paying. Every member hears about it, and which ticket it was.
 async function payJackpot(cardId) {
     const found = await ScratchCard.findOne({ _id: cardId, goldenFound: true, jackpotPaid: false }).lean();
     if (!found) return;
@@ -328,7 +406,7 @@ async function payJackpot(cardId) {
         throw error;
     }
 
-    await noteScratchJackpot(card.user, amount);
+    await noteScratchJackpot(card.user, amount, ticketTypeOf(card));
 }
 
 // Whatever `card` has won and hasn't been paid yet.
@@ -384,11 +462,11 @@ async function sweepScratchCards(now = Date.now()) {
     return counts;
 }
 
-// Account deletion: their cards go, and so does their name from "Recent
-// jackpots".
+// Account deletion: their cards go, and so does their name from every
+// pool's "Recent jackpots".
 async function forgetScratchPlayer(userId) {
     await ScratchCard.deleteMany({ user: userId });
-    await Jackpot.updateOne({ _id: JACKPOT_ID }, { $pull: { recent: { user: userId } } });
+    await Jackpot.updateMany({ _id: { $in: JACKPOT_IDS } }, { $pull: { recent: { user: userId } } });
 }
 
 // Their cards for the data export: as the page sees them, so an active
@@ -399,9 +477,10 @@ async function scratchCardsOf(userId) {
 }
 
 module.exports = {
-    JACKPOT_ID,
+    jackpotId,
     STUCK_PENDING_MS,
     jackpotView,
+    hoursView,
     addToJackpot,
     claimJackpot,
     cardView,

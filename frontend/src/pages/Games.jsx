@@ -11,6 +11,7 @@ import PpLeaderboard from '../components/wallet/PpLeaderboard'
 import { GoldenTicketIcon, StarIcon } from '../components/scratch/TileFace'
 import { BOT_MODE } from '../../../shared/farkle/rules.js'
 import { SCRATCH } from '../../../shared/scratch/config.js'
+import { TICKET_TYPES, describeHours, ticketType } from '../../../shared/scratch/tickets.js'
 import SymbolArt from '../components/slots/SymbolArt'
 import GameTitle from '../components/slots/GameTitle'
 import { SLOTS } from '../../../shared/slots/config.js'
@@ -19,6 +20,14 @@ import { getStealStatus } from '../services/steal'
 import PokerLogo from '../components/poker/PokerLogo'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
+
+// Box Office Scratch's tickets for its blurb, from shared/scratch/config.js:
+// "Standard, Premium and VIP", their prices, and the ones sold only at
+// certain hours.
+const SCRATCH_TICKETS = TICKET_TYPES.map((key) => ticketType(key))
+const listed = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
+const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
+const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
 // Farkle, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
@@ -75,8 +84,10 @@ export default function Games() {
                 Box Office <span className="text-brand-gold">Scratch</span>
               </h2>
               <p className="text-white/70">
-                A {SCRATCH.ticketPrice}-point scratch card. Find {SCRATCH.starsToWin} stars in {SCRATCH.scratches} scratches to win P-PP, and
-                hunt for the Golden Ticket and its jackpot.
+                {listed(SCRATCH_TICKETS.map((type) => type.name))} scratch cards, from {Math.min(...SCRATCH_PRICES)} to{' '}
+                {Math.max(...SCRATCH_PRICES)} points. Find {SCRATCH.starsToWin} stars in {SCRATCH.scratches} scratches to win P-PP, and hunt
+                for the Golden Ticket and your ticket&apos;s jackpot.
+                {SCRATCH_TIMED.map((type) => ` ${type.name} is on sale ${describeHours(type.hours)}.`).join('')}
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Scratch →</span>
             </Link>

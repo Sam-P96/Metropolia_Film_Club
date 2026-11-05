@@ -256,18 +256,20 @@ function noteGift(toId, fromId, amount) {
     return Notification.create({ recipient: toId, type: "gift", amount, actors: [fromId] });
 }
 
-// Box Office Scratch (utils/scratch.js): `winnerId` won `tier` (its key),
-// worth `amount`. Everyone who follows them hears about it.
-async function noteScratchWin(winnerId, tier, amount) {
+// Box Office Scratch (utils/scratch.js): `winnerId` won `tier` (its key)
+// on a `ticketType` ticket, worth `amount`. Everyone who follows them hears
+// about it.
+async function noteScratchWin(winnerId, tier, amount, ticketType) {
     const followers = await Follow.find({ following: winnerId }).distinct("follower");
-    await sendToEach(followers, { type: "scratchWin", tier, amount, actors: [winnerId] });
+    await sendToEach(followers, { type: "scratchWin", tier, ticketType, amount, actors: [winnerId] });
 }
 
-// `winnerId` won the Box Office Scratch jackpot, `amount` P-PP: every
-// member hears about it, the winner included, like a club event.
-async function noteScratchJackpot(winnerId, amount) {
+// `winnerId` won the jackpot of Box Office Scratch's `ticketType` tickets,
+// `amount` P-PP: every member hears about it, the winner included, like a
+// club event.
+async function noteScratchJackpot(winnerId, amount, ticketType) {
     const members = await User.find().distinct("_id");
-    await sendToEach(members, { type: "scratchJackpot", amount, actors: [winnerId] });
+    await sendToEach(members, { type: "scratchJackpot", ticketType, amount, actors: [winnerId] });
 }
 
 // The Slot Machine (utils/slots.js): `playerId` tripled what they put in

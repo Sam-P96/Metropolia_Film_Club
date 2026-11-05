@@ -5,11 +5,13 @@
 // purple. All in index.css, under "Card glows", where it can be tuned. Put
 // it after the card inside a `relative` wrapper the card's size, so the
 // glow can spill past the card's edge while the card keeps hiding its own
-// overflow. `shape` is 'card' (rounded-2xl), or 'circle' for a round
-// profile picture, where it sits over the picture's faint ring.
+// overflow. `shape` is 'card' (rounded-2xl), 'circle' for a round profile
+// picture, where it sits over the picture's faint ring, or 'button' for a
+// rounded-xl button (Box Office Scratch's VIP ticket).
 const SHAPES = {
   card: 'inset-0 rounded-2xl',
   circle: '-inset-0.5 rounded-full',
+  button: 'inset-0 rounded-xl',
 }
 
 function CardShine({ tone = 'soul', shape = 'card' }) {
