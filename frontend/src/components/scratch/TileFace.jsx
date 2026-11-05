@@ -1,11 +1,16 @@
 import { useId } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion, useReducedMotion, useTransform } from 'motion/react'
+import { TICKET_THEMES, ticketTheme } from './ticketThemes'
 
 // What's under a tile's foil, and how it shows itself once the foil is gone
 // (`uncovered`): a blank settles softly, a star pops with a spring and a
-// gold glow, and the Golden Ticket pops bigger with a shine sweeping across
-// it. `dim` is a tile shown by "Reveal card" that wasn't scratched;
-// `missed` is a Golden Ticket that was on the card but never found.
+// glow, and the Golden Ticket pops bigger with a shine sweeping across it.
+// `dim` is a tile shown by "Reveal card" that wasn't scratched; `missed` is
+// a Golden Ticket that was on the card but never found. `type` is the
+// card's ticket type, for its stars' colours (ticketThemes.js): gold, or on
+// a VIP card, red, glowing in a slow pulse and drifting with the phone's
+// tilt (`starMotion`, hooks/useStarMotion.js). The Golden Ticket is the
+// same on every card.
 
 // An id for an icon's gradient, different for every icon on the page (a
 // card shows sixteen tiles, and ids have to be unique).
@@ -13,21 +18,22 @@ function useGradientId() {
   return `g${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
 }
 
-export function StarIcon({ className }) {
+// A star. `colors` is a theme's `star` (ticketThemes.js): gold unless told.
+export function StarIcon({ className, colors = TICKET_THEMES.standard.star }) {
   const id = useGradientId()
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" style={colors.shadow ? { filter: colors.shadow } : undefined}>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFE7A3" />
-          <stop offset="0.55" stopColor="#FABC3F" />
-          <stop offset="1" stopColor="#C98A12" />
+          <stop offset="0" stopColor={colors.hi} />
+          <stop offset="0.55" stopColor={colors.mid} />
+          <stop offset="1" stopColor={colors.lo} />
         </linearGradient>
       </defs>
       <path
         d="M12 2.6l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.1l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"
         fill={`url(#${id})`}
-        stroke="#8A5A06"
+        stroke={colors.edge}
         strokeWidth="0.6"
         strokeLinejoin="round"
       />
@@ -84,10 +90,66 @@ function Shine({ className = '' }) {
   )
 }
 
-export default function TileFace({ content, uncovered, dim = false, missed = false }) {
+// How far a floating star rises (px), how long one way takes (s), and how
+// far apart in time neighbouring stars start, so they never move as one.
+const FLOAT_PX = 2.5
+const FLOAT_S = 1.6
+const FLOAT_STAGGER_S = 0.37
+
+// The star's glow as it's uncovered: a burst that settles. Gold stars keep a
+// soft glow; a live (VIP) star settles to nothing here, its pulse taking over.
+const burst = (color, settle) => [`drop-shadow(0 0 0px ${color})`, `drop-shadow(0 0 14px ${color})`, `drop-shadow(0 0 ${settle}px ${color})`]
+
+// A VIP star, once uncovered (`glowing`): a soft red glow behind it pulsing
+// every 1.2 s (index.css .star-pulse), and the star drifting, by tilt or
+// floating (`starMotion`). Each star follows the tilt a little more or
+// less, by its place on the card, for a touch of depth. Everything moves
+// inside the tile, a few pixels at most, so nothing spills out.
+function LiveStar({ index, glowing, starMotion, colors }) {
+  const depth = 0.8 + ((index * 3) % 5) * 0.1
+  const x = useTransform(starMotion.x, (value) => value * depth)
+  const y = useTransform(starMotion.y, (value) => value * depth)
+  const rotate = useTransform(starMotion.rotate, (value) => value * depth)
+  const floating = glowing && starMotion.mode === 'float'
+
+  return (
+    <motion.span
+      className="relative block size-[72%]"
+      initial={false}
+      animate={{ y: floating ? -FLOAT_PX : 0 }}
+      transition={
+        floating
+          ? { duration: FLOAT_S, ease: 'easeInOut', repeat: Infinity, repeatType: 'mirror', delay: (index % 5) * FLOAT_STAGGER_S }
+          : { duration: 0.5, ease: 'easeOut' }
+      }
+    >
+      <motion.span className="relative block size-full" style={glowing ? { x, y, rotate } : undefined}>
+        <span
+          aria-hidden="true"
+          className={`absolute -inset-[12%] rounded-full ${glowing ? 'star-pulse' : 'opacity-0'}`}
+          style={{ background: `radial-gradient(circle, ${colors.glow} 0%, transparent 62%)` }}
+        />
+        <motion.span
+          className="relative block size-full"
+          initial={false}
+          animate={glowing ? { filter: burst(colors.glow, 0) } : { filter: `drop-shadow(0 0 0px ${colors.glow})` }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        >
+          <StarIcon className="size-full" colors={colors} />
+        </motion.span>
+      </motion.span>
+    </motion.span>
+  )
+}
+
+export default function TileFace({ content, uncovered, dim = false, missed = false, type, index = 0, starMotion = null }) {
   const settled = { opacity: dim ? 0.38 : 1, scale: 1, rotate: 0, filter: dim ? 'grayscale(0.4)' : 'grayscale(0)' }
 
   if (content === 'star') {
+    const theme = ticketTheme(type)
+    const colors = theme.star
+    const glowing = uncovered && !dim
+
     return (
       <motion.div
         className="flex size-full items-center justify-center"
@@ -95,18 +157,18 @@ export default function TileFace({ content, uncovered, dim = false, missed = fal
         animate={uncovered ? settled : { opacity: 1, scale: 0.85, rotate: 0 }}
         transition={uncovered && !dim ? { type: 'spring', stiffness: 420, damping: 13 } : { duration: 0.3 }}
       >
-        <motion.span
-          className="block size-[72%]"
-          initial={false}
-          animate={
-            uncovered && !dim
-              ? { filter: ['drop-shadow(0 0 0px #FABC3F)', 'drop-shadow(0 0 14px #FABC3F)', 'drop-shadow(0 0 6px #FABC3F)'] }
-              : { filter: 'drop-shadow(0 0 0px #FABC3F)' }
-          }
-          transition={{ duration: 0.7, ease: 'easeOut' }}
-        >
-          <StarIcon className="size-full" />
-        </motion.span>
+        {theme.liveStars && starMotion ? (
+          <LiveStar index={index} glowing={glowing} starMotion={starMotion} colors={colors} />
+        ) : (
+          <motion.span
+            className="block size-[72%]"
+            initial={false}
+            animate={glowing ? { filter: burst(colors.glow, 6) } : { filter: `drop-shadow(0 0 0px ${colors.glow})` }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+          >
+            <StarIcon className="size-full" colors={colors} />
+          </motion.span>
+        )}
       </motion.div>
     )
   }

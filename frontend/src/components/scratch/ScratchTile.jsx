@@ -66,7 +66,10 @@ function clearedShare(canvas) {
 // the rest fades away and `onUncovered` hears about it. So a single tap or
 // click uncovers a tile too, and Enter or Space does the same. `active` is whether it can be scratched right now;
 // `autoClear` fades the foil without rubbing (Reveal card), after
-// `delay` seconds.
+// `delay` seconds. `type` and `starMotion` are the card's ticket type and
+// how its stars move, for what's under the foil (TileFace); the tile's own
+// well and edge take the ticket's colours from the --tk-* variables it sits
+// in (ticketThemes.js).
 export default function ScratchTile({
   index,
   label,
@@ -78,6 +81,8 @@ export default function ScratchTile({
   delay = 0,
   dim = false,
   missed = false,
+  type,
+  starMotion = null,
   onPress,
   onUncovered,
 }) {
@@ -214,9 +219,11 @@ export default function ScratchTile({
       aria-label={label}
       aria-disabled={!active || gone}
       onKeyDown={handleKeyDown}
-      className="relative aspect-square min-h-11 overflow-hidden rounded-xl border border-white/10 bg-ticket-deep shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold"
+      className="relative aspect-square min-h-11 overflow-hidden rounded-xl border border-(--tk-tile-edge) bg-(--tk-well) shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--tk-focus)"
     >
-      {content && <TileFace content={content} uncovered={gone} dim={dim} missed={missed} />}
+      {content && (
+        <TileFace content={content} uncovered={gone} dim={dim} missed={missed} type={type} index={index} starMotion={starMotion} />
+      )}
 
       {!gone && (
         <canvas

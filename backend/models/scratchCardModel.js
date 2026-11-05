@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { DEFAULT_TICKET_TYPE, TICKET_TYPES } = require("../../shared/scratch/tickets.js");
 
 const Schema = mongoose.Schema;
 
@@ -16,6 +17,12 @@ const scratchCardSchema = new Schema(
     {
         user: {type: Schema.Types.ObjectId, ref: "User", required: true},
         status: {type: String, enum: ["pending", "active", "complete"], default: "pending"},
+
+        // Which ticket it is (a key in shared/scratch/config.js ticketTypes):
+        // what it cost, what it pays and whose jackpot it can win. Cards
+        // bought before there were ticket types don't have one, and count as
+        // Standard (shared/scratch/tickets.js ticketTypeOf).
+        ticketType: {type: String, enum: TICKET_TYPES, default: DEFAULT_TICKET_TYPE},
 
         layout: {type: [String], required: true},
         salt: {type: String, required: true},

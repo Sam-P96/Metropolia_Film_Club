@@ -23,6 +23,8 @@ async function checkSeal(layout, salt, hash) {
 //   pending    the tile waiting on the server, or null
 //   busy       the tile being scratched, from the first touch until its
 //              foil is gone; every other tile is locked meanwhile
+//   buying     the ticket type being bought ('standard', 'premium' or
+//              'vip'), or null
 //   reveal     after "Reveal card": { cardId, layout, verified }
 // Coming back to the page picks up the card where they left it.
 export default function useScratchCard() {
@@ -30,7 +32,7 @@ export default function useScratchCard() {
   const [uncovered, setUncovered] = useState(() => new Set())
   const [pending, setPending] = useState(null)
   const [busy, setBusy] = useState(null)
-  const [buying, setBuying] = useState(false)
+  const [buying, setBuying] = useState(null)
   const [error, setError] = useState('')
   const [reveal, setReveal] = useState(null)
 
@@ -72,11 +74,12 @@ export default function useScratchCard() {
     }
   }, [showCard])
 
-  const buy = useCallback(async () => {
-    setBuying(true)
+  // Buys a ticket of `type`.
+  const buy = useCallback(async (type) => {
+    setBuying(type)
     setError('')
     try {
-      const next = await buyCard()
+      const next = await buyCard(type)
       walletChanged()
       setReveal(null)
       unlock()
@@ -86,7 +89,7 @@ export default function useScratchCard() {
       // Already one going (a second tab, say): show that one.
       if (buyError.status === 409) catchUp()
     } finally {
-      setBuying(false)
+      setBuying(null)
     }
   }, [showCard, catchUp])
 

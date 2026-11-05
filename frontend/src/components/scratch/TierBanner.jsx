@@ -9,7 +9,9 @@ const format = (points) => points.toLocaleString('en-US')
 // What a card won, on a cinema marquee: bulbs chasing round a gold frame,
 // "Now showing" over the tier, and the payout. It springs in when the tier
 // locks in. `kind` is 'tier' (with `tier` from the card), 'jackpot' (with
-// `amount`), or 'bomb' for a card that ran out of scratches.
+// `amount`), or 'bomb' for a card that ran out of scratches. Its dark
+// panel and its bulbs are the ticket's (--tk-banner, --tk-bulb:
+// ticketThemes.js), so on VIP's gold it's deep plum with red bulbs.
 export default function TierBanner({ kind, tier, amount }) {
   const jackpot = kind === 'jackpot'
   const bomb = kind === 'bomb'
@@ -23,10 +25,10 @@ export default function TierBanner({ kind, tier, amount }) {
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       className={`relative overflow-hidden rounded-2xl border-2 px-4 py-3 text-center ${
         bomb
-          ? 'border-brand-red/60 bg-black/60'
+          ? 'border-brand-red/60 bg-(--tk-banner)'
           : jackpot
-            ? 'border-brand-gold bg-black/70 shadow-[0_0_28px_rgba(250,188,63,0.55)]'
-            : 'border-brand-gold/80 bg-black/60 shadow-[0_0_18px_rgba(250,188,63,0.3)]'
+            ? 'border-brand-gold bg-(--tk-banner-strong) shadow-[0_0_28px_rgba(250,188,63,0.55)]'
+            : 'border-brand-gold/80 bg-(--tk-banner) shadow-[0_0_18px_rgba(250,188,63,0.3)]'
       }`}
     >
       {!bomb && <Bulbs count={12} className="mb-2 px-1" />}

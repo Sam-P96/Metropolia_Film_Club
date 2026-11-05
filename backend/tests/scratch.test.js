@@ -16,7 +16,11 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 
 const { SCRATCH } = require("../../shared/scratch/config.js");
+const { scratchOdds } = require("../../shared/scratch/odds.js");
+const { TICKET_TYPES, describeHours, ticketHours, ticketTiers, ticketTypeOf } = require("../../shared/scratch/tickets.js");
 const engine = require("../games/scratch/engine");
+
+const { standard: STANDARD, premium: PREMIUM, vip: VIP } = SCRATCH.ticketTypes;
 
 const STAR = "star";
 const BLANK = "blank";
@@ -98,6 +102,88 @@ describe("the game logic", () => {
     }
 });
 
+describe("the ticket types", () => {
+    test("Standard, Premium and VIP, cheapest first", () => {
+        assert.deepEqual(TICKET_TYPES, ["standard", "premium", "vip"]);
+        assert.deepEqual(TICKET_TYPES.map((key) => SCRATCH.ticketTypes[key].price), [10, 20, 30]);
+    });
+
+    test("every type pays every tier, and Straight to DVD is a refund on all of them", () => {
+        const pays = Object.fromEntries(TICKET_TYPES.map((key) => [key, ticketTiers(key).map((tier) => (tier.refund ? "refund" : tier.ppp))]));
+        assert.deepEqual(pays, {
+            standard: [80, 40, 20, 15, "refund"],
+            premium: [165, 85, 40, 35, "refund"],
+            vip: [265, 130, 65, 50, "refund"],
+        });
+    });
+
+    test("each tier is paid by the type: Box Office Smash is 80, 165 or 265", () => {
+        assert.equal(engine.tierByKey("smash").ppp, 80);
+        assert.equal(engine.tierByKey("smash", "premium").ppp, 165);
+        assert.equal(engine.tierByKey("smash", "vip").ppp, 265);
+        assert.equal(engine.tierByKey("dvd", "vip").refund, true);
+    });
+
+    test("return to player: 88.6% Standard, 92.9% Premium, 94.9% VIP", () => {
+        assert.equal(scratchOdds("standard").rtp.toFixed(3), "0.886");
+        assert.equal(scratchOdds("premium").rtp.toFixed(3), "0.929");
+        assert.equal(scratchOdds("vip").rtp.toFixed(3), "0.949");
+    });
+
+    test("anything without a ticket type is Standard", () => {
+        assert.equal(ticketTypeOf({}), "standard");
+        assert.equal(ticketTypeOf({ ticketType: null }), "standard");
+        assert.equal(ticketTypeOf({ ticketType: "gold" }), "standard");
+        assert.equal(ticketTypeOf({ ticketType: "vip" }), "vip");
+    });
+
+    test("a missing prize in the config is caught", () => {
+        const broken = { ...SCRATCH, ticketTypes: { standard: { ...STANDARD, prizes: { ...STANDARD.prizes, 5: undefined } } } };
+        assert.throws(() => ticketTiers("standard", broken), /no prize for scratch 5/);
+    });
+});
+
+describe("VIP hours, by the clocks in Helsinki", () => {
+    // [moment, open?, the next change]
+    const cases = [
+        // Summer, UTC+3: 16:00 is 13:00 UTC, midnight is 21:00 UTC.
+        ["2026-07-01T12:59:59.999Z", false, "2026-07-01T13:00:00.000Z"],
+        ["2026-07-01T13:00:00.000Z", true, "2026-07-01T21:00:00.000Z"],
+        ["2026-07-01T20:59:59.999Z", true, "2026-07-01T21:00:00.000Z"],
+        ["2026-07-01T21:00:00.000Z", false, "2026-07-02T13:00:00.000Z"],
+        // Winter, UTC+2: an hour later in UTC.
+        ["2026-01-15T13:59:59.000Z", false, "2026-01-15T14:00:00.000Z"],
+        ["2026-01-15T14:00:00.000Z", true, "2026-01-15T22:00:00.000Z"],
+        ["2026-01-15T21:59:59.000Z", true, "2026-01-15T22:00:00.000Z"],
+        ["2026-01-15T22:00:00.000Z", false, "2026-01-16T14:00:00.000Z"],
+        // The clocks go forward at 03:00 on 29 March 2026: shut at 02:30
+        // winter time, it opens at 16:00 summer time.
+        ["2026-03-29T00:30:00.000Z", false, "2026-03-29T13:00:00.000Z"],
+        // ...and back at 04:00 on 25 October.
+        ["2026-10-25T00:30:00.000Z", false, "2026-10-25T14:00:00.000Z"],
+        ["2026-10-25T21:59:59.000Z", true, "2026-10-25T22:00:00.000Z"],
+        // Into the next month and year.
+        ["2026-12-31T22:30:00.000Z", false, "2027-01-01T14:00:00.000Z"],
+    ];
+    for (const [at, open, next] of cases) {
+        test(`${at}: ${open ? "on sale until" : "shut until"} ${next}`, () => {
+            const hours = ticketHours("vip", new Date(at));
+            assert.equal(hours.open, open);
+            assert.equal((open ? hours.closesAt : hours.opensAt).toISOString(), next);
+        });
+    }
+
+    test("Standard and Premium are always on sale", () => {
+        for (const key of ["standard", "premium"]) {
+            assert.deepEqual(ticketHours(key, new Date("2026-07-01T03:00:00Z")), { open: true, opensAt: null, closesAt: null });
+        }
+    });
+
+    test("said the way the page and the refusal say it", () => {
+        assert.equal(describeHours(VIP.hours), "from 16:00 to midnight, Helsinki time");
+    });
+});
+
 const uri = process.env.MONGO_TEST_URI;
 const dbName = uri ? new URL(uri).pathname.slice(1) : "";
 
@@ -154,21 +240,30 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         });
         return { status: response.status, body: await response.json().catch(() => null) };
     }
-    const buy = (user) => call(user, "POST", "/cards");
+    const buy = (user, type) => call(user, "POST", "/cards", type === undefined ? undefined : { type });
     const scratch = (user, card, tile) => call(user, "POST", `/cards/${card._id}/scratch`, { tile });
     const walletOf = async (user) => (await User.findById(user._id).select("wallet").lean()).wallet;
-    const pool = async () => (await Jackpot.findById("main").lean())?.amount;
+    const POOL_IDS = { standard: "main", premium: "premium", vip: "vip" };
+    const pool = async (type = "standard") => (await Jackpot.findById(POOL_IDS[type]).lean())?.amount;
     const rig = (card, layout) => ScratchCard.updateOne({ _id: card._id }, { $set: { layout } });
+    // A VIP ticket bought at 18:00 Helsinki time, whatever the time now.
+    const IN_VIP_HOURS = new Date("2026-07-01T15:00:00Z");
+    const buyVip = async (user) => {
+        const { buyCard } = require("../utils/scratch");
+        return JSON.parse(JSON.stringify(await buyCard(user._id, "vip", IN_VIP_HOURS)));
+    };
 
     test("buying takes PP first, then P-PP, records it, seals the card and adds to the jackpot", async () => {
         const user = await member(4, 50);
-        const before = (await call(user, "GET", "/jackpot")).body.amount;
+        const before = (await call(user, "GET", "/jackpot")).body.amounts.standard;
         const { status, body } = await buy(user);
         assert.equal(status, 201);
+        assert.equal(body.ticketType, "standard", "no type is a Standard ticket");
+        assert.equal(body.price, STANDARD.price);
         assert.deepEqual(body.spent, { pp: 4, ppp: 6 });
         assert.deepEqual(await walletOf(user), { pp: 0, ppp: 44, lastPayoutDay: null });
         assert.match(body.hash, /^[0-9a-f]{64}$/);
-        assert.equal(await pool(), before + SCRATCH.jackpotContribution);
+        assert.equal(await pool(), before + STANDARD.jackpotContribution);
         const receipt = await WalletTx.findOne({ user: user._id, reason: "scratchTicket" }).lean();
         assert.deepEqual([receipt.pp, receipt.ppp, String(receipt.card)], [-4, -6, String(body._id)]);
     });
@@ -199,7 +294,7 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         const results = await Promise.all([buy(user), buy(user), buy(user)]);
         assert.deepEqual(results.map((r) => r.status).sort(), [201, 409, 409]);
         assert.equal(await ScratchCard.countDocuments({ user: user._id }), 1);
-        assert.equal((await walletOf(user)).pp, 100 - SCRATCH.ticketPrice);
+        assert.equal((await walletOf(user)).pp, 100 - STANDARD.price);
         assert.equal(await WalletTx.countDocuments({ user: user._id, reason: "scratchTicket" }), 1);
     });
 
@@ -330,10 +425,11 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         assert.equal(body.tile.content, GOLDEN);
         assert.equal(body.card.jackpotAmount, won);
         assert.equal((await walletOf(user)).ppp, won);
-        assert.equal(await pool(), SCRATCH.jackpotSeed);
+        assert.equal(await pool(), STANDARD.jackpotSeed);
         const recent = (await call(user, "GET", "/jackpot")).body.recent[0];
-        assert.deepEqual([recent.username, recent.amount], [user.username, won]);
-        assert.ok(await Notification.findOne({ recipient: bystander._id, type: "scratchJackpot", amount: won }).lean());
+        assert.deepEqual([recent.username, recent.amount, recent.ticketType], [user.username, won, "standard"]);
+        const notice = await Notification.findOne({ recipient: bystander._id, type: "scratchJackpot", amount: won }).lean();
+        assert.equal(notice.ticketType, "standard");
     });
 
     test("two Golden Tickets found at the same moment can't both take the same pool", async () => {
@@ -346,8 +442,8 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         const inPool = await pool();
         await Promise.all([scratch(a, cardA, 9), scratch(b, cardB, 9)]);
         const paid = [(await walletOf(a)).ppp, (await walletOf(b)).ppp].sort((x, y) => x - y);
-        assert.deepEqual(paid, [SCRATCH.jackpotSeed, inPool], "one gets the pool, the other the fresh seed");
-        assert.equal(await pool(), SCRATCH.jackpotSeed);
+        assert.deepEqual(paid, [STANDARD.jackpotSeed, inPool], "one gets the pool, the other the fresh seed");
+        assert.equal(await pool(), STANDARD.jackpotSeed);
     });
 
     test("Collect ends the card early; the scratches left can't be used", async () => {
@@ -382,5 +478,226 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         await Promise.all([sweepScratchCards(), sweepScratchCards()]);
         assert.equal((await walletOf(user)).ppp, 40);
         assert.equal(await WalletTx.countDocuments({ user: user._id, reason: "scratchWin" }), 1);
+    });
+
+    // ---- Ticket types ----
+
+    test("the jackpot route has every type's pool, each from its own seed", async () => {
+        const user = await member(0);
+        const { body } = await call(user, "GET", "/jackpot");
+        assert.deepEqual(Object.keys(body.amounts), ["standard", "premium", "vip"]);
+        assert.ok(body.amounts.premium >= PREMIUM.jackpotSeed);
+        assert.ok(body.amounts.vip >= VIP.jackpotSeed);
+    });
+
+    test("a Premium ticket costs 20, PP first, and adds 2 to the Premium pool only", async () => {
+        const user = await member(15, 50);
+        const before = { standard: await pool("standard"), premium: await pool("premium"), vip: await pool("vip") };
+        const { status, body } = await buy(user, "premium");
+        assert.equal(status, 201);
+        assert.equal(body.ticketType, "premium");
+        assert.equal(body.price, 20);
+        assert.deepEqual(body.spent, { pp: 15, ppp: 5 });
+        assert.deepEqual(await walletOf(user), { pp: 0, ppp: 45, lastPayoutDay: null });
+        assert.equal(await pool("premium"), before.premium + PREMIUM.jackpotContribution);
+        assert.equal(await pool("standard"), before.standard);
+        assert.equal(await pool("vip"), before.vip);
+        assert.equal((await ScratchCard.findById(body._id).lean()).ticketType, "premium");
+    });
+
+    test("a ticket type of null is the same as leaving it out: Standard", async () => {
+        const user = await member(100);
+        const { status, body } = await buy(user, null);
+        assert.equal(status, 201);
+        assert.equal(body.ticketType, "standard");
+    });
+
+    for (const [label, type] of [['"gold"', "gold"], ["42", 42], ['"VIP"', "VIP"], ['"__proto__"', "__proto__"]]) {
+        test(`ticket type ${label} -> 400, nothing taken`, async () => {
+            const user = await member(100);
+            const { status, body } = await buy(user, type);
+            assert.equal(status, 400);
+            assert.match(body.error, /standard, premium, vip/);
+            assert.equal((await walletOf(user)).pp, 100);
+            assert.equal(await ScratchCard.countDocuments({ user: user._id }), 0);
+        });
+    }
+
+    test("not enough for a VIP ticket: 400 with what they have, nothing taken", async () => {
+        const { buyCard } = require("../utils/scratch");
+        const user = await member(20, 5);
+        await assert.rejects(buyCard(user._id, "vip", IN_VIP_HOURS), /you have 25/);
+        assert.equal(await ScratchCard.countDocuments({ user: user._id }), 0);
+        assert.deepEqual(await walletOf(user), { pp: 20, ppp: 5, lastPayoutDay: null });
+    });
+
+    test("VIP out of hours: 403, nothing taken, no card, the pool untouched", async () => {
+        const { buyCard } = require("../utils/scratch");
+        const user = await member(100);
+        const before = await pool("vip");
+        for (const at of ["2026-07-01T12:59:59Z", "2026-07-01T21:00:00Z", "2026-01-15T13:30:00Z"]) {
+            await assert.rejects(buyCard(user._id, "vip", new Date(at)), (error) => {
+                assert.equal(error.status, 403);
+                assert.equal(error.message, "VIP tickets are on sale from 16:00 to midnight, Helsinki time.");
+                return true;
+            });
+        }
+        assert.equal((await walletOf(user)).pp, 100);
+        assert.equal(await ScratchCard.countDocuments({ user: user._id }), 0);
+        assert.equal(await pool("vip"), before);
+    });
+
+    test("the buy route checks VIP hours by the server's clock right now", async () => {
+        const user = await member(100);
+        const { status, body } = await buy(user, "vip");
+        if (ticketHours("vip").open) {
+            assert.equal(status, 201);
+            assert.equal(body.ticketType, "vip");
+        } else {
+            assert.equal(status, 403);
+            assert.match(body.error, /16:00 to midnight/);
+        }
+    });
+
+    test("a VIP card bought before midnight is finished after it, and pays VIP prizes", async () => {
+        const user = await member(30);
+        const card = await buyVip(user); // 18:00 on 1 July; the scratches below happen now
+        assert.equal(card.ticketType, "vip");
+        assert.equal(card.price, 30);
+        await rig(card, layoutWith({ stars: [0, 1, 2, 3, 4] }));
+        await scratch(user, card, 0);
+        await scratch(user, card, 1);
+        const { status, body } = await scratch(user, card, 2);
+        assert.equal(status, 200);
+        assert.deepEqual([body.card.tier.key, body.card.tier.ppp], ["smash", 265]);
+        assert.deepEqual(await walletOf(user), { pp: 0, ppp: 265, lastPayoutDay: null });
+        assert.equal((await call(user, "POST", `/cards/${card._id}/collect`)).status, 200);
+    });
+
+    test("VIP wins and jackpots send notifications like Standard's, marked VIP", async () => {
+        const user = await member(30);
+        const fan = await member(0);
+        const bystander = await member(0);
+        await Follow.create({ follower: fan._id, following: user._id });
+        const card = await buyVip(user);
+        const won = await pool("vip");
+        await rig(card, layoutWith({ stars: [0, 1, 2, 3, 4], golden: 9 }));
+        for (const tile of [9, 0, 1]) await scratch(user, card, tile);
+        await scratch(user, card, 2); // the 3rd star on scratch 4: Critical Darling
+
+        const win = await Notification.findOne({ recipient: fan._id, type: "scratchWin", actors: user._id }).lean();
+        assert.deepEqual([win.tier, win.amount, win.ticketType], ["darling", 130, "vip"]);
+        const jackpot = await Notification.findOne({ recipient: bystander._id, type: "scratchJackpot", actors: user._id }).lean();
+        assert.deepEqual([jackpot.amount, jackpot.ticketType], [won, "vip"]);
+        assert.equal(await pool("vip"), VIP.jackpotSeed);
+    });
+
+    test("a VIP Straight to DVD hands back the 30 it took", async () => {
+        const user = await member(12, 40);
+        const card = await buyVip(user); // 12 PP + 18 P-PP
+        await rig(card, layoutWith({ stars: [10, 11, 12, 13, 14] }));
+        for (const tile of [0, 1, 2, 3, 10, 11]) await scratch(user, card, tile);
+        const { body } = await scratch(user, card, 12);
+        assert.equal(body.card.tier.key, "dvd");
+        assert.deepEqual(await walletOf(user), { pp: 12, ppp: 40, lastPayoutDay: null });
+    });
+
+    test("a Premium Golden Ticket wins the Premium pool, which goes back to 315; the others are untouched", async () => {
+        const user = await member(100);
+        const fan = await member(0);
+        await Follow.create({ follower: fan._id, following: user._id });
+        const card = (await buy(user, "premium")).body;
+        const won = await pool("premium");
+        const others = [await pool("standard"), await pool("vip")];
+        await rig(card, layoutWith({ stars: [0, 1, 2, 3, 4], golden: 9 }));
+        const { body } = await scratch(user, card, 9);
+        assert.equal(body.card.jackpotAmount, won);
+        assert.equal((await walletOf(user)).ppp, won);
+        assert.equal(await pool("premium"), PREMIUM.jackpotSeed);
+        assert.deepEqual([await pool("standard"), await pool("vip")], others);
+
+        const recent = (await call(user, "GET", "/jackpot")).body.recent[0];
+        assert.deepEqual([recent.username, recent.amount, recent.ticketType], [user.username, won, "premium"]);
+        const notice = await Notification.findOne({ recipient: fan._id, type: "scratchJackpot", amount: won }).lean();
+        assert.equal(notice.ticketType, "premium");
+
+        // And a Premium win tells followers it was on a Premium ticket.
+        await scratch(user, card, 0);
+        await scratch(user, card, 1);
+        await scratch(user, card, 2);
+        const win = await Notification.findOne({ recipient: fan._id, type: "scratchWin" }).sort({ at: -1 }).lean();
+        assert.deepEqual([win.tier, win.amount, win.ticketType], ["darling", 85, "premium"]);
+    });
+
+    test("a card from before ticket types is Standard: shown, paid and its jackpot won as one", async () => {
+        const user = await member(0);
+        const layout = layoutWith({ stars: [0, 1, 2, 3, 4], golden: 9 });
+        const { salt, hash } = engine.sealLayout(layout);
+        // Straight into the collection, as old cards are: no ticketType at all.
+        const { insertedId } = await ScratchCard.collection.insertOne({
+            user: user._id,
+            status: "active",
+            layout,
+            salt,
+            hash,
+            price: 10,
+            spent: { pp: 10, ppp: 0 },
+            scratched: [],
+            starsFound: 0,
+            tier: null,
+            prizePaid: false,
+            goldenFound: false,
+            jackpotAmount: null,
+            jackpotPaid: false,
+            activeFor: user._id,
+            completedAt: null,
+            revealedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        });
+        const current = (await call(user, "GET", "/card")).body.card;
+        assert.equal(current.ticketType, "standard");
+
+        const won = await pool("standard");
+        // The Golden Ticket, a blank, then the 3rd star on scratch 5.
+        for (const tile of [9, 5, 0, 1]) await scratch(user, { _id: insertedId }, tile);
+        const { body } = await scratch(user, { _id: insertedId }, 2);
+        assert.deepEqual([body.card.tier.key, body.card.tier.ppp], ["cult", 20]);
+        assert.equal((await walletOf(user)).ppp, won + 20);
+        assert.equal(await pool("standard"), STANDARD.jackpotSeed);
+    });
+
+    test("an old jackpot win with no type shows as Standard in Recent jackpots", async () => {
+        const user = await member(0);
+        const at = new Date(Date.now() + 60_000); // the newest
+        await Jackpot.updateOne({ _id: "main" }, { $push: { recent: { $each: [{ username: "old-timer", amount: 321, at }], $position: 0 } } });
+        const recent = (await call(user, "GET", "/jackpot")).body.recent[0];
+        assert.deepEqual([recent.username, recent.amount, recent.ticketType], ["old-timer", 321, "standard"]);
+        await Jackpot.updateOne({ _id: "main" }, { $pull: { recent: { username: "old-timer" } } });
+    });
+
+    test("the hours route: VIP's on-sale state and how long until it changes", async () => {
+        const user = await member(0);
+        const { status, body } = await call(user, "GET", "/hours");
+        assert.equal(status, 200);
+        assert.deepEqual(body.standard, { open: true, opensAt: null, closesAt: null, changesIn: null });
+        assert.deepEqual(body.premium, { open: true, opensAt: null, closesAt: null, changesIn: null });
+        const expected = ticketHours("vip");
+        assert.equal(body.vip.open, expected.open);
+        const next = new Date(body.vip.open ? body.vip.closesAt : body.vip.opensAt);
+        assert.equal(next.toISOString(), (expected.closesAt ?? expected.opensAt).toISOString());
+        assert.ok(body.vip.changesIn > 0 && body.vip.changesIn <= 24 * 60 * 60 * 1000);
+        assert.ok(Math.abs(Date.now() + body.vip.changesIn - next.getTime()) < 5000);
+    });
+
+    test("deleting an account takes their name off every pool's Recent jackpots", async () => {
+        const { forgetScratchPlayer } = require("../utils/scratch");
+        const user = await member(100);
+        const card = (await buy(user, "premium")).body;
+        await rig(card, layoutWith({ stars: [0, 1, 2, 3, 4], golden: 9 }));
+        await scratch(user, card, 9);
+        await forgetScratchPlayer(user._id);
+        const pools = await Jackpot.find().lean();
+        assert.ok(pools.every((p) => p.recent.every((win) => String(win.user) !== String(user._id))));
     });
 });

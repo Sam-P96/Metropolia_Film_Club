@@ -17,9 +17,9 @@ const { userFromToken } = require("../../middleware/auth");
 // their pages out of any other game's room (the newest page wins), and those
 // pages drop back to notifications, with a "Play Live here" button.
 //
-// The same connection also carries the Box Office Scratch jackpot: pages
-// showing the game join the "scratch" room, and hear the pool change as
-// tickets are bought and jackpots won (utils/scratch.js).
+// The same connection also carries the Box Office Scratch jackpots: pages
+// showing the game join the "scratch" room, and hear each ticket type's
+// pool change as tickets are bought and jackpots won (utils/scratch.js).
 
 let io = null;
 
@@ -147,10 +147,12 @@ function announceMatch(match) {
     io.to(gameRoom(match._id)).emit("farkle:changed", { matchId: String(match._id), version: match.version });
 }
 
-// Tells every Box Office Scratch page the jackpot is now `amount`.
-function announceJackpot(amount) {
+// Tells every Box Office Scratch page that ticket type `type`'s jackpot is
+// now `amount`. `won`: someone has just won it, so it's back to its seed and
+// "Recent jackpots" has a new name.
+function announceJackpot(type, amount, { won = false } = {}) {
     if (!io) return;
-    io.to(SCRATCH_ROOM).emit("scratch:jackpot", { amount });
+    io.to(SCRATCH_ROOM).emit("scratch:jackpot", { type, amount, won });
 }
 
 // Steal and Defend (utils/steal/attacks.js): tells every page `userId` has

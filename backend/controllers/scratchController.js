@@ -1,6 +1,7 @@
 const { WalletError } = require("../utils/wallet");
 const { ScratchError } = require("../games/scratch/engine");
-const { buyCard, collectCard, currentCard, jackpotView, revealCard, scratchCard } = require("../utils/scratch");
+const { buyCard, collectCard, currentCard, hoursView, jackpotView, revealCard, scratchCard } = require("../utils/scratch");
+const { DEFAULT_TICKET_TYPE } = require("../../shared/scratch/tickets.js");
 
 // Box Office Scratch. The game is in games/scratch/engine.js, saving and
 // paying out in utils/scratch.js; these only read the request and answer.
@@ -14,9 +15,15 @@ function refusal(res, error) {
     throw error;
 }
 
-// The jackpot pool and its recent winners, for anyone.
+// Every ticket type's jackpot pool, and their recent winners, for anyone.
 async function getJackpot(req, res) {
     res.json(await jackpotView());
+}
+
+// Whether each ticket type is on sale right now, and when that next changes,
+// by the server's clock, for anyone.
+function getHours(req, res) {
+    res.json(hoursView());
 }
 
 // Their card to show: the one being scratched, or the last finished one not
@@ -25,12 +32,13 @@ async function getCurrentCard(req, res) {
     res.json({ card: await currentCard(req.user._id) });
 }
 
-// Buy a ticket. 201 with the new card and its seal; 409 if they already
-// have one going (so a double tap only ever buys one); 400 if they don't
-// have the points.
+// Buy a ticket, { type }: 'standard', 'premium' or 'vip' (Standard if it's
+// left out). 201 with the new card and its seal; 409 if they already have
+// one going (so a double tap only ever buys one); 400 if they don't have
+// the points or the type isn't one; 403 for a VIP ticket out of its hours.
 async function postCard(req, res) {
     try {
-        res.status(201).json(await buyCard(req.user._id));
+        res.status(201).json(await buyCard(req.user._id, req.body?.type ?? DEFAULT_TICKET_TYPE));
     } catch (error) {
         refusal(res, error);
     }
@@ -65,4 +73,4 @@ async function getReveal(req, res) {
     }
 }
 
-module.exports = { getJackpot, getCurrentCard, postCard, postScratch, postCollect, getReveal };
+module.exports = { getJackpot, getHours, getCurrentCard, postCard, postScratch, postCollect, getReveal };

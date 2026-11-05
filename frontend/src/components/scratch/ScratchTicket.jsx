@@ -3,7 +3,11 @@ import { AnimatePresence, motion } from 'motion/react'
 import ScratchTile from './ScratchTile'
 import TierBanner from './TierBanner'
 import { Bulbs, Skeleton } from './Marquee'
+import { ticketTheme } from './ticketThemes'
+import useStarMotion from '../../hooks/useStarMotion'
+import { askTiltPermission } from '../../utils/tilt'
 import { SCRATCH } from '../../../../shared/scratch/config.js'
+import { DEFAULT_TICKET_TYPE, ticketType, ticketTypeOf } from '../../../../shared/scratch/tickets.js'
 
 // The perforation between the ticket's header and its tiles sits this far
 // down, and the notches cut into the ticket's sides line up with it.
@@ -16,14 +20,18 @@ const NOTCHES = (() => {
   return { WebkitMask: mask, mask }
 })()
 
+// The ticket's buttons, in its type's colours (ticketThemes.js): the main
+// one (Reveal card, and Collect once it asks), and the quieter ones.
 const BUTTON = 'min-h-11 cursor-pointer rounded-xl px-4 font-bold transition disabled:cursor-default disabled:opacity-40'
+const MAIN_BUTTON = `${BUTTON} bg-(--tk-cta) text-(--tk-cta-text) hover:brightness-110`
+const QUIET_BUTTON = `${BUTTON} border border-(--tk-ghost-edge) bg-(--tk-ghost) text-(--tk-ghost-text) hover:bg-(--tk-ghost-hover)`
 
 // A counter whose number drops in when it changes.
 function Count({ label, value, of }) {
   return (
     <span className="flex items-baseline gap-1">
-      <span className="text-white/60">{label}</span>
-      <span className="relative inline-flex min-w-[1ch] justify-center overflow-hidden font-bold text-white tabular-nums">
+      <span className="text-(--tk-label)">{label}</span>
+      <span className="relative inline-flex min-w-[1ch] justify-center overflow-hidden font-bold text-(--tk-value) tabular-nums">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
             key={value}
@@ -36,30 +44,36 @@ function Count({ label, value, of }) {
           </motion.span>
         </AnimatePresence>
       </span>
-      <span className="text-white/60">/ {of}</span>
+      <span className="text-(--tk-label)">/ {of}</span>
     </span>
   )
 }
 
 // The ticket's shape and header, shared by the real ticket and its
 // loading placeholder: `stats` go under the title, `children` below the
-// perforation, `footer` at the bottom.
-function TicketFrame({ number, stats, children, footer }) {
+// perforation, `footer` at the bottom. `type` is its ticket type: every
+// colour in it comes from that type's theme (ticketThemes.js), set here as
+// CSS variables. Premium and VIP say which they are next to "Admit one".
+function TicketFrame({ type = DEFAULT_TICKET_TYPE, number, stats, children, footer }) {
+  const theme = ticketTheme(type)
   return (
-    <div className="drop-shadow-[0_22px_32px_rgba(0,0,0,0.6)]">
-      <div style={NOTCHES} className="rounded-3xl border border-white/10 bg-ticket/90 backdrop-blur-md">
+    <div className="drop-shadow-[0_22px_32px_rgba(0,0,0,0.6)]" style={theme.vars}>
+      <div
+        style={NOTCHES}
+        className={`rounded-3xl border border-(--tk-edge) [background:var(--tk-body)] backdrop-blur-md ${theme.bodyClass}`}
+      >
         <header className="flex flex-col px-5 pt-4" style={{ height: HEADER_HEIGHT }}>
           <Bulbs count={16} />
-          <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-white/50">
-            <span>Admit one</span>
+          <div className="mt-2 flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.3em] text-(--tk-fine)">
+            <span>{type === DEFAULT_TICKET_TYPE ? 'Admit one' : `${ticketType(type).name} · Admit one`}</span>
             <span>{number}</span>
           </div>
-          <h2 className="mt-1 text-center font-['Bebas_Neue'] text-4xl leading-none tracking-wide text-brand-gold drop-shadow-[0_0_10px_rgba(250,188,63,0.35)]">
+          <h2 className="mt-1 text-center font-['Bebas_Neue'] text-4xl leading-none tracking-wide text-(--tk-title) drop-shadow-[0_0_10px_var(--tk-title-glow)]">
             Box Office Scratch
           </h2>
           {stats}
         </header>
-        <div className="mx-4 border-t-2 border-dashed border-white/20" />
+        <div className="mx-4 border-t-2 border-dashed border-(--tk-rule)" />
         <div className="flex flex-col gap-3 p-4">{children}</div>
         {footer}
       </div>
@@ -105,7 +119,7 @@ function CollectButton({ scratchesLeft, onCollect }) {
           transition={{ duration: 0.2 }}
           className="flex flex-col items-center gap-2 text-center"
         >
-          <p className="text-sm text-white/80">
+          <p className="text-sm text-(--tk-ask)">
             End the card? Your {scratchesLeft} {scratchesLeft === 1 ? 'scratch' : 'scratches'} left go unused.
           </p>
           <div className="grid w-full grid-cols-2 gap-2">
@@ -116,16 +130,11 @@ function CollectButton({ scratchesLeft, onCollect }) {
                 setAsking(false)
                 onCollect()
               }}
-              className={`${BUTTON} bg-brand-gold text-ink hover:brightness-110`}
+              className={MAIN_BUTTON}
             >
               Collect
             </motion.button>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setAsking(false)}
-              className={`${BUTTON} border border-white/20 bg-white/5 text-white hover:bg-white/10`}
-            >
+            <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={() => setAsking(false)} className={QUIET_BUTTON}>
               Keep scratching
             </motion.button>
           </div>
@@ -139,7 +148,7 @@ function CollectButton({ scratchesLeft, onCollect }) {
           exit={{ opacity: 0 }}
           whileTap={{ scale: 0.96 }}
           onClick={() => setAsking(true)}
-          className={`${BUTTON} w-full border border-white/20 bg-white/5 text-white hover:border-brand-gold/60 hover:bg-white/10`}
+          className={`${QUIET_BUTTON} w-full hover:border-(--tk-ghost-hover-edge)`}
         >
           Collect
         </motion.button>
@@ -150,9 +159,17 @@ function CollectButton({ scratchesLeft, onCollect }) {
 
 // One Box Office Scratch card: `game` is useScratchCard. The tiles, the
 // two counters, the marquee when a tier locks in, and what you can do now:
-// scratch, Collect, or once it's done, Reveal card.
+// scratch, Collect, or once it's done, Reveal card. It looks like its
+// ticket type (ticketThemes.js); on a VIP card the stars come alive
+// (useStarMotion), and coming back to one, the first scratch is the tap
+// that asks an iPhone for its tilt (the Buy tap asked for a new card).
 export default function ScratchTicket({ game }) {
   const { card, uncovered, pending, busy, reveal, scratch, uncover, collect, revealAll } = game
+  const type = ticketTypeOf(card)
+  const theme = ticketTheme(type)
+  const starMotion = useStarMotion(theme.liveStars)
+  const askTilt = theme.liveStars ? () => askTiltPermission() : undefined
+
   const done = card.status === 'complete'
   const layout = reveal?.cardId === card._id ? reveal.layout : null
 
@@ -197,9 +214,10 @@ export default function ScratchTicket({ game }) {
       exit={{ opacity: 0, y: -24, rotateY: 60 }}
       transition={{ type: 'spring', stiffness: 170, damping: 20 }}
       style={{ transformPerspective: 1200 }}
-      aria-label="Your scratch card"
+      aria-label={`Your ${ticketType(type).name} scratch card`}
     >
       <TicketFrame
+        type={type}
         number={`No. ${String(card._id).slice(-6).toUpperCase()}`}
         stats={
           <div className="mt-3 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm" aria-live="polite">
@@ -208,7 +226,7 @@ export default function ScratchTicket({ game }) {
           </div>
         }
         footer={
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-white/10 px-5 py-3 text-[11px] text-white/45">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-(--tk-footer-rule) px-5 py-3 text-[11px] text-(--tk-seal)">
             <span className="font-mono" title={card.hash}>
               Seal {card.hash.slice(0, 8)}…{card.hash.slice(-6)}
             </span>
@@ -217,7 +235,7 @@ export default function ScratchTicket({ game }) {
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className={reveal.verified === false ? 'text-red-300' : 'text-emerald-300'}
+                  className={reveal.verified === false ? 'text-(--tk-bad)' : 'text-(--tk-ok)'}
                 >
                   {reveal.verified === null ? 'Seal: this browser can\'t check it' : reveal.verified ? '✓ Matches the seal' : '✗ Doesn\'t match the seal'}
                 </motion.span>
@@ -233,8 +251,10 @@ export default function ScratchTicket({ game }) {
         </AnimatePresence>
 
         {/* touch-action: none here only, so rubbing the card doesn't scroll
-            the page, and the rest of the page scrolls as normal. */}
-        <div className="grid touch-none grid-cols-4 gap-2 select-none">
+            the page, and the rest of the page scrolls as normal. On a VIP
+            card, the end of a tap here (touchend, or click with a mouse)
+            asks an iPhone for its tilt, if nobody has yet. */}
+        <div className="grid touch-none grid-cols-4 gap-2 select-none" onTouchEnd={askTilt} onClick={askTilt}>
           {Array.from({ length: SCRATCH.rows * SCRATCH.cols }, (_, tile) => {
             const scratchedHere = card.tiles[tile] !== null
             const content = card.tiles[tile] ?? layout?.[tile] ?? null
@@ -257,6 +277,8 @@ export default function ScratchTicket({ game }) {
                 delay={revealing ? unscratched.indexOf(tile) * 0.07 : 0}
                 dim={revealing}
                 missed={revealing && content === 'golden'}
+                type={type}
+                starMotion={starMotion}
                 onPress={scratch}
                 onUncovered={uncover}
               />
@@ -272,11 +294,11 @@ export default function ScratchTicket({ game }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2 }}
-            className={`min-h-5 text-center text-sm ${missedGolden ? 'font-semibold text-brand-gold' : 'text-white/70'}`}
+            className={`min-h-5 text-center text-sm ${missedGolden ? 'font-semibold text-(--tk-highlight)' : 'text-(--tk-status)'}`}
           >
             {missedGolden ? (
               <motion.span
-                className="bg-linear-to-r from-brand-gold via-white to-brand-gold bg-size-[200%_100%] bg-clip-text text-transparent"
+                className="bg-linear-to-r from-(--tk-highlight) via-(--tk-highlight-via) to-(--tk-highlight) bg-size-[200%_100%] bg-clip-text text-transparent"
                 animate={{ backgroundPosition: ['100% 0', '-100% 0'] }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
               >
@@ -303,7 +325,7 @@ export default function ScratchTicket({ game }) {
               exit={{ opacity: 0 }}
               whileTap={{ scale: 0.96 }}
               onClick={revealAll}
-              className={`${BUTTON} w-full bg-brand-gold text-ink hover:brightness-110`}
+              className={`${MAIN_BUTTON} w-full`}
             >
               Reveal card
             </motion.button>

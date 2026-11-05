@@ -16,13 +16,14 @@ async function runSweep() {
     }
 }
 
-// Call once, after the database is connected. Makes sure the jackpot pool
-// exists (at the seed), and sweeps straight away.
+// Call once, after the database is connected. Makes sure every ticket
+// type's jackpot pool exists (new ones at their seed), and sweeps straight
+// away.
 function startScratchSweep() {
     if (task) return;
 
     task = cron.schedule("*/10 * * * *", runSweep, { name: "scratch-sweep", noOverlap: true });
-    jackpotView().catch((error) => console.error("Couldn't set up the jackpot:", error.message));
+    jackpotView().catch((error) => console.error("Couldn't set up the jackpots:", error.message));
     runSweep();
 }
 
