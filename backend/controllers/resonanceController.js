@@ -1,7 +1,7 @@
 const { parseOffset } = require("../utils/paging");
 const mongoose = require("mongoose");
 const { MIN_RATED } = require("../utils/resonance");
-const { standingOf, suggestionsFor, rankingFor, soulMapFor, everyonesResonance, lastSweep } = require("../utils/resonanceStore");
+const { standingOf, suggestionsFor, rankingFor, soulMapFor, comparisonWith, everyonesResonance, lastSweep } = require("../utils/resonanceStore");
 const { runSweep } = require("../jobs/resonanceSweep");
 
 // Resonance, for the logged-in member (utils/resonanceStore.js applies
@@ -30,6 +30,20 @@ async function getRanking(req, res) {
 // Resonance with, for the glow on review cards and the icon after names.
 async function getSoulResonance(req, res) {
     res.json(await soulMapFor(req.user._id));
+}
+
+// Their ratings side by side with another member's: { match, films }
+// (resonanceStore comparisonWith). 404 unless they have a Resonance with
+// that member that they may see.
+async function getComparison(req, res) {
+    const { userId } = req.params;
+    const comparison = mongoose.isValidObjectId(userId) ? await comparisonWith(req.user._id, userId) : null;
+
+    if (!comparison) {
+        return res.status(404).json({ error: "You have no Resonance with this member." });
+    }
+
+    res.json(comparison);
 }
 
 // /SECRETresonance, moderators and admins only: every pair, ?min=20
@@ -66,4 +80,4 @@ async function updateResonanceNow(req, res) {
     res.json({ members: result.members, pairs: result.pairs, updatedAt: result.at });
 }
 
-module.exports = { getMyResonance, getSuggestions, getRanking, getSoulResonance, getEveryonesResonance, updateResonanceNow };
+module.exports = { getMyResonance, getSuggestions, getRanking, getSoulResonance, getComparison, getEveryonesResonance, updateResonanceNow };

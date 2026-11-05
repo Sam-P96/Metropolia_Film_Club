@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import StarRating from '../components/reviews/StarRating'
+import SortHeader from '../components/SortHeader'
 import { getUser, getUserFilms } from '../services/users'
 import useApi from '../hooks/useApi'
 import { isWanted } from '../utils/watchlist'
@@ -60,32 +61,6 @@ function sortEntries(entries, sortBy, sortDir) {
 
     return sortDir === 'asc' ? diff : -diff
   })
-}
-
-function SortHeader({ label, column, sortBy, sortDir, onSort, className }) {
-  const active = sortBy === column
-
-  return (
-    <th
-      className={className}
-      aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className={
-          active
-            ? 'flex items-center gap-1.5 text-xs font-semibold tracking-widest text-brand-gold uppercase'
-            : 'flex items-center gap-1.5 text-xs font-semibold tracking-widest text-white/40 uppercase transition-colors hover:text-white'
-        }
-      >
-        {label}
-        <span className={active ? 'text-brand-gold' : 'text-white/20'}>
-          {active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-        </span>
-      </button>
-    </th>
-  )
 }
 
 function UserFilmList() {
