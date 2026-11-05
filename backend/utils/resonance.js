@@ -12,15 +12,15 @@ const crypto = require("crypto");
 // How much each factor counts. They add up to 1.
 const WEIGHTS = {
     // The films both have rated, and how alike their ratings are.
-    movies: 0.5,
+    movies: 0.7,
     // How alike they rate each genre.
-    genreRating: 0.25,
+    genreRating: 0.2,
     // How much of what they've rated is in the same genres...
-    genreOverlap: 0.2,
+    genreOverlap: 0.1,
     // ...from the same decades...
-    year: 0.025,
+    year: 0,
     // ...and with the same US age ratings.
-    ageRating: 0.025,
+    ageRating: 0,
 };
 
 // The furthest apart two ratings can be (5 - 0.5). Ratings this far apart,
