@@ -16,7 +16,7 @@ const LUCK = {
     activeDays: 30,
     // Active players, from the richest active player to the poorest, in a
     // straight line by rank between them.
-    richestRtp: 1.0,
+    richestRtp: 0.985,
     poorestRtp: 1.05,
     // The only active player.
     soloRtp: 1.03,
