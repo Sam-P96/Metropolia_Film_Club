@@ -2,8 +2,9 @@ const mongoose = require("mongoose");
 const FilmLog = require("../models/filmLogModel");
 const Follow = require("../models/followModel");
 const Resonance = require("../models/resonanceModel");
+const Review = require("../models/reviewModel");
 const User = require("../models/userModel");
-const { MIN_RATED, SUGGEST_FROM, SCORING_VERSION, tasteOf, resonanceBetween, suggestionCount } = require("./resonance");
+const { MIN_RATED, SUGGEST_FROM, SCORING_VERSION, filmGap, filmSimilarity, tasteOf, resonanceBetween, suggestionCount } = require("./resonance");
 const { RESONANCE_TIERS } = require("../../shared/resonance.js");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
 
@@ -275,6 +276,62 @@ async function soulMapFor(userId) {
     );
 }
 
+// The page comparing `userId`'s ratings with `otherId`'s (/resonance/:userId,
+// from the score on their Resonance card): the match, as the card has it
+// (matchView), each one's average rating (`averages`: { mine, theirs }),
+// and every film both have rated, A to Z, each
+// { tmdbId, title, year, posterPath, mine, theirs, trueDifference,
+// similarity }. Mine and theirs are { rating, reviewId }, reviewId null
+// when there's no written review. `trueDifference` is how far apart the
+// two ratings are as Resonance counts them, in stars: each against that
+// member's average, but no gap for the same top or bottom rating
+// (utils/resonance.js filmGap). `similarity` is how alike that makes them,
+// 0 to 100: the film's part in the Movies factor. Only for a match
+// `userId` may see (visibleMatches), so it shows nothing their Resonance
+// page wouldn't; null otherwise. The score is from the last sweep, the
+// films and ratings as they are now.
+async function comparisonWith(userId, otherId) {
+    const matches = await visibleMatches(userId, await standingOf(userId));
+    const match = matches.find((candidate) => String(candidate.other._id) === String(otherId));
+    if (!match) return null;
+
+    const me = toObjectId(userId);
+    const them = match.other._id;
+    const [mine, theirs] = await Promise.all([
+        FilmLog.find({ user: me, ...RATED }).select("tmdbId title year posterPath rating").lean(),
+        FilmLog.find({ user: them, ...RATED }).select("tmdbId rating").lean(),
+    ]);
+
+    // All their rated films, not just the shared ones, make each average.
+    const myTaste = tasteOf(mine);
+    const theirTaste = tasteOf(theirs);
+    const shared = [...myTaste.byFilm.values()].filter((log) => theirTaste.byFilm.has(log.tmdbId));
+
+    const reviews = await Review.find({ user: { $in: [me, them] }, tmdbId: { $in: shared.map((log) => log.tmdbId) } })
+        .select("user tmdbId")
+        .lean();
+    const reviewIds = new Map(reviews.map((review) => [`${review.user}:${review.tmdbId}`, review._id]));
+    const reviewOf = (user, tmdbId) => reviewIds.get(`${user}:${tmdbId}`) ?? null;
+
+    const films = shared
+        .map((log) => {
+            const their = theirTaste.byFilm.get(log.tmdbId);
+            return {
+                tmdbId: log.tmdbId,
+                title: log.title,
+                year: log.year ?? null,
+                posterPath: log.posterPath ?? null,
+                mine: { rating: log.rating, reviewId: reviewOf(me, log.tmdbId) },
+                theirs: { rating: their.rating, reviewId: reviewOf(them, log.tmdbId) },
+                trueDifference: filmGap(log, their),
+                similarity: Math.round(filmSimilarity(log, their) * 100),
+            };
+        })
+        .sort((x, y) => x.title.localeCompare(y.title));
+
+    return { match: matchView(match), averages: { mine: myTaste.average, theirs: theirTaste.average }, films };
+}
+
 // For the GDPR download: their stored matches with the members they may
 // see, whatever their own settings and number of ratings.
 async function resonanceOf(userId) {
@@ -375,6 +432,7 @@ module.exports = {
     suggestionsFor,
     rankingFor,
     soulMapFor,
+    comparisonWith,
     resonanceOf,
     everyonesResonance,
     forgetResonance,

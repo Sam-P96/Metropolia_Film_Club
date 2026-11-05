@@ -41,6 +41,7 @@ import DoubleOrNothing from "./pages/DoubleOrNothing";
 import SlotMachine from "./pages/SlotMachine";
 import Wallet from "./pages/Wallet";
 import Resonance from "./pages/Resonance";
+import ResonanceCompare from "./pages/ResonanceCompare";
 import SecretResonance from "./pages/SecretResonance";
 import StealAndDefend from "./pages/StealAndDefend";
 import StealHub from "./pages/StealHub";
@@ -112,6 +113,11 @@ function App() {
               home page's Resonance slide, your profile and Members. */}
           <Route path="/resonance" element={
             isAuthenticated ? (<Resonance />) : (<Navigate to="/login" state={{ from: '/resonance' }} />)
+          } />
+          {/* Every film you and one member have both rated, side by side:
+              the score on their Resonance card links here. */}
+          <Route path="/resonance/:userId" element={
+            isAuthenticated ? (<ResonanceCompare />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/users/:userId" element={<Profile />} />
           <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />

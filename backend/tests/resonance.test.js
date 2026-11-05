@@ -13,6 +13,8 @@ const {
     WEIGHTS,
     SCORING_VERSION,
     similarity,
+    filmGap,
+    filmSimilarity,
     shares,
     overlap,
     tasteOf,
@@ -85,6 +87,24 @@ describe("Resonance scoring", () => {
         close(genreRatingFactor(a, b), 1);
         assert.equal(resonanceBetween(a, b).movies, 100);
         assert.equal(resonanceBetween(a, b).genre, 100);
+    });
+
+    test("the same top or bottom rating is no gap, however generous or harsh the two usually are", () => {
+        // Averages 3.125 and 2.375: three quarters of a star apart.
+        const a = tasteOf([film(1, 5), film(2, 0.5), film(3, 4), film(4, 3)]);
+        const b = tasteOf([film(1, 5), film(2, 0.5), film(3, 1), film(4, 3)]);
+        const gap = (tmdbId) => filmGap(a.byFilm.get(tmdbId), b.byFilm.get(tmdbId));
+
+        assert.equal(gap(1), 0);
+        assert.equal(gap(2), 0);
+        assert.equal(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)), 1);
+        close(gap(3), 2.25);
+        // The same rating mid-scale still means more from the harsher one.
+        close(gap(4), 0.75);
+        close(filmSimilarity(a.byFilm.get(4), b.byFilm.get(4)), similarity(0, 0.75));
+
+        // And the Movies factor counts them that way (4 shared films: 40%).
+        close(moviesFactor(a, b).factor, ((1 + 1 + similarity(0, 2.25) + similarity(0, 0.75)) / 4) * 0.4);
     });
 
     test("opposite tastes score low on the movies factor", () => {
@@ -597,6 +617,78 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         const running = runSweep();
         assert.equal(runSweep(), running);
         assert.equal((await running).pairs, 3);
+    });
+
+    test("comparing ratings: every film both have rated, with both ratings and reviews, only for a match they may see", async () => {
+        await clear();
+        const Review = require("../models/reviewModel");
+        await Review.deleteMany({});
+        // Films 1 to 20, rated 1 to 5 in turn.
+        const me = await member(20, {}, (index) => 1 + (index % 9) * 0.5);
+        // Films 11 to 30, all at 3 but film 18 at 5, so 11 to 20 are shared,
+        // and both rated 18 at 5. Film 5 watched but not rated, and film 6
+        // only planned: neither counts.
+        const other = await member(0);
+        await FilmLog.insertMany([
+            ...films(20, (index) => (index === 7 ? 5 : 3), undefined, 11).map((entry) => ({ ...entry, user: other._id, status: "completed" })),
+            { ...film(5, null), user: other._id, status: "completed" },
+            { ...film(6, null), user: other._id, status: "plan_to_watch" },
+        ]);
+        await pair(me, other, 90);
+        const review = (user, tmdbId) => Review.create({ user: user._id, tmdbId, filmTitle: `Film ${tmdbId}`, text: "Seen it." });
+        const [mine, theirs] = [await review(me, 12), await review(other, 12)];
+        // Mine of a film they haven't rated isn't in it.
+        await review(me, 1);
+
+        const { status, body } = await call(me, `/resonance/with/${other._id}`);
+        assert.equal(status, 200);
+        assert.equal(body.match.user.username, other.username);
+        assert.equal(body.match.percent, 90);
+        assert.deepEqual(body.films.map((entry) => entry.tmdbId), [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+        // Each one's average, of all their rated films (mine 56.5 / 20,
+        // theirs 62 / 20), and each film's true difference: the ratings
+        // against those, and how alike that makes them, as the Movies
+        // factor counts it.
+        close(body.averages.mine, 2.825);
+        close(body.averages.theirs, 3.1);
+        const twelve = body.films.find((entry) => entry.tmdbId === 12);
+        close(twelve.trueDifference, Math.abs(2 - 2.825 - (3 - 3.1)));
+        assert.equal(twelve.similarity, Math.round(similarity(2 - 2.825, 3 - 3.1) * 100));
+        assert.deepEqual(twelve, {
+            tmdbId: 12,
+            title: "Film 12",
+            year: 2011,
+            posterPath: null,
+            mine: { rating: 2, reviewId: String(mine._id) },
+            theirs: { rating: 3, reviewId: String(theirs._id) },
+            trueDifference: twelve.trueDifference,
+            similarity: twelve.similarity,
+        });
+        assert.deepEqual(body.films.find((entry) => entry.tmdbId === 13).theirs, { rating: 3, reviewId: null });
+        // Both at 5: no gap, though their averages are apart.
+        const eighteen = body.films.find((entry) => entry.tmdbId === 18);
+        assert.deepEqual([eighteen.mine.rating, eighteen.theirs.rating, eighteen.trueDifference, eighteen.similarity], [5, 5, 0, 100]);
+
+        // From their side, mine and theirs swap.
+        const back = (await call(other, `/resonance/with/${me._id}`)).body;
+        assert.deepEqual(back.films.find((entry) => entry.tmdbId === 12).mine, { rating: 3, reviewId: String(theirs._id) });
+        assert.equal(back.films.find((entry) => entry.tmdbId === 12).similarity, twelve.similarity);
+
+        // Only where the Resonance page would show them.
+        await User.updateOne({ _id: other._id }, { privacy: "friends" });
+        assert.equal((await call(me, `/resonance/with/${other._id}`)).status, 404);
+        await befriend(me, other);
+        assert.equal((await call(me, `/resonance/with/${other._id}`)).status, 200);
+        await User.updateOne({ _id: other._id }, { privacy: "private" });
+        const hidden = await call(me, `/resonance/with/${other._id}`);
+        assert.equal(hidden.status, 404);
+        assert.equal(hidden.body.error, "You have no Resonance with this member.");
+
+        const stranger = await member();
+        assert.equal((await call(me, `/resonance/with/${stranger._id}`)).status, 404);
+        assert.equal((await call(me, `/resonance/with/${me._id}`)).status, 404);
+        assert.equal((await call(me, "/resonance/with/nonsense")).status, 404);
+        assert.equal((await call(null, `/resonance/with/${stranger._id}`)).status, 401);
     });
 
     test("their matches are in their data download, and go with their account", async () => {

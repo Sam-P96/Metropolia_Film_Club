@@ -23,6 +23,20 @@ export function getResonanceRanking(side, offset = 0, search = '') {
   return api(`/resonance/ranking?${params}`)
 }
 
+// The comparison page: the logged-in member's match with `userId`, as the
+// card has it, each one's average rating, and every film both have rated,
+// A to Z: { match, averages: { mine, theirs }, films }, each film
+// { tmdbId, title, year, posterPath, mine, theirs, trueDifference,
+// similarity }, where mine and theirs are { rating, reviewId (or null) },
+// trueDifference is how far apart the ratings are as Resonance counts them
+// (each against its rater's average, but none for the same top or bottom
+// rating), in stars, and similarity how alike that makes them, 0 to 100.
+// Fails with a 404 when they have no Resonance with that member they may
+// see.
+export function getResonanceWith(userId) {
+  return api(`/resonance/with/${userId}`)
+}
+
 // /SECRETresonance, moderators and admins only: every pair, a page at a
 // time. `min` is '20' or 'any'; `member` an id to see only theirs, or ''.
 // Resolves to { members, pairs, total, hasMore, next, updatedAt }, where
