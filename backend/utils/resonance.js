@@ -25,7 +25,7 @@ const WEIGHTS = {
 
 // The furthest apart two ratings can be (5 - 0.5). Ratings this far apart,
 // or further once adjusted, are 0% alike.
-const RATING_SPREAD = 4.5;
+const RATING_SPREAD = 3;
 
 // Shared films for the movies factor to count in full. Fewer scale it
 // down: 8 shared films count for 80%.
