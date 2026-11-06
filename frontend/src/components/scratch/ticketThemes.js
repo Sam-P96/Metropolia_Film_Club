@@ -8,7 +8,8 @@ import { DEFAULT_TICKET_TYPE } from '../../../../shared/scratch/tickets.js'
 // type's look from the one element its type is set on. The rest is what CSS
 // variables can't reach:
 //   star       the star icon's SVG colours (gradient top to bottom, outline)
-//              and the glow it pops with, plus a drop-shadow it always has
+//              and the glow it pops with, plus an edge glow it always has
+//              (`edgeGlow`: drawn inside the SVG, TileFace.jsx StarIcon)
 //   liveStars  revealed stars glow in a slow pulse and drift: with the
 //              phone's tilt, or floating gently on a computer
 //              (hooks/useStarMotion.js)
@@ -27,7 +28,7 @@ const GOLD_STAR = {
   lo: '#C98A12',
   edge: '#8A5A06',
   glow: '#FABC3F',
-  shadow: null,
+  edgeGlow: null,
 }
 
 // `colour` at `percent`% strength, mixed exactly the way Tailwind mixes
@@ -150,7 +151,9 @@ export const TICKET_THEMES = {
       lo: '#A3112C',
       edge: '#5E0716',
       glow: '#F23B55',
-      shadow: 'drop-shadow(0 0 3px rgb(242 59 85 / 0.75))',
+      // A soft red glow round the edge: `blur` in the icon's own units
+      // (it's 24 across), about 1.5px on a card's tile.
+      edgeGlow: { color: '#F23B55', opacity: 0.75, blur: 0.8 },
     },
     liveStars: true,
     bodyClass: 'ticket-gold',

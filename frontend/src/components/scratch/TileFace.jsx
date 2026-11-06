@@ -19,16 +19,27 @@ function useGradientId() {
 }
 
 // A star. `colors` is a theme's `star` (ticketThemes.js): gold unless told.
+// Its edge glow (VIP's red) is an SVG filter inside the icon, painted with
+// the icon itself. (It was a CSS filter on the <svg>: inside a VIP card's
+// moving, glowing star, inside a masked, blurred, 3D-flipped ticket, Chrome
+// on some computers sometimes stopped drawing the star at all.)
 export function StarIcon({ className, colors = TICKET_THEMES.standard.star }) {
   const id = useGradientId()
+  const glowId = `${id}-glow`
+  const glow = colors.edgeGlow
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" style={colors.shadow ? { filter: colors.shadow } : undefined}>
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" overflow="visible">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={colors.hi} />
           <stop offset="0.55" stopColor={colors.mid} />
           <stop offset="1" stopColor={colors.lo} />
         </linearGradient>
+        {glow && (
+          <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="0" stdDeviation={glow.blur} floodColor={glow.color} floodOpacity={glow.opacity} />
+          </filter>
+        )}
       </defs>
       <path
         d="M12 2.6l2.84 5.76 6.36.92-4.6 4.48 1.08 6.33L12 17.1l-5.68 2.99 1.08-6.33-4.6-4.48 6.36-.92z"
@@ -36,6 +47,7 @@ export function StarIcon({ className, colors = TICKET_THEMES.standard.star }) {
         stroke={colors.edge}
         strokeWidth="0.6"
         strokeLinejoin="round"
+        filter={glow ? `url(#${glowId})` : undefined}
       />
     </svg>
   )
@@ -96,8 +108,8 @@ const FLOAT_PX = 2.5
 const FLOAT_S = 1.6
 const FLOAT_STAGGER_S = 0.37
 
-// The star's glow as it's uncovered: a burst that settles. Gold stars keep a
-// soft glow; a live (VIP) star settles to nothing here, its pulse taking over.
+// A gold star's glow as it's uncovered: a burst that settles to a soft glow.
+// (A live VIP star pops with a flash of its halo instead: LiveStar.)
 const burst = (color, settle) => [`drop-shadow(0 0 0px ${color})`, `drop-shadow(0 0 14px ${color})`, `drop-shadow(0 0 ${settle}px ${color})`]
 
 // A VIP star, once uncovered (`glowing`): a soft red glow behind it pulsing
@@ -105,12 +117,20 @@ const burst = (color, settle) => [`drop-shadow(0 0 0px ${color})`, `drop-shadow(
 // floating (`starMotion`). Each star follows the tilt a little more or
 // less, by its place on the card, for a touch of depth. Everything moves
 // inside the tile, a few pixels at most, so nothing spills out.
+//
+// Nothing in here uses a CSS filter: only movement and fading, which every
+// browser draws reliably. The pop as it's uncovered is a flash of glow
+// behind it (growing and fading), not a drop-shadow, and its edge glow is
+// inside the icon (StarIcon). With filters on these moving layers, inside
+// the ticket's mask, blur and 3D flip, Chrome on some computers sometimes
+// stopped drawing the star, mostly while it floated (computers only).
 function LiveStar({ index, glowing, starMotion, colors }) {
   const depth = 0.8 + ((index * 3) % 5) * 0.1
   const x = useTransform(starMotion.x, (value) => value * depth)
   const y = useTransform(starMotion.y, (value) => value * depth)
   const rotate = useTransform(starMotion.rotate, (value) => value * depth)
   const floating = glowing && starMotion.mode === 'float'
+  const halo = { background: `radial-gradient(circle, ${colors.glow} 0%, transparent 62%)` }
 
   return (
     <motion.span
@@ -124,26 +144,24 @@ function LiveStar({ index, glowing, starMotion, colors }) {
       }
     >
       <motion.span className="relative block size-full" style={glowing ? { x, y, rotate } : undefined}>
-        <span
-          aria-hidden="true"
-          className={`absolute -inset-[12%] rounded-full ${glowing ? 'star-pulse' : 'opacity-0'}`}
-          style={{ background: `radial-gradient(circle, ${colors.glow} 0%, transparent 62%)` }}
-        />
+        <span aria-hidden="true" className={`absolute -inset-[12%] rounded-full ${glowing ? 'star-pulse' : 'opacity-0'}`} style={halo} />
         <motion.span
-          className="relative block size-full"
+          aria-hidden="true"
+          className="absolute -inset-[18%] rounded-full"
+          style={halo}
           initial={false}
-          animate={glowing ? { filter: burst(colors.glow, 0) } : { filter: `drop-shadow(0 0 0px ${colors.glow})` }}
+          animate={glowing ? { opacity: [0, 1, 0], scale: [0.6, 1.1, 1.25] } : { opacity: 0, scale: 0.6 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
-        >
-          <StarIcon className="size-full" colors={colors} />
-        </motion.span>
+        />
+        <StarIcon className="relative size-full" colors={colors} />
       </motion.span>
     </motion.span>
   )
 }
 
 export default function TileFace({ content, uncovered, dim = false, missed = false, type, index = 0, starMotion = null }) {
-  const settled = { opacity: dim ? 0.38 : 1, scale: 1, rotate: 0, filter: dim ? 'grayscale(0.4)' : 'grayscale(0)' }
+  // Greyed out only when dim: a revealed tile carries no filter at all.
+  const settled = { opacity: dim ? 0.38 : 1, scale: 1, rotate: 0, ...(dim ? { filter: 'grayscale(0.4)' } : {}) }
 
   if (content === 'star') {
     const theme = ticketTheme(type)
