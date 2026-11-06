@@ -670,6 +670,8 @@ async function resolveAttack(attackId, { fizzleRoll = null } = {}) {
         after(() => noteStealResult(done));
         if (crit) after(() => noteStealCrit(done));
         if (outcome === "success") after(() => checkSteal(attack.attacker, attack.victim));
+        // "Convince X to steal from Y" (Loan Shark jobs).
+        if (outcome === "success") after(() => require("../loanShark").onStealSuccess(attack.attacker, attack.victim));
         if (amounts.debt > 0) after(() => checkDebt(attack.attacker));
         after(async () => {
             announce(attack.attacker, { kind: "resolved", attackId: String(attack._id) });

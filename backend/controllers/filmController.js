@@ -13,6 +13,7 @@ const { parseOffset } = require("../utils/paging");
 const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
 const { dislikeRefusal } = require("../utils/pvp");
 const { banRefusal } = require("../utils/bans");
+const { onReviewPosted, beforeDislike } = require("../utils/loanShark");
 const Report = require("../models/reportModel");
 const { hasRole } = require("../middleware/auth");
 
@@ -409,11 +410,16 @@ async function setReviewVote(req, res) {
         return res.status(403).json({ error: refusal });
     }
 
+    // A Loan Shark job may be waiting on exactly this dislike.
+    const finishJob = vote === "dislike" ? await beforeDislike(review._id, req.user._id) : null;
+
     const result = await Review.castVote(review._id, req.user, vote);
 
     if (!result) {
         return res.status(404).json({ error: "Review not found." });
     }
+
+    if (finishJob) await finishJob();
 
     // Into the author's Feed, and everyone's if it's now trending.
     await noteReviewVote(review, req.user, vote);
@@ -722,7 +728,11 @@ async function saveReview(req, res) {
             { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
         ).lean();
 
-        if (isNew) await noteNewReview(review);
+        if (isNew) {
+            await noteNewReview(review);
+            // "Convince X to post a movie review" (Loan Shark jobs).
+            await onReviewPosted(req.user._id).catch((error) => console.error("Loan Shark review job:", error.message));
+        }
     } else {
         // No text left: the review goes, with its comments.
         await removeReview({ user: req.user._id, tmdbId });

@@ -18,6 +18,7 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES,
+    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed",
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -348,6 +349,56 @@ function forgetStealAttacks(attackIds) {
     return Notification.deleteMany({ stealAttack: { $in: attackIds } });
 }
 
+// Loan Shark (utils/loanShark/). Kaveri Heiwajima took `amount` of their
+// daily PP for King Loan Shark, with line `variant`
+// (shared/loanShark/lines.js), `left` still owed. `cleared`: that was the
+// last of it, told with its own line.
+function noteLoanCollector(userId, amount, left, variant, cleared) {
+    return Notification.create({
+        recipient: userId,
+        type: "loanCollector",
+        amount,
+        variant: cleared ? null : variant,
+        loan: { left, cleared },
+    });
+}
+
+// They missed a shark payment, and the rate is now `rate`%.
+function noteLoanMissed(userId, rate, left) {
+    return Notification.create({ recipient: userId, type: "loanMissed", loan: { rate, left } });
+}
+
+// `doerId` did one of their jobs (`job`: review, dislike or steal), taking
+// `amount` off their shark debt, `left` still owed.
+function noteLoanJob(userId, doerId, job, amount, left) {
+    return Notification.create({ recipient: userId, type: "loanJob", amount, actors: [doerId], loan: { job, left } });
+}
+
+// `amount` went to `lenderId` from the borrower: out of their 12:00 payout
+// (`auto`), or paid off early. `left` still owed to them.
+function noteLoanRepay(borrowerId, lenderId, amount, left, auto) {
+    return Notification.create({ recipient: borrowerId, type: "loanRepay", amount, actors: [lenderId], loan: { left, auto } });
+}
+
+// `borrowerId` paid the lender back: `amount` P-PP to them after `tax`
+// income tax, `left` still owed.
+function noteLoanRepaid(lenderId, borrowerId, amount, tax, left, auto) {
+    return Notification.create({ recipient: lenderId, type: "loanRepaid", amount, actors: [borrowerId], loan: { tax, left, auto } });
+}
+
+// `borrowerId` borrowed `amount` PP from one of the lender's offers.
+function noteLoanBorrowed(lenderId, borrowerId, amount) {
+    return Notification.create({ recipient: lenderId, type: "loanBorrowed", amount, actors: [borrowerId] });
+}
+
+// A Loan Shark job's dislike came off again, so it leaves the review
+// author's dislike notification too.
+async function forgetDislike(reviewId, voterId) {
+    const group = { review: reviewId, type: "dislike" };
+    await Notification.updateMany(group, { $pull: { actors: voterId } });
+    await Notification.deleteMany({ ...group, actors: { $size: 0 } });
+}
+
 // Farkle between members (utils/farkle.js). A challenge waiting on someone
 // is pinned: it sits at the top of their Notifications until they answer.
 // Each new one for a game takes the place of the last, so there's only
@@ -474,4 +525,11 @@ module.exports = {
     noteFarkleOver,
     noteFarkleResult,
     forgetFarkleMatch,
+    noteLoanCollector,
+    noteLoanMissed,
+    noteLoanJob,
+    noteLoanRepay,
+    noteLoanRepaid,
+    noteLoanBorrowed,
+    forgetDislike,
 };

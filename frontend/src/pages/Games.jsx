@@ -18,6 +18,7 @@ import { SLOTS } from '../../../shared/slots/config.js'
 import StealLogo from '../components/steal/StealLogo'
 import { getStealStatus } from '../services/steal'
 import PokerLogo from '../components/poker/PokerLogo'
+import SharkBadge from '../components/loanShark/SharkBadge'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -30,7 +31,7 @@ const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
 const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Farkle, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
+// Loan Shark first, then Farkle, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
 // Defend (whose picture says "Require PvP" until its PvP is on) and Kino
 // Poker. Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
@@ -55,6 +56,18 @@ export default function Games() {
         </p>
 
         <ul className="mt-8 grid auto-rows-fr gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <li>
+            <Link to="/games/loan-shark" className={CARD}>
+              <SharkBadge />
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Loan <span className="text-brand-gold">Shark</span>
+              </h2>
+              <p className="text-white/70">
+                Borrow P-PP from King Loan Shark, or lend your PP to other members for interest. Pay on time, or the bunny comes.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Visit Loan Shark →</span>
+            </Link>
+          </li>
           <li>
             <Link to="/games/farkle" className={CARD}>
               <div className="flex gap-2" aria-hidden="true">

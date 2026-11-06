@@ -88,7 +88,7 @@ export const POKER = {
   // frontend/src/components/poker/botPictures.js). The emoji shows if a
   // picture is ever missing. How they play is backend/games/poker/bots.js.
   bots: {
-    shark: { name: 'King Loan Shark', pictures: ['onsenShark'], placeholder: '🦈' },
+    shark: { name: 'King Loan Shark', pictures: ['kingLoanShark'], placeholder: '🦈' },
     kaveri: { name: 'Kaveri', pictures: ['kaveriEyes1', 'kaveriEyes2', 'kaveriBaseForm'], placeholder: '🐰' },
     maverick: { name: 'Bret Maverick', pictures: ['bret'], placeholder: '🎩' },
   },

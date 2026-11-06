@@ -83,6 +83,23 @@ const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkle
 //                  (`stealFlag`, with the members in `actors`)
 const STEAL_TYPES = ["stealAttacked", "stealResult", "stealCrit", "stealFlag"];
 
+// Loan Shark (utils/loanShark/), with the numbers in `amount` and `loan`.
+// No review.
+//   loanCollector  Kaveri Heiwajima took `amount` of their daily PP for King
+//                  Loan Shark; `loan.left` still owed (`loan.cleared`: that
+//                  was the last of it). `variant` is the line it's told with
+//                  (shared/loanShark/lines.js).
+//   loanMissed     they missed a shark payment: the rate is now `loan.rate`%
+//   loanJob        a job was done (`actors[0]` did it; `loan.job` which
+//                  kind): `amount` off their shark debt, `loan.left` left
+//   loanRepay      `amount` of their payout went to `actors[0]`, whom they
+//                  owe (`loan.auto`), or they paid it all off early;
+//                  `loan.left` still owed to them
+//   loanRepaid     `actors[0]` paid them back: `amount` P-PP to them, after
+//                  `loan.tax` income tax; `loan.left` still owed
+//   loanBorrowed   `actors[0]` borrowed `amount` PP from their offer
+const LOAN_TYPES = ["loanCollector", "loanMissed", "loanJob", "loanRepay", "loanRepaid", "loanBorrowed"];
+
 // The game ones: unread, they make the bell blink red rather than just
 // glow purple (controllers/feedController.js). farkleTurn isn't shown any
 // more, so it never counts as unread at all.
@@ -90,13 +107,14 @@ const GAME_TYPES = [
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
     "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin",
     "stealAttacked", "stealResult", "stealCrit",
+    "loanCollector", "loanMissed",
 ];
 
 const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES, ...LOAN_TYPES],
         required: true,
     },
     review: {
@@ -104,7 +122,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES, ...LOAN_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -118,6 +136,15 @@ const notificationSchema = new Schema({
     poker: {
         hands: {type: Number},
         best: {type: String},
+    },
+    // Loan Shark: what's left owed, the rate, the income tax, which job.
+    loan: {
+        left: {type: Number},
+        rate: {type: Number},
+        tax: {type: Number},
+        job: {type: String},
+        cleared: {type: Boolean},
+        auto: {type: Boolean},
     },
     // Box Office Scratch: the tier won, by its key in shared/scratch/config.js,
     // and the ticket type it was won on (only set on scratchWin and
@@ -159,5 +186,6 @@ const Notification = mongoose.model("Notification", notificationSchema);
 Notification.FARKLE_TYPES = FARKLE_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
+Notification.LOAN_TYPES = LOAN_TYPES;
 
 module.exports = Notification;
