@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import ReviewCard from "./ReviewCard";
-import ReviewMarquee from "./ReviewMarquee";
+import ReviewMarquee, { ReviewMarqueeSkeleton } from "./ReviewMarquee";
 import MarqueeArrows from "./MarqueeArrows";
 import PillToggle from "../PillToggle";
 
@@ -12,7 +12,10 @@ const SORTS = [
 ];
 
 // Pass sort and onSortChange to show a Recent / Top / Controversial toggle
-// beside the title.
+// beside the title, or `sorts` for other options (useReviewSorts adds
+// Shuffle and Recommend). With `loading`, a marquee keeps its size: still
+// cards where it'll be until its first reviews are in, then the reviews it
+// has, dimmed, until the next ones are.
 function ReviewSection({
   title,
   reviews,
@@ -23,9 +26,12 @@ function ReviewSection({
   emptyMessage = "No reviews here.",
   sort,
   onSortChange,
+  sorts = SORTS,
+  loading = false,
 }) {
   const marqueeRef = useRef(null);
-  const showMarquee = reviews.length > 0 && layout === "marquee";
+  const marquee = layout === "marquee";
+  const showMarquee = marquee && (reviews.length > 0 || loading);
 
   return (
     <section className="relative border-t border-white/10 py-20 text-white">
@@ -47,17 +53,24 @@ function ReviewSection({
           </h2>
 
           {onSortChange && (
-            <PillToggle options={SORTS} value={sort} onChange={onSortChange} label="Sort reviews" />
+            <PillToggle options={sorts} value={sort} onChange={onSortChange} label="Sort reviews" />
           )}
         </div>
 
-        {reviews.length === 0 && (
+        {reviews.length === 0 && !(marquee && loading) && (
           <div className="mx-auto max-w-6xl px-8 pt-8">
-            <p className="text-white/60">{emptyMessage}</p>
+            <p className="text-white/60">{loading ? "Loading reviews…" : emptyMessage}</p>
           </div>
         )}
 
-        {showMarquee && <ReviewMarquee ref={marqueeRef} reviews={reviews} />}
+        {showMarquee &&
+          (reviews.length === 0 ? (
+            <ReviewMarqueeSkeleton />
+          ) : (
+            <div aria-busy={loading} className={`transition-opacity duration-300 ${loading ? "opacity-50" : ""}`}>
+              <ReviewMarquee ref={marqueeRef} reviews={reviews} />
+            </div>
+          ))}
 
         {reviews.length > 0 && layout === "grid" && (
           <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-8 pt-8 lg:grid-cols-2">

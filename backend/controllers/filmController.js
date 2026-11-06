@@ -8,6 +8,7 @@ const { getMovie, getMovies, usCertification } = require("../services/tmdbServic
 const { AUTHOR_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { levelOf, rankByLevel, withAuthorStanding } = require("../utils/level");
 const { rankCritics } = require("../utils/critics");
+const { recommendedReviewIds } = require("../utils/recommend");
 const { parseOffset } = require("../utils/paging");
 const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
 const { dislikeRefusal } = require("../utils/pvp");
@@ -303,24 +304,43 @@ const REVIEW_SORTS = {
     controversial: { dislikeCount: -1, createdAt: -1 },
 };
 
+// The reviews with `ids`, their authors attached, in the order of `ids`.
+async function reviewsInOrder(ids) {
+    const found = await Review.find({ _id: { $in: ids } }).populate("user", AUTHOR_FIELDS).lean();
+    const byId = new Map(found.map((review) => [String(review._id), review]));
+    return ids.map((id) => byId.get(String(id))).filter(Boolean);
+}
+
 // Reviews from anyone, for the homepage and reviews page: the newest, or with
 // ?sort=top the most liked, or ?sort=controversial the most disliked (newest
 // first among equals). Controversial leaves out members with PVP off, whose
-// dislikes are hidden.
+// dislikes are hidden. ?sort=shuffle is a random handful from all of them,
+// different each time, and ?sort=recommend (logged-in members only) a random
+// handful leaning towards ones they'd like (utils/recommend.js).
 async function getReviews(req, res) {
     const limit = parseLimit(req.query.limit, 15, 50);
-    const controversial = req.query.sort === "controversial";
-    const order = REVIEW_SORTS[req.query.sort] ?? REVIEW_SORTS.recent;
+    const { sort } = req.query;
+    let reviews;
 
-    const filter = controversial
-        ? { user: { $in: await User.find({ pvp: true }).distinct("_id") } }
-        : {};
+    if (sort === "shuffle") {
+        const sampled = await Review.aggregate([{ $sample: { size: limit } }, { $project: { _id: 1 } }]);
+        reviews = await reviewsInOrder(sampled.map((review) => review._id));
+    } else if (sort === "recommend") {
+        if (!req.user) {
+            return res.status(401).json({ error: "Log in to see reviews picked for you." });
+        }
+        reviews = await reviewsInOrder(await recommendedReviewIds(req.user._id, limit));
+    } else {
+        const filter = sort === "controversial"
+            ? { user: { $in: await User.find({ pvp: true }).distinct("_id") } }
+            : {};
 
-    const reviews = await Review.find(filter)
-        .sort(order)
-        .limit(limit)
-        .populate("user", AUTHOR_FIELDS)
-        .lean();
+        reviews = await Review.find(filter)
+            .sort(Object.hasOwn(REVIEW_SORTS, sort) ? REVIEW_SORTS[sort] : REVIEW_SORTS.recent)
+            .limit(limit)
+            .populate("user", AUTHOR_FIELDS)
+            .lean();
+    }
 
     const shown = reviews.filter((review) => review.user).map(reviewWithUser);
     res.json(await Review.withMyVote(await withAuthorStanding(shown), req.user));

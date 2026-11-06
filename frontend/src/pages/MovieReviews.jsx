@@ -62,7 +62,8 @@ function MovieReviews() {
         reviews={reviews.reviews}
         sort={reviews.sort}
         onSortChange={reviews.setSort}
-        emptyMessage={reviews.loading ? 'Loading reviews…' : undefined}
+        sorts={reviews.options}
+        loading={reviews.loading}
         layout="marquee"
         backgroundUrl={reviewsBg}
         linkTo="/films?mode=browse&reviewed=1&sort=release_date.desc"

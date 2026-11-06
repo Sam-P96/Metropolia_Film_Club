@@ -332,6 +332,15 @@ async function comparisonWith(userId, otherId) {
     return { match: matchView(match), averages: { mine: myTaste.average, theirs: theirTaste.average }, films };
 }
 
+// How alike `userId`'s taste is to each member they may see a Resonance
+// with (visibleMatches): a Map of member id to percent, empty when they
+// can't use Resonance. For picking reviews they'd like (utils/recommend.js);
+// the numbers are never shown there.
+async function resonancePercents(userId) {
+    const matches = await visibleMatches(userId, await standingOf(userId));
+    return new Map(matches.map((match) => [String(match.other._id), match.pair.percent]));
+}
+
 // For the GDPR download: their stored matches with the members they may
 // see, whatever their own settings and number of ratings.
 async function resonanceOf(userId) {
@@ -433,6 +442,7 @@ module.exports = {
     rankingFor,
     soulMapFor,
     comparisonWith,
+    resonancePercents,
     resonanceOf,
     everyonesResonance,
     forgetResonance,
