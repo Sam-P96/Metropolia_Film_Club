@@ -15,6 +15,7 @@ import DoubleNotice from '../double/DoubleNotice'
 import SlotNotice from '../slots/SlotNotice'
 import StealNotice from '../steal/StealNotice'
 import PokerNotice from '../poker/PokerNotice'
+import LoanNotice from '../loanShark/LoanNotice'
 import { bannerFillStyle, bannerFrameStyle, bannerLayerStyle } from '../../utils/bannerStyle'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
@@ -876,6 +877,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'slotTriple' || item.type === 'slotJackpot') return <SlotNotice item={item} />
   if (item.type.startsWith('steal')) return <StealNotice item={item} />
   if (item.type === 'pokerWin') return <PokerNotice item={item} />
+  if (item.type.startsWith('loan')) return <LoanNotice item={item} light={light} />
   if (item.type.startsWith('farkle')) return <FarkleNotice item={item} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }

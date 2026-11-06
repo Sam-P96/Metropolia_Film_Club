@@ -5,17 +5,11 @@ import ReviewMarquee, { ReviewMarqueeSkeleton } from "./ReviewMarquee";
 import MarqueeArrows from "./MarqueeArrows";
 import PillToggle from "../PillToggle";
 
-const SORTS = [
-  { value: "recent", label: "Recent" },
-  { value: "top", label: "Top" },
-  { value: "controversial", label: "Controversial" },
-];
-
-// Pass sort and onSortChange to show a Recent / Top / Controversial toggle
-// beside the title, or `sorts` for other options (useReviewSorts adds
-// Shuffle and Recommend). With `loading`, a marquee keeps its size: still
-// cards where it'll be until its first reviews are in, then the reviews it
-// has, dimmed, until the next ones are.
+// Pass `sorts` ([{ value, label }]), sort and onSortChange to show a toggle
+// beside the title (useReviewSorts has Featured / Recent / Top /
+// Controversial). With `loading`,
+// a marquee keeps its size: still cards where it'll be until its first
+// reviews are in, then the reviews it has, dimmed, until the next ones are.
 function ReviewSection({
   title,
   reviews,
@@ -26,7 +20,7 @@ function ReviewSection({
   emptyMessage = "No reviews here.",
   sort,
   onSortChange,
-  sorts = SORTS,
+  sorts,
   loading = false,
 }) {
   const marqueeRef = useRef(null);
@@ -52,7 +46,7 @@ function ReviewSection({
             {title}
           </h2>
 
-          {onSortChange && (
+          {sorts && onSortChange && (
             <PillToggle options={sorts} value={sort} onChange={onSortChange} label="Sort reviews" />
           )}
         </div>

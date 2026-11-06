@@ -234,31 +234,27 @@ function helsinkiHour(date = new Date()) {
 // member already at their cap still counts as paid, but isn't told, since
 // they got nothing. Returns how many members got PP.
 //
+// Loan Shark (utils/loanShark/daily.js) goes first, out of the day's PP:
+// what they owe other members and Kaveri Heiwajima's collecting, then the
+// shark's missed-payment check. So members with loans but no reviews (none
+// left) are gone through too, with a daily PP of 0. PP put up in loan
+// offers still counts towards the cap.
+//
 // A member in debt from Steal and Defend (P-PP below 0) has it paid off
-// first, as P-PP; whatever's left of the day's PP comes in as usual.
+// first out of what's left, as P-PP; the rest comes in as usual.
 async function payEveryone(day = helsinkiDay()) {
+    const { membersWithLoans, lockedInOffers } = require("./loanShark/daily");
     const writers = await Review.aggregate([{ $group: { _id: "$user", reviews: { $sum: 1 } } }]);
+    const reviewsOf = new Map(writers.map((row) => [String(row._id), row.reviews]));
+    const members = new Map([...writers.map((row) => row._id), ...(await membersWithLoans())].map((id) => [String(id), id]));
+    const locked = await lockedInOffers();
 
     let paid = 0;
 
-    for (const { _id: userId, reviews } of writers) {
+    for (const [key, userId] of members) {
         try {
-            const result = await changeWallet(
-                userId,
-                (wallet) => {
-                    if (wallet.lastPayoutDay === day) return null;
-                    const daily = dailyPp(reviews);
-                    const toDebt = wallet.ppp < 0 ? Math.min(daily, 0 - wallet.ppp) : 0;
-                    const room = Math.max(0, ppCap(reviews) - wallet.pp);
-                    return { pp: Math.min(daily - toDebt, room), ppp: toDebt, lastPayoutDay: day };
-                },
-                { reason: "dailyPayout" }
-            );
-            const amount = (result?.pp ?? 0) + (result?.ppp ?? 0);
-            if (amount > 0) {
-                paid += 1;
-                await notePayout(userId, amount);
-            }
+            const result = await payMember(userId, day, { reviews: reviewsOf.get(key) ?? 0, locked: locked.get(key) ?? 0 });
+            if (result?.credited > 0) paid += 1;
         } catch (error) {
             // One member's trouble (say, their account was just deleted)
             // mustn't stop everyone else's payout.
@@ -267,6 +263,49 @@ async function payEveryone(day = helsinkiDay()) {
     }
 
     return paid;
+}
+
+// Someone else paid them for `day` in the moment between.
+class AlreadyPaid extends Error {}
+
+// One member's payout for `day` (`reviews`: how many they've written,
+// `locked`: their PP up in loan offers), loans and all, as one
+// transaction where the database can (utils/steal/tx.js). Days are
+// compared as text ("2026-11-06"), so a day already paid, or one paid
+// ahead by an admin's Loan Shark test check, is never paid again. Returns
+// { daily, deducted, credited, loans }, or null if they'd been paid.
+async function payMember(userId, day, { reviews = 0, locked = 0 } = {}) {
+    const { dailyLoans } = require("./loanShark/daily");
+    const { inSession } = require("./steal/tx");
+    const daily = dailyPp(reviews);
+
+    try {
+        return await inSession(async (session, after) => {
+            const user = await User.findById(userId).select("wallet.lastPayoutDay").session(session).lean();
+            if (!user || (user.wallet?.lastPayoutDay ?? "") >= day) return null;
+
+            const loans = await dailyLoans(userId, daily, day, { session, after });
+            const kept = daily - loans.deducted;
+
+            const result = await changeWallet(
+                userId,
+                (wallet) => {
+                    if ((wallet.lastPayoutDay ?? "") >= day) throw new AlreadyPaid();
+                    const toDebt = wallet.ppp < 0 ? Math.min(kept, 0 - wallet.ppp) : 0;
+                    const room = Math.max(0, ppCap(reviews) - wallet.pp - locked);
+                    return { pp: Math.min(kept - toDebt, room), ppp: toDebt, lastPayoutDay: day };
+                },
+                { reason: "dailyPayout", session }
+            );
+
+            const credited = (result?.pp ?? 0) + (result?.ppp ?? 0);
+            if (credited > 0) after(() => notePayout(userId, credited));
+            return { daily, deducted: loans.deducted, credited, loans };
+        });
+    } catch (error) {
+        if (error instanceof AlreadyPaid) return null;
+        throw error;
+    }
 }
 
 // Members who signed up before wallets existed have none saved. Gives each
@@ -293,5 +332,6 @@ module.exports = {
     helsinkiDay,
     helsinkiHour,
     payEveryone,
+    payMember,
     giveEveryoneAWallet,
 };

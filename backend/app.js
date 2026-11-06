@@ -24,6 +24,7 @@ const slotRouter = require("./routes/slotRouter");
 const resonanceRouter = require("./routes/resonanceRouter");
 const stealRouter = require("./routes/stealRouter");
 const pokerRouter = require("./routes/pokerRouter");
+const loanSharkRouter = require("./routes/loanSharkRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -32,6 +33,7 @@ const { startFarkleSweep } = require("./jobs/farkleSweep");
 const { startScratchSweep } = require("./jobs/scratchSweep");
 const { startResonanceSweep } = require("./jobs/resonanceSweep");
 const { startStealSweep } = require("./jobs/stealSweep");
+const { startLoanSweep } = require("./jobs/loanSweep");
 
 const app = express();
 
@@ -96,6 +98,12 @@ connected
     .then(() => startStealSweep())
     .catch((error) => console.error("Couldn't start the Steal and Defend sweep:", error.message));
 
+// Loan Shark: job dislikes coming off again after 48 hours
+// (jobs/loanSweep.js). Its daily work is part of the 12:00 payout.
+connected
+    .then(() => startLoanSweep())
+    .catch((error) => console.error("Couldn't start the Loan Shark sweep:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -144,6 +152,9 @@ app.use("/api/resonance", resonanceRouter);
 app.use("/api/steal", stealRouter);
 // Kino Poker's table summary (the game itself is live: games/poker/live.js).
 app.use("/api/poker", pokerRouter);
+// Loan Shark: borrowing from King Loan Shark and from each other. Paying
+// back always goes through a games ban (middleware/gameBans.js).
+app.use("/api/loan-shark", refuseGameBans, loanSharkRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

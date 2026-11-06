@@ -133,12 +133,13 @@ function split(limit, seenAvailable, unseenAvailable) {
     return { seen, unseen: Math.min(unseenAvailable, limit - seen) };
 }
 
-// Up to `limit` review ids for `userId`, mixed up: the Recommend list.
-async function recommendedReviewIds(userId, limit) {
+// Up to `limit` review ids for `userId`, mixed up: the Recommend list. None
+// of the reviews in `exclude` (ids) come up.
+async function recommendedReviewIds(userId, limit, exclude = []) {
     const [logs, resonance, pool] = await Promise.all([
         FilmLog.find({ user: userId, status: "completed" }).select("tmdbId rating genres").lean(),
         resonancePercents(userId),
-        Review.find({ user: { $ne: userId } })
+        Review.find({ user: { $ne: userId }, _id: { $nin: exclude } })
             .sort({ createdAt: -1 })
             .limit(POOL_SIZE)
             .select("user tmdbId rating genres likeCount")
@@ -160,8 +161,43 @@ async function recommendedReviewIds(userId, limit) {
     return shuffle(picks).map((review) => review._id);
 }
 
+// ---------- Featured ----------
+
+// "Featured", the toggle's default: FEATURED_NEW_SHARE of the reviews are
+// the newest, and the rest are picked for the member (as Recommend picks
+// them), leaving out the newest ones already in. Logged out, the rest are
+// the most liked instead. Short of picks (too few reviews by anyone else),
+// more of the newest make up the rest. All mixed up together.
+const FEATURED_NEW_SHARE = 0.6;
+
+const idsOf = async (query) => (await query.select("_id").lean()).map((review) => review._id);
+const newestFirst = { createdAt: -1 };
+const mostLikedFirst = { likeCount: -1, createdAt: -1 };
+
+// Up to `limit` review ids, for `userId` (null when logged out).
+async function featuredReviewIds(userId, limit) {
+    const ids = await idsOf(Review.find().sort(newestFirst).limit(Math.round(limit * FEATURED_NEW_SHARE)));
+    const rest = limit - ids.length;
+
+    // limit(0) would be no limit at all, hence the checks.
+    if (rest > 0) {
+        ids.push(
+            ...(userId
+                ? await recommendedReviewIds(userId, rest, ids)
+                : await idsOf(Review.find({ _id: { $nin: ids } }).sort(mostLikedFirst).limit(rest)))
+        );
+    }
+
+    if (ids.length < limit) {
+        ids.push(...(await idsOf(Review.find({ _id: { $nin: ids } }).sort(newestFirst).limit(limit - ids.length))));
+    }
+
+    return shuffle(ids);
+}
+
 module.exports = {
     SEEN_SHARE,
+    FEATURED_NEW_SHARE,
     WEIGHTS,
     genreFit,
     scoreReview,
@@ -169,4 +205,5 @@ module.exports = {
     shuffle,
     split,
     recommendedReviewIds,
+    featuredReviewIds,
 };

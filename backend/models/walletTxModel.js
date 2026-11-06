@@ -35,6 +35,17 @@ const Schema = mongoose.Schema;
 //   stealTakeback   turning PvP off: steals taken back, or a victim paid back
 //   pokerBuyIn      chips for the Kino Poker table (PP first, then P-PP)
 //   pokerCashOut    leaving the table: the stake back as it went in, winnings as P-PP
+// Loan Shark (utils/loanShark/), with the other member in `other`:
+//   loanSharkBorrow  borrowed from King Loan Shark, in P-PP
+//   loanSharkRepay   paid King Loan Shark back (PP first, then P-PP)
+//   loanOffer        PP put up as a loan offer, out of the wallet until borrowed
+//   loanOfferBack    an offer taken down: the PP nobody borrowed, back
+//   loanBorrow       borrowed from `other`'s offer, in PP
+//   loanRepay        paid `other` back early ("Pay off now"), PP first, then P-PP
+//   loanRepaid       `other` paid back what they borrowed, less income tax, in P-PP
+//   loanCollector    Kaveri Heiwajima took it for King Loan Shark, out of the
+//                    wallet: only ever an admin's development button (at 12:00
+//                    he takes it from the payout before it reaches the wallet)
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -47,6 +58,7 @@ const walletTxSchema = new Schema({
             "stealWin", "stealLoss", "stealWilson", "stealFine", "stealFineWon",
             "stealBuy", "stealSell", "stealTrade", "stealTakeback",
             "pokerBuyIn", "pokerCashOut",
+            "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector",
         ],
         required: true,
     },

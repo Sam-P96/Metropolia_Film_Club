@@ -8,11 +8,12 @@ const { getMovie, getMovies, usCertification } = require("../services/tmdbServic
 const { AUTHOR_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { levelOf, rankByLevel, withAuthorStanding } = require("../utils/level");
 const { rankCritics } = require("../utils/critics");
-const { recommendedReviewIds } = require("../utils/recommend");
+const { recommendedReviewIds, featuredReviewIds } = require("../utils/recommend");
 const { parseOffset } = require("../utils/paging");
 const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
 const { dislikeRefusal } = require("../utils/pvp");
 const { banRefusal } = require("../utils/bans");
+const { onReviewPosted, beforeDislike } = require("../utils/loanShark");
 const Report = require("../models/reportModel");
 const { hasRole } = require("../middleware/auth");
 
@@ -317,12 +318,16 @@ async function reviewsInOrder(ids) {
 // dislikes are hidden. ?sort=shuffle is a random handful from all of them,
 // different each time, and ?sort=recommend (logged-in members only) a random
 // handful leaning towards ones they'd like (utils/recommend.js).
+// ?sort=featured, the toggle's default, mixes the newest with ones picked
+// for the member (or, logged out, the most liked).
 async function getReviews(req, res) {
     const limit = parseLimit(req.query.limit, 15, 50);
     const { sort } = req.query;
     let reviews;
 
-    if (sort === "shuffle") {
+    if (sort === "featured") {
+        reviews = await reviewsInOrder(await featuredReviewIds(req.user?._id ?? null, limit));
+    } else if (sort === "shuffle") {
         const sampled = await Review.aggregate([{ $sample: { size: limit } }, { $project: { _id: 1 } }]);
         reviews = await reviewsInOrder(sampled.map((review) => review._id));
     } else if (sort === "recommend") {
@@ -405,11 +410,16 @@ async function setReviewVote(req, res) {
         return res.status(403).json({ error: refusal });
     }
 
+    // A Loan Shark job may be waiting on exactly this dislike.
+    const finishJob = vote === "dislike" ? await beforeDislike(review._id, req.user._id) : null;
+
     const result = await Review.castVote(review._id, req.user, vote);
 
     if (!result) {
         return res.status(404).json({ error: "Review not found." });
     }
+
+    if (finishJob) await finishJob();
 
     // Into the author's Feed, and everyone's if it's now trending.
     await noteReviewVote(review, req.user, vote);
@@ -718,7 +728,11 @@ async function saveReview(req, res) {
             { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
         ).lean();
 
-        if (isNew) await noteNewReview(review);
+        if (isNew) {
+            await noteNewReview(review);
+            // "Convince X to post a movie review" (Loan Shark jobs).
+            await onReviewPosted(req.user._id).catch((error) => console.error("Loan Shark review job:", error.message));
+        }
     } else {
         // No text left: the review goes, with its comments.
         await removeReview({ user: req.user._id, tmdbId });

@@ -52,6 +52,7 @@ import StealAdmin from "./pages/StealAdmin";
 import StealAlert from "./components/steal/StealAlert";
 import Poker from "./pages/Poker";
 import PokerTable from "./pages/PokerTable";
+import LoanShark from "./pages/LoanShark";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -182,6 +183,10 @@ function App() {
           } />
           <Route path="/games/poker/table" element={
             isAuthenticated ? (<PokerTable />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          {/* Loan Shark: King Loan Shark, and members lending to each other. */}
+          <Route path="/games/loan-shark" element={
+            isAuthenticated ? (<LoanShark />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />

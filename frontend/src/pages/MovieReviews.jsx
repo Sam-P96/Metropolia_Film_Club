@@ -13,7 +13,7 @@ import artLoveGif from '../assets/Art Glow GIF by Lucie Mullen.gif'
 
 function MovieReviews() {
   const top = useApi(() => getTopRated(12), [])
-  const reviews = useReviewSorts(30)
+  const reviews = useReviewSorts(38)
 
   return (
     <section className="text-white">

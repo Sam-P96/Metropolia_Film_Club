@@ -32,14 +32,14 @@ const PAGE_SIZE = 10;
 //   cuts     cuts (theirs, the members they follow, and viral ones) and
 //            replies to their cuts
 //   games    Farkle, Box Office Scratch, Double or Nothing, the Slot
-//            Machine and Kino Poker, and the daily PP payout and gifts
-//            (points are only for games)
+//            Machine and Kino Poker, Loan Shark, and the daily PP payout
+//            and gifts (points are only for games)
 // New followers are only in "all".
 const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES],
+    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
@@ -168,6 +168,28 @@ async function hydrate(rows, viewer) {
 
         if (row.type === "payout") {
             return [{ _id: row._id, type: row.type, at: row.at, amount: row.amount }];
+        }
+
+        // Loan Shark. Kaveri and missed payments have nobody else in them;
+        // the rest are about another member, who may have left since.
+        if (row.type.startsWith("loan")) {
+            if (row.type !== "loanCollector" && row.type !== "loanMissed" && members.length === 0) return [];
+            return [{
+                _id: row._id,
+                type: row.type,
+                at: row.at,
+                actors: members,
+                amount: row.amount,
+                variant: row.variant,
+                loan: {
+                    left: row.loan?.left ?? 0,
+                    rate: row.loan?.rate ?? null,
+                    tax: row.loan?.tax ?? 0,
+                    job: row.loan?.job ?? null,
+                    cleared: Boolean(row.loan?.cleared),
+                    auto: Boolean(row.loan?.auto),
+                },
+            }];
         }
 
         // Old "your turn" notices: the games list at the top does that now.

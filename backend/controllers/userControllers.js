@@ -15,6 +15,7 @@ const { forgetSlotPlayer, slotMachineOf } = require("../utils/slots");
 const { forgetResonance, resonanceOf } = require("../utils/resonanceStore");
 const { forgetStealPlayer, stealDataOf } = require("../utils/steal/upkeep");
 const { forgetPokerPlayer } = require("../games/poker/live");
+const { forgetLoanMember, loanDataOf } = require("../utils/loanShark");
 const PokerSeat = require("../models/pokerSeatModel");
 const { siteBanOf, banMessage, recordSighting } = require("../utils/steal/moderation");
 const { takeBackSteals } = require("../utils/steal/players");
@@ -489,7 +490,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -506,6 +507,8 @@ const exportMe = async (req, res) => {
         stealDataOf(userId),
         // Their Kino Poker seat, if they're at the table: buy-in and chips.
         PokerSeat.findById(userId).lean(),
+        // Loan Shark: their account, offers, loans both ways, jobs and log.
+        loanDataOf(userId),
     ]);
 
     if (!account) {
@@ -526,6 +529,7 @@ const exportMe = async (req, res) => {
         resonance,
         stealAndDefend,
         pokerSeat,
+        loanShark,
     });
 }
 
@@ -534,7 +538,7 @@ const exportMe = async (req, res) => {
 // reports, password reset requests and notifications, wallet receipts and
 // games against the bot (utils/farkle.js), Box Office Scratch cards (and
 // their name in Recent jackpots), their Slot Machine and its credits, their
-// Resonance matches, and their likes and
+// Resonance matches, their Loan Shark loans and offers, and their likes and
 // dislikes on everyone else's reviews, comments and cuts, so the counts stay
 // right. They leave every event's Attending and Interested lists and seat
 // plan; events they posted stay. `user` needs _id and pvp. Irreversible.
@@ -571,6 +575,7 @@ async function deleteAccount(user) {
     await forgetResonance(userId);
     await forgetStealPlayer(userId);
     await forgetPokerPlayer(userId);
+    await forgetLoanMember(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

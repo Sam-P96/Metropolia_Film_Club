@@ -7,7 +7,7 @@ import reviewsBg from '../assets/giphy.gif'
 
 function Home({ isAuthenticated }) {
   // Each with its author attached by the server.
-  const reviews = useReviewSorts(30)
+  const reviews = useReviewSorts(38)
 
   return (
     <>

@@ -26,13 +26,21 @@ const REASONS = {
   doubleBonus: 'Double or Nothing bonus pot!',
   slotCredits: `${SLOTS.name}: credits added`,
   slotCashOut: `${SLOTS.name}: cashed out`,
+  loanSharkBorrow: 'Borrowed from King Loan Shark',
+  loanSharkRepay: 'Paid King Loan Shark',
+  loanOffer: 'Loan offer put up',
+  loanOfferBack: 'Loan offer taken down',
+  loanCollector: 'Kaveri Heiwajima, for King Loan Shark',
 }
 
-// What a history row was. Gifts say who to or from.
+// What a history row was. Gifts and player loans say who to or from.
 function labelFor(row) {
   const name = row.other?.username ?? 'a former member'
   if (row.reason === 'giftSent') return `Gift to ${name} (with the 1 point fee)`
   if (row.reason === 'giftReceived') return `Gift from ${name}`
+  if (row.reason === 'loanBorrow') return `Borrowed from ${name}`
+  if (row.reason === 'loanRepay') return `Paid ${name} back`
+  if (row.reason === 'loanRepaid') return `${name} paid you back`
   return REASONS[row.reason] ?? row.reason
 }
 

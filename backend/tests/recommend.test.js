@@ -1,4 +1,5 @@
-// The reviews toggle's Shuffle and Recommend (utils/recommend.js): how a
+// The reviews toggle's Featured, and the Shuffle and Recommend sorts
+// (utils/recommend.js): how a
 // review is scored and drawn, which needs no database, then the API against
 // a real MongoDB.
 //
@@ -93,7 +94,7 @@ describe("Recommend scoring", () => {
 const uri = process.env.MONGO_TEST_URI;
 const dbName = uri ? new URL(uri).pathname.slice(1) : "";
 
-describe("Shuffle and Recommend from the API", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName.endsWith("_test") ? "MONGO_TEST_URI's database must end in _test" : false }, () => {
+describe("Featured, Shuffle and Recommend from the API", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName.endsWith("_test") ? "MONGO_TEST_URI's database must end in _test" : false }, () => {
     process.env.SECRET ??= "recommend-test-secret";
     const mongoose = require("mongoose");
     const express = require("express");
@@ -201,6 +202,49 @@ describe("Shuffle and Recommend from the API", { skip: !uri ? "set MONGO_TEST_UR
         for (let i = 0; i < 3; i++) draws.push((await list(viewer, "shuffle", 50)).body);
         for (const draw of draws) assert.deepEqual([draw.length, new Set(draw.map((review) => review._id)).size], [Math.min(total, 50), Math.min(total, 50)]);
         assert.ok(draws.flat().some((review) => review.user._id === String(viewer._id)));
+    });
+
+    test("Featured: 60% the newest, the rest picked for them (or the most liked), each once, mixed up", async () => {
+        // A second apart, oldest first, so which are the newest is clear; and
+        // likes on the three oldest by others, for the logged-out list.
+        const everyone = await Review.find().sort({ _id: 1 }).select("_id").lean();
+        await Review.collection.bulkWrite(
+            everyone.map((review, index) => ({
+                updateOne: {
+                    filter: { _id: review._id },
+                    update: { $set: { createdAt: new Date(Date.UTC(2026, 0, 1) + index * 1000), likeCount: index >= 3 && index < 6 ? 5 : 0 } },
+                },
+            }))
+        );
+        const newest = (await list(null, "recent", 23)).body.map((review) => review._id);
+
+        const theirs = await list(viewer, "featured", 38);
+        assert.equal(theirs.status, 200);
+        assert.equal(theirs.body.length, 38);
+        const ids = theirs.body.map((review) => review._id);
+        assert.equal(new Set(ids).size, 38);
+        // round(38 * 0.6) = 23: all of the newest are in, and the other 15
+        // are Recommend's picks, so never their own.
+        assert.ok(newest.every((id) => ids.includes(id)));
+        const picked = theirs.body.filter((review) => !newest.includes(review._id));
+        assert.equal(picked.length, 15);
+        assert.ok(picked.every((review) => review.user._id !== String(viewer._id)));
+        assert.ok(theirs.body.every((review) => review.user.username && "myVote" in review));
+
+        // Logged out, the rest are the most liked of the others.
+        const loggedOut = await list(null, "featured", 38);
+        assert.equal(loggedOut.status, 200);
+        const rest = loggedOut.body.filter((review) => !newest.includes(review._id)).map((review) => review._id);
+        const mostLiked = (await Review.find({ _id: { $nin: newest } }).sort({ likeCount: -1, createdAt: -1 }).limit(15).lean()).map((review) => String(review._id));
+        assert.deepEqual(rest.sort(), mostLiked.sort());
+
+        // Asking for more than there is: every review, each once.
+        const all = (await list(viewer, "featured", 50)).body;
+        assert.equal(all.length, Math.min(total, 50));
+        assert.equal(new Set(all.map((review) => review._id)).size, all.length);
+
+        // A single review is just the newest.
+        assert.deepEqual((await list(viewer, "featured", 1)).body.map((review) => review._id), newest.slice(0, 1));
     });
 
     test("an unknown sort is the newest, even one JavaScript objects have built in", async () => {
