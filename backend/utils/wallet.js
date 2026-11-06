@@ -235,7 +235,7 @@ function helsinkiHour(date = new Date()) {
 // they got nothing. Returns how many members got PP.
 //
 // Loan Shark (utils/loanShark/daily.js) goes first, out of the day's PP:
-// what they owe other members and Kaveri Heiwajima's collecting, then the
+// what they owe other members and Kaveri's collecting, then the
 // shark's missed-payment check. So members with loans but no reviews (none
 // left) are gone through too, with a daily PP of 0. PP put up in loan
 // offers still counts towards the cap.

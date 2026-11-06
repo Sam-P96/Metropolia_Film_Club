@@ -349,7 +349,7 @@ function forgetStealAttacks(attackIds) {
     return Notification.deleteMany({ stealAttack: { $in: attackIds } });
 }
 
-// Loan Shark (utils/loanShark/). Kaveri Heiwajima took `amount` of their
+// Loan Shark (utils/loanShark/). Kaveri took `amount` of their
 // daily PP for King Loan Shark, with line `variant`
 // (shared/loanShark/lines.js), `left` still owed. `cleared`: that was the
 // last of it, told with its own line.

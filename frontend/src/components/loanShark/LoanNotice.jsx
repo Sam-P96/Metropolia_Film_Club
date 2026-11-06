@@ -102,7 +102,7 @@ const TITLES = {
   loanBorrowed: 'Someone borrowed from you',
 }
 
-// Kaveri Heiwajima came and took their money: solid vampire red (a dark
+// Kaveri came and took their money: solid vampire red (a dark
 // blood red, with a faint crimson glow), whatever the Notifications
 // background, with him and an empty wallet beside his line.
 function CollectorNotice({ item }) {
@@ -110,7 +110,7 @@ function CollectorNotice({ item }) {
 
   return (
     <article className="flex items-center gap-4 rounded-2xl border border-[#3A0309] bg-[#640A14] p-4 text-white shadow-[0_0_28px_rgb(160_12_32/0.35)] sm:gap-5 sm:p-5">
-      <img src={brokeKaveri} alt="Kaveri Heiwajima, holding an empty wallet" loading="lazy" className="size-20 shrink-0 object-contain drop-shadow-[0_2px_4px_rgb(0_0_0/0.45)] sm:size-24" />
+      <img src={brokeKaveri} alt="Kaveri, holding an empty wallet" loading="lazy" className="size-20 shrink-0 object-contain drop-shadow-[0_2px_4px_rgb(0_0_0/0.45)] sm:size-24" />
       <div className="min-w-0">
         <h2 className="text-sm font-semibold text-white/80">Loan Shark · Debt collector</h2>
         <p className="mt-1.5 text-lg leading-snug text-white">{fillLine(line, { amount: item.amount, left: item.loan?.left ?? 0 })}</p>

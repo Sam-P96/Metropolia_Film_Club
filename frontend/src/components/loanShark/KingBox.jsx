@@ -106,7 +106,7 @@ function Warnings({ shark, daily }) {
     <div role="alert" className="flex flex-col gap-1.5 rounded-xl border border-red-400/50 bg-red-950/50 px-4 py-3 text-sm text-red-100">
       {warnings.collector && (
         <p>
-          <strong className="text-red-300">Debt collector active.</strong> Kaveri Heiwajima takes {points(shark.collectorTakes)} PP (40% of your{' '}
+          <strong className="text-red-300">Debt collector active.</strong> Kaveri takes {points(shark.collectorTakes)} PP (40% of your{' '}
           {points(daily)} daily PP) every day at 12:00 until you&apos;re paid off.
         </p>
       )}

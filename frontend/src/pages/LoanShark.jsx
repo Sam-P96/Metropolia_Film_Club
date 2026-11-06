@@ -76,7 +76,7 @@ function TestTools({ onRun }) {
 }
 
 // Development mode only (the Vite dev server: a production build leaves it
-// out), and admins only on the server: Kaveri Heiwajima comes for you right
+// out), and admins only on the server: Kaveri comes for you right
 // now, to see him at work and his notifications. Your rate goes to 160%,
 // and he takes 40% of your daily PP from your wallet, towards the debt.
 // No payout day is used up, so press it as often as you like.
@@ -97,7 +97,7 @@ function DevTools({ inDebt, onSend }) {
         Development mode
       </h2>
       <p className="mt-2">
-        Sends Kaveri Heiwajima for you right now, as at 12:00 with the collector active: your rate goes to 160%, he takes 40% of your daily PP from your
+        Sends Kaveri for you right now, as at 12:00 with the collector active: your rate goes to 160%, he takes 40% of your daily PP from your
         wallet (towards your debt), and his notification arrives with a new line each time. No payout day is used up. Admins only.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">

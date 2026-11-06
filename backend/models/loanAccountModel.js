@@ -18,7 +18,7 @@ const Schema = mongoose.Schema;
 //     rate          the total interest, in whole percent (10, 20, ... 160).
 //                   Owed = borrowed x (100 + rate)%, rounded up, less what
 //                   they've paid and what jobs took off.
-//     paid          paid back so far, by them or Kaveri Heiwajima
+//     paid          paid back so far, by them or Kaveri
 //     jobReduction  what jobs done have taken off, in all
 //     credit        paid towards the next day's minimum, not yet a whole day
 //     paidUntil     the last 12:00 check their payments cover, or null

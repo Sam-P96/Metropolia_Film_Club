@@ -1,7 +1,7 @@
 // Loan Shark: every number it runs on, in this one file, so it can be
 // rebalanced without touching the code (utils/loanShark/). The page gets
 // the ones it needs from GET /api/loan-shark, so they always agree. What
-// King Loan Shark and Kaveri Heiwajima say is in shared/loanShark/lines.js.
+// King Loan Shark and Kaveri say is in shared/loanShark/lines.js.
 //
 // Rates are always the TOTAL interest on what was borrowed, never daily:
 // borrowing 20 at 0.25 means owing 25 in all. Every share of an amount is
@@ -17,7 +17,7 @@ const LOAN_SHARK = {
         maxRate: 1.6,
         // Each day's minimum payment, as a share of the total borrowed.
         minimumPayment: 0.05,
-        // At maxRate, Kaveri Heiwajima takes this share of their daily PP
+        // At maxRate, Kaveri takes this share of their daily PP
         // every day at 12:00 until it's paid.
         collectorTake: 0.4,
         // The first payment is due at the first 12:00 check at least this
