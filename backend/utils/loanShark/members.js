@@ -9,7 +9,8 @@ const { changeAccount, loadAccount, logTx, LoanError } = require("./account");
 const { addDays, debtOwed, nextCheckDay } = require("./math");
 
 // Loan Shark and members coming and going: deleting an account, the GDPR
-// export, and the admin's test check.
+// export, and the admin's test tools (the next 12:00 check now, and
+// sending Kaveri now).
 
 // An account is being deleted (controllers/userControllers.js
 // deleteAccount). Their offers come down (the PP in them goes with the
@@ -76,4 +77,70 @@ async function testCheck(target) {
     return { day, result };
 }
 
-module.exports = { forgetLoanMember, loanDataOf, testCheck };
+// Admins only, for development: Kaveri Heiwajima comes for the member right
+// now, to see him at work and his notifications. Their rate goes straight
+// to the top (160%), and he takes what he would at 12:00, 40% of their
+// daily PP, out of their wallet instead (PP first, then P-PP), since
+// there's no payout to take it from. It goes towards the debt like any
+// payment, and no payout day is used up. Resolves to { take, left,
+// cleared, rate }.
+async function devCollectorVisit(userId) {
+    const { changeWallet, dailyPp } = require("../wallet");
+    const { inSession } = require("../steal/tx");
+    const { LOAN_SHARK } = require("../../config/loanShark");
+    const { MAX_RATE, ceilShare, sharkOwed } = require("./math");
+    const { collect, recordCollector } = require("./daily");
+
+    const daily = dailyPp(await Review.countDocuments({ user: userId }));
+    const want = ceilShare(daily, LOAN_SHARK.shark.collectorTake);
+    if (want === 0) throw new LoanError("Kaveri takes 40% of your daily PP, and you have none yet. Post a review first.");
+
+    return inSession(async (session, after) => {
+        const before = await loadAccount(userId, session);
+        if (sharkOwed(before.shark) === 0) {
+            throw new LoanError("Kaveri only comes for members who owe King Loan Shark. Take a loan first.");
+        }
+        const atTop = sharkOwed({ ...before.shark, rate: Math.max(before.shark.rate, MAX_RATE) });
+
+        const taken = await changeWallet(
+            userId,
+            (wallet) => {
+                const can = Math.min(want, atTop, Math.max(0, wallet.pp + wallet.ppp));
+                if (can <= 0) throw new LoanError("Your wallet's empty: Kaveri found nothing to take. Come back after a payout.");
+                const fromPp = Math.min(Math.max(0, wallet.pp), can);
+                return { pp: 0 - fromPp, ppp: 0 - (can - fromPp) };
+            },
+            { reason: "loanCollector", session },
+        );
+        const take = 0 - (taken.pp + taken.ppp);
+
+        const { result: visit } = await changeAccount(
+            userId,
+            (account) => {
+                const loan = { ...account.shark, rate: Math.max(account.shark.rate, MAX_RATE) };
+                const owed = sharkOwed(loan);
+                if (owed === 0) return null;
+                const { set, result } = collect(account, loan, Math.min(take, owed));
+                const rateSet = !result.cleared && account.shark.rate < MAX_RATE ? { "shark.rate": MAX_RATE } : {};
+                return { set: { ...set, ...rateSet }, result: { ...result, loan: account.shark.loan, rateFrom: account.shark.rate } };
+            },
+            { session },
+        );
+
+        // Owing less than he took (a payment landed in between): the rest back.
+        const refund = take - (visit?.take ?? 0);
+        if (refund > 0) {
+            const ppp = Math.min(refund, 0 - taken.ppp);
+            await changeWallet(userId, () => ({ pp: refund - ppp, ppp }), { reason: "loanCollector", session });
+        }
+        if (!visit) throw new LoanError("You don't owe King Loan Shark anything any more.");
+
+        if (visit.rateFrom < MAX_RATE) {
+            await logTx({ user: userId, kind: "devRate", rateFrom: visit.rateFrom, rateTo: MAX_RATE, loan: visit.loan }, session);
+        }
+        await recordCollector(userId, visit, { session, after });
+        return { take: visit.take, left: visit.left, cleared: visit.cleared, rate: visit.cleared ? null : MAX_RATE };
+    });
+}
+
+module.exports = { forgetLoanMember, loanDataOf, testCheck, devCollectorVisit };

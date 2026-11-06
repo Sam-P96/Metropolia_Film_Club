@@ -43,6 +43,9 @@ const Schema = mongoose.Schema;
 //   loanBorrow       borrowed from `other`'s offer, in PP
 //   loanRepay        paid `other` back early ("Pay off now"), PP first, then P-PP
 //   loanRepaid       `other` paid back what they borrowed, less income tax, in P-PP
+//   loanCollector    Kaveri Heiwajima took it for King Loan Shark, out of the
+//                    wallet: only ever an admin's development button (at 12:00
+//                    he takes it from the payout before it reaches the wallet)
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -55,7 +58,7 @@ const walletTxSchema = new Schema({
             "stealWin", "stealLoss", "stealWilson", "stealFine", "stealFineWon",
             "stealBuy", "stealSell", "stealTrade", "stealTakeback",
             "pokerBuyIn", "pokerCashOut",
-            "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid",
+            "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector",
         ],
         required: true,
     },

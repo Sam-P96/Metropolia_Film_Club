@@ -78,17 +78,12 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
             if (missed) Object.assign(set, { "shark.rate": rate, "shark.missed": loan.missed + 1 });
 
             if (rate >= MAX_RATE) {
-                result.take = Math.min(ceilShare(daily, LOAN_SHARK.shark.collectorTake), owed, left);
-                if (result.take > 0) {
-                    result.split = sharkSplit({ ...loan, rate }, result.take);
-                    result.left = owed - result.take;
-                    if (result.left === 0) {
-                        result.cleared = true;
-                        return { set: { lastCheckDay: day, shark: emptyShark() }, result };
-                    }
-                    result.line = pickLine(COLLECTOR_LINES.length, current.lastCollectorLine);
-                    set.lastCollectorLine = result.line;
-                    set["shark.paid"] = loan.paid + result.take;
+                const take = Math.min(ceilShare(daily, LOAN_SHARK.shark.collectorTake), owed, left);
+                if (take > 0) {
+                    const visit = collect(current, { ...loan, rate }, take);
+                    Object.assign(result, visit.result);
+                    if (visit.result.cleared) return { set: { lastCheckDay: day, ...visit.set }, result };
+                    Object.assign(set, visit.set);
                 }
             }
             return { set, result };
@@ -106,23 +101,8 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
         if (shark.take > 0) {
             left -= shark.take;
             outcome.collector = shark.take;
-            await logTx(
-                {
-                    user: userId,
-                    kind: "sharkCollector",
-                    amount: shark.take,
-                    principal: shark.split.principal,
-                    interest: shark.split.interest,
-                    loan: shark.loan,
-                    day,
-                },
-                session,
-            );
-            after(() => noteLoanCollector(userId, shark.take, shark.left, shark.line, shark.cleared));
-        }
-        if (shark.cleared) {
-            outcome.cleared = true;
-            await closeLoan(userId, shark.loan, session);
+            outcome.cleared = shark.cleared;
+            await recordCollector(userId, shark, { day, session, after });
         }
     }
 
@@ -130,4 +110,35 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
     return outcome;
 }
 
-module.exports = { membersWithLoans, lockedInOffers, dailyLoans };
+// Kaveri Heiwajima takes `take` (no more than is owed) from a loan already
+// at the top rate: what changes on the account, and what happened. The
+// last of it ends the loan. Otherwise he picks a line for his notification,
+// never the one he used last time.
+function collect(account, loan, take) {
+    const owed = sharkOwed(loan);
+    const result = { take, left: owed - take, split: sharkSplit(loan, take), cleared: false, line: null };
+    if (result.left === 0) return { set: { shark: emptyShark() }, result: { ...result, cleared: true } };
+    result.line = pickLine(COLLECTOR_LINES.length, account.lastCollectorLine);
+    return { set: { lastCollectorLine: result.line, "shark.paid": loan.paid + take }, result };
+}
+
+// After a visit: the log, his notification, and closing the loan if that
+// was the last of it. `visit` is collect()'s result, with the loan's id.
+async function recordCollector(userId, visit, { day = null, session = null, after }) {
+    await logTx(
+        {
+            user: userId,
+            kind: "sharkCollector",
+            amount: visit.take,
+            principal: visit.split.principal,
+            interest: visit.split.interest,
+            loan: visit.loan,
+            day,
+        },
+        session,
+    );
+    after(() => noteLoanCollector(userId, visit.take, visit.left, visit.line, visit.cleared));
+    if (visit.cleared) await closeLoan(userId, visit.loan, session);
+}
+
+module.exports = { membersWithLoans, lockedInOffers, dailyLoans, collect, recordCollector };

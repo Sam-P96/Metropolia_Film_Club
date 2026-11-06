@@ -22,6 +22,7 @@ import {
   payShark,
   postOffer,
   runTestCheck,
+  sendCollector,
   takeDownOffer,
 } from '../services/loanShark'
 import { checkTime, points } from '../utils/loanShark'
@@ -74,6 +75,51 @@ function TestTools({ onRun }) {
   )
 }
 
+// Development mode only (the Vite dev server: a production build leaves it
+// out), and admins only on the server: Kaveri Heiwajima comes for you right
+// now, to see him at work and his notifications. Your rate goes to 160%,
+// and he takes 40% of your daily PP from your wallet, towards the debt.
+// No payout day is used up, so press it as often as you like.
+function DevTools({ inDebt, onSend }) {
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
+
+  async function send() {
+    setBusy(true)
+    setMessage(null)
+    setMessage(await onSend())
+    setBusy(false)
+  }
+
+  return (
+    <section className="rounded-2xl border-2 border-dashed border-sky-400/50 bg-sky-950/40 p-5 text-sm text-white/70 sm:p-6" aria-labelledby="dev-heading">
+      <h2 id="dev-heading" className="text-xs font-semibold tracking-widest text-sky-300 uppercase">
+        Development mode
+      </h2>
+      <p className="mt-2">
+        Sends Kaveri Heiwajima for you right now, as at 12:00 with the collector active: your rate goes to 160%, he takes 40% of your daily PP from your
+        wallet (towards your debt), and his notification arrives with a new line each time. No payout day is used up. Admins only.
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button type="button" onClick={send} disabled={busy || !inDebt} className={BUTTON}>
+          {busy ? 'Knocking…' : 'Send Kaveri now'}
+        </button>
+        {!inDebt && <p className="text-white/60">Take a loan from King Loan Shark first: Kaveri only comes for debtors.</p>}
+      </div>
+      {message && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Feedback message={message} />
+          {!message.error && (
+            <Link to="/feed" className="text-sm font-semibold text-sky-300 hover:text-white">
+              See it in your notifications →
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
 // Loan Shark: borrow from King Loan Shark, lend to other members, or borrow
 // from them (backend/utils/loanShark/). Top to bottom: King Loan Shark's
 // box, the Lend Money button and its form, the member's own player loans,
@@ -113,6 +159,14 @@ export default function LoanShark() {
     takeDown: (id) => run(() => takeDownOffer(id), (done) => `Taken down. ${points(done.returned)} PP back in your wallet.`),
     borrowOffer: (id, amount) => run(() => borrowFromOffer(id, amount), (done) => `Borrowed ${points(done.amount)} PP.`),
     payOff: (id) => run(() => payOffDebt(id), (done) => `Paid off: ${points(done.paid)}.`),
+    collector: () =>
+      run(
+        () => sendCollector(),
+        (done) =>
+          done.cleared
+            ? `Kaveri took the last ${points(done.take)} PP. Your debt is cleared.`
+            : `Kaveri took ${points(done.take)} PP. You still owe ${points(done.left)}.`,
+      ),
     test: (username) =>
       run(
         () => runTestCheck(username || undefined),
@@ -192,6 +246,7 @@ export default function LoanShark() {
 
             <MyLoans player={view.player} rules={view.rules} onPayOff={handlers.payOff} onTakeDown={handlers.takeDown} />
             <Postings player={view.player} rules={view.rules} canBorrow={view.me.canBorrow} onBorrow={handlers.borrowOffer} />
+            {import.meta.env.DEV && <DevTools inDebt={view.shark.borrowed > 0} onSend={handlers.collector} />}
             {view.me.isAdmin && <TestTools onRun={handlers.test} />}
           </>
         )}

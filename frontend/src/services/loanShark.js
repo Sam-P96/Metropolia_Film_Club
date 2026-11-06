@@ -44,6 +44,11 @@ export function payOffDebt(id) {
   return change(`/loan-shark/debts/${encodeURIComponent(id)}/pay`, { method: 'POST' })
 }
 
+// Admins, for development: the debt collector comes for them right now.
+export function sendCollector() {
+  return change('/loan-shark/test/collector', { method: 'POST' })
+}
+
 // Admins, for testing: the next 12:00 check, now, for them or `username`.
 export function runTestCheck(username) {
   return change('/loan-shark/test/check', { method: 'POST', body: { username } })

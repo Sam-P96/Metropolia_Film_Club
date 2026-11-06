@@ -30,6 +30,7 @@ const REASONS = {
   loanSharkRepay: 'Paid King Loan Shark',
   loanOffer: 'Loan offer put up',
   loanOfferBack: 'Loan offer taken down',
+  loanCollector: 'Kaveri Heiwajima, for King Loan Shark',
 }
 
 // What a history row was. Gifts and player loans say who to or from.

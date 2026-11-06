@@ -8,13 +8,13 @@
 //   jobs.js     the jobs: picking them, and noticing when they're done
 //   daily.js    the 12:00 check, inside the payout (utils/wallet.js)
 //   view.js     what the page shows
-//   members.js  deleted accounts, the data export, the admin test check
+//   members.js  deleted accounts, the data export, the admin test tools
 const { LoanError } = require("./account");
 const { sharkBorrow, sharkPay } = require("./shark");
 const { postOffer, takeDownOffer, borrowFromOffer, payOffDebt } = require("./player");
 const { onReviewPosted, beforeDislike, onStealSuccess, undoJobDislikes } = require("./jobs");
 const { loanSharkView } = require("./view");
-const { forgetLoanMember, loanDataOf, testCheck } = require("./members");
+const { forgetLoanMember, loanDataOf, testCheck, devCollectorVisit } = require("./members");
 
 module.exports = {
     LoanError,
@@ -32,4 +32,5 @@ module.exports = {
     forgetLoanMember,
     loanDataOf,
     testCheck,
+    devCollectorVisit,
 };

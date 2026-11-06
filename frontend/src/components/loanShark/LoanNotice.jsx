@@ -3,6 +3,7 @@ import CoinIcon from '../wallet/CoinIcon'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import { timeAgo } from '../../utils/timeAgo'
 import { COLLECTOR_CLEARED_LINE, COLLECTOR_LINES, fillLine } from '../../../../shared/loanShark/lines.js'
+import brokeKaveri from '../../assets/SECRETpfp/broke_ahh_kaveri.png'
 
 const TONES = {
   dark: { text: 'text-white/90', muted: 'text-white/50', name: 'font-semibold text-white hover:text-brand-gold', link: 'text-brand-gold hover:text-white' },
@@ -10,7 +11,8 @@ const TONES = {
 }
 
 // Red for King Loan Shark coming for you, gold for money coming in, green
-// for good news, plain for the rest.
+// for good news, plain for the rest. (Kaveri's own is solid red:
+// CollectorNotice below.)
 const BOXES = {
   danger: 'border-red-400/50 bg-red-500/15',
   money: 'border-brand-gold/50 bg-brand-gold/15',
@@ -38,18 +40,14 @@ function Who({ user, tone }) {
   )
 }
 
-// What a Loan Shark notification says (backend/utils/notify.js): Kaveri
-// collecting, a missed payment, a job done, a loan repayment going out or
-// coming in, or someone borrowing from an offer.
+// What a Loan Shark notification says (backend/utils/notify.js): a missed
+// payment, a job done, a loan repayment going out or coming in, or someone
+// borrowing from an offer.
 function Body({ item, tone }) {
   const other = item.actors?.[0]
   const { loan } = item
 
   switch (item.type) {
-    case 'loanCollector': {
-      const line = loan.cleared ? COLLECTOR_CLEARED_LINE : (COLLECTOR_LINES[item.variant] ?? COLLECTOR_LINES[0])
-      return <span className="font-['Cinzel']">{fillLine(line, { amount: item.amount, left: loan.left })}</span>
-    }
     case 'loanMissed':
       return (
         <>
@@ -89,7 +87,6 @@ function Body({ item, tone }) {
 }
 
 const BOX_FOR = {
-  loanCollector: 'danger',
   loanMissed: 'danger',
   loanJob: 'good',
   loanRepay: 'plain',
@@ -98,7 +95,6 @@ const BOX_FOR = {
 }
 
 const TITLES = {
-  loanCollector: 'Debt collector',
   loanMissed: 'Missed payment',
   loanJob: 'Job done',
   loanRepay: 'Loan repayment',
@@ -106,13 +102,36 @@ const TITLES = {
   loanBorrowed: 'Someone borrowed from you',
 }
 
-// A Loan Shark notification. `light` is for the white Notifications background.
-export default function LoanNotice({ item, light = false }) {
-  const tone = light ? TONES.light : TONES.dark
-  const cleared = item.type === 'loanCollector' && item.loan?.cleared
+// Kaveri Heiwajima came and took their money: solid vampire red (a dark
+// blood red, with a faint crimson glow), whatever the Notifications
+// background, with him and an empty wallet beside his line.
+function CollectorNotice({ item }) {
+  const line = item.loan?.cleared ? COLLECTOR_CLEARED_LINE : (COLLECTOR_LINES[item.variant] ?? COLLECTOR_LINES[0])
 
   return (
-    <article className={`rounded-2xl border p-5 backdrop-blur-sm sm:p-6 ${BOXES[cleared ? 'good' : BOX_FOR[item.type]]}`}>
+    <article className="flex items-center gap-4 rounded-2xl border border-[#3A0309] bg-[#640A14] p-4 text-white shadow-[0_0_28px_rgb(160_12_32/0.35)] sm:gap-5 sm:p-5">
+      <img src={brokeKaveri} alt="Kaveri Heiwajima, holding an empty wallet" loading="lazy" className="size-20 shrink-0 object-contain drop-shadow-[0_2px_4px_rgb(0_0_0/0.45)] sm:size-24" />
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-white/80">Loan Shark · Debt collector</h2>
+        <p className="mt-1.5 text-lg leading-snug text-white">{fillLine(line, { amount: item.amount, left: item.loan?.left ?? 0 })}</p>
+        <p className="mt-1 text-sm text-white/80">
+          {timeAgo(item.at)} ·{' '}
+          <Link to="/games/loan-shark" className="font-semibold text-white underline decoration-white/50 underline-offset-2 hover:decoration-white">
+            Loan Shark
+          </Link>
+        </p>
+      </div>
+    </article>
+  )
+}
+
+// A Loan Shark notification. `light` is for the white Notifications background.
+export default function LoanNotice({ item, light = false }) {
+  if (item.type === 'loanCollector') return <CollectorNotice item={item} />
+  const tone = light ? TONES.light : TONES.dark
+
+  return (
+    <article className={`rounded-2xl border p-5 backdrop-blur-sm sm:p-6 ${BOXES[BOX_FOR[item.type]]}`}>
       <h2 className={`text-sm font-semibold ${tone.muted}`}>Loan Shark · {TITLES[item.type]}</h2>
       <p className={`mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-lg ${tone.text}`}>
         <Body item={item} tone={tone} />

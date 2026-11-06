@@ -64,4 +64,7 @@ const testCheck = act(async (req) => {
     return loans.testCheck(target);
 });
 
-module.exports = { getLoanShark, borrowFromShark, payShark, postOffer, takeDownOffer, borrowFromOffer, payOffDebt, testCheck };
+// Admins only, for development: Kaveri comes for them now.
+const sendCollector = act((req) => loans.devCollectorVisit(req.user._id));
+
+module.exports = { sendCollector, getLoanShark, borrowFromShark, payShark, postOffer, takeDownOffer, borrowFromOffer, payOffDebt, testCheck };

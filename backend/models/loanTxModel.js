@@ -22,6 +22,8 @@ const Schema = mongoose.Schema;
 //                   the daily PP): `principal` and `interest` of it, `tax`
 //                   of the interest burned, `toLender` paid to them in P-PP
 //   playerForgiven  `amount` still owed was let go: one of them left the club
+//   devRate         an admin's development button put the rate straight from
+//                   `rateFrom` to `rateTo` (to send Kaveri)
 const loanTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     other: {type: Schema.Types.ObjectId, ref: "User", default: null},
@@ -29,7 +31,7 @@ const loanTxSchema = new Schema({
         type: String,
         enum: [
             "sharkBorrow", "sharkRepay", "sharkCollector", "sharkMissed", "sharkJob", "sharkCleared",
-            "offerPosted", "offerTakenDown", "playerBorrow", "playerRepay", "playerForgiven",
+            "offerPosted", "offerTakenDown", "playerBorrow", "playerRepay", "playerForgiven", "devRate",
         ],
         required: true,
     },

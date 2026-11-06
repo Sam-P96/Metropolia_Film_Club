@@ -8,6 +8,7 @@ const {
     borrowFromOffer,
     payOffDebt,
     testCheck,
+    sendCollector,
 } = require("../controllers/loanSharkController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
@@ -36,5 +37,9 @@ router.post("/debts/:id/pay", payOffDebt);
 // Admins, for testing: run the next 12:00 check now ({ username }, or
 // themselves).
 router.post("/test/check", requireRole("admin"), testCheck);
+
+// Admins, for development (the page shows it on the dev server only): the
+// debt collector comes for them right now.
+router.post("/test/collector", requireRole("admin"), sendCollector);
 
 module.exports = router;

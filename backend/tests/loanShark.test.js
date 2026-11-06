@@ -532,6 +532,40 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.deepEqual(owedNow.sort((a, b) => a - b), [0, 20]);
     });
 
+    test("the development button: admins only; Kaveri comes now, from the wallet, a new line each time, no payout day used", async () => {
+        // 10 reviews: Kaveri takes 4 (40% of 10, rounded up).
+        const dev = await member("devAdmin", { reviews: 10 });
+        assert.equal((await call(dev, "POST", "/loan-shark/test/collector")).status, 403, "not an admin yet");
+        await User.updateOne({ _id: dev._id }, { $set: { role: "admin" } });
+        assert.match((await call(dev, "POST", "/loan-shark/test/collector")).body.error, /Take a loan first/);
+
+        await call(dev, "POST", "/loan-shark/shark/borrow", { amount: 20 });
+        await setWallet(dev, 3, 10);
+        const first = await call(dev, "POST", "/loan-shark/test/collector");
+        assert.equal(first.status, 200);
+        // 20 at 160% = 52, less Kaveri's 4: 3 PP first, then 1 P-PP.
+        assert.deepEqual(first.body.done, { take: 4, left: 48, cleared: false, rate: 160 });
+        assert.deepEqual(await walletOf(dev), { pp: 0, ppp: 9, lastPayoutDay: null });
+        assert.deepEqual([first.body.view.shark.state, first.body.view.shark.owed], ["collector", 48]);
+
+        const second = await call(dev, "POST", "/loan-shark/test/collector");
+        assert.equal(second.body.done.left, 44);
+        const visits = await notes(dev, "loanCollector");
+        assert.deepEqual(visits.map((note) => [note.amount, note.loan.left]), [[4, 48], [4, 44]]);
+        assert.notEqual(visits[0].variant, visits[1].variant);
+        assert.equal(await LoanTx.countDocuments({ user: dev._id, kind: "devRate" }), 1, "the rate jumps once");
+        assert.equal(await LoanTx.countDocuments({ user: dev._id, kind: "sharkCollector" }), 2);
+
+        // The last of it: his cleared line, and the loan ends.
+        await setWallet(dev, 0, 100);
+        await call(dev, "POST", "/loan-shark/shark/pay", { amount: 42 });
+        const last = await call(dev, "POST", "/loan-shark/test/collector");
+        assert.deepEqual(last.body.done, { take: 2, left: 0, cleared: true, rate: null });
+        assert.equal(last.body.view.shark.state, "clear");
+        const cleared = (await notes(dev, "loanCollector")).at(-1);
+        assert.deepEqual([cleared.amount, cleared.loan.cleared, cleared.variant], [2, true, null]);
+    });
+
     test("leaving the club: their offers come down, and what's owed to or by them is let go", async () => {
         await members.forgetLoanMember(people.lender2._id);
         assert.equal(await LoanOffer.countDocuments({ lender: people.lender2._id, status: "active" }), 0);
