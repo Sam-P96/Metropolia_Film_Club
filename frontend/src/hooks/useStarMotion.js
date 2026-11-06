@@ -8,6 +8,10 @@ const FULL_TILT = 25
 const SHIFT_PX = 3
 const TURN_DEG = 4
 
+// Which way the stars go: -1 sends them the way the phone is tipped, with
+// the wiggle. (+1, how it was, sent them the opposite way.)
+const DIRECTION = -1
+
 // Springs between readings, so the stars glide and never jitter.
 const SPRING = { stiffness: 140, damping: 20, mass: 0.6 }
 
@@ -85,9 +89,9 @@ export default function useStarMotion(enabled) {
 
       const sideways = clamp((across - centre[0]) / FULL_TILT)
       const forwards = clamp((down - centre[1]) / FULL_TILT)
-      x.set(sideways * SHIFT_PX)
-      y.set(forwards * SHIFT_PX)
-      rotate.set(sideways * TURN_DEG)
+      x.set(DIRECTION * sideways * SHIFT_PX)
+      y.set(DIRECTION * forwards * SHIFT_PX)
+      rotate.set(DIRECTION * sideways * TURN_DEG)
     }
 
     const onOrientation = (event) => {
