@@ -9,7 +9,7 @@ const Schema = mongoose.Schema;
 //   sharkBorrow     borrowed `amount` P-PP from King Loan Shark
 //   sharkRepay      paid `amount` back (PP first, then P-PP): `principal`
 //                   of it the loan, `interest` the interest, all burned
-//   sharkCollector  Kaveri Heiwajima took `amount` of their daily PP
+//   sharkCollector  Kaveri took `amount` of their daily PP
 //                   (split and burned the same way)
 //   sharkMissed     a missed payment: the rate went from `rateFrom` to `rateTo`
 //   sharkJob        a job done took `amount` off the debt

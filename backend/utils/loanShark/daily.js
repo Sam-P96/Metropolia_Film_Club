@@ -14,7 +14,7 @@ const { closeLoan } = require("./shark");
 //   1. their daily PP, as usual (the payout works it out and passes it in)
 //   2. each member they owe gets 10% of it (rounded up), or what's left
 //   3. the shark check: a payment due and not covered doubles the rate
-//   4. at the top rate, Kaveri Heiwajima takes up to 40% of it
+//   4. at the top rate, Kaveri takes up to 40% of it
 //   5. the payout puts what's left of it in their wallet as normal
 // Each part only ever happens once a day: the debts remember the day of
 // their last repayment, and the account the day of its last check.
@@ -110,7 +110,7 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
     return outcome;
 }
 
-// Kaveri Heiwajima takes `take` (no more than is owed) from a loan already
+// Kaveri takes `take` (no more than is owed) from a loan already
 // at the top rate: what changes on the account, and what happened. The
 // last of it ends the loan. Otherwise he picks a line for his notification,
 // never the one he used last time.

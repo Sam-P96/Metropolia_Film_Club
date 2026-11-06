@@ -1,4 +1,4 @@
-// Loan Shark: everything King Loan Shark and Kaveri Heiwajima say, in this
+// Loan Shark: everything King Loan Shark and Kaveri say, in this
 // one file, so the lines can be changed without touching the code. The
 // page (frontend/src/pages/LoanShark.jsx) and the server
 // (backend/utils/loanShark/) both read it.
@@ -40,7 +40,7 @@ export const SHARK_LINES = {
     'Forgetting is human. Doubling is shark.',
     "I'm not angry. I'm just disappointed. And also angry.",
   ],
-  // The rate is at the top, and Kaveri Heiwajima is collecting.
+  // The rate is at the top, and Kaveri is collecting.
   collector: [
     "160%. You've reached the top. Unfortunately, so has my patience.",
     "I sent Kaveri. He's small. He's fluffy. You should be terrified.",
@@ -59,27 +59,27 @@ export const WARNING_LINES = [
   'Pay on time, or the bunny comes.',
 ]
 
-// Kaveri Heiwajima's notification each day he collects. {amount} is the
+// Kaveri's notification each day he collects. {amount} is the
 // PP he took, {left} what's still owed. Never the same line two days in a
 // row.
 export const COLLECTOR_LINES = [
-  'Kaveri Heiwajima arrived and took {amount} PP. You still owe {left}.',
-  'Kaveri Heiwajima knocked once. The door is gone now. So is {amount} PP.',
-  "Kaveri Heiwajima didn't say a word. He just held out his paw. You gave him {amount} PP.",
-  'Kaveri Heiwajima found your wallet behind the couch. {amount} PP collected. {left} to go.',
-  'Kaveri Heiwajima asked nicely. That was the scariest part. {amount} PP taken.',
-  "Kaveri Heiwajima threw a vending machine through your window. Inside was a note: \"{amount} PP. Thanks.\"",
-  'Kaveri Heiwajima is sitting on your bed, eating your popcorn. He took {amount} PP on the way in.',
-  'Kaveri Heiwajima says King Loan Shark sends his regards. {amount} PP collected.',
-  "Kaveri Heiwajima took {amount} PP and left a carrot on your pillow. You don't know what it means.",
-  "Kaveri Heiwajima was here. You know because {amount} PP isn't.",
-  'Kaveri Heiwajima cracked his knuckles. All four of them. {amount} PP gone. {left} left.',
-  "Kaveri Heiwajima paused your movie at the best part. {amount} PP taken. He'll be back tomorrow.",
+  'Kaveri arrived and took {amount} PP. You still owe {left}.',
+  'Kaveri knocked once. The door is gone now. So is {amount} PP.',
+  "Kaveri didn't say a word. He just held out his paw. You gave him {amount} PP.",
+  'Kaveri found your wallet behind the couch. {amount} PP collected. {left} to go.',
+  'Kaveri asked nicely. That was the scariest part. {amount} PP taken.',
+  "Kaveri threw a vending machine through your window. Inside was a note: \"{amount} PP. Thanks.\"",
+  'Kaveri is sitting on your bed, eating your popcorn. He took {amount} PP on the way in.',
+  'Kaveri says King Loan Shark sends his regards. {amount} PP collected.',
+  "Kaveri took {amount} PP and left a carrot on your pillow. You don't know what it means.",
+  "Kaveri was here. You know because {amount} PP isn't.",
+  'Kaveri cracked his knuckles. All four of them. {amount} PP gone. {left} left.',
+  "Kaveri paused your movie at the best part. {amount} PP taken. He'll be back tomorrow.",
 ]
 
 // Instead of a line above, the day Kaveri takes the last of it.
 export const COLLECTOR_CLEARED_LINE =
-  'Kaveri Heiwajima took the last {amount} PP, tipped his hat, and hopped away. Your debt to King Loan Shark is cleared… for now.'
+  'Kaveri took the last {amount} PP, tipped his hat, and hopped away. Your debt to King Loan Shark is cleared… for now.'
 
 // A line with {amount} and {left} filled in.
 export function fillLine(line, { amount = 0, left = 0 } = {}) {

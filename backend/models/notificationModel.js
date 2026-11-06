@@ -85,7 +85,7 @@ const STEAL_TYPES = ["stealAttacked", "stealResult", "stealCrit", "stealFlag"];
 
 // Loan Shark (utils/loanShark/), with the numbers in `amount` and `loan`.
 // No review.
-//   loanCollector  Kaveri Heiwajima took `amount` of their daily PP for King
+//   loanCollector  Kaveri took `amount` of their daily PP for King
 //                  Loan Shark; `loan.left` still owed (`loan.cleared`: that
 //                  was the last of it). `variant` is the line it's told with
 //                  (shared/loanShark/lines.js).

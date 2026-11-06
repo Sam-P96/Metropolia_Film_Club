@@ -99,7 +99,7 @@ describe("Loan Shark sums", () => {
             assert.ok(next >= 0 && next < COLLECTOR_LINES.length);
             last = next;
         }
-        assert.equal(fillLine(COLLECTOR_LINES[0], { amount: 16, left: 1232 }), "Kaveri Heiwajima arrived and took 16 PP. You still owe 1,232.");
+        assert.equal(fillLine(COLLECTOR_LINES[0], { amount: 16, left: 1232 }), "Kaveri arrived and took 16 PP. You still owe 1,232.");
     });
 });
 

@@ -77,7 +77,7 @@ async function testCheck(target) {
     return { day, result };
 }
 
-// Admins only, for development: Kaveri Heiwajima comes for the member right
+// Admins only, for development: Kaveri comes for the member right
 // now, to see him at work and his notifications. Their rate goes straight
 // to the top (160%), and he takes what he would at 12:00, 40% of their
 // daily PP, out of their wallet instead (PP first, then P-PP), since
