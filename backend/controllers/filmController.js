@@ -8,7 +8,7 @@ const { getMovie, getMovies, usCertification } = require("../services/tmdbServic
 const { AUTHOR_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { levelOf, rankByLevel, withAuthorStanding } = require("../utils/level");
 const { rankCritics } = require("../utils/critics");
-const { recommendedReviewIds } = require("../utils/recommend");
+const { recommendedReviewIds, featuredReviewIds } = require("../utils/recommend");
 const { parseOffset } = require("../utils/paging");
 const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require("../utils/notify");
 const { dislikeRefusal } = require("../utils/pvp");
@@ -317,12 +317,16 @@ async function reviewsInOrder(ids) {
 // dislikes are hidden. ?sort=shuffle is a random handful from all of them,
 // different each time, and ?sort=recommend (logged-in members only) a random
 // handful leaning towards ones they'd like (utils/recommend.js).
+// ?sort=featured, the toggle's default, mixes the newest with ones picked
+// for the member (or, logged out, the most liked).
 async function getReviews(req, res) {
     const limit = parseLimit(req.query.limit, 15, 50);
     const { sort } = req.query;
     let reviews;
 
-    if (sort === "shuffle") {
+    if (sort === "featured") {
+        reviews = await reviewsInOrder(await featuredReviewIds(req.user?._id ?? null, limit));
+    } else if (sort === "shuffle") {
         const sampled = await Review.aggregate([{ $sample: { size: limit } }, { $project: { _id: 1 } }]);
         reviews = await reviewsInOrder(sampled.map((review) => review._id));
     } else if (sort === "recommend") {

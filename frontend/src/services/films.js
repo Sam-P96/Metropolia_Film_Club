@@ -29,9 +29,11 @@ export function getReviewedFilms(filters, page = 1) {
   return api(`/films/reviewed?${params}`)
 }
 
-// sort: 'recent' (newest first), 'top' (most liked first) or
-// 'controversial' (most disliked first, members with PVP on only). Each
-// review has likeCount, dislikeCount and myVote ('like', 'dislike' or null).
+// sort: 'featured' (mostly the newest, the rest picked for the member, or
+// the most liked when logged out; mixed up), 'recent' (newest first), 'top'
+// (most liked first) or 'controversial' (most disliked first, members with
+// PVP on only). Each review has likeCount, dislikeCount and myVote ('like',
+// 'dislike' or null).
 export function getReviews(limit, sort = 'recent') {
   return api(`/reviews?limit=${limit}&sort=${sort}`)
 }
