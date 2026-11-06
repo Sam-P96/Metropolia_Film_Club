@@ -6,7 +6,8 @@ import MarqueeArrows from "./MarqueeArrows";
 import PillToggle from "../PillToggle";
 
 // Pass `sorts` ([{ value, label }]), sort and onSortChange to show a toggle
-// beside the title (useReviewSorts has Featured / Recent). With `loading`,
+// beside the title (useReviewSorts has Featured / Recent / Top /
+// Controversial). With `loading`,
 // a marquee keeps its size: still cards where it'll be until its first
 // reviews are in, then the reviews it has, dimmed, until the next ones are.
 function ReviewSection({

@@ -7,16 +7,21 @@ import { getCurrentUser } from '../utils/currentUser'
 const TITLES = {
   featured: 'Featured Reviews',
   recent: 'Recent Reviews',
+  top: 'Top Reviews',
+  controversial: 'Controversial Reviews',
 }
 
 // The toggle's options, in order. Featured is the default.
 const SORTS = [
   { value: 'featured', label: 'Featured' },
   { value: 'recent', label: 'Recent' },
+  { value: 'top', label: 'Top' },
+  { value: 'controversial', label: 'Controversial' },
 ]
 
-// The reviews behind the Featured / Recent toggle, for ReviewSection. Both
-// load up front, so the toggle switches straight away. Featured is mostly
+// The reviews behind the Featured / Recent / Top / Controversial toggle, for
+// ReviewSection. All of them load up front, so the toggle switches straight
+// away. Featured is mostly
 // the newest, the rest picked for the member, or the most liked when logged
 // out (backend utils/recommend.js featuredReviewIds): a new mix each time
 // the page loads, and again on logging in or out.
@@ -32,6 +37,8 @@ function useReviewSorts(limit) {
   const lists = {
     featured: useApi(() => getReviews(limit, 'featured'), [limit, loggedIn], keep),
     recent: useApi(() => getReviews(limit, 'recent'), [limit], keep),
+    top: useApi(() => getReviews(limit, 'top'), [limit], keep),
+    controversial: useApi(() => getReviews(limit, 'controversial'), [limit], keep),
   }
 
   const shown = lists[sort].data === undefined && from && lists[from].data !== undefined ? from : sort
