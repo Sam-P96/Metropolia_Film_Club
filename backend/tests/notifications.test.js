@@ -185,7 +185,42 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         for (let i = 0; i < 12; i++) await notify(user, "follow", { actors: [other._id] });
         const second = (await call(user, "GET", "/?skip=10")).body;
         assert.equal(second.items.length, 2);
-        for (const key of ["games", "jackpots", "seenAt", "now"]) assert.ok(!(key in second), key);
+        for (const key of ["promoted", "games", "jackpots", "seenAt", "now"]) assert.ok(!(key in second), key);
+    });
+
+    test("a promoted event waits at the very top until it's been seen, then takes its place by date", async () => {
+        const Event = require("../models/eventModel");
+        const { noteRepostedEvent, notePromotedEvent } = require("../utils/notify");
+        const [user, host] = [await member(), await member()];
+        const soon = () => new Date(Date.now() + 86400000);
+        const clubNight = await Event.create({ title: "A club night", startsAt: soon(), createdBy: host._id });
+        const screening = await Event.create({ title: "A screening", startsAt: soon(), createdBy: host._id, official: false });
+        const plain = await Event.create({ title: "Just posted", startsAt: soon(), createdBy: host._id });
+
+        // Posted, then promoted with the Promote button: it goes out again in
+        // place of the first. A screening made official is promoted too. One
+        // only posted waits in line as ever.
+        await notify(user, "event", { actors: [host._id], event: clubNight._id });
+        await notify(user, "event", { actors: [host._id], event: plain._id });
+        await later();
+        await noteRepostedEvent(clubNight);
+        await later();
+        await notePromotedEvent(screening);
+        await later();
+        await notify(user, "follow", { actors: [host._id] });
+
+        const page = (await call(user, "GET", "/")).body;
+        assert.deepEqual(page.promoted.map((item) => item.event._id), [String(screening._id), String(clubNight._id)]);
+        // With every filter, as events show with every one.
+        for (const filter of ["events", "reviews", "cuts", "games"]) {
+            assert.equal((await call(user, "GET", `/?filter=${filter}`)).body.promoted.length, 2, filter);
+        }
+        // In the list by date too (the page leaves them out there), once each.
+        assert.deepEqual(page.items.filter((item) => item.type === "event").map((item) => item.event.title).sort(), ["A club night", "A screening", "Just posted"]);
+
+        // Once seen, they wait in line by their date like everything else.
+        await call(user, "POST", "/seen", { until: page.now });
+        assert.deepEqual((await call(user, "GET", "/")).body.promoted, []);
     });
 
     // Every page of a filter, as names: the type, or "viralCut" for a cut that went viral.
@@ -246,6 +281,7 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         assert.deepEqual(await shown(user, "all"), expect(Object.keys(kinds)));
         assert.deepEqual(await shown(user, "events"), expect(big));
         assert.deepEqual(await shown(user, "reviews"), expect(["like", "trending", "pvp", ...big]));
+        assert.deepEqual(await shown(user, "cuts"), expect(["cut", ...big]));
         assert.deepEqual(await shown(user, "games"), expect(["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...big]));
         // Anything else is "all", even names JavaScript objects have built in.
         for (const odd of ["nonsense", "constructor", "__proto__"]) assert.deepEqual(await shown(user, odd), expect(Object.keys(kinds)), odd);

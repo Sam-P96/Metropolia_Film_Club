@@ -29,13 +29,16 @@ const PAGE_SIZE = 10;
 //   reviews  votes on their reviews, replies, new reviews from members they
 //            follow, trending reviews, and members turning PvP on (which
 //            decides who can dislike reviews)
+//   cuts     cuts (theirs, the members they follow, and viral ones) and
+//            replies to their cuts
 //   games    Farkle, Box Office Scratch, Double or Nothing, the Slot
 //            Machine and Kino Poker, and the daily PP payout and gifts
 //            (points are only for games)
-// New followers, cuts and replies to cuts are only in "all".
+// New followers are only in "all".
 const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
+    cuts: ["cut", "cutReply"],
     games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
@@ -331,14 +334,28 @@ async function unreadJackpots(viewer, since) {
     return hydrate(rows, viewer);
 }
 
+// Promoted events they haven't seen yet (the Promote button, or a member
+// screening made official: utils/notify.js), newest first, for the very top
+// of the page. Events show with every filter, so these do too.
+async function unseenPromotions(viewer, since) {
+    const rows = await Notification.find({ recipient: viewer._id, type: "event", promoted: true, at: { $gt: since } })
+        .sort({ at: -1, _id: -1 })
+        .limit(FEED_SIZE)
+        .lean();
+    return hydrate(rows, viewer);
+}
+
 // When they last opened Notifications, as a date to compare with: anything
 // newer is unread. Never opened counts as "the start of time".
 const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 
-// ?skip=n&filter=all|events|reviews|games. { items, hasMore, next,
+// ?skip=n&filter=all|events|reviews|cuts|games. { items, hasMore, next,
 // background, filter }: `next` is the skip for the next page, `background`
 // the member's Notifications background setting, and `filter` the one used
 // (FEED_FILTERS above). The first page also brings:
+//   promoted  promoted events they haven't seen yet, for the very top
+//             (they're in `items` too, in date order: the page leaves
+//             those out)
 //   games     the Farkle games they're playing, near the very top (with
 //             "all" and "games")
 //   poker     the Kino Poker table while members are playing at it, beside
@@ -374,6 +391,7 @@ async function getFeed(req, res) {
         filter,
         // Only with the first page, so loading more never wipes them.
         ...(skip === 0 && {
+            promoted: await unseenPromotions(req.user, seenSince(req.user)),
             games: filter === "all" || filter === "games" ? await ongoingGames(req.user) : [],
             poker: filter === "all" || filter === "games" ? (getPokerTable()?.liveFor(req.user._id) ?? null) : null,
             jackpots: await unreadJackpots(req.user, seenSince(req.user)),

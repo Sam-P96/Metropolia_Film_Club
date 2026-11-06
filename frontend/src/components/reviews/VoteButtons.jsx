@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getCurrentUser } from '../../utils/currentUser'
+import { getCurrentUser, updateCurrentUser } from '../../utils/currentUser'
 
 // 999, then 1k, 1.2k, 12.5k… so the buttons stay small.
 const compactNumber = new Intl.NumberFormat('en', {
@@ -31,10 +31,8 @@ function afterVote({ likeCount, dislikeCount, myVote }, vote, dislikeCounts) {
   }
 }
 
-// The same messages as backend/utils/pvp.js.
-const pvpMessage = (subject) =>
-  `To dislike a ${subject}, you need to turn on PVP in "Edit profile" on your profile page.`
-
+// The same message as backend/utils/pvp.js. (When it's the voter's own PVP
+// that's off, the server's message is shown: see handleClick.)
 const authorPvpMessage = (subject) =>
   `This member has PVP turned off, so their ${subject}s can't be disliked.`
 
@@ -64,9 +62,11 @@ const KINDS = {
 // the server says. Logged-out visitors are sent to log in, then back.
 //
 // Disliking needs PVP on, for the voter and the author; otherwise the thumbs
-// down gives an alert saying why. Both buttons always show, so every card
-// looks the same. With `allowDislikes` false (the author has PVP off) their
-// dislikes count as 0, so the shares read as all liked.
+// down gives an alert saying why. Whether the voter's is on, the server
+// decides (the copy kept with the login can be out of date). Both buttons
+// always show, so every card looks the same. With `allowDislikes` false
+// (the author has PVP off) their dislikes count as 0, so the shares read as
+// all liked.
 //
 // `send(vote)` saves 'like', 'dislike' or null and resolves to
 // { likeCount, dislikeCount, myVote }. `onChange` gets each new state.
@@ -106,25 +106,31 @@ function VoteButtons({
     const before = { likeCount, dislikeCount, myVote }
     const vote = myVote === clicked ? null : clicked
 
-    if (vote === 'dislike') {
-      // Logins from before PVP existed don't know, so the server decides.
-      if (currentUser.pvp === false) {
-        window.alert(pvpMessage(subject))
-        return
-      }
-
-      if (!allowDislikes) {
-        window.alert(authorPvpMessage(subject))
-        return
-      }
+    if (vote === 'dislike' && !allowDislikes) {
+      window.alert(authorPvpMessage(subject))
+      return
     }
 
-    onChange(afterVote(before, vote, currentUser.pvp !== false))
-    setPopping(vote)
+    // The login kept in the browser says whether their PVP is on as it was
+    // when they logged in: turned on since (from another device, say), it
+    // still says off. So a dislike it isn't sure of goes to the server,
+    // which knows, without showing first; if it's taken, the kept login
+    // catches up. If it isn't, the server says why.
+    const unsure = vote === 'dislike' && currentUser.pvp !== true
+
+    if (!unsure) {
+      onChange(afterVote(before, vote, currentUser.pvp !== false))
+      setPopping(vote)
+    }
     setSaving(true)
 
     try {
-      onChange(await send(vote))
+      const saved = await send(vote)
+      if (unsure) {
+        updateCurrentUser({ pvp: true })
+        setPopping(vote)
+      }
+      onChange(saved)
     } catch (err) {
       onChange(before)
       if (err.status === 401) goToLogin()

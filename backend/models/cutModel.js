@@ -14,6 +14,9 @@ const cutSchema = new Schema(
         // When it first reached the viral line (utils/notify.js) and went out
         // in every member's Feed. It only goes out once, and stays viral.
         viralAt: {type: Date, default: null},
+        // When its author last changed what it says, or null if they never
+        // have (updatedAt moves with every vote, so it can't tell).
+        editedAt: {type: Date, default: null},
     },
     {timestamps: true}
 );

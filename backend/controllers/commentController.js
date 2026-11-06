@@ -172,6 +172,47 @@ async function addCutReply(req, res) {
     res.status(201).json(await created(comment));
 }
 
+// Only the member who wrote it can change what it says, under a review or a
+// cut: the same 1 to MAX_COMMENT_LENGTH characters as a new one, not while
+// they're banned from commenting, and not under a review whose comments
+// have been turned off. Its votes and replies stay. Saving it unchanged
+// doesn't mark it edited. Resolves to { _id, text, editedAt }.
+async function editComment(req, res) {
+    const { id } = req.params;
+    const comment = mongoose.isValidObjectId(id)
+        ? await Comment.findById(id).select("user review text editedAt").lean()
+        : null;
+
+    if (!comment) {
+        return res.status(404).json({ error: "Comment not found." });
+    }
+
+    if (String(comment.user) !== String(req.user._id)) {
+        return res.status(403).json({ error: "You can only edit your own comments." });
+    }
+
+    const { text, status, error } = checkNewComment(req);
+
+    if (error) {
+        return res.status(status).json({ error });
+    }
+
+    if (comment.review) {
+        const review = await findForComments(comment.review);
+        if (review && !review.open) {
+            return res.status(403).json({ error: COMMENTS_OFF });
+        }
+    }
+
+    if (text === comment.text) {
+        return res.json({ _id: comment._id, text: comment.text, editedAt: comment.editedAt ?? null });
+    }
+
+    const editedAt = new Date();
+    await Comment.updateOne({ _id: id }, { $set: { text, editedAt } });
+    res.json({ _id: comment._id, text, editedAt });
+}
+
 // The thumbs up and thumbs down, as on reviews (dislikes only between
 // members with PVP on). Resolves to { likeCount, dislikeCount, myVote }.
 async function setCommentVote(req, res) {
@@ -234,6 +275,7 @@ module.exports = {
     addComment,
     getCutReplies,
     addCutReply,
+    editComment,
     setCommentVote,
     deleteComment,
 };

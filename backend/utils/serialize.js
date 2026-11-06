@@ -4,8 +4,10 @@
 // The fields a review card needs from its author.
 const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner levelStyle pvp allowComments showRank value privacy";
 
-// Enough to draw a member's name, title and avatar in a list.
-const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy";
+// Enough to draw a member's name, title and avatar in a list, and whether
+// their PVP is on: userSummary always says, so without it every cut's
+// author read as PVP off and their cuts couldn't be disliked.
+const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy pvp";
 
 const DEFAULT_BANNER = { type: "color", color: "#2D1B47", imageUrl: null, style: "opaque" };
 const DEFAULT_LEVEL_STYLE = {

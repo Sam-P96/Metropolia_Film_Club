@@ -1,5 +1,5 @@
 const express = require("express");
-const { getAllCuts, getCut, postCut, setCutVote, deleteCut } = require("../controllers/cutController");
+const { getAllCuts, getCut, postCut, editCut, setCutVote, deleteCut } = require("../controllers/cutController");
 const { getCutReplies, addCutReply } = require("../controllers/commentController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
@@ -12,7 +12,11 @@ router.post("/", requireAuth, postCut);
 router.get("/:id", requireAuth, getCut);
 router.put("/:id/vote", requireAuth, setCutVote);
 
-// Replies are comments: voting on and deleting one is under /api/comments.
+// Only the cut's author can change what it says; the controller checks.
+router.patch("/:id", requireAuth, editCut);
+
+// Replies are comments: voting on, editing and deleting one is under
+// /api/comments.
 router.get("/:id/replies", requireAuth, getCutReplies);
 router.post("/:id/replies", requireAuth, addCutReply);
 

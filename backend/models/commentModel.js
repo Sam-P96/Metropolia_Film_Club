@@ -22,6 +22,9 @@ const commentSchema = new Schema(
         // The comment this replies to, or null for one straight under the
         // review. Deleting a comment leaves its replies.
         parent: {type: Schema.Types.ObjectId, ref: "Comment", default: null},
+        // When its author last changed what it says, or null if they never
+        // have (updatedAt moves with every vote, so it can't tell).
+        editedAt: {type: Date, default: null},
     },
     {timestamps: true}
 );

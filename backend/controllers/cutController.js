@@ -73,6 +73,43 @@ async function postCut(req, res) {
     res.status(201).json({ _id: cut._id, text: cut.text, createdAt: cut.createdAt });
 }
 
+// Only the member who posted it can change what it says: the same 1 to
+// MAX_CUT_LENGTH characters as a new cut, and not while they're banned
+// from posting cuts. Its votes, replies and place in everyone's
+// Notifications stay. Saving it unchanged doesn't mark it edited.
+// Resolves to { _id, text, editedAt }.
+async function editCut(req, res) {
+    const { id } = req.params;
+    const text = String(req.body?.text ?? "").trim();
+
+    if (!text || text.length > MAX_CUT_LENGTH) {
+        return res.status(400).json({ error: `Cuts are 1 to ${MAX_CUT_LENGTH} characters.` });
+    }
+
+    const cut = mongoose.isValidObjectId(id) ? await Cut.findById(id).select("user text editedAt").lean() : null;
+
+    if (!cut) {
+        return res.status(404).json({ error: "Cut not found." });
+    }
+
+    if (String(cut.user) !== String(req.user._id)) {
+        return res.status(403).json({ error: "You can only edit your own cuts." });
+    }
+
+    const banned = banRefusal(req.user, "cuts");
+    if (banned) {
+        return res.status(403).json({ error: banned });
+    }
+
+    if (text === cut.text) {
+        return res.json({ _id: cut._id, text: cut.text, editedAt: cut.editedAt ?? null });
+    }
+
+    const editedAt = new Date();
+    await Cut.updateOne({ _id: id }, { $set: { text, editedAt } });
+    res.json({ _id: cut._id, text, editedAt });
+}
+
 // The thumbs up and thumbs down, as on comments (dislikes only between
 // members with PVP on, and the comment dislike ban stops them too). They
 // don't count towards levels, but enough likes make it a viral take (see
@@ -133,4 +170,4 @@ async function deleteCut(req, res) {
     res.json({ ok: true });
 }
 
-module.exports = { getAllCuts, getCut, postCut, setCutVote, deleteCut };
+module.exports = { getAllCuts, getCut, postCut, editCut, setCutVote, deleteCut };

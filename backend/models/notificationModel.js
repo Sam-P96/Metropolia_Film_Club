@@ -23,7 +23,10 @@ const KEEP_FOR_DAYS = 90;
 //                   poster included) or a
 //                   member screening by `actors[0]`: to its host, their
 //                   followers, and moderators and admins. The event page's
-//                   Promote button sends it again, in place of the old one.
+//                   Promote button sends it again, in place of the old one,
+//                   and so does a member screening being made official, to
+//                   whoever hadn't had it: those are `promoted`, and wait at
+//                   the top of Notifications until they've been seen.
 //                   No review.
 //   cut             `actors[0]` posted `cut`: to them and their followers,
 //                   and once it goes viral, to every member in place of
@@ -125,6 +128,10 @@ const notificationSchema = new Schema({
     // acts on them. Only ever true or missing (never false), so that sorting
     // by it leaves every other notification in date order.
     pinned: {type: Boolean},
+    // An event sent out by promoting it (utils/notify.js): it waits at the
+    // top of Notifications until they've seen it, then takes its place by
+    // date. Only ever true or missing.
+    promoted: {type: Boolean},
     event: {type: Schema.Types.ObjectId, ref: "Event", default: null},
     variant: {type: Number, default: null},
     comment: {type: Schema.Types.ObjectId, ref: "Comment", default: null},

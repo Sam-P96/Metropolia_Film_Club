@@ -13,9 +13,16 @@ export function getAllCuts(skip = 0) {
 }
 
 // One cut, shaped like a cut in the Feed: { _id, type, at, actors, cut },
-// where `cut` is { _id, text, likeCount, dislikeCount, myVote, replyCount }.
+// where `cut` is { _id, text, likeCount, dislikeCount, myVote, replyCount,
+// viral, editedAt (null unless its author changed it) }.
 export function getCut(id) {
   return api(`/cuts/${encodeURIComponent(id)}`)
+}
+
+// Only the cut's author can change what it says. The server checks.
+// Resolves to { _id, text, editedAt }.
+export function editCut(id, text) {
+  return api(`/cuts/${encodeURIComponent(id)}`, { method: 'PATCH', body: { text } })
 }
 
 // vote is 'like', 'dislike' or null. Resolves to { likeCount, dislikeCount, myVote }.
@@ -24,8 +31,8 @@ export function setCutVote(id, vote) {
 }
 
 // The replies under a cut, in the same shape as a review's comments
-// (services/comments.js), which is what they are: voting on and deleting
-// one goes through there.
+// (services/comments.js), which is what they are: voting on, editing and
+// deleting one goes through there.
 export function getCutReplies(id) {
   return api(`/cuts/${encodeURIComponent(id)}/replies`)
 }
