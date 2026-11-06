@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from 'react'
 //   const { data, error, loading } = useApi(() => getEvent(id), [id])
 //
 // Pass { enabled: false } to wait (e.g. until someone is logged in).
+// { keepPrevious: true } keeps the last answer in `data` while new deps
+// load (`loading` still says so), so the page doesn't empty in between.
 // setData swaps in a fresh copy after a save, without another request.
-function useApi(load, deps, { enabled = true } = {}) {
+function useApi(load, deps, { enabled = true, keepPrevious = false } = {}) {
   const key = enabled ? JSON.stringify(deps) : null
   const [version, setVersion] = useState(0)
 
@@ -51,7 +53,7 @@ function useApi(load, deps, { enabled = true } = {}) {
   const reload = useCallback(() => setVersion((v) => v + 1), [])
 
   return {
-    data: current ? state.data : undefined,
+    data: current || keepPrevious ? state.data : undefined,
     error: current ? state.error : null,
     loading: key !== null && !current,
     setData,

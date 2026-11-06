@@ -18,10 +18,11 @@ function Home({ isAuthenticated }) {
         reviews={reviews.reviews}
         sort={reviews.sort}
         onSortChange={reviews.setSort}
+        sorts={reviews.options}
+        loading={reviews.loading}
         layout="marquee"
         backgroundUrl={reviewsBg}
         linkTo="/movie_reviews"
-        emptyMessage={reviews.loading ? 'Loading reviews…' : undefined}
       />
       <AboutClub isAuthenticated={isAuthenticated} />
 

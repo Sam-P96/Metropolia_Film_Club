@@ -7,6 +7,10 @@ import { useLayoutEffect, useRef } from 'react'
 // Off | On switches in Edit profile. The options aren't the same width, so
 // it's measured from the picked button, and again whenever the pill resizes
 // (a font loading, say).
+//
+// Too many options for the space (a phone, say), it scrolls sideways, with
+// no scrollbar, and keeps the picked one in view. The focus ring sits
+// inside each option, so the scrolling edge never cuts it off.
 function PillToggle({ options, value, onChange, label }) {
   const pill = useRef(null)
   const highlight = useRef(null)
@@ -28,6 +32,14 @@ function PillToggle({ options, value, onChange, label }) {
       el.style.width = `${picked.offsetWidth}px`
       el.style.transform = `translateX(${picked.offsetLeft}px)`
 
+      // Scrolled sideways: bring the picked one into view, just far enough.
+      const box = pill.current
+      if (picked.offsetLeft < box.scrollLeft) {
+        box.scrollLeft = picked.offsetLeft
+      } else if (picked.offsetLeft + picked.offsetWidth > box.scrollLeft + box.clientWidth) {
+        box.scrollLeft = picked.offsetLeft + picked.offsetWidth - box.clientWidth
+      }
+
       if (!placed.current) {
         el.getBoundingClientRect() // apply it before the transition comes back
         el.style.transition = ''
@@ -47,7 +59,7 @@ function PillToggle({ options, value, onChange, label }) {
       ref={pill}
       role="group"
       aria-label={label}
-      className="relative flex rounded-full border border-white/15 bg-ink/60 p-0.5 backdrop-blur-md"
+      className="relative flex max-w-full overflow-x-auto overscroll-x-contain rounded-full border border-white/15 bg-ink/60 p-0.5 backdrop-blur-md scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       <span
         ref={highlight}
@@ -67,7 +79,7 @@ function PillToggle({ options, value, onChange, label }) {
             type="button"
             onClick={() => onChange(option.value)}
             aria-pressed={active}
-            className={`relative rounded-full px-3 py-1 text-xs font-medium transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${
+            className={`relative shrink-0 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors duration-300 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${
               active ? 'text-ink' : 'text-white/60 hover:text-white'
             }`}
           >
