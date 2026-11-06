@@ -1,11 +1,12 @@
 import { useEffect, useId, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
+import EditText from '../EditText'
 import PillToggle from '../PillToggle'
 import MemberAvatar from '../profile/MemberAvatar'
 import VoteButtons from './VoteButtons'
 import useApi from '../../hooks/useApi'
-import { addComment, deleteComment, getComments, setCommentVote } from '../../services/comments'
+import { addComment, deleteComment, editComment, getComments, setCommentVote } from '../../services/comments'
 import { addCutReply, getCutReplies } from '../../services/cuts'
 import { getCurrentUser } from '../../utils/currentUser'
 import { canDeleteAnyComment } from '../../utils/permissions'
@@ -36,6 +37,7 @@ const WORDS = {
     failed: "Couldn't load the comments. Try refreshing the page.",
     none: 'No comments yet.',
     confirmDelete: 'Delete this comment?',
+    edit: 'Edit your comment',
   },
   cut: {
     heading: 'Replies',
@@ -47,6 +49,7 @@ const WORDS = {
     failed: "Couldn't load the replies. Try refreshing the page.",
     none: 'No replies yet.',
     confirmDelete: 'Delete this reply?',
+    edit: 'Edit your reply',
   },
 }
 
@@ -79,8 +82,8 @@ function buildThreads(comments) {
 // comments under a review, or the replies under a cut. `load` fetches them
 // all (again when `loadKey` changes) and `add(text, parentId)` posts one.
 // Anyone logged in can reply to any comment, and replies nest under it.
-// Comments have likes and dislikes. Their author, and moderators and
-// admins, can delete them. A Feed link to a reply (#comment-<id>) scrolls to
+// Comments have likes and dislikes. Only their author can edit them; their
+// author, and moderators and admins, can delete them. A Feed link to a reply (#comment-<id>) scrolls to
 // it and flashes it. `onCountChange` hears how many there are.
 function CommentSection({ load, add, loadKey, loginFrom, isAuthenticated, words, className, onCountChange }) {
   const location = useLocation()
@@ -115,8 +118,10 @@ function CommentSection({ load, add, loadKey, loginFrom, isAuthenticated, words,
     words,
     target,
     isAuthenticated,
+    canEdit: (comment) => comment.user._id === currentUser?._id,
     canDelete: (comment) => comment.user._id === currentUser?._id || canDeleteAnyComment(currentUser),
     onVoteChange: updateComment,
+    onEdited: updateComment,
     onDeleted: (id) => setData((prev) => prev.filter((comment) => comment._id !== id)),
     onReplied: addToList,
   }
@@ -223,10 +228,12 @@ function Thread({ node, depth, thread }) {
           comment={node}
           words={thread.words}
           flash={thread.target === node._id}
+          canEdit={thread.canEdit(node)}
           canDelete={thread.canDelete(node)}
           canReply={thread.isAuthenticated}
           onReply={() => setReplying(true)}
           onVoteChange={(votes) => thread.onVoteChange(node._id, votes)}
+          onEdited={(saved) => thread.onEdited(node._id, { text: saved.text, editedAt: saved.editedAt })}
           onDeleted={() => thread.onDeleted(node._id)}
         />
       )}
@@ -336,10 +343,13 @@ function CommentForm({ add, words, parent = null, onPosted, onCancel }) {
   )
 }
 
-// One comment. Delete asks first, right where the button was. `flash`
-// rings it in gold for a moment, when a Feed link brought you here.
-function Comment({ comment, words, flash, canDelete, canReply, onReply, onVoteChange, onDeleted }) {
+// One comment. Edit (its author's only) opens its words in a box right
+// where they were; once changed, it says "edited" by its time. Delete asks
+// first, right where the button was. `flash` rings it in gold for a
+// moment, when a Feed link brought you here.
+function Comment({ comment, words, flash, canEdit, canDelete, canReply, onReply, onVoteChange, onEdited, onDeleted }) {
   const { user } = comment
+  const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState(null)
@@ -377,14 +387,32 @@ function Comment({ comment, words, flash, canDelete, canReply, onReply, onVoteCh
             {user.username}
           </Link>
           <ResonanceIcon userId={user._id} className="ml-1" />
-          <span className="ml-2 text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
+          <span className="ml-2 text-xs text-white/40">
+            {timeAgo(comment.createdAt)}
+            {comment.editedAt && ' · edited'}
+          </span>
         </p>
 
-        <p className="mt-1 text-sm leading-relaxed wrap-break-word whitespace-pre-line text-white/80">
-          {comment.text}
-        </p>
+        {editing ? (
+          <EditText
+            initial={comment.text}
+            maxLength={MAX_LENGTH}
+            label={words.edit}
+            save={(text) => editComment(comment._id, text)}
+            onSaved={(saved) => {
+              onEdited(saved)
+              setEditing(false)
+            }}
+            onCancel={() => setEditing(false)}
+            className="mt-2"
+          />
+        ) : (
+          <p className="mt-1 text-sm leading-relaxed wrap-break-word whitespace-pre-line text-white/80">
+            {comment.text}
+          </p>
+        )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className={`mt-3 flex flex-wrap items-center gap-3 ${editing ? 'hidden' : ''}`}>
           <VoteButtons
             likeCount={comment.likeCount}
             dislikeCount={comment.dislikeCount}
@@ -402,6 +430,16 @@ function Comment({ comment, words, flash, canDelete, canReply, onReply, onVoteCh
               className="text-xs font-medium text-white/50 transition-colors hover:text-brand-gold"
             >
               Reply
+            </button>
+          )}
+
+          {canEdit && !confirming && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-xs font-medium text-white/50 transition-colors hover:text-brand-gold"
+            >
+              Edit
             </button>
           )}
 

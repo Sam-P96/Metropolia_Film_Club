@@ -168,8 +168,9 @@ function JackpotPanel({ jackpot, viewType, onLook }) {
 
 // One ticket type's Buy button: its name and price, and which coins pay
 // (PP first), in its type's colours (ticketThemes.js): Standard gold as it
-// always was, Premium red, VIP gold in a purple aura (the friend glow from
-// the review cards, CardShine). Dimmed and off while it can't be bought: not
+// always was, Premium red, VIP sparkly gold like its ticket (the same
+// gold, sweeping light and glitter: bodyClass) in a purple aura (the friend
+// glow from the review cards, CardShine). Dimmed and off while it can't be bought: not
 // enough points, a ticket printing, or for VIP, out of its hours ("Opens at
 // 16:00"), which `sale` (from the server) says; it switches on by itself
 // when the hours start. Pointing at it or focusing it shows its jackpot
@@ -213,7 +214,7 @@ function BuyButton({ type, wallet, buying, sale, onBuy, onLook }) {
           onClick={tap}
           onFocus={() => onLook(type)}
           disabled={disabled}
-          className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center rounded-xl [background:var(--tk-buy)] px-6 text-lg font-bold text-(--tk-buy-text) shadow-[0_0_24px_var(--tk-buy-glow)] transition-[filter] hover:brightness-110 disabled:cursor-default"
+          className={`flex min-h-14 w-full cursor-pointer flex-col items-center justify-center rounded-xl [background:var(--tk-buy)] px-6 text-lg font-bold text-(--tk-buy-text) shadow-[0_0_24px_var(--tk-buy-glow)] transition-[filter] hover:brightness-110 disabled:cursor-default ${theme.bodyClass}`}
         >
           {buying === type ? 'Printing your ticket…' : `${kind.name} ticket · ${price}`}
           <AnimatePresence initial={false} mode="wait">

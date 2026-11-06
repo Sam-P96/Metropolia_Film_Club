@@ -21,6 +21,12 @@ export function setCommentVote(id, vote) {
   return api(`/comments/${encodeURIComponent(id)}/vote`, { method: 'PUT', body: { vote } })
 }
 
+// Only the comment's author can change what it says (under a review, or
+// under a cut). The server checks. Resolves to { _id, text, editedAt }.
+export function editComment(id, text) {
+  return api(`/comments/${encodeURIComponent(id)}`, { method: 'PATCH', body: { text } })
+}
+
 // The comment's author, or a moderator or admin. The server checks.
 export function deleteComment(id) {
   return api(`/comments/${encodeURIComponent(id)}`, { method: 'DELETE' })

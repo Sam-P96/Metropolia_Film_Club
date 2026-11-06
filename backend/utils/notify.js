@@ -166,7 +166,8 @@ async function noteNewEvent(event) {
 
 // A member screening made official is a new club event for every member
 // who hasn't heard about it yet (its host and their followers have),
-// whoever promoted it included.
+// whoever promoted it included. It's promoted: it waits at the top of their
+// Notifications until they've seen it.
 async function notePromotedEvent(event) {
     const [members, told] = await Promise.all([
         User.find().distinct("_id"),
@@ -176,14 +177,15 @@ async function notePromotedEvent(event) {
 
     await sendToEach(
         members.filter((id) => !skip.has(String(id))),
-        { type: "event", event: event._id, actors: [event.createdBy] }
+        { type: "event", event: event._id, actors: [event.createdBy], promoted: true }
     );
 }
 
 // The Promote button on an event's page: it goes out again, to every member
 // for a club event, or for a member screening to its host and their
 // followers. Whoever already had it loses the old one, so it shows once,
-// at the top. Returns how many members it went to.
+// and it waits at the top of their Notifications until they've seen it.
+// Returns how many members it went to.
 async function noteRepostedEvent(event) {
     let recipients;
 
@@ -196,7 +198,7 @@ async function noteRepostedEvent(event) {
     }
 
     await Notification.deleteMany({ type: "event", event: event._id, recipient: { $in: recipients } });
-    await sendToEach(recipients, { type: "event", event: event._id, actors: [event.createdBy] });
+    await sendToEach(recipients, { type: "event", event: event._id, actors: [event.createdBy], promoted: true });
     return recipients.length;
 }
 

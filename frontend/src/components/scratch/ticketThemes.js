@@ -12,8 +12,8 @@ import { DEFAULT_TICKET_TYPE } from '../../../../shared/scratch/tickets.js'
 //   liveStars  revealed stars glow in a slow pulse and drift: with the
 //              phone's tilt, or floating gently on a computer
 //              (hooks/useStarMotion.js)
-//   bodyClass  an extra class for the ticket's body (index.css, "Box Office
-//              Scratch tickets")
+//   bodyClass  an extra class for the ticket's body, and its Buy button
+//              (index.css, "Box Office Scratch tickets")
 //   aura       a CardShine tone round the Buy button
 //   tag        the type's name on the dark page (Recent jackpots, How to
 //              play, jackpot notifications)
@@ -90,6 +90,11 @@ const STANDARD = {
   '--tk-jackpot-edge': GOLD,
 }
 
+// VIP's gold: the ticket's body, and its Buy button, where the same light
+// sweeps and glitter twinkles (bodyClass, ticket-gold).
+const VIP_GOLD =
+  'linear-gradient(135deg, #CF9A33 0%, #F2C964 16%, #E0AE45 32%, #FFE7A6 50%, #DDA944 68%, #F5D07A 84%, #D29D36 100%)'
+
 // The glow that breathes round a jackpot notification, from small to big.
 const glow = (rgb, small, big) => ({ small: `0 0 14px 1px rgba(${rgb}, ${small})`, big: `0 0 30px 4px rgba(${rgb}, ${big})` })
 
@@ -161,8 +166,7 @@ export const TICKET_THEMES = {
       '--tk-prize': '#3B0764',
       '--tk-link-hover': '#5B1374',
       '--tk-jackpot-bg': 'rgb(24 8 44 / 0.82)',
-      '--tk-body':
-        'linear-gradient(135deg, #CF9A33 0%, #F2C964 16%, #E0AE45 32%, #FFE7A6 50%, #DDA944 68%, #F5D07A 84%, #D29D36 100%)',
+      '--tk-body': VIP_GOLD,
       '--tk-edge': '#7C3AED',
       '--tk-edge-glow': 'rgb(124 58 237 / 0.28)',
       '--tk-rule': 'rgb(109 40 217 / 0.7)',
@@ -195,7 +199,7 @@ export const TICKET_THEMES = {
       '--tk-ghost-edge': '#7C3AED',
       '--tk-ghost-hover-edge': '#5B21B6',
       '--tk-ghost-text': '#3B0764',
-      '--tk-buy': '#FABC3F',
+      '--tk-buy': VIP_GOLD,
       '--tk-buy-text': '#0B0710',
       '--tk-buy-glow': 'rgb(250 188 63 / 0)',
     },

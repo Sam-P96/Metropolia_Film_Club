@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import EditText from '../EditText'
 import ReviewCard from '../reviews/ReviewCard'
 import { CutReplies } from '../reviews/ReviewComments'
 import VoteButtons from '../reviews/VoteButtons'
@@ -21,7 +22,7 @@ import { splitLinks } from '../../utils/links'
 import { canDeleteAnyCut } from '../../utils/permissions'
 import { timeAgo } from '../../utils/timeAgo'
 import { resolveReports } from '../../services/films'
-import { deleteCut, setCutVote } from '../../services/cuts'
+import { deleteCut, editCut, setCutVote } from '../../services/cuts'
 import useDominantColor from '../../hooks/useDominantColor'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 
@@ -354,13 +355,19 @@ function FollowNotice({ item }) {
 // backend/utils/notify.js.
 const VIRAL_LIKES = 5
 
+// How long a cut can be. Matches MAX_CUT_LENGTH in
+// backend/controllers/cutController.js (and CutComposer).
+const MAX_CUT_LENGTH = 280
+
 // A member's cut: on their banner, who posted it, then what they wrote in a
 // speech bubble, with any web addresses in it as links. Under it, its likes
 // and dislikes (which don't count towards levels) and its replies, which
 // open inside the card; `repliesOpen` has them open from the start with no
-// toggle, as on the cut's own page. Its author, and moderators and admins,
-// can delete it, which takes it out of everyone's Notifications; Delete
-// asks first, right where the button was.
+// toggle, as on the cut's own page. Only its author can edit it: Edit opens
+// its words in a box in place of the bubble, and once changed it says
+// "edited" by its time. Its author, and moderators and admins, can delete
+// it, which takes it out of everyone's Notifications; Delete asks first,
+// right where the button was.
 //
 // A viral take (one with VIRAL_LIKES likes or more, which went out to every
 // member) glows in brand gold and says so.
@@ -380,6 +387,10 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
   const [replyCount, setReplyCount] = useState(cut.replyCount ?? 0)
   // Your like can be the one that makes it viral; the server marks it then.
   const viral = cut.viral || votes.likeCount >= VIRAL_LIKES
+
+  // What it says, and when it was last changed, as edited here.
+  const [words, setWords] = useState({ text: cut.text, editedAt: cut.editedAt ?? null })
+  const [editing, setEditing] = useState(false)
 
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -438,31 +449,50 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
                 <NameLink user={author} className={bannerNameClasses} /> posted their cut
               </>
             )}
-            <span className="text-white/50"> · {timeAgo(item.at)}</span>
+            <span className="text-white/50">
+              {' '}
+              · {timeAgo(item.at)}
+              {words.editedAt && ' · edited'}
+            </span>
           </p>
         </div>
 
-        <blockquote className="mt-4 rounded-2xl rounded-tl-sm border border-white/10 bg-ink/70 px-5 py-4 text-lg leading-relaxed text-white backdrop-blur-sm">
-          <p className="whitespace-pre-line wrap-break-word">
-            {splitLinks(cut.text).map((part, index) =>
-              typeof part === 'string' ? (
-                part
-              ) : (
-                <a
-                  key={index}
-                  href={part.href}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow ugc"
-                  className="font-medium break-all text-brand-gold underline underline-offset-2 transition-colors hover:text-white"
-                >
-                  {part.text}
-                </a>
-              )
-            )}
-          </p>
-        </blockquote>
+        {editing ? (
+          <EditText
+            initial={words.text}
+            maxLength={MAX_CUT_LENGTH}
+            label="Edit your cut"
+            save={(text) => editCut(cut._id, text)}
+            onSaved={(saved) => {
+              setWords({ text: saved.text, editedAt: saved.editedAt })
+              setEditing(false)
+            }}
+            onCancel={() => setEditing(false)}
+            className="mt-4"
+          />
+        ) : (
+          <blockquote className="mt-4 rounded-2xl rounded-tl-sm border border-white/10 bg-ink/70 px-5 py-4 text-lg leading-relaxed text-white backdrop-blur-sm">
+            <p className="whitespace-pre-line wrap-break-word">
+              {splitLinks(words.text).map((part, index) =>
+                typeof part === 'string' ? (
+                  part
+                ) : (
+                  <a
+                    key={index}
+                    href={part.href}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow ugc"
+                    className="font-medium break-all text-brand-gold underline underline-offset-2 transition-colors hover:text-white"
+                  >
+                    {part.text}
+                  </a>
+                )
+              )}
+            </p>
+          </blockquote>
+        )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+        <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs ${editing ? 'hidden' : ''}`}>
           <VoteButtons
             {...votes}
             send={(vote) => setCutVote(cut._id, vote)}
@@ -483,7 +513,16 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
           )}
 
           {canDelete && (
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+              {yours && !confirming && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="font-medium text-white/50 transition-colors hover:text-brand-gold"
+                >
+                  Edit
+                </button>
+              )}
               {confirming ? (
                 <>
                   <span className="text-white/70">

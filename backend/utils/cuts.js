@@ -3,11 +3,12 @@ const Comment = require("../models/commentModel");
 const { userSummary } = require("./serialize");
 
 // What a cut needs from the database to be drawn.
-const CUT_FIELDS = "user text likeCount dislikeCount viralAt createdAt";
+const CUT_FIELDS = "user text likeCount dislikeCount viralAt editedAt createdAt";
 
 // Cuts (plain .lean() documents with CUT_FIELDS) as the page draws them:
-// { _id, text, likeCount, dislikeCount, myVote, replyCount, viral }, with
-// `myVote` for `viewer` (the member asking, or null).
+// { _id, text, likeCount, dislikeCount, myVote, replyCount, viral,
+// editedAt }, with `myVote` for `viewer` (the member asking, or null) and
+// `editedAt` null unless its author has changed it.
 async function cutDetails(cuts, viewer) {
     const [voted, counts] = await Promise.all([
         Cut.withMyVote(cuts, viewer),
@@ -26,6 +27,7 @@ async function cutDetails(cuts, viewer) {
         myVote: cut.myVote,
         replyCount: replyCounts.get(String(cut._id)) ?? 0,
         viral: Boolean(cut.viralAt),
+        editedAt: cut.editedAt ?? null,
     }));
 }
 
