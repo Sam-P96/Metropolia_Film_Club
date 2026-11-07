@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import bret from '../../assets/Bret.png'
+import bret from '../../assets/Black_Mart_Chameleon_Placeholder.png'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import { CHAMELEON_LINES } from '../../../../shared/blackMarket/lines.js'
 import { pickLine } from '../../../../shared/loanShark/lines.js'
