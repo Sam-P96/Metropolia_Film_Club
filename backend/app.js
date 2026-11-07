@@ -25,6 +25,7 @@ const resonanceRouter = require("./routes/resonanceRouter");
 const stealRouter = require("./routes/stealRouter");
 const pokerRouter = require("./routes/pokerRouter");
 const loanSharkRouter = require("./routes/loanSharkRouter");
+const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -154,6 +155,9 @@ app.use("/api/steal", stealRouter);
 app.use("/api/poker", pokerRouter);
 // Loan Shark: borrowing from King Loan Shark and from each other. Paying
 // back always goes through a games ban (middleware/gameBans.js).
+// /SECRETloanshark: who King Loan Shark's jobs can pick (admins only). Ahead
+// of the rest, so a games ban never gets in the way of an admin.
+app.use("/api/loan-shark/admin", loanSharkAdminRouter);
 app.use("/api/loan-shark", refuseGameBans, loanSharkRouter);
 app.use("/api/password-resets", passwordResetRouter);
 

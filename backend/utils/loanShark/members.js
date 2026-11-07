@@ -5,6 +5,7 @@ const LoanOffer = require("../../models/loanOfferModel");
 const PlayerDebt = require("../../models/playerDebtModel");
 const LoanJob = require("../../models/loanJobModel");
 const LoanTx = require("../../models/loanTxModel");
+const LoanJobList = require("../../models/loanJobListModel");
 const { changeAccount, loadAccount, logTx, LoanError } = require("./account");
 const { addDays, debtOwed, nextCheckDay } = require("./math");
 
@@ -15,8 +16,8 @@ const { addDays, debtOwed, nextCheckDay } = require("./math");
 // An account is being deleted (controllers/userControllers.js
 // deleteAccount). Their offers come down (the PP in them goes with the
 // account), what they owe and are owed is let go, jobs about them close,
-// and their account and log go. Members they owed, or who owed them, have
-// that taken off their own totals.
+// their account and log go, and they come off the admins' job lists.
+// Members they owed, or who owed them, have that taken off their own totals.
 async function forgetLoanMember(userId) {
     await LoanOffer.updateMany({ lender: userId, status: "active" }, { $set: { status: "closed", closedReason: "down", closedAt: new Date(), available: 0 } });
 
@@ -37,6 +38,9 @@ async function forgetLoanMember(userId) {
     }
 
     await LoanJob.updateMany({ status: "open", $or: [{ x: userId }, { y: userId }] }, { $set: { status: "closed" } });
+    // Off the admins' hand-kept job lists, and no longer their adder.
+    await LoanJobList.deleteMany({ user: userId });
+    await LoanJobList.updateMany({ addedBy: userId }, { $set: { addedBy: null } });
     await LoanJob.deleteMany({ borrower: userId });
     await LoanTx.deleteMany({ user: userId });
     await LoanTx.updateMany({ other: userId }, { $set: { other: null } });
@@ -45,14 +49,16 @@ async function forgetLoanMember(userId) {
 
 // Everything Loan Shark holds about a member, for their data export.
 async function loanDataOf(userId) {
-    const [account, offers, debts, jobs, log] = await Promise.all([
+    const [account, offers, debts, jobs, log, jobList] = await Promise.all([
         LoanAccount.findById(userId).lean(),
         LoanOffer.find({ lender: userId }).sort({ createdAt: -1 }).lean(),
         PlayerDebt.find({ $or: [{ borrower: userId }, { lender: userId }] }).sort({ createdAt: -1 }).lean(),
         LoanJob.find({ borrower: userId }).sort({ createdAt: -1 }).lean(),
         LoanTx.find({ user: userId }).sort({ at: -1 }).lean(),
+        // Whether an admin has them on the Persuasion or Protected List.
+        LoanJobList.findOne({ user: userId }).select("list addedAt").lean(),
     ]);
-    return { account, offers, debts, jobs, log };
+    return { account, offers, debts, jobs, log, jobList };
 }
 
 // Admins only, for testing: runs a member's next 12:00 check right now,

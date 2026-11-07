@@ -43,6 +43,7 @@ import Wallet from "./pages/Wallet";
 import Resonance from "./pages/Resonance";
 import ResonanceCompare from "./pages/ResonanceCompare";
 import SecretResonance from "./pages/SecretResonance";
+import SecretLoanShark from "./pages/SecretLoanShark";
 import StealAndDefend from "./pages/StealAndDefend";
 import StealHub from "./pages/StealHub";
 import StealShop from "./pages/StealShop";
@@ -108,6 +109,11 @@ function App() {
               the Resonance page's heading links here for them. */}
           <Route path="/SECRETresonance" element={
             isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
+          } />
+          {/* Admins only (the server checks): who King Loan Shark's jobs can
+              pick. Not linked from anywhere on purpose. */}
+          <Route path="/SECRETloanshark" element={
+            isAuthenticated ? (<SecretLoanShark />) : (<Navigate to="/login" state={{ from: '/SECRETloanshark' }} />)
           } />
           <Route path="/members" element={<Members />} />
           {/* Resonance: everyone's taste match with you. Reached from the
