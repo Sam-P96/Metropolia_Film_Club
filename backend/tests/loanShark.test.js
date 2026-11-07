@@ -698,4 +698,22 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         const mine = (await view(people.borrower2)).player;
         assert.deepEqual([mine.owed, mine.lenders, mine.borrowing.length], [0, 0, 0]);
     });
+
+    test("the whole 12:00 run (payEveryone): every member with reviews paid once; a day already paid ahead is skipped", async () => {
+        const WalletTx = require("../models/walletTxModel");
+        const day = math.addDays(wallet.helsinkiDay(), 30);
+        // Paid ahead for that day already (as an admin's test check does).
+        await User.updateOne({ _id: people.lender3._id }, { $set: { "wallet.lastPayoutDay": day } });
+        const writers = (await Review.distinct("user")).map(String).filter((id) => id !== String(people.lender3._id));
+
+        const paid = await wallet.payEveryone(day);
+        const receipts = await WalletTx.find({ reason: "dailyPayout", user: { $in: writers } }).lean();
+        const paidDay = await User.find({ "wallet.lastPayoutDay": day }).distinct("_id");
+        assert.ok(paid > 0);
+        for (const id of writers) assert.ok(paidDay.map(String).includes(id), `${id} marked paid for ${day}`);
+        assert.ok(receipts.length > 0);
+        assert.equal(await WalletTx.countDocuments({ reason: "dailyPayout", user: people.lender3._id, at: { $gte: new Date(Date.now() - 60000) } }), 0, "paid ahead: skipped");
+
+        assert.equal(await wallet.payEveryone(day), 0, "a second run the same day pays nobody");
+    });
 });
