@@ -17,6 +17,7 @@ import { getCurrentUser, updateCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
 import { isWanted } from '../utils/watchlist'
 import { canModerate } from '../utils/permissions'
+import { isSecretKeeper } from '../utils/secretPages'
 
 const MAX_FAVOURITES = 4
 
@@ -319,6 +320,7 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
               profileUser={profileUser}
               isOwner={isOwner}
               onChange={onFollowChange}
+              secretLink={isOwner && isSecretKeeper(profileUser)}
             />
             <p className="mt-1 text-sm text-brand-gold">{displayUser.memberTitle}</p>
 

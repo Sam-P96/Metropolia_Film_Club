@@ -44,6 +44,7 @@ import Resonance from "./pages/Resonance";
 import ResonanceCompare from "./pages/ResonanceCompare";
 import SecretResonance from "./pages/SecretResonance";
 import SecretLoanShark from "./pages/SecretLoanShark";
+import SecretIndex from "./pages/SecretIndex";
 import StealAndDefend from "./pages/StealAndDefend";
 import StealHub from "./pages/StealHub";
 import StealShop from "./pages/StealShop";
@@ -109,6 +110,11 @@ function App() {
               the Resonance page's heading links here for them. */}
           <Route path="/SECRETresonance" element={
             isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
+          } />
+          {/* Every SECRET page, for the admin named ADMIN: their name on
+              their own profile links here. Anyone else sees nothing. */}
+          <Route path="/SECRET" element={
+            isAuthenticated ? (<SecretIndex />) : (<Navigate to="/login" state={{ from: '/SECRET' }} />)
           } />
           {/* Admins only (the server checks): who King Loan Shark's jobs can
               pick. Not linked from anywhere on purpose. */}
