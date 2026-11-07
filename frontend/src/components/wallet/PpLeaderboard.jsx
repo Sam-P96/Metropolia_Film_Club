@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 import CoinIcon from './CoinIcon'
-import BannerStrip from '../profile/BannerStrip'
-import MemberAvatar from '../profile/MemberAvatar'
+import LeaderboardRow from '../leaderboard/LeaderboardRow'
+import { edgeOf } from '../leaderboard/edges'
 import useApi from '../../hooks/useApi'
 import { getPpLeaderboard } from '../../services/wallet'
-import ResonanceIcon from '../resonance/ResonanceIcon'
 
 const COLLAPSED = 4
 
@@ -31,35 +29,20 @@ export default function PpLeaderboard() {
         ) : leaders.length === 0 ? (
           <p className="mt-8 text-white/60">Nobody has any PP yet.</p>
         ) : (
-          <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+          <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
             {shown.map((leader, index) => (
-              <li key={leader.user._id}>
-                <Link
-                  to={`/users/${leader.user._id}`}
-                  className="group relative isolate flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
-                >
-                  <BannerStrip banner={leader.user.reviewCardBanner} />
-
-                  <span className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${index < 3 ? 'text-brand-gold' : 'text-white/40'}`}>
-                    {index + 1}
-                  </span>
-
-                  <MemberAvatar user={leader.user} rank={index + 1} />
-
-                  <div className="min-w-0 flex-1">
-                    <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
-                      <span className="truncate">{leader.user.username}</span>
-                      <ResonanceIcon userId={leader.user._id} />
-                    </p>
-                    <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{leader.user.memberTitle}</p>
-                  </div>
-
+              <LeaderboardRow
+                key={leader.user._id}
+                user={leader.user}
+                position={index + 1}
+                edge={edgeOf(index, shown.length)}
+                score={
                   <p className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tabular-nums text-emerald-300">
                     <CoinIcon kind="pp" size={16} />
                     {leader.pp.toLocaleString('en-US')} PP
                   </p>
-                </Link>
-              </li>
+                }
+              />
             ))}
           </ol>
         )}

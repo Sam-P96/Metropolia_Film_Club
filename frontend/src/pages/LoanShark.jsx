@@ -188,9 +188,18 @@ export default function LoanShark() {
         className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-8 sm:py-12"
       >
         <header>
-          <Link to="/games" className="text-sm text-white/60 hover:text-white">
-            ← Games
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link to="/games" className="text-sm text-white/60 hover:text-white">
+              ← Games
+            </Link>
+            {/* The Black Market: the boss's merch (cosmetics for P-PP). */}
+            <Link
+              to="/games/loan-shark/black-market"
+              className="flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-950/60 px-4 py-2 font-['Bebas_Neue'] text-2xl leading-none tracking-wide text-emerald-300 shadow-lg shadow-black/40 transition-colors hover:border-emerald-300 hover:bg-emerald-900/60 hover:text-white"
+            >
+              <span aria-hidden="true">🦎</span> Black Market
+            </Link>
+          </div>
           <h1 className="mt-2 font-['Bebas_Neue'] text-5xl leading-none tracking-wide text-white">
             Loan <span className="text-brand-gold">Shark</span>
           </h1>

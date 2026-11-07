@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 import PillToggle from '../PillToggle'
-import MemberAvatar from '../profile/MemberAvatar'
+import LeaderboardRow from '../leaderboard/LeaderboardRow'
+import { edgeOf } from '../leaderboard/edges'
 import useApi from '../../hooks/useApi'
 import { getCritics } from '../../services/films'
-import BannerStrip from '../profile/BannerStrip'
-import ResonanceIcon from '../resonance/ResonanceIcon'
 
 // What each view ranks by, and what it shows on the right of each row.
 const count = (total, one, many) => `${total} ${total === 1 ? one : many}`
@@ -73,46 +71,20 @@ function CriticsLeaderboard() {
         ) : critics.length === 0 ? (
           <p className="mt-8 text-white/60">{current.empty}</p>
         ) : (
-          <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-            {shown.map((critic, index) => {
-              return (
-                <li key={critic.user._id}>
-                  <Link
-                    to={`/users/${critic.user._id}`}
-                    className="group relative isolate flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
-                  >
-                    <BannerStrip banner={critic.user.reviewCardBanner} />
-
-                    <span
-                      className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${
-                        index < 3 ? 'text-brand-gold' : 'text-white/40'
-                      }`}
-                    >
-                      {index + 1}
-                    </span>
-
-                    {/* The top 3 always get their ring here, whatever their
-                        "Ranking" setting says about their review cards. */}
-                    <MemberAvatar user={critic.user} rank={index + 1} />
-
-                    <div className="min-w-0 flex-1">
-                      <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
-                        <span className="truncate">{critic.user.username}</span>
-                        <ResonanceIcon userId={critic.user._id} />
-                      </p>
-                      <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                        {critic.user.memberTitle} · Level {critic.user.level} · {critic.reviews}{' '}
-                        {critic.reviews === 1 ? 'review' : 'reviews'}
-                      </p>
-                    </div>
-
-                    <p className={`shrink-0 text-sm font-semibold tabular-nums ${current.color}`}>
-                      {current.show(critic)}
-                    </p>
-                  </Link>
-                </li>
-              )
-            })}
+          <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+            {/* The top 3 always get their ring here, whatever their
+                "Ranking" setting says about their review cards (unless
+                they wear a border, which takes its place). */}
+            {shown.map((critic, index) => (
+              <LeaderboardRow
+                key={critic.user._id}
+                user={critic.user}
+                position={index + 1}
+                edge={edgeOf(index, shown.length)}
+                subtitle={`${critic.user.memberTitle} · Level ${critic.user.level} · ${critic.reviews} ${critic.reviews === 1 ? 'review' : 'reviews'}`}
+                score={<p className={`shrink-0 text-sm font-semibold tabular-nums ${current.color}`}>{current.show(critic)}</p>}
+              />
+            ))}
           </ol>
         )}
 

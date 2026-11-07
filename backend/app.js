@@ -26,6 +26,7 @@ const stealRouter = require("./routes/stealRouter");
 const pokerRouter = require("./routes/pokerRouter");
 const loanSharkRouter = require("./routes/loanSharkRouter");
 const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
+const blackMarketRouter = require("./routes/blackMarketRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -159,6 +160,8 @@ app.use("/api/poker", pokerRouter);
 // of the rest, so a games ban never gets in the way of an admin.
 app.use("/api/loan-shark/admin", loanSharkAdminRouter);
 app.use("/api/loan-shark", refuseGameBans, loanSharkRouter);
+// The Black Market: cosmetics bought with P-PP (utils/blackMarket.js).
+app.use("/api/black-market", blackMarketRouter);
 app.use("/api/password-resets", passwordResetRouter);
 
 app.get("/api/health", (req, res) => {

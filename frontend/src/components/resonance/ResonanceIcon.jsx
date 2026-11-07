@@ -31,10 +31,13 @@ export function ResonanceMark({ className = '' }) {
 //
 // The bubble is drawn on the page itself, not inside the name, so a card
 // or list that hides its overflow doesn't cut it off.
-function ResonanceIcon({ userId, className = '' }) {
+//
+// `percent`: show it with this score whoever it is, for previews of made-up
+// members (the Black Market's developer test tool).
+function ResonanceIcon({ userId, className = '', percent: previewPercent }) {
   const soul = useSoulResonance()[String(userId)]
-  const percent = soul?.icon ? soul.percent : undefined
-  const shown = percent !== undefined && String(userId) !== String(getCurrentUserId())
+  const percent = previewPercent ?? (soul?.icon ? soul.percent : undefined)
+  const shown = percent !== undefined && (previewPercent !== undefined || String(userId) !== String(getCurrentUserId()))
 
   const anchor = useRef(null)
   const bubble = useRef(null)

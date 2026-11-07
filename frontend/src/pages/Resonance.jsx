@@ -4,7 +4,9 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import PillToggle from '../components/PillToggle'
 import SettingRow from '../components/profile/SettingRow'
-import MemberAvatar from '../components/profile/MemberAvatar'
+import StyledAvatar from '../components/cosmetics/StyledAvatar'
+import StyledUsername from '../components/cosmetics/StyledUsername'
+import { edgeOf } from '../components/leaderboard/edges'
 import BannerStrip from '../components/profile/BannerStrip'
 import ResonanceCard from '../components/resonance/ResonanceCard'
 import ResonanceIcon, { ResonanceMark } from '../components/resonance/ResonanceIcon'
@@ -214,9 +216,9 @@ function Ranking({ waiting }) {
               : current.empty}
         </p>
       ) : (
-        <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-          {matches.map((match) => (
-            <Row key={match.user._id} match={match} rank={match.rank} />
+        <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+          {matches.map((match, index) => (
+            <Row key={match.user._id} match={match} rank={match.rank} edge={edgeOf(index, matches.length)} />
           ))}
         </ol>
       )}
@@ -237,15 +239,23 @@ function Ranking({ waiting }) {
   )
 }
 
+// The corners of the list's end rows: the list doesn't hide its overflow,
+// so the particles of the cosmetics in its top and bottom rows aren't cut.
+const EDGE_ROW = { first: 'rounded-t-xl', last: 'rounded-b-xl', only: 'rounded-xl' }
+const EDGE_BANNER = { first: 'rounded-tl-xl', last: 'rounded-bl-xl', only: 'rounded-l-xl' }
+
 // One member: rank, avatar, name and banner, the score on the right, and
 // their card underneath while it's open. A mouse opens it by hovering and
-// closes it by leaving; a tap (or Enter) opens and closes it.
-function Row({ match, rank }) {
+// closes it by leaving; a tap (or Enter) opens and closes it. Their name
+// and picture wear their Black Market cosmetics; the card doesn't. Long
+// names show in full and wrap.
+function Row({ match, rank, edge }) {
   const reduce = useReducedMotion()
   const [open, setOpen] = useState(false)
   const pointer = useRef(null)
   const tier = resonanceTier(match.percent)
   const { user } = match
+  const cosmetics = user.cosmetics
 
   return (
     <li
@@ -264,19 +274,21 @@ function Row({ match, rank }) {
           else setOpen(!open)
           pointer.current = null
         }}
-        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-white/5' : ''}`}
+        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-white/5' : ''} ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${cosmetics?.name || cosmetics?.border ? 'z-10' : ''}`}
       >
-        <BannerStrip banner={user.reviewCardBanner} />
+        <BannerStrip banner={user.reviewCardBanner} className={EDGE_BANNER[edge] ?? ''} />
 
         <span className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${rank <= 3 ? 'text-brand-gold' : 'text-white/40'}`}>
           {rank}
         </span>
 
-        <MemberAvatar user={user} />
+        <StyledAvatar borderId={cosmetics?.border} user={user} />
 
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-1.5 font-medium drop-shadow transition-colors group-hover:text-brand-gold">
-            <span className="truncate">{user.username}</span>
+          <p className={`flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold ${cosmetics?.name ? '' : 'drop-shadow'}`}>
+            <span className="min-w-0 [overflow-wrap:anywhere]">
+              <StyledUsername name={user.username} styleId={cosmetics?.name} />
+            </span>
             <ResonanceIcon userId={user._id} />
           </p>
           <p className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">

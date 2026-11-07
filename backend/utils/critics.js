@@ -21,7 +21,7 @@ const WITH_USER = [
             localField: "_id",
             foreignField: "_id",
             as: "user",
-            pipeline: [{ $project: { username: 1, role: 1, memberTitle: 1, avatarUrl: 1, reviewCardBanner: 1, value: 1, pvp: 1 } }],
+            pipeline: [{ $project: { username: 1, role: 1, memberTitle: 1, avatarUrl: 1, reviewCardBanner: 1, value: 1, pvp: 1, cosmetics: 1 } }],
         },
     },
     { $match: { "user.0": { $exists: true } } },

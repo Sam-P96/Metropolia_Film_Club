@@ -8,6 +8,8 @@ import { levelTextStyle } from '../../utils/levelStyle'
 import { bannerLayerStyle } from '../../utils/bannerStyle'
 import { RANK_TITLES, rankRing } from '../../utils/rankRings'
 import ResonanceIcon from '../resonance/ResonanceIcon'
+import StyledAvatar from '../cosmetics/StyledAvatar'
+import StyledUsername from '../cosmetics/StyledUsername'
 import CardShine from '../CardShine'
 import useSoulResonance from '../../hooks/useSoulResonance'
 import useFriends from '../../hooks/useFriends'
@@ -15,13 +17,22 @@ import useFriends from '../../hooks/useFriends'
 // showLevel keeps "Level: X" on screen, for the preview while editing the card.
 // solid gives the card an opaque background, for a light page where the
 // usual see-through one would wash out (the Notifications page on white).
-function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) {
+//
+// The author's name and picture wear their Black Market cosmetics (from the
+// server's member summary). The Black Market's developer test tool passes
+// made-up ones in `cosmetics`, a card glow to show in `glow` ('soul',
+// 'friend' or 'none'), and `resonancePercent` for the Resonance icon.
+function ReviewCard({ review, onVoteChange, showLevel = false, solid = false, cosmetics: previewCosmetics, glow: previewGlow, resonancePercent }) {
   const { user } = review
   // The author and the logged-in member: a Soul Resonance glows blue with a
   // glass edge (whatever their icon settings), friends a softer purple.
   const soul = useSoulResonance()[String(user?._id)] !== undefined
   const friend = useFriends().has(String(user?._id))
-  const glow = soul ? 'soul' : friend ? 'friend' : null
+  const glow = previewGlow !== undefined ? (previewGlow === 'none' ? null : previewGlow) : soul ? 'soul' : friend ? 'friend' : null
+  const cosmetics = previewCosmetics ?? user?.cosmetics
+  // A card with cosmetics doesn't hide its overflow, so their particles can
+  // float past its edge; its poster and banner round their own corners.
+  const styled = Boolean(cosmetics?.name || cosmetics?.border)
 
   // The profile's "No reviews yet" stand-in has no film, so there's nothing
   // to link to or vote on.
@@ -36,7 +47,8 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) 
   // The top 3 on the Critics Leaderboard (Top), unless they've turned
   // "Ranking" off.
   const rank = user.showRank ? user.rank : null
-  const ring = rankRing(rank)
+  // A border takes the place of the rank ring.
+  const ring = cosmetics?.border ? '' : rankRing(rank)
 
   const posterUrl = review.posterPath
     ? `https://image.tmdb.org/t/p/w342${review.posterPath}`
@@ -44,13 +56,13 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) 
 
   const card = (
     <article
-      className={`overflow-hidden rounded-2xl border border-white/10 text-white shadow-xl shadow-black/40 backdrop-blur-md ${
+      className={`${styled ? '' : 'overflow-hidden'} rounded-2xl border border-white/10 text-white shadow-xl shadow-black/40 backdrop-blur-md ${
         solid ? 'bg-plum' : 'bg-plum/40'
       }`}
     >
 
       <div className="flex">
-        <div className="relative aspect-2/3 w-40 shrink-0 bg-ink/60 sm:w-44">
+        <div className={`relative aspect-2/3 w-40 shrink-0 bg-ink/60 sm:w-44 ${styled ? 'overflow-hidden rounded-tl-2xl' : ''}`}>
           {posterUrl ? (
             <img
               src={posterUrl}
@@ -148,39 +160,45 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false }) 
       <div className="relative border-t border-white/10">
       
         <div
-          className="absolute inset-0"
+          className={`absolute inset-0 ${styled ? 'rounded-b-2xl' : ''}`}
           style={bannerLayerStyle(user.reviewCardBanner)}
         />
       
-        <div className="absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80" />
+        <div className={`absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80 ${styled ? 'rounded-b-2xl' : ''}`} />
 
         <Link
           to={`/users/${user._id}`}
           className="group relative flex items-center justify-end gap-4 px-5 py-4"
         >
           <div className="text-right">
-            <p className="flex items-center justify-end gap-1.5 font-semibold drop-shadow transition-colors group-hover:text-brand-gold">
-              {user.username}
-              <ResonanceIcon userId={user._id} />
+            <p className={`flex items-center justify-end gap-1.5 font-semibold transition-colors group-hover:text-brand-gold ${cosmetics?.name ? '' : 'drop-shadow'}`}>
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                <StyledUsername name={user.username} styleId={cosmetics?.name} />
+              </span>
+              <ResonanceIcon userId={user._id} percent={resonancePercent} />
             </p>
             <p className="text-sm text-white/60">{user.memberTitle}</p>
           </div>
 
-          {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt={user.username}
-              title={RANK_TITLES[rank]}
-              className={`peer h-12 w-12 rounded-full object-cover ${ring}`}
-            />
-          ) : (
-            <div
-              title={RANK_TITLES[rank]}
-              className={`peer flex h-12 w-12 items-center justify-center rounded-full bg-brand-red font-bold ${ring}`}
-            >
-              {user.username[0].toUpperCase()}
-            </div>
-          )}
+          <span className="peer flex shrink-0">
+            <StyledAvatar borderId={cosmetics?.border}>
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.username}
+                  title={RANK_TITLES[rank]}
+                  className={`h-12 w-12 rounded-full object-cover ${ring}`}
+                />
+              ) : (
+                <div
+                  title={RANK_TITLES[rank]}
+                  className={`flex h-12 w-12 items-center justify-center rounded-full bg-brand-red font-bold ${ring}`}
+                >
+                  {user.username[0].toUpperCase()}
+                </div>
+              )}
+            </StyledAvatar>
+          </span>
 
           {/* On the left of the banner, fading in while the avatar (the peer
               just before it) is hovered. */}

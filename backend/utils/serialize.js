@@ -1,13 +1,15 @@
 // Shapes database documents into what the frontend reads. Every function here
 // takes a plain object (a .lean() result), never a Mongoose document.
 
+const { cosmeticById } = require("../../shared/cosmetics/catalogue.js");
+
 // The fields a review card needs from its author.
-const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner levelStyle pvp allowComments showRank value privacy";
+const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner levelStyle pvp allowComments showRank value privacy cosmetics";
 
 // Enough to draw a member's name, title and avatar in a list, and whether
 // their PVP is on: userSummary always says, so without it every cut's
 // author read as PVP off and their cuts couldn't be disliked.
-const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy pvp";
+const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy pvp cosmetics";
 
 const DEFAULT_BANNER = { type: "color", color: "#2D1B47", imageUrl: null, style: "opaque" };
 const DEFAULT_LEVEL_STYLE = {
@@ -43,6 +45,16 @@ function joinedAtOf(user) {
     return user.joinedAt ?? user._id.getTimestamp();
 }
 
+// The Black Market cosmetics a member is wearing: { name, border }, each an
+// item id, or null for none (or for an id that's no longer in the shop).
+function cosmeticsOf(user) {
+    const worn = (id, type) => {
+        const item = cosmeticById(id);
+        return item && item.type === type && item.look ? id : null;
+    };
+    return { name: worn(user.cosmetics?.name, "name"), border: worn(user.cosmetics?.border, "border") };
+}
+
 // Enough to draw a name, avatar and review card. Safe to show anyone.
 function userSummary(user) {
     if (!user) return null;
@@ -58,6 +70,7 @@ function userSummary(user) {
         pvp: user.pvp ?? false,
         allowComments: user.allowComments ?? true,
         showRank: user.showRank ?? true,
+        cosmetics: cosmeticsOf(user),
     };
 }
 
@@ -101,6 +114,7 @@ function reviewWithUser(review) {
 module.exports = {
     AUTHOR_FIELDS,
     MEMBER_FIELDS,
+    cosmeticsOf,
     userSummary,
     userProfile,
     restrictedProfile,

@@ -203,10 +203,10 @@ async function visibleMatches(userId, standing) {
 // banner), the score and the card's two factors, the shared films, and how
 // the two of them follow each other.
 function matchView({ other, pair, relation }) {
-    const { _id, username, avatarUrl, reviewCardBanner } = userSummary(other);
+    const { _id, username, avatarUrl, reviewCardBanner, cosmetics } = userSummary(other);
 
     return {
-        user: { _id, username, avatarUrl, reviewCardBanner },
+        user: { _id, username, avatarUrl, reviewCardBanner, cosmetics },
         percent: pair.percent,
         movies: pair.movies,
         genre: pair.genre,

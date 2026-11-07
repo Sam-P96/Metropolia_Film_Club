@@ -16,6 +16,7 @@ const { forgetResonance, resonanceOf } = require("../utils/resonanceStore");
 const { forgetStealPlayer, stealDataOf } = require("../utils/steal/upkeep");
 const { forgetPokerPlayer } = require("../games/poker/live");
 const { forgetLoanMember, loanDataOf } = require("../utils/loanShark");
+const { forgetCosmetics, cosmeticsDataOf } = require("../utils/blackMarket");
 const PokerSeat = require("../models/pokerSeatModel");
 const { siteBanOf, banMessage, recordSighting } = require("../utils/steal/moderation");
 const { takeBackSteals } = require("../utils/steal/players");
@@ -490,7 +491,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -509,6 +510,8 @@ const exportMe = async (req, res) => {
         PokerSeat.findById(userId).lean(),
         // Loan Shark: their account, offers, loans both ways, jobs and log.
         loanDataOf(userId),
+        // Black Market: the cosmetics they bought, and what they're wearing.
+        cosmeticsDataOf(userId),
     ]);
 
     if (!account) {
@@ -530,6 +533,7 @@ const exportMe = async (req, res) => {
         stealAndDefend,
         pokerSeat,
         loanShark,
+        blackMarket,
     });
 }
 
@@ -576,6 +580,7 @@ async function deleteAccount(user) {
     await forgetStealPlayer(userId);
     await forgetPokerPlayer(userId);
     await forgetLoanMember(userId);
+    await forgetCosmetics(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }
