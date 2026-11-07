@@ -183,6 +183,7 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
 
         const app = express();
         app.use(express.json());
+        app.use("/api/loan-shark/admin", require("../routes/loanSharkAdminRouter"));
         app.use("/api/loan-shark", require("../routes/loanSharkRouter"));
         app.use("/api/reviews", require("../routes/reviewRouter"));
         app.use((error, req, res, next) => {
@@ -247,16 +248,18 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
 
     test("jobs only ever pick fitting members: quiet X, PvP where it's needed, never the borrower or a test account", async () => {
         const pools = await jobs.candidates(people.borrower._id);
-        const quiet = new Set(pools.quiet.map((member) => String(member._id)));
+        const quiet = new Set(pools.reviewFirst.map((member) => String(member._id)));
         assert.ok(quiet.has(String(people.oldTimer._id)), "30 reviews, none lately: quiet");
         assert.ok(quiet.has(String(people.lender._id)), "10 reviews: quiet");
         assert.ok(!quiet.has(String(people.busyPvp._id)), "25 reviews, busy: not quiet");
         assert.ok(!quiet.has(String(people.testAccount._id)));
+        assert.ok(!pools.reviewAll.some((member) => String(member._id) === String(people.borrower._id)), "never the borrower");
 
         const loans = Array.from({ length: 25 }, () => new mongoose.Types.ObjectId());
         for (const loan of loans) {
             const made = await jobs.generateJobs(people.borrower._id, loan);
             assert.equal(made.length, 4);
+            // With quiet members about, every X is one.
             for (const job of made) assert.ok(quiet.has(String(job.x)), job.type);
         }
         assert.deepEqual(await jobs.generateJobs(people.borrower._id, loans[0]), [], "once per loan");
@@ -564,6 +567,128 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.equal(last.body.view.shark.state, "clear");
         const cleared = (await notes(dev, "loanCollector")).at(-1);
         assert.deepEqual([cleared.amount, cleared.loan.cleared, cleared.variant], [2, true, null]);
+    });
+
+    describe("/SECRETloanshark: the job lists", () => {
+        let admin;
+        const ids = (entries) => entries.map((entry) => String(entry.user?._id ?? entry._id));
+        const lists = async () => (await call(admin, "GET", "/loan-shark/admin/lists")).body;
+        const add = (list, user) => call(admin, "POST", `/loan-shark/admin/lists/${list}`, { userId: String(user._id) });
+        const remove = (list, user) => call(admin, "DELETE", `/loan-shark/admin/lists/${list}/${user._id}`);
+        const pick = (pools, type, times = 40) => Promise.all(Array.from({ length: times }, () => jobs.pickJob(type, pools, Math.random)));
+
+        before(async () => {
+            admin = await member("listAdmin", { reviews: 30, email: "list-admin@test.invalid" });
+            await User.updateOne({ _id: admin._id }, { $set: { role: "admin" } });
+        });
+
+        test("non-admins get 403 on every admin route", async () => {
+            const someone = people.borrower;
+            for (const [method, path, body] of [
+                ["GET", "/loan-shark/admin/lists"],
+                ["GET", "/loan-shark/admin/search?q=a"],
+                ["POST", "/loan-shark/admin/lists/protected", { userId: String(people.quietPvp._id) }],
+                ["DELETE", `/loan-shark/admin/lists/protected/${people.quietPvp._id}`],
+            ]) {
+                const result = await call(someone, method, path, body);
+                assert.equal(result.status, 403, `${method} ${path}`);
+            }
+            assert.equal(await mongoose.connection.collection("loanjoblists").countDocuments(), 0);
+        });
+
+        test("a hand-added active member can be X for dislike and steal; review X is quiet members first", async () => {
+            // busyPvp: 25 reviews, busy, PvP on: not quiet, so not on the Persuasion List.
+            assert.ok(!ids((await lists()).persuasion).includes(String(people.busyPvp._id)));
+            const added = await add("persuasion", people.busyPvp);
+            assert.equal(added.status, 201);
+            const row = added.body.persuasion.find((entry) => String(entry.user._id) === String(people.busyPvp._id));
+            assert.equal(row.tag, "hand");
+
+            const pools = await jobs.candidates(people.borrower._id);
+            assert.ok(ids(pools.persuasion).includes(String(people.busyPvp._id)));
+            const steals = await pick({ ...pools, persuasion: pools.persuasion.filter((entry) => String(entry._id) === String(people.busyPvp._id)) }, "steal", 5);
+            assert.ok(steals.every((job) => String(job.x) === String(people.busyPvp._id)));
+            // Review jobs: busy members aren't X while anyone's quiet.
+            assert.ok(!ids(pools.reviewFirst).includes(String(people.busyPvp._id)));
+            assert.ok((await pick(pools, "review")).every((job) => ids(pools.reviewFirst).includes(String(job.x))));
+        });
+
+        test("review jobs: with nobody quiet, anyone not protected, PvP or not", async () => {
+            const pools = await jobs.candidates(people.borrower._id);
+            const fallback = { ...pools, reviewFirst: [] };
+            const picked = new Set((await pick(fallback, "review", 200)).map((job) => String(job.x)));
+            // borrower2: 40 reviews and busy, PvP off.
+            assert.ok(ids(pools.reviewAll).includes(String(people.borrower2._id)));
+            assert.ok([...picked].every((id) => ids(pools.reviewAll).includes(id)));
+            assert.ok(picked.size > 1);
+            assert.equal(await jobs.pickJob("review", { ...pools, reviewFirst: [], reviewAll: [] }, Math.random), null);
+        });
+
+        test("a protected quiet member is never X, but can still be Y", async () => {
+            assert.equal((await add("protected", people.quietPvp)).status, 201);
+            const pools = await jobs.candidates(people.borrower._id);
+            const protectedId = String(people.quietPvp._id);
+            for (const pool of [pools.reviewFirst, pools.reviewAll, pools.persuasion]) assert.ok(!ids(pool).includes(protectedId));
+            assert.ok(ids(pools.targets).includes(protectedId));
+
+            const made = [];
+            for (let i = 0; i < 20; i++) made.push(...(await jobs.generateJobs(people.borrower._id, new mongoose.Types.ObjectId())));
+            assert.ok(made.every((job) => String(job.x) !== protectedId));
+            await LoanJob.deleteMany({ _id: { $in: made.map((job) => job._id) } });
+
+            const page = await lists();
+            assert.ok(ids(page.protected).includes(protectedId));
+            assert.equal(page.protected[0].addedBy.username, "listAdmin");
+            assert.ok(page.targets.find((entry) => String(entry.user._id) === protectedId).protected);
+            assert.ok(!ids(page.persuasion).includes(protectedId) && !ids(page.reviewPersuasion).includes(protectedId));
+        });
+
+        test("one hand-kept list each: adding to one takes them off the other", async () => {
+            const LoanJobList = require("../models/loanJobListModel");
+            await add("persuasion", people.oldTimer);
+            await add("protected", people.oldTimer);
+            assert.deepEqual((await LoanJobList.find({ user: people.oldTimer._id }).lean()).map((entry) => entry.list), ["protected"]);
+            let page = await lists();
+            assert.ok(ids(page.protected).includes(String(people.oldTimer._id)) && !ids(page.persuasion).includes(String(people.oldTimer._id)));
+
+            await add("persuasion", people.oldTimer);
+            assert.deepEqual((await LoanJobList.find({ user: people.oldTimer._id }).lean()).map((entry) => entry.list), ["persuasion"]);
+            page = await lists();
+            assert.ok(!ids(page.protected).includes(String(people.oldTimer._id)));
+
+            // Removing a quiet member's hand-added entry: still on the list, as auto.
+            assert.equal((await remove("persuasion", people.oldTimer)).status, 200);
+            page = await lists();
+            assert.equal(page.persuasion.find((entry) => String(entry.user._id) === String(people.oldTimer._id)).tag, "auto");
+            assert.equal((await remove("persuasion", people.oldTimer)).status, 404, "not on it any more");
+
+            // Bad list names and members.
+            assert.equal((await call(admin, "POST", "/loan-shark/admin/lists/targets", { userId: String(people.oldTimer._id) })).status, 404);
+            assert.equal((await call(admin, "POST", "/loan-shark/admin/lists/protected", { userId: "nope" })).status, 400);
+            assert.equal((await call(admin, "POST", "/loan-shark/admin/lists/protected", { userId: String(new mongoose.Types.ObjectId()) })).status, 404);
+        });
+
+        test("excluded emails never appear in a list, a search, or a job", async () => {
+            const page = await lists();
+            const hidden = String(people.testAccount._id);
+            for (const column of [page.persuasion, page.reviewPersuasion, page.protected, page.targets]) assert.ok(!ids(column).includes(hidden));
+            assert.ok(page.hidden >= 1);
+            assert.deepEqual((await call(admin, "GET", "/loan-shark/admin/search?q=testAccount")).body, []);
+            assert.match((await add("protected", people.testAccount)).body.error, /excluded in config/);
+            assert.equal(await LoanJob.countDocuments({ $or: [{ x: people.testAccount._id }, { y: people.testAccount._id }] }), 0);
+
+            const found = (await call(admin, "GET", "/loan-shark/admin/search?q=QUIET")).body;
+            assert.deepEqual(found.map((entry) => [entry.user.username, entry.list]), [["quietNoPvp", null], ["quietPvp", "protected"]]);
+        });
+
+        test("leaving the club takes them off the lists", async () => {
+            const LoanJobList = require("../models/loanJobListModel");
+            const leaver = await member("listLeaver", { reviews: 1 });
+            await add("protected", leaver);
+            await members.forgetLoanMember(leaver._id);
+            assert.equal(await LoanJobList.countDocuments({ user: leaver._id }), 0);
+            await LoanJobList.deleteMany({});
+        });
     });
 
     test("leaving the club: their offers come down, and what's owed to or by them is let go", async () => {

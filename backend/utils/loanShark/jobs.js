@@ -1,13 +1,12 @@
 const User = require("../../models/userModel");
 const Review = require("../../models/reviewModel");
-const Comment = require("../../models/commentModel");
-const Notification = require("../../models/notificationModel");
 const LoanJob = require("../../models/loanJobModel");
 const { LOAN_SHARK } = require("../../config/loanShark");
 const { inSession } = require("../steal/tx");
 const { noteLoanJob, forgetDislike } = require("../notify");
 const { changeAccount, emptyShark, logTx } = require("./account");
 const { ceilShare, sharkOwed } = require("./math");
+const { jobLists } = require("./jobLists");
 
 // The jobs that come with a shark loan (spec §4): "Want your debt reduced?
 // Do this:". A new loan gets 4, picked at random from three kinds:
@@ -15,12 +14,19 @@ const { ceilShare, sharkOwed } = require("./math");
 //   dislike  convince X to dislike Y's review of a film (the dislike comes
 //            off again 48 hours later)
 //   steal    convince X to steal from Y in Steal and Defend
-// X is a quiet member: fewer than 20 reviews, or no review, comment or like
-// in 14 days. Y has PvP on, and so does X wherever the job needs it (only
-// members with PvP on can dislike, and Steal and Defend is PvP). Never the
-// borrower, and never a member on the excluded list. The site has no bot
-// accounts (the Farkle and poker bots aren't members), so there are none to
-// leave out.
+// Who X and Y can be is worked out in jobLists.js, which the admin page
+// (/SECRETloanshark) shows too, so the two never disagree:
+//   review X     the Review Persuasion List: everyone not Protected, PvP
+//                or not, quiet members first; anyone else only when
+//                nobody's quiet any more
+//   dislike and steal X   the Persuasion List (quiet members, plus anyone
+//                added by hand, never the Protected List), with PvP on:
+//                only members with PvP on can dislike, and Steal and Defend
+//                is PvP
+//   Y            the Target List: everyone with PvP on
+// Never the borrower, and never an account in jobs.excludedEmails. The site
+// has no bot accounts (the Farkle and poker bots aren't members), so there
+// are none to leave out. Changing the lists only changes jobs made after.
 //
 // Done is noticed on the server, as it happens: hooks in saving a review
 // (controllers/filmController.js), disliking one (the same), and a steal
@@ -28,7 +34,6 @@ const { ceilShare, sharkOwed } = require("./math");
 // borrowed, as it is then, off the debt, stored as that fixed amount.
 
 const RULES = LOAN_SHARK.jobs;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const TYPES = ["review", "dislike", "steal"];
 
 const pickFrom = (items, random) => items[Math.floor(random() * items.length)];
@@ -42,54 +47,41 @@ function shuffled(items, random) {
     return out;
 }
 
-// Who can be picked for a borrower's jobs: { quiet, pvp, quietPvp }, each
-// a list of { _id, pvp }.
+// Who can be picked for a borrower's jobs, from jobLists():
+//   reviewFirst  review X: the quiet members on the Review Persuasion List
+//   reviewAll    review X when nobody's quiet: the whole Review Persuasion List
+//   persuasion   dislike and steal X: the Persuasion List members with PvP on
+//   targets      Y: the Target List
+// Each a list of entries with _id.
 async function candidates(borrowerId, now = new Date()) {
-    const excluded = new Set(RULES.excludedEmails.map((email) => email.toLowerCase()));
-    const since = new Date(now.getTime() - RULES.quietDays * DAY_MS);
-
-    const [members, counts, reviewed, commented, liked] = await Promise.all([
-        User.find({ _id: { $ne: borrowerId } }).select("email pvp").lean(),
-        Review.aggregate([{ $group: { _id: "$user", reviews: { $sum: 1 } } }]),
-        Review.distinct("user", { createdAt: { $gte: since } }),
-        Comment.distinct("user", { createdAt: { $gte: since } }),
-        // Likes keep no date of their own. A like notification the member is
-        // in that was touched lately is the nearest thing (it may be someone
-        // else's newer like on the same review, which only makes them look
-        // busier than they are).
-        Notification.distinct("actors", { type: "like", at: { $gte: since } }),
-    ]);
-
-    const reviewsOf = new Map(counts.map((row) => [String(row._id), row.reviews]));
-    const active = new Set([...reviewed, ...commented, ...liked].map(String));
-    const eligible = members.filter((member) => !excluded.has(String(member.email ?? "").toLowerCase()));
-
-    const quiet = eligible.filter((member) => (reviewsOf.get(String(member._id)) ?? 0) < RULES.fewReviews || !active.has(String(member._id)));
+    const lists = await jobLists({ borrowerId, now });
     return {
-        quiet,
-        pvp: eligible.filter((member) => member.pvp),
-        quietPvp: quiet.filter((member) => member.pvp),
+        reviewFirst: lists.reviewPersuasion.filter((member) => member.quiet),
+        reviewAll: lists.reviewPersuasion,
+        persuasion: lists.persuasion.filter((member) => member.pvp),
+        targets: lists.targets,
     };
 }
 
 // One job of `type`, or null if nobody fits.
 async function pickJob(type, pools, random) {
     if (type === "review") {
-        return pools.quiet.length > 0 ? { type, x: pickFrom(pools.quiet, random)._id } : null;
+        const pool = pools.reviewFirst.length > 0 ? pools.reviewFirst : pools.reviewAll;
+        return pool.length > 0 ? { type, x: pickFrom(pool, random)._id } : null;
     }
 
     if (type === "steal") {
-        if (pools.quietPvp.length === 0) return null;
-        const x = pickFrom(pools.quietPvp, random)._id;
-        const ys = pools.pvp.filter((member) => String(member._id) !== String(x));
+        if (pools.persuasion.length === 0) return null;
+        const x = pickFrom(pools.persuasion, random)._id;
+        const ys = pools.targets.filter((member) => String(member._id) !== String(x));
         return ys.length > 0 ? { type, x, y: pickFrom(ys, random)._id } : null;
     }
 
-    // A dislike: X (with PvP on) and a review by Y (with PvP on) that X
-    // hasn't already disliked. Tries a few pairs before giving up.
-    for (let attempt = 0; attempt < 6 && pools.quietPvp.length > 0; attempt++) {
-        const x = pickFrom(pools.quietPvp, random)._id;
-        const ys = pools.pvp.filter((member) => String(member._id) !== String(x));
+    // A dislike: X and a review by Y that X hasn't already disliked. Tries a
+    // few pairs before giving up.
+    for (let attempt = 0; attempt < 6 && pools.persuasion.length > 0; attempt++) {
+        const x = pickFrom(pools.persuasion, random)._id;
+        const ys = pools.targets.filter((member) => String(member._id) !== String(x));
         if (ys.length === 0) return null;
         const y = pickFrom(ys, random)._id;
         const [review] = await Review.aggregate([

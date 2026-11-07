@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import FollowButton from './FollowButton'
 import ResonanceIcon from '../resonance/ResonanceIcon'
@@ -146,7 +146,9 @@ function BanPanel({ profileUser, onChange }) {
 // A member's name with the Follow button beside it, and for moderators and
 // admins who outrank them, the Ban Hammer: its switches open above the name.
 // `onChange` merges follow and ban changes into the profile.
-function ProfileHeading({ name, profileUser, isOwner, onChange }) {
+// `secretLink`: the name links to /SECRET, the list of SECRET pages (only
+// for the admin named ADMIN, on their own profile: utils/secretPages.js).
+function ProfileHeading({ name, profileUser, isOwner, onChange, secretLink = false }) {
   const [banning, setBanning] = useState(false)
   const lost = lostRights(profileUser.bans).length
 
@@ -156,7 +158,13 @@ function ProfileHeading({ name, profileUser, isOwner, onChange }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex min-w-0 items-center gap-2 text-3xl font-bold">
-          <span className="min-w-0 break-words">{name}</span>
+          {secretLink ? (
+            <Link to="/SECRET" className="min-w-0 break-words transition-colors hover:text-brand-gold">
+              {name}
+            </Link>
+          ) : (
+            <span className="min-w-0 break-words">{name}</span>
+          )}
           <ResonanceIcon userId={profileUser._id} />
         </h1>
 
