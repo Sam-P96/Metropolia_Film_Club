@@ -156,6 +156,15 @@ const userSchema = new Schema(
         // back from a holder who hasn't for 3 months. Missing: not since
         // this was added.
         lastLoginAt: { type: Date },
+
+        // The Black Market cosmetics they're wearing (utils/blackMarket.js):
+        // a name style and a profile-picture border, each an item id from
+        // shared/cosmetics/catalogue.js, or null for none. What they own is
+        // in models/cosmeticOwnedModel.js.
+        cosmetics: {
+            name: { type: String, default: null },
+            border: { type: String, default: null },
+        },
     },
     { timestamps: { createdAt: "joinedAt", updatedAt: "updatedAt" } }
 );

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import FollowButton from './FollowButton'
 import ResonanceIcon from '../resonance/ResonanceIcon'
+import StyledUsername from '../cosmetics/StyledUsername'
 import SettingRow from './SettingRow'
 import { deleteUser, setBans } from '../../services/users'
 import { BAN_RIGHTS, lostRights } from '../../utils/bans'
@@ -148,9 +149,12 @@ function BanPanel({ profileUser, onChange }) {
 // `onChange` merges follow and ban changes into the profile.
 // `secretLink`: the name links to /SECRET, the list of SECRET pages (only
 // for the admin named ADMIN, on their own profile: utils/secretPages.js).
-function ProfileHeading({ name, profileUser, isOwner, onChange, secretLink = false }) {
+// The name wears their Black Market name style (profileUser.cosmetics); the
+// developer test tool passes made-up `cosmetics` and `resonancePercent`.
+function ProfileHeading({ name, profileUser, isOwner, onChange, secretLink = false, cosmetics = profileUser.cosmetics, resonancePercent }) {
   const [banning, setBanning] = useState(false)
   const lost = lostRights(profileUser.bans).length
+  const styledName = <StyledUsername name={name} styleId={cosmetics?.name} />
 
   return (
     <>
@@ -160,12 +164,12 @@ function ProfileHeading({ name, profileUser, isOwner, onChange, secretLink = fal
         <h1 className="flex min-w-0 items-center gap-2 text-3xl font-bold">
           {secretLink ? (
             <Link to="/SECRET" className="min-w-0 break-words transition-colors hover:text-brand-gold">
-              {name}
+              {styledName}
             </Link>
           ) : (
-            <span className="min-w-0 break-words">{name}</span>
+            <span className="min-w-0 break-words">{styledName}</span>
           )}
-          <ResonanceIcon userId={profileUser._id} />
+          <ResonanceIcon userId={profileUser._id} percent={resonancePercent} />
         </h1>
 
         {!isOwner && <FollowButton profileUser={profileUser} onChange={onChange} />}

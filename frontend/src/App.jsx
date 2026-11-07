@@ -55,6 +55,10 @@ import StealAlert from "./components/steal/StealAlert";
 import Poker from "./pages/Poker";
 import PokerTable from "./pages/PokerTable";
 import LoanShark from "./pages/LoanShark";
+import BlackMarket from "./pages/BlackMarket";
+import BlackMarketDev from "./pages/BlackMarketDev";
+import HazeFilter from "./components/cosmetics/HazeFilter";
+import "./components/cosmetics/cosmetics.css";
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -79,6 +83,8 @@ function App() {
   return (
     <div className="flex min-h-screen flex-col">
       <ScrollToTop />
+      {/* The Black Market cosmetics' heat haze shimmer, defined once. */}
+      <HazeFilter />
       <NavigationBar
         isAuthenticated={isAuthenticated}
         setIsAuthenticated={setIsAuthenticated}
@@ -199,6 +205,14 @@ function App() {
           {/* Loan Shark: King Loan Shark, and members lending to each other. */}
           <Route path="/games/loan-shark" element={
             isAuthenticated ? (<LoanShark />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          {/* The Black Market, from the Loan Shark page: cosmetics for P-PP.
+              Its developer test tool is for admins (the server checks). */}
+          <Route path="/games/loan-shark/black-market" element={
+            isAuthenticated ? (<BlackMarket />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/loan-shark/black-market/dev" element={
+            isAuthenticated ? (<BlackMarketDev />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/users/:userId/films" element={<UserFilmList />} />
           <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />

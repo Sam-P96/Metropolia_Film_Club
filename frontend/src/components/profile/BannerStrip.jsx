@@ -7,11 +7,12 @@ const FADE_RIGHT = {
 
 // A member's review card banner behind the left of a list row: as long as a
 // card, 15% longer on desktop, fading out on the right. The row needs
-// `relative isolate` so this sits behind its content.
-function BannerStrip({ banner }) {
+// `relative isolate` so this sits behind its content. `className` rounds
+// its corners, for a list's first or last row (LeaderboardRow).
+function BannerStrip({ banner, className = '' }) {
   return (
     <div
-      className="pointer-events-none absolute inset-y-0 left-0 -z-10 w-120 max-w-full lg:w-138"
+      className={`pointer-events-none absolute inset-y-0 left-0 -z-10 w-120 max-w-full overflow-hidden lg:w-138 ${className}`}
       style={FADE_RIGHT}
     >
       <div className="absolute inset-0" style={bannerLayerStyle(banner)} />

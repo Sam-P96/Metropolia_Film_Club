@@ -424,7 +424,7 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(ranking.standing.eligible, true);
         const [first] = ranking.matches;
         assert.deepEqual(Object.keys(first).sort(), ["genre", "movies", "percent", "rank", "relation", "sharedCount", "sharedFilms", "user"]);
-        assert.deepEqual(Object.keys(first.user).sort(), ["_id", "avatarUrl", "reviewCardBanner", "username"]);
+        assert.deepEqual(Object.keys(first.user).sort(), ["_id", "avatarUrl", "cosmetics", "reviewCardBanner", "username"]);
         assert.equal(ranking.matches[1].relation, "friends");
 
         // Turning it off hides them from everyone straight away, and theirs from them.
