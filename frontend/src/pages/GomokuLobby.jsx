@@ -208,7 +208,7 @@ export default function GomokuLobby() {
       <Reveal show={mode === 'fun'} id="fun">
         <div className="flex flex-col gap-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link to="/games/gomoku/local" className={`${GOLD_BUTTON} min-h-14 py-2 text-center text-lg`}>
+            <Link to="/games/gomoku/local" className={`${online ? QUIET_BUTTON : GOLD_BUTTON} min-h-14 py-2 text-center text-lg`}>
               <span className="flex flex-col items-center leading-tight">
                 <span>Play Local</span>
                 <small className="text-sm leading-tight font-medium opacity-80">Two players, this device</small>
