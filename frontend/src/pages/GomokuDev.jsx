@@ -55,16 +55,16 @@ function Lab() {
   const winner = winLine.length ? moves.at(-1).seat : null
   const result = winner !== null ? { title: `${winner === 0 ? 'You' : 'Them'} win!`, detail: 'Five in a row.', tone: 'win' } : full ? { title: 'Draw', tone: 'draw' } : null
 
-  const land = (x, y, seat) => {
+  const land = (x, y, seat, confirmed = false) => {
     impacts.current += 1
-    setImpact({ x, y, wave: waves[seat], key: impacts.current })
+    setImpact({ x, y, wave: waves[seat], key: impacts.current, confirmed })
   }
   const put = (x, y) => {
     const after = [...moves, { x, y, seat: next }]
     setMoves(after)
     setWinLine(winningLine(boardOf(size, after), size, x, y) ?? [])
     setSelected(null)
-    land(x, y, next)
+    land(x, y, next, confirmStep)
   }
   const clear = () => {
     setMoves([])

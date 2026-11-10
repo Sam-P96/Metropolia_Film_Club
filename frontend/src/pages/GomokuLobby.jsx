@@ -207,13 +207,17 @@ export default function GomokuLobby() {
       <Reveal show={mode === 'fun'} id="fun">
         <div className="flex flex-col gap-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link to="/games/gomoku/local" className={`${GOLD_BUTTON} min-h-14 flex-col gap-0 text-center text-lg`}>
-              Play Local
-              <small className="text-sm font-medium opacity-80">Two players, this device</small>
+            <Link to="/games/gomoku/local" className={`${GOLD_BUTTON} min-h-14 py-2 text-center text-lg`}>
+              <span className="flex flex-col items-center leading-tight">
+                <span>Play Local</span>
+                <small className="text-sm leading-tight font-medium opacity-80">Two players, this device</small>
+              </span>
             </Link>
-            <button type="button" onClick={() => setOnline(!online)} aria-expanded={online} className={`${online ? GOLD_BUTTON : QUIET_BUTTON} min-h-14 flex-col gap-0 text-center text-lg`}>
-              Play Online
-              <small className="text-sm font-medium opacity-80">Challenge a member</small>
+            <button type="button" onClick={() => setOnline(!online)} aria-expanded={online} className={`${online ? GOLD_BUTTON : QUIET_BUTTON} min-h-14 py-2 text-center text-lg`}>
+              <span className="flex flex-col items-center leading-tight">
+                <span>Play Online</span>
+                <small className="text-sm leading-tight font-medium opacity-80">Challenge a member</small>
+              </span>
             </button>
           </div>
           <Reveal show={online} id="online">

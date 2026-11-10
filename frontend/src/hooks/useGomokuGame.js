@@ -40,9 +40,10 @@ export default function useGomokuGame(matchId) {
   const overRef = useRef(null)
   const impacts = useRef(0)
 
-  const land = useCallback((x, y, wave) => {
+  // `confirmed`: you just placed it, so the buzz starts with a click.
+  const land = useCallback((x, y, wave, confirmed = false) => {
     impacts.current += 1
-    setImpact({ x, y, wave, key: impacts.current })
+    setImpact({ x, y, wave, key: impacts.current, confirmed })
   }, [])
 
   // A view of the game from the server. One older than what's showing is
@@ -135,7 +136,7 @@ export default function useGomokuGame(matchId) {
       current: 1 - match.mySeat,
     })
     setSelected(null)
-    land(x, y, match.myLook.shockwave)
+    land(x, y, match.myLook.shockwave, true)
 
     try {
       adopt(await sendGomokuMove(match._id, { version: match.version, type: 'place', x, y }))

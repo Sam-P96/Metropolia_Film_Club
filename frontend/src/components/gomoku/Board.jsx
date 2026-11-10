@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Piece from './Piece'
 import { ShockwaveLayer } from './shockwave'
+import { HAPTIC, haptic } from './haptics'
 import { DEFAULTS, gomokuItem } from '../../../../shared/gomoku/catalogue.js'
 import { pointIndex, pointName } from '../../../../shared/gomoku/rules.js'
 
@@ -123,8 +124,10 @@ function ResultBanner({ title, detail, tone = 'win' }) {
 //   selected          { x, y } or null; onSelect(x, y) picks a point
 //   canPlay           whether you can pick a point now
 //   winLine           [[x, y], ...]: the five that won, lit up
-//   impact            { x, y, wave, key }: a stone landing at (x, y) with
-//                     shockwave `wave` (an item id). A new `key` sets it off.
+//   impact            { x, y, wave, key, confirmed }: a stone landing at
+//                     (x, y) with shockwave `wave` (an item id). A new `key`
+//                     sets it off, with a buzz as it lands and rolls out
+//                     (`confirmed`: just placed here, so a click first).
 //   result            { title, detail, tone }: once it's over, who won,
 //                     over the board (tone 'win', or 'draw')
 //   label             what the board is, for screen readers
@@ -154,6 +157,7 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
     if (!impact || !layerRef.current || !boardRef.current) return
     const width = boardRef.current.getBoundingClientRect().width / size
     layerRef.current.play({ x: (impact.x + 0.5) * width, y: (impact.y + 0.5) * width, cell: width, look: lookOf(impact.wave, 'shockwave') })
+    haptic(impact.confirmed ? HAPTIC.confirm : HAPTIC.land)
     // Only a new impact sets one off, not the board drawing again.
   }, [impact?.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -222,7 +226,11 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
           tabIndex={cursor.x === x && cursor.y === y ? 0 : -1}
           aria-label={`${pointName(size, x, y)}, ${whose}`}
           aria-pressed={picked || undefined}
-          onClick={() => open && onSelect?.(x, y)}
+          onClick={() => {
+            if (!open) return
+            haptic(HAPTIC.pick)
+            onSelect?.(x, y)
+          }}
           className="gmk-point"
           style={stone ? breathAt(x, y) : undefined}
         >

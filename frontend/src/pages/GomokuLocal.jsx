@@ -47,7 +47,7 @@ export default function GomokuLocal() {
     setGame({ moves, winner: line ? current : null, winLine: line ?? [], draw: !line && isFull(board) })
     setSelected(null)
     impacts.current += 1
-    setImpact({ x, y, wave: look.shockwave, key: impacts.current })
+    setImpact({ x, y, wave: look.shockwave, key: impacts.current, confirmed: true })
   }
 
   let status
