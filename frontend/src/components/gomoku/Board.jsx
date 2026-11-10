@@ -7,6 +7,20 @@ import { pointIndex, pointName, starPoints } from '../../../../shared/gomoku/rul
 // How far the shockwave jolts the stones around where one lands, in points.
 const JOLT_REACH = 3
 
+// Each point's own breath for an Infinity Stone on it (Piece.jsx Gem): a
+// pace and a start that look random but are always the same for the same
+// point, so neighbours don't pulse together and a stone keeps its rhythm.
+function breathAt(x, y) {
+  const noise = (seed) => {
+    const value = Math.sin(seed) * 43758.5453
+    return value - Math.floor(value)
+  }
+  return {
+    '--gmk-delay': `${(-noise(x * 12.9898 + y * 78.233) * 3).toFixed(2)}s`,
+    '--gmk-length': `${(2.2 + noise(x * 39.3468 + y * 11.135) * 1.2).toFixed(2)}s`,
+  }
+}
+
 const lookOf = (id, kind) => (gomokuItem(id) ?? gomokuItem(DEFAULTS[kind])).look
 
 // The grid's lines, drawn through the middle of each point, with the star
@@ -171,6 +185,7 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
           aria-pressed={picked || undefined}
           onClick={() => open && onSelect?.(x, y)}
           className="gmk-point"
+          style={stone ? breathAt(x, y) : undefined}
         >
           {piece}
         </button>

@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import gauntletUrl from '../../assets/Slot_Machine_Icons/reel/gauntlet.webp'
 import { DEFAULTS, gomokuItem } from '../../../../shared/gomoku/catalogue.js'
 
@@ -18,12 +18,25 @@ const points = (corners) => corners.map(([x, y]) => `${x.toFixed(2)},${y.toFixed
 
 // An Infinity Stone, cut like a gem, seen from above: `colors` are its
 // light, its own colour and its shadow. It glows in its colour and breathes
-// (gomoku.css .gmk-gem).
+// (gomoku.css .gmk-gem), each one at its own pace and from its own point in
+// the breath, so a row of them never pulses together. On the board, the
+// point sets both (--gmk-delay, --gmk-length: Board.jsx), so a stone keeps
+// its rhythm when it's drawn again.
 function Gem({ colors }) {
   const id = useId()
+  const [breath] = useState(() => ({ delay: -Math.random() * 3, length: 2.2 + Math.random() * 1.2 }))
   const [light, mid, dark] = colors
   return (
-    <svg viewBox="0 0 100 100" className="gmk-gem" style={{ '--gmk-glow': mid }} aria-hidden="true">
+    <svg
+      viewBox="0 0 100 100"
+      className="gmk-gem"
+      style={{
+        '--gmk-glow': mid,
+        animationDelay: `var(--gmk-delay, ${breath.delay.toFixed(2)}s)`,
+        animationDuration: `var(--gmk-length, ${breath.length.toFixed(2)}s)`,
+      }}
+      aria-hidden="true"
+    >
       <defs>
         <radialGradient id={`${id}-body`} cx="40%" cy="35%" r="70%">
           <stop offset="0%" stopColor={light} />
