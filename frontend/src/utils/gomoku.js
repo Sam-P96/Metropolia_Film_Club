@@ -9,9 +9,6 @@ export function termsHint(forFun, stakeText, max) {
   return stakeProblem(Number(stakeText), max)
 }
 
-// "15 × 15"
-export const boardName = (size) => `${size} × ${size}`
-
 // How a game between members ended, from the viewer's side, in a few
 // words: "You won with five in a row", "They resigned", "A draw".
 export function endingOf(match, opponent) {

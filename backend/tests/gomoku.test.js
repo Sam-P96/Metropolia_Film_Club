@@ -192,20 +192,23 @@ describe("Infinite Gomoku against a database", { skip: !uri ? "set MONGO_TEST_UR
         assert.equal((await challenge(b, a, { size: 15, stake: 10 })).status, 409);
         assert.equal((await challenge(a, a, { size: 15, stake: 10 })).status, 400);
         assert.match((await challenge(a, await member(5), { size: 15, stake: 50 })).body.error, /most you two/);
-        assert.match((await challenge(a, await member(), { size: 13, stake: 0 })).body.error, /15 x 15 or 19 x 19/);
+        // Only the 15 x 15 board; leaving the size out means it.
+        assert.match((await challenge(a, await member(), { size: 19, stake: 0 })).body.error, /15 x 15 board/);
+        assert.equal((await challenge(a, await member(), { stake: 0 })).body.size, 15);
 
-        // b counters: 60 each on a 19 x 19 board. Now it waits on a.
+        // b counters: 60 each. Now it waits on a.
         const seen = (await call(b, "GET", `/gomoku/matches/${sent.body._id}`)).body;
         assert.deepEqual([seen.myAnswer, seen.counterMax, seen.acceptStake], [true, 80, 50]);
-        assert.equal((await answer(b, seen, "counter", { size: 15, stake: 50 })).status, 400);
-        const countered = await answer(b, seen, "counter", { size: 19, stake: 60 });
+        assert.equal((await answer(b, seen, "counter", { stake: 50 })).status, 400);
+        assert.equal((await answer(b, seen, "counter", { size: 19, stake: 60 })).status, 400);
+        const countered = await answer(b, seen, "counter", { stake: 60 });
         assert.equal(countered.status, 200, JSON.stringify(countered.body));
         assert.equal(await Notification.countDocuments({ recipient: b._id, type: "gomokuChallenge" }), 0);
         assert.equal(await Notification.countDocuments({ recipient: a._id, type: "gomokuChallenge", pinned: true }), 1);
         // An old version is refused, with the game as it is now.
         const stale = await answer(a, sent.body, "accept");
         assert.equal(stale.status, 409);
-        assert.equal(stale.body.match.size, 19);
+        assert.equal(stale.body.match.stake, 60);
 
         const now = (await call(a, "GET", `/gomoku/matches/${sent.body._id}`)).body;
         const accepted = await answer(a, now, "accept");
@@ -246,7 +249,7 @@ describe("Infinite Gomoku against a database", { skip: !uri ? "set MONGO_TEST_UR
         assert.equal(declined.body.status, "declined");
         assert.equal(await Notification.countDocuments({ recipient: a._id, type: "gomokuDeclined" }), 1);
 
-        const second = (await challenge(a, b, { size: 19, stake: 0 })).body;
+        const second = (await challenge(a, b, { stake: 0 })).body;
         assert.equal((await answer(b, second, "withdraw")).status, 403);
         assert.equal((await answer(a, second, "withdraw")).body.status, "withdrawn");
 

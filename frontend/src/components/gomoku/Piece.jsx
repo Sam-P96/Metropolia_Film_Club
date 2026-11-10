@@ -77,7 +77,15 @@ export function PieceFace({ id }) {
 
   if (look.type === 'stone') return <span className={`gmk-stone gmk-stone-${look.color}`} />
   if (look.type === 'gem') return <Gem colors={look.colors} />
-  if (look.type === 'emoji') return <span className="gmk-emoji">{look.emoji}</span>
+  if (look.type === 'emoji') {
+    return (
+      <svg viewBox="0 0 100 100" className="gmk-emoji" aria-hidden="true">
+        <text x="50" y="52" textAnchor="middle" dominantBaseline="central" fontSize="80">
+          {look.emoji}
+        </text>
+      </svg>
+    )
+  }
   return <img src={IMAGES[look.image]} alt="" className="gmk-image" draggable="false" />
 }
 

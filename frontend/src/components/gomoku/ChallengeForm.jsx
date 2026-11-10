@@ -5,16 +5,14 @@ import ResonanceIcon from '../resonance/ResonanceIcon'
 import TermsPicker from './TermsPicker'
 import { getGomokuStakeLimit, sendGomokuChallenge } from '../../services/gomoku'
 import { termsHint } from '../../utils/gomoku'
-import { DEFAULT_SIZE } from '../../../../shared/gomoku/rules.js'
 
 // Challenging another member to Infinite Gomoku: find them by name (or
-// pick a friend: `initialOpponent`), then the board and, For PP, the stake.
+// pick a friend: `initialOpponent`), then, For PP, the stake.
 // `forFun` is which button brought them here. `onSent(match)` gets the new
 // challenge.
 export default function ChallengeForm({ forFun, initialOpponent = null, onSent }) {
   const [opponent, setOpponent] = useState(initialOpponent)
   const [max, setMax] = useState(null)
-  const [size, setSize] = useState(DEFAULT_SIZE)
   const [stakeText, setStakeText] = useState('10')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -56,7 +54,7 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
     setSending(true)
     setError('')
     try {
-      const match = await sendGomokuChallenge({ opponent: opponent._id, size, stake: forFun ? 0 : Number(stakeText) })
+      const match = await sendGomokuChallenge({ opponent: opponent._id, stake: forFun ? 0 : Number(stakeText) })
       setOpponent(null)
       onSent?.(match)
     } catch (sendError) {
@@ -70,8 +68,8 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
 
   const ready = forFun || max !== null
   return (
-    <div className="flex animate-slide-in flex-col gap-4 motion-reduce:animate-none">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex animate-slide-in flex-col items-center gap-4 text-center motion-reduce:animate-none">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <MemberAvatar user={opponent} size="sm" />
         <span className="min-w-0 truncate text-lg font-semibold text-white">{opponent.username}</span>
         <ResonanceIcon userId={opponent._id} className="-ml-1.5" />
@@ -84,12 +82,12 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
         !error && <p className="text-sm text-white/50">Checking what you can play for…</p>
       ) : (
         <>
-          <TermsPicker forFun={forFun} size={size} onSize={setSize} stakeText={stakeText} onStakeText={setStakeText} max={max} />
+          {!forFun && <TermsPicker forFun={false} stakeText={stakeText} onStakeText={setStakeText} max={max} />}
           <button
             type="button"
             onClick={send}
             disabled={sending || Boolean(termsHint(forFun, stakeText, max))}
-            className="min-h-12 cursor-pointer rounded-xl bg-brand-gold px-4 font-bold text-ink transition hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+            className="min-h-12 w-full cursor-pointer rounded-xl bg-brand-gold px-4 text-center font-bold text-ink transition hover:brightness-110 disabled:cursor-default disabled:opacity-40"
           >
             {sending ? 'Sending…' : `Challenge ${opponent.username}${forFun ? ' for fun' : ''}`}
           </button>

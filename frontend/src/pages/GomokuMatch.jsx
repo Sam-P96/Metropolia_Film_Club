@@ -27,7 +27,7 @@ function ResignButton({ match, opponent, disabled, onResign }) {
 
   if (!asking) {
     return (
-      <button type="button" onClick={() => setAsking(true)} disabled={disabled} className={`${QUIET_BUTTON} self-center`}>
+      <button type="button" onClick={() => setAsking(true)} disabled={disabled} className={`${QUIET_BUTTON} self-center text-center`}>
         Resign
       </button>
     )
@@ -37,7 +37,7 @@ function ResignButton({ match, opponent, disabled, onResign }) {
       <p className="text-white">
         Resign? {opponent} wins the game{loss}.
       </p>
-      <div className="flex gap-3">
+      <div className="flex justify-center gap-3">
         <button
           type="button"
           disabled={disabled}
@@ -94,6 +94,20 @@ function statusOf(match, opponent, selected, myTurn) {
   return { tone: 'text-white', text: match.moveCount === 0 ? 'You move first. Tap a point to pick it.' : 'Your turn. Tap a point to pick it.' }
 }
 
+// Over the board once it's over: the winner's name, how, and the prize;
+// or that it's a draw.
+function resultOf(match) {
+  if (match.status !== 'over') return null
+  if (match.endedBy === 'draw') {
+    return { title: 'Draw', detail: `The board filled up with no five in a row.${match.forFun ? '' : ' Both stakes are back.'}`, tone: 'draw' }
+  }
+  const winner = match.players[match.winner].username
+  const loser = match.players[1 - match.winner].username
+  const how = { five: 'Five in a row', resign: `${loser} resigned`, forfeit: `${loser} ran out of time`, left: `${loser} left the club` }[match.endedBy]
+  const prize = match.forFun ? '' : ` · ${formatPoints(match.prize)} P-PP`
+  return { title: `${winner} wins!`, detail: `${how ?? ''}${prize}`, tone: 'win' }
+}
+
 function MatchGame({ matchId }) {
   const game = useGomokuGame(matchId)
   const { match, loading } = game
@@ -147,7 +161,7 @@ function MatchGame({ matchId }) {
       back={BACK}
       subtitle={`You vs. ${them.username}.`}
       aside={
-        <span className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-white/80">
+        <span className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-center text-sm text-white/80">
           <Terms match={match} />
         </span>
       }
@@ -168,6 +182,7 @@ function MatchGame({ matchId }) {
         canPlay={game.myTurn && !game.busy}
         winLine={match.winLine}
         impact={game.impact}
+        result={resultOf(match)}
         label={`The board, ${match.size} by ${match.size}`}
       />
 
@@ -176,7 +191,7 @@ function MatchGame({ matchId }) {
       </p>
 
       {!over && (
-        <button type="button" onClick={game.place} disabled={!game.selected || !game.myTurn || game.busy} className={`${GOLD_BUTTON} min-h-14 w-full text-lg sm:mx-auto sm:w-80`}>
+        <button type="button" onClick={game.place} disabled={!game.selected || !game.myTurn || game.busy} className={`${GOLD_BUTTON} min-h-14 w-full text-center text-lg sm:mx-auto sm:w-80`}>
           {game.busy ? 'Placing…' : 'Place piece'}
         </button>
       )}
@@ -190,11 +205,11 @@ function MatchGame({ matchId }) {
       {over ? (
         <div className="flex flex-col items-center gap-3">
           {match.winner === me && !match.forFun && (
-            <p className="flex items-center gap-1.5 text-white/70">
+            <p className="flex items-center justify-center gap-1.5 text-center text-white/70">
               <CoinIcon kind="ppp" size={16} /> {formatPoints(match.prize)} P-PP added to your wallet.
             </p>
           )}
-          <Link to="/games/gomoku" className={`${GOLD_BUTTON} min-h-12`}>
+          <Link to="/games/gomoku" className={`${GOLD_BUTTON} min-h-12 text-center`}>
             Back to Infinite Gomoku
           </Link>
         </div>

@@ -10,9 +10,9 @@
 
 export const GAME_NAME = 'Infinite Gomoku'
 
-// The boards a game can be played on, in points per side. 15 x 15 is the
-// standard Gomoku board; 19 x 19 is a Go board's size.
-export const BOARD_SIZES = [15, 19]
+// The board: 15 x 15 points, the standard Gomoku board, and the only one.
+// (Games keep their size, so another could be added here one day.)
+export const BOARD_SIZES = [15]
 export const DEFAULT_SIZE = 15
 
 // Stones in a row to win. Freestyle: six or more in a row wins too.
@@ -110,27 +110,10 @@ export function isFull(board) {
 // Whose turn it is after `moveCount` moves: seat 0 moves first.
 export const seatToMove = (moveCount) => moveCount % 2
 
-// The star points drawn on the board, as on a Go board: the corners' and
-// the middle's. (Small boards are only the shop's previews.)
-export function starPoints(size) {
-  if (size === 19) return [3, 9, 15].flatMap((x) => [3, 9, 15].map((y) => [x, y]))
-  if (size < 7) return []
-  const edge = size < 13 ? 2 : 3
-  const far = size - 1 - edge
-  const mid = (size - 1) / 2
-  return [
-    [edge, edge],
-    [far, edge],
-    [mid, mid],
-    [edge, far],
-    [far, far],
-  ]
-}
-
 // A move's name on the board, like "H8": a letter for the column (I is
 // skipped, as on Go boards) and a number for the row, counted from the
 // bottom.
-const COLUMNS = 'ABCDEFGHJKLMNOPQRST'
+const COLUMNS = 'ABCDEFGHJKLMNOP'
 export function pointName(size, x, y) {
   return `${COLUMNS[x]}${size - y}`
 }

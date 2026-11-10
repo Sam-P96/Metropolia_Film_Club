@@ -5,7 +5,6 @@ import CoinIcon from '../wallet/CoinIcon'
 import MemberAvatar from '../profile/MemberAvatar'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import { formatDeadline } from '../../utils/farkle'
-import { boardName } from '../../utils/gomoku'
 import { timeAgo } from '../../utils/timeAgo'
 import { formatPoints } from '../../../../shared/gomoku/rules.js'
 
@@ -108,7 +107,7 @@ export function OngoingGomoku({ match }) {
   const them = opponentOf(match)
   const yourTurn = match.current === match.mySeat
   const here = opponentHere(match)
-  const where = `move ${match.moveCount + 1} on a ${boardName(match.size)} board, ${stakes(match)}`
+  const where = `move ${match.moveCount + 1}, ${stakes(match)}`
 
   return (
     <article className={`${BOX} ${yourTurn ? 'border-brand-gold/70' : 'border-emerald-400/50'}`}>
@@ -257,14 +256,14 @@ export default function GomokuNotice({ item }) {
   } else if (item.type === 'gomokuAccepted') {
     text = (
       <>
-        {name} accepted your {match.counters > 0 ? 'terms' : 'challenge'}: {boardName(match.size)}, {stakes(match)}. They move first.
+        {name} accepted your {match.counters > 0 ? 'terms' : 'challenge'}: {stakes(match)}. They move first.
       </>
     )
     button = <GameButton match={match} />
   } else if (item.type === 'gomokuDeclined') {
     text = (
       <>
-        {name} turned down your challenge ({boardName(match.size)}, {stakes(match)}).{match.forFun ? '' : ' Nothing was taken from either of you.'}
+        {name} turned down your challenge ({stakes(match)}).{match.forFun ? '' : ' Nothing was taken from either of you.'}
       </>
     )
   } else if (item.type === 'gomokuExpired') {

@@ -47,21 +47,17 @@ function GameRow({ match }) {
   return (
     <Link
       to={gomokuPath(match._id)}
-      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border px-4 py-3 transition-colors hover:bg-white/10 ${
+      className={`flex flex-col items-center gap-2 rounded-xl border px-4 py-3 text-center transition-colors hover:bg-white/10 ${
         yourTurn ? 'border-brand-gold/60 bg-brand-gold/10' : 'border-white/10 bg-white/5'
       }`}
     >
-      <span className="flex min-w-0 items-center gap-3">
-        <MemberAvatar user={them} />
-        <span className="min-w-0">
-          <span className="font-semibold text-white">
-            vs {them.username}
-            <ResonanceIcon userId={them._id} className="ml-1" />
-          </span>
-          <span className="block text-sm text-white/60">
-            Move {match.moveCount + 1} · <Terms match={match} />
-          </span>
-        </span>
+      <MemberAvatar user={them} />
+      <span className="font-semibold text-white">
+        vs {them.username}
+        <ResonanceIcon userId={them._id} className="ml-1" />
+      </span>
+      <span className="text-sm text-white/60">
+        Move {match.moveCount + 1} · <Terms match={match} />
       </span>
       <span className={`rounded-full px-3 py-1 text-sm font-semibold ${yourTurn ? 'bg-brand-gold text-ink' : 'bg-white/10 text-white/70'}`}>
         {yourTurn ? 'Your turn' : 'Their turn'}
@@ -88,14 +84,14 @@ function RecentRow({ match }) {
     )
   } else outcome = <span className="text-white/60">{match.forFun ? 'Lost, for fun' : `Lost ${formatPoints(match.stake)}`}</span>
 
-  const row = 'flex flex-wrap items-center justify-between gap-x-4 py-2'
+  const row = 'flex flex-col items-center gap-0.5 py-2.5 text-center'
   const text = (
     <>
       <span className="text-white">
         vs {them.username}
         <ResonanceIcon userId={them._id} className="ml-1" />
-        {match.status === 'over' && <span className="ml-2 text-sm text-white/50">{endingOf(match, them.username)}</span>}
       </span>
+      {match.status === 'over' && <span className="text-sm text-white/50">{endingOf(match, them.username)}</span>}
       <span className="text-sm">{outcome}</span>
     </>
   )
@@ -184,13 +180,13 @@ export default function GomokuLobby() {
       }
     >
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={() => choose('fun')} aria-expanded={mode === 'fun'} className={`${mode === 'fun' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-lg`}>
+        <button type="button" onClick={() => choose('fun')} aria-expanded={mode === 'fun'} className={`${mode === 'fun' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
           Play For Fun
         </button>
-        <button type="button" onClick={() => choose('pp')} aria-expanded={mode === 'pp'} className={`${mode === 'pp' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-lg`}>
+        <button type="button" onClick={() => choose('pp')} aria-expanded={mode === 'pp'} className={`${mode === 'pp' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
           Play For PP
         </button>
-        <Link to="/games/gomoku/shop" className={`${QUIET_BUTTON} min-h-13 flex-1 text-lg`}>
+        <Link to="/games/gomoku/shop" className={`${QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
           {lobby?.myLook && <PieceSwatch id={lobby.myLook.piece} size={26} />}
           Shop
         </Link>
@@ -211,11 +207,11 @@ export default function GomokuLobby() {
       <Reveal show={mode === 'fun'} id="fun">
         <div className="flex flex-col gap-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link to="/games/gomoku/local" className={`${GOLD_BUTTON} min-h-14 flex-col gap-0 text-lg`}>
+            <Link to="/games/gomoku/local" className={`${GOLD_BUTTON} min-h-14 flex-col gap-0 text-center text-lg`}>
               Play Local
               <small className="text-sm font-medium opacity-80">Two players, this device</small>
             </Link>
-            <button type="button" onClick={() => setOnline(!online)} aria-expanded={online} className={`${online ? GOLD_BUTTON : QUIET_BUTTON} min-h-14 flex-col gap-0 text-lg`}>
+            <button type="button" onClick={() => setOnline(!online)} aria-expanded={online} className={`${online ? GOLD_BUTTON : QUIET_BUTTON} min-h-14 flex-col gap-0 text-center text-lg`}>
               Play Online
               <small className="text-sm font-medium opacity-80">Challenge a member</small>
             </button>

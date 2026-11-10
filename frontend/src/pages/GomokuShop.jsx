@@ -72,7 +72,7 @@ function ItemCard({ item, shop, trying, onTry, onBuy, onEquip }) {
   }
 
   return (
-    <li className={`flex flex-col gap-3 rounded-2xl border bg-ink/50 p-3 ${using ? 'border-emerald-400/60' : trying ? 'border-brand-gold/60' : 'border-white/10'}`}>
+    <li className={`flex flex-col gap-3 rounded-2xl border bg-ink/50 p-3 text-center ${using ? 'border-emerald-400/60' : trying ? 'border-brand-gold/60' : 'border-white/10'}`}>
       <button
         type="button"
         onClick={() => onTry(item)}
@@ -81,11 +81,11 @@ function ItemCard({ item, shop, trying, onTry, onBuy, onEquip }) {
       >
         <Swatch item={item} look={shop.equipped} />
       </button>
-      <div className="flex items-start justify-between gap-2 px-1">
+      <div className="flex flex-col items-center gap-1 px-1">
         <h3 className="font-semibold text-white">{item.name}</h3>
-        <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem] font-semibold text-white/60">{item.category}</span>
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem] font-semibold text-white/60">{item.category}</span>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm">
+      <div className="mt-auto flex flex-col items-center gap-2 px-1 text-sm">
         <span className="flex items-center gap-1.5 font-semibold tabular-nums text-white">
           {item.price === 0 ? (
             'Free'
@@ -129,7 +129,7 @@ function ItemCard({ item, shop, trying, onTry, onBuy, onEquip }) {
             Buy <strong className="text-white">{item.name}</strong> for {formatPoints(item.price)} points? Your PP goes first, then P-PP. It&apos;s yours
             for good, but the points are gone: no refunds.
           </p>
-          <div className="flex gap-2">
+          <div className="flex justify-center gap-2">
             <button type="button" className={`${SMALL_BUTTON} bg-brand-gold text-ink`} disabled={busy} onClick={() => run(() => onBuy(item))}>
               {busy ? 'Buying…' : 'Buy it'}
             </button>
@@ -140,7 +140,7 @@ function ItemCard({ item, shop, trying, onTry, onBuy, onEquip }) {
         </div>
       )}
       {error && (
-        <p role="alert" className="px-1 text-sm text-red-300">
+        <p role="alert" className="px-1 text-center text-sm text-red-300">
           {error}
         </p>
       )}
@@ -167,7 +167,7 @@ function Preview({ look, impact, onReplay, trying, onStopTrying }) {
           label="A preview board"
         />
       </div>
-      <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
         <h2 className={HEADING}>{trying ? `Trying ${trying.name}` : 'Your setup'}</h2>
         <ul className="text-sm text-white/70">
           {KINDS.map((kind) => (
@@ -179,7 +179,7 @@ function Preview({ look, impact, onReplay, trying, onStopTrying }) {
         <p className="text-sm text-white/50">
           Against someone with the same piece, theirs shows in negative (Black against Black shows as White), like the second piece here.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={onReplay} className={`${QUIET_BUTTON} min-h-10`}>
             Play the shockwave
           </button>
@@ -253,7 +253,7 @@ export default function GomokuShop() {
       subtitle="Pieces, shockwaves, boards and grids. Try anything on before you buy it."
       aside={
         view && (
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-lg font-bold text-white" aria-label="Your points">
+          <p className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-lg font-bold text-white" aria-label="Your points">
             <span className="flex items-center gap-1.5">
               <CoinIcon kind="pp" size={18} /> {formatPoints(view.pp)} PP
             </span>
@@ -274,13 +274,13 @@ export default function GomokuShop() {
         <>
           <Preview look={look} impact={impact} onReplay={() => boom(look.shockwave)} trying={trying} onStopTrying={() => setTrying(null)} />
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col items-center gap-3">
             <PillToggle options={KINDS.map((value) => ({ value, label: KIND_LABELS[value] }))} value={kind} onChange={setKind} label="What to show" />
             <PillToggle options={SHOW} value={show} onChange={setShow} label="Show" />
           </div>
 
           {kind === 'piece' && (
-            <p className="-mt-2 text-sm text-white/60">
+            <p className="-mt-2 text-center text-sm text-white/60">
               Every piece sets off your shockwave when it lands. The Infinity Stones glow and breathe as well.
             </p>
           )}
@@ -289,7 +289,7 @@ export default function GomokuShop() {
 
           {categories.map((category) => (
             <section key={category} aria-label={category} className="flex flex-col gap-3">
-              <h2 className="text-xs font-semibold tracking-widest text-white/50 uppercase">{category}</h2>
+              <h2 className="text-center text-xs font-semibold tracking-widest text-white/50 uppercase">{category}</h2>
               <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {items
                   .filter((item) => item.category === category)

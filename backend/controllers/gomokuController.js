@@ -22,14 +22,15 @@ const {
     seatOf,
 } = require("../utils/gomoku");
 const shop = require("../utils/gomokuShop");
-const { BOARD_SIZES, FUN, boardOf, formatPoints, isOnBoard, pointIndex, prizeFor, stakeProblem } = require("../../shared/gomoku/rules.js");
+const { BOARD_SIZES, DEFAULT_SIZE, FUN, boardOf, formatPoints, isOnBoard, pointIndex, prizeFor, stakeProblem } = require("../../shared/gomoku/rules.js");
 
 // Infinite Gomoku between members (routes/gomokuRouter.js), played like
 // Kino Farkle's games between members: a challenge with terms (the board,
 // and the stake: 0 For Fun), answered with Accept, Decline or new terms
 // (Counter), three days to answer and three days a move. Whoever accepts
 // moves first, so the challenger moves second. Playing on one device
-// (Play Local) is all in the browser, with nothing sent here.
+// (Play Local) is all in the browser, with nothing sent here. Every game is
+// on the 15 x 15 board.
 
 // How many finished games and closed challenges the lobby lists.
 const RECENT_SIZE = 10;
@@ -54,16 +55,18 @@ function whyNotOpen(match) {
     return "This challenge was already accepted.";
 }
 
-// The terms from a request: { size, stake }. A missing stake is For Fun.
+// The terms from a request: { size, stake }. A missing stake is For Fun;
+// a missing size is the board (15 x 15).
+const missing = (value) => value === undefined || value === null;
 function termsFrom(body) {
-    return { size: Number(body?.size), stake: body?.stake === undefined || body?.stake === null ? FUN : Number(body.stake) };
+    return { size: missing(body?.size) ? DEFAULT_SIZE : Number(body.size), stake: missing(body?.stake) ? FUN : Number(body.stake) };
 }
 
 // What's wrong with terms between `me` and `them`, or null: one of the
 // board sizes, and For Fun or a whole-number stake from MIN_STAKE up to
 // what the poorer of the two has.
 async function termsProblem({ size, stake }, me, them) {
-    if (!BOARD_SIZES.includes(size)) return `Play on a ${BOARD_SIZES.map((n) => `${n} x ${n}`).join(" or ")} board.`;
+    if (!BOARD_SIZES.includes(size)) return `Infinite Gomoku is played on a ${DEFAULT_SIZE} x ${DEFAULT_SIZE} board.`;
     if (stake === FUN) return null;
     const max = Math.min(await pointsOf(me), await pointsOf(them));
     return stakeProblem(stake, max) || null;
@@ -152,7 +155,7 @@ async function getFriends(req, res) {
 
 // ---- Challenges ----
 
-// A challenge, { opponent, size, stake }: stake 0 (or none) is For Fun.
+// A challenge, { opponent, stake }: stake 0 (or none) is For Fun.
 // Nothing is taken from anyone until it's accepted. They get a pinned
 // notification with Accept, Decline and Counter, and three days to answer.
 async function createChallenge(req, res) {
@@ -302,7 +305,7 @@ async function declineChallenge(req, res) {
     res.json(await matchView(closed, req.user._id, { full: true }));
 }
 
-// New terms back, { size, stake }: the other player now has three days to
+// New terms back, { stake }: the other player now has three days to
 // accept, decline or counter again. As many times as they like.
 async function counterChallenge(req, res) {
     const match = await openChallenge(req, res, "to");

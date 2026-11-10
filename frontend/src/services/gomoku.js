@@ -24,14 +24,15 @@ export function getGomokuFriends(skip = 0) {
   return api(`/gomoku/friends?skip=${skip}`)
 }
 
-// A challenge: { opponent, size, stake } (stake 0 is For Fun).
-export function sendGomokuChallenge({ opponent, size, stake }) {
-  return api('/gomoku/challenges', { method: 'POST', body: { opponent, size, stake } })
+// A challenge: { opponent, stake } (stake 0 is For Fun). Every game is on
+// the 15 x 15 board.
+export function sendGomokuChallenge({ opponent, stake }) {
+  return api('/gomoku/challenges', { method: 'POST', body: { opponent, stake } })
 }
 
-// 'accept', 'decline', 'counter' (with size and stake) or 'withdraw'.
-export function answerGomokuChallenge(id, answer, { version, size, stake } = {}) {
-  return api(`/gomoku/matches/${id}/${answer}`, { method: 'POST', body: { version, size, stake } })
+// 'accept', 'decline', 'counter' (with a stake) or 'withdraw'.
+export function answerGomokuChallenge(id, answer, { version, stake } = {}) {
+  return api(`/gomoku/matches/${id}/${answer}`, { method: 'POST', body: { version, stake } })
 }
 
 export function getGomokuMatch(id) {

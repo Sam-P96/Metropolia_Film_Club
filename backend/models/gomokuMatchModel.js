@@ -58,7 +58,8 @@ const gomokuMatchSchema = new Schema(
         },
         players: {type: [playerSchema], required: true},
 
-        // The terms: the board, and the stake each puts up (0: For Fun).
+        // The terms: the board (15 x 15: shared/gomoku/rules.js), and the
+        // stake each puts up (0: For Fun).
         size: {type: Number, enum: BOARD_SIZES, required: true},
         stake: {type: Number, required: true, min: 0},
         // What the winner is paid, in P-PP (0 For Fun).

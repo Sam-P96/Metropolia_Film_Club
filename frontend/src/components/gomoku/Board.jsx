@@ -2,7 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import Piece from './Piece'
 import { ShockwaveLayer } from './shockwave'
 import { DEFAULTS, gomokuItem } from '../../../../shared/gomoku/catalogue.js'
-import { pointIndex, pointName, starPoints } from '../../../../shared/gomoku/rules.js'
+import { pointIndex, pointName } from '../../../../shared/gomoku/rules.js'
 
 // How far the shockwave jolts the stones around where one lands, in points.
 const JOLT_REACH = 3
@@ -23,8 +23,8 @@ function breathAt(x, y) {
 
 const lookOf = (id, kind) => (gomokuItem(id) ?? gomokuItem(DEFAULTS[kind])).look
 
-// The grid's lines, drawn through the middle of each point, with the star
-// points. The rainbow grid gets its own gradient (`gradientId`).
+// The grid's lines, drawn through the middle of each point. The rainbow
+// grid gets its own gradient (`gradientId`).
 function Grid({ size, gridId, gradientId }) {
   const look = lookOf(gridId, 'grid')
   const rainbow = gridId === 'grid.rainbow'
@@ -57,9 +57,6 @@ function Grid({ size, gridId, gradientId }) {
           </g>
         )
       })}
-      {starPoints(size).map(([x, y]) => (
-        <circle key={`${x},${y}`} cx={x + 0.5} cy={y + 0.5} r={size > 15 ? 0.1 : 0.12} />
-      ))}
     </svg>
   )
 }
@@ -71,6 +68,46 @@ export function BoardSwatch({ boardId, gridId, size = 5, px = 72 }) {
   return (
     <div className={`gmk-board ${lookOf(boardId, 'board').cls}`} style={{ width: px, borderRadius: 10 }} aria-hidden="true">
       <Grid size={size} gridId={gridId} gradientId={gradientId} />
+    </div>
+  )
+}
+
+// Over the board once the game is over: who won (or that it's a draw), in
+// big letters, and how. "See the board" shrinks it to a strip along the
+// top, still saying who won, and tapping that brings it back.
+function ResultBanner({ title, detail, tone = 'win' }) {
+  const [small, setSmall] = useState(false)
+  const gold = tone === 'win'
+
+  if (small) {
+    return (
+      <button
+        type="button"
+        onClick={() => setSmall(false)}
+        className="absolute inset-x-0 top-2 z-[6] mx-auto flex w-fit max-w-[92%] cursor-pointer items-center justify-center gap-2 rounded-full border border-brand-gold/70 bg-ink/85 px-4 py-1.5 text-center text-sm font-bold text-brand-gold shadow-lg shadow-black/50 backdrop-blur-sm"
+      >
+        {gold && <span aria-hidden="true">👑</span>}
+        <span className="truncate">{title}</span>
+      </button>
+    )
+  }
+
+  return (
+    <div className="absolute inset-0 z-[6] flex animate-page-in items-center justify-center bg-ink/55 p-4 backdrop-blur-[2px] motion-reduce:animate-none">
+      <div className="flex max-w-full flex-col items-center gap-2 rounded-2xl border border-brand-gold/60 bg-ink/85 px-6 py-5 text-center shadow-2xl shadow-black/60">
+        {gold && (
+          <span className="text-4xl" aria-hidden="true">
+            👑
+          </span>
+        )}
+        <p className={`font-['Cinzel'] text-3xl leading-tight break-words sm:text-4xl ${gold ? 'text-brand-gold drop-shadow-[0_0_14px_rgba(250,188,63,0.55)]' : 'text-white'}`}>
+          {title}
+        </p>
+        {detail && <p className="text-white/80">{detail}</p>}
+        <button type="button" onClick={() => setSmall(true)} className="mt-1 cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white">
+          See the board
+        </button>
+      </div>
     </div>
   )
 }
@@ -88,8 +125,10 @@ export function BoardSwatch({ boardId, gridId, size = 5, px = 72 }) {
 //   winLine           [[x, y], ...]: the five that won, lit up
 //   impact            { x, y, wave, key }: a stone landing at (x, y) with
 //                     shockwave `wave` (an item id). A new `key` sets it off.
+//   result            { title, detail, tone }: once it's over, who won,
+//                     over the board (tone 'win', or 'draw')
 //   label             what the board is, for screen readers
-export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, selected, onSelect, canPlay, winLine = [], impact, label }) {
+export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, selected, onSelect, canPlay, winLine = [], impact, result, label }) {
   const boardRef = useRef(null)
   const canvasRef = useRef(null)
   const layerRef = useRef(null)
@@ -207,6 +246,7 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
         {points}
       </div>
       <canvas ref={canvasRef} className="gmk-fx" aria-hidden="true" />
+      {result && <ResultBanner key={result.title} {...result} />}
     </div>
   )
 }

@@ -9,11 +9,11 @@ import useApi from '../hooks/useApi'
 import { devAcceptAsThem, devPlayTheirMove, devRefundShop, devUnsee, getGomokuDev, getGomokuLobby } from '../services/gomoku'
 import { walletChanged } from '../services/wallet'
 import { DEFAULTS, KINDS, KIND_LABELS, itemsOfKind, pieceAgainst } from '../../../shared/gomoku/catalogue.js'
-import { BOARD_SIZES, boardOf, isFull, winningLine } from '../../../shared/gomoku/rules.js'
+import { DEFAULT_SIZE, boardOf, isFull, winningLine } from '../../../shared/gomoku/rules.js'
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
-const PANEL = 'rounded-2xl border-2 border-dashed border-sky-400/50 bg-sky-950/40 p-5 text-sm text-white/70 sm:p-6'
-const TITLE = 'text-xs font-semibold tracking-widest text-sky-300 uppercase'
+const PANEL = 'rounded-2xl border-2 border-dashed border-sky-400/50 bg-sky-950/40 p-5 text-center text-sm text-white/70 sm:p-6'
+const TITLE = 'text-center text-xs font-semibold tracking-widest text-sky-300 uppercase'
 const FIELD = 'w-full rounded-lg border border-white/15 bg-ink/70 px-3 py-2 text-sm text-white focus:border-brand-gold focus:outline-none'
 
 function Picker({ label, kind, value, onChange }) {
@@ -36,7 +36,7 @@ function Picker({ label, kind, value, onChange }) {
 // down. With the same piece on both sides, theirs shows the way it would
 // in a real game (catalogue.js pieceAgainst).
 function Lab() {
-  const [size, setSize] = useState(15)
+  const size = DEFAULT_SIZE
   const [mine, setMine] = useState({ ...DEFAULTS })
   const [theirPiece, setTheirPiece] = useState(DEFAULTS.piece)
   const [theirWave, setTheirWave] = useState('wave.fire')
@@ -50,7 +50,10 @@ function Lab() {
   const pieces = [{ id: mine.piece, invert: false }, pieceAgainst(mine.piece, theirPiece)]
   const waves = [mine.shockwave, theirWave]
   const next = moves.length % 2
-  const over = winLine.length > 0 || isFull(boardOf(size, moves))
+  const full = isFull(boardOf(size, moves))
+  const over = winLine.length > 0 || full
+  const winner = winLine.length ? moves.at(-1).seat : null
+  const result = winner !== null ? { title: `${winner === 0 ? 'You' : 'Them'} win!`, detail: 'Five in a row.', tone: 'win' } : full ? { title: 'Draw', tone: 'draw' } : null
 
   const land = (x, y, seat) => {
     impacts.current += 1
@@ -63,8 +66,7 @@ function Lab() {
     setSelected(null)
     land(x, y, next)
   }
-  const clear = (newSize = size) => {
-    setSize(newSize)
+  const clear = () => {
     setMoves([])
     setWinLine([])
     setSelected(null)
@@ -82,16 +84,11 @@ function Lab() {
         <Picker label="Their piece" kind="piece" value={theirPiece} onChange={setTheirPiece} />
         <Picker label="Their shockwave" kind="shockwave" value={theirWave} onChange={setTheirWave} />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {BOARD_SIZES.map((option) => (
-          <button key={option} type="button" onClick={() => clear(option)} className={`${SMALL_BUTTON} border ${size === option ? 'border-brand-gold text-brand-gold' : 'border-white/20 text-white'}`}>
-            {option} × {option}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <label className="flex items-center gap-2 text-white/80">
           <input type="checkbox" checked={confirmStep} onChange={(event) => setConfirmStep(event.target.checked)} /> Confirm button
         </label>
-        <button type="button" onClick={() => clear()} className={`${SMALL_BUTTON} border border-white/20 text-white`}>
+        <button type="button" onClick={clear} className={`${SMALL_BUTTON} border border-white/20 text-white`}>
           Clear the board
         </button>
         <button
@@ -110,7 +107,7 @@ function Lab() {
           { name: 'Them', user: null, piece: pieces[1], first: false },
         ]}
         current={next}
-        winner={winLine.length ? moves.at(-1).seat : null}
+        winner={winner}
         over={over}
       />
       <div className="mx-auto w-full max-w-xl">
@@ -126,6 +123,7 @@ function Lab() {
           canPlay={!over}
           winLine={winLine}
           impact={impact}
+          result={result}
           label="The lab's board"
         />
       </div>
@@ -197,7 +195,7 @@ function ServerTools() {
         ) : (
           <ul className="mt-2 flex flex-col gap-2">
             {sent.map((match) => (
-              <li key={match._id} className="flex flex-wrap items-center gap-2">
+              <li key={match._id} className="flex flex-wrap items-center justify-center gap-2">
                 <span>vs {opponent(match)}</span>
                 <button
                   type="button"
@@ -222,7 +220,7 @@ function ServerTools() {
             {anyGames.map((match) => {
               const theirTurn = match.current !== match.mySeat
               return (
-                <li key={match._id} className="flex flex-wrap items-center gap-2">
+                <li key={match._id} className="flex flex-wrap items-center justify-center gap-2">
                   <Link to={`/games/gomoku/${match._id}`} className="text-sky-200 underline underline-offset-4 hover:text-white">
                     vs {opponent(match)}, move {match.moveCount + 1}
                   </Link>
