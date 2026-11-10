@@ -3,6 +3,7 @@ import useMatchSocket from './useMatchSocket'
 import { DICE_PER_TURN, formatPoints, scoreDice } from '../../../shared/farkle/rules.js'
 import { getBotMatch, getMatch, sendMove, startBotMatch } from '../services/farkle'
 import { walletChanged } from '../services/wallet'
+import { HAPTIC, feelChange, haptic } from '../components/farkle/haptics'
 
 // A game of Farkle played on the server, for points. The server rolls every
 // die and checks every move; this hook only sends moves ("set aside the
@@ -269,7 +270,10 @@ export default function useServerFarkle(matchId = null) {
   const missedRef = useRef(false)
   const refreshRef = useRef(null)
 
+  // Every change at the table goes through here, so this is where it buzzes
+  // (components/farkle/haptics.js): rolls, landings, Farkles, banks, the end.
   const show = useCallback((next) => {
+    feelChange(gameRef.current, next)
     gameRef.current = next
     setGame(next)
   }, [])
@@ -494,6 +498,7 @@ export default function useServerFarkle(matchId = null) {
       if (!g || g.current !== 0 || g.phase !== 'choosing') return
 
       const selected = g.selected.includes(index) ? g.selected.filter((i) => i !== index) : [...g.selected, index]
+      haptic(HAPTIC.tap)
       update({ selected })
       sendSelection(selected)
     },

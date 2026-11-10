@@ -6,6 +6,8 @@ import ChallengeCard, { Terms } from '../components/gomoku/ChallengeCard'
 import GomokuPage, { CARD } from '../components/gomoku/GomokuChrome'
 import PlayersBar from '../components/gomoku/PlayersBar'
 import ReplayControls from '../components/gomoku/ReplayControls'
+import SoundToggle from '../components/gomoku/SoundToggle'
+import { wakeAudio } from '../components/gomoku/feedback'
 import { DANGER_BUTTON, GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
 import useGomokuGame from '../hooks/useGomokuGame'
@@ -203,9 +205,12 @@ function MatchGame({ matchId }) {
       back={BACK}
       subtitle={`You vs. ${them.username}.`}
       aside={
-        <span className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-center text-sm text-white/80">
-          <Terms match={match} />
-        </span>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-center text-sm text-white/80">
+            <Terms match={match} />
+          </span>
+          <SoundToggle />
+        </div>
       }
     >
       {!over && <LiveLine live={game.live} opponent={them.username} />}
@@ -251,7 +256,16 @@ function MatchGame({ matchId }) {
 
       {over ? (
         <div className="flex flex-col items-center gap-3">
-          {!replaying && <ReplayOffer replay={match.replay} onWatch={() => setReplaying(true)} />}
+          {!replaying && (
+            <ReplayOffer
+              replay={match.replay}
+              onWatch={() => {
+                // The tap lets the replay make its sounds.
+                wakeAudio()
+                setReplaying(true)
+              }}
+            />
+          )}
           {match.winner === me && !match.forFun && (
             <p className="flex items-center justify-center gap-1.5 text-center text-white/70">
               <CoinIcon kind="ppp" size={16} /> {formatPoints(match.prize)} P-PP added to your wallet.
