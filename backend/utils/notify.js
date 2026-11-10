@@ -17,7 +17,7 @@ const VIRAL_LIKES = 5;
 const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
-    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES,
+    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES,
     "loanJob", "loanRepay", "loanRepaid", "loanBorrowed",
 ];
 
@@ -472,6 +472,79 @@ function forgetFarkleMatch(matchId) {
     return Notification.deleteMany({ match: matchId });
 }
 
+// Infinite Gomoku between members (utils/gomoku.js), the same way as
+// Farkle: a challenge waiting on someone is pinned until they answer, and
+// each new one for a game takes the place of the last. Games being played
+// aren't notifications: the Notifications page lists them at the top.
+function unpinGomoku(gameId) {
+    return Notification.deleteMany({ gomoku: gameId, type: "gomokuChallenge" });
+}
+
+// The terms on the table (game.offer) are waiting on `offer.to`.
+async function noteGomokuChallenge(game) {
+    await unpinGomoku(game._id);
+    await Notification.create({
+        recipient: game.offer.to,
+        type: "gomokuChallenge",
+        gomoku: game._id,
+        actors: [game.offer.by],
+        pinned: true,
+    });
+}
+
+// The challenge was answered, or wasn't: its pinned notice goes, and with
+// a `type` ("gomokuAccepted", "gomokuDeclined", "gomokuExpired"), `to`
+// hears about it from `from`.
+async function noteGomokuAnswer(game, type = null, to = null, from = null) {
+    await unpinGomoku(game._id);
+    if (type) await Notification.create({ recipient: to, type, gomoku: game._id, actors: [from] });
+}
+
+// The game is over: each player hears how it ended, except `skip` (a
+// member who has just left the club).
+async function noteGomokuOver(game, skip = null) {
+    await unpinGomoku(game._id);
+    const [first, second] = game.players.map((player) => player.user);
+    const notes = [
+        { recipient: first, actors: [second] },
+        { recipient: second, actors: [first] },
+    ].filter((note) => note.recipient && String(note.recipient) !== String(skip));
+
+    if (notes.length === 0) return;
+    await Notification.insertMany(notes.map((note) => ({ ...note, type: "gomokuOver", gomoku: game._id })));
+}
+
+// A game played for points is over, and someone won it: everyone who
+// follows either player hears who won how much from whom, once each (both
+// in `actors` if they follow both). Not the players, and nothing about
+// `skip`. Games For Fun and draws stay between the two of them.
+async function noteGomokuResult(game, skip = null) {
+    if (!(game.stake > 0) || game.winner === null || game.winner === undefined) return;
+
+    const players = game.players.map((player) => player.user).filter(Boolean);
+    const followed = players.filter((id) => String(id) !== String(skip));
+    if (followed.length === 0) return;
+
+    const isPlayer = new Set(players.map(String));
+    const follows = await Follow.find({ following: { $in: followed } }).select("follower following").lean();
+
+    const notes = new Map();
+    for (const follow of follows) {
+        if (isPlayer.has(String(follow.follower))) continue;
+        const note = notes.get(String(follow.follower)) ?? { recipient: follow.follower, actors: [] };
+        note.actors.push(follow.following);
+        notes.set(String(follow.follower), note);
+    }
+
+    if (notes.size === 0) return;
+    await Notification.insertMany([...notes.values()].map((note) => ({ ...note, type: "gomokuResult", gomoku: game._id })));
+}
+
+// A game that never got going was deleted.
+function forgetGomokuMatch(gameId) {
+    return Notification.deleteMany({ gomoku: gameId });
+}
+
 // An account was deleted: their own Feed, everything about their reviews
 // and cuts, the notifications they set off, and their name in vote groups.
 async function forgetMember(userId, reviewIds, cutIds = []) {
@@ -525,6 +598,11 @@ module.exports = {
     noteFarkleOver,
     noteFarkleResult,
     forgetFarkleMatch,
+    noteGomokuChallenge,
+    noteGomokuAnswer,
+    noteGomokuOver,
+    noteGomokuResult,
+    forgetGomokuMatch,
     noteLoanCollector,
     noteLoanMissed,
     noteLoanJob,

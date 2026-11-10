@@ -12,22 +12,22 @@ const SMALL_BUTTON = 'inline-flex min-h-10 shrink-0 items-center justify-center 
 // What one friend's button says: Challenge, or where to find the challenge
 // or game the two of them already have going (only one at a time), or why
 // they can't be challenged.
-function FriendAction({ friend, onChallenge }) {
+function FriendAction({ friend, onChallenge, gamePath, needsPoints }) {
   if (friend.match?.status === 'challenge') {
     return (
-      <Link to={`/games/farkle/${friend.match._id}`} className={`${SMALL_BUTTON} border border-white/20 bg-white/5 text-white hover:border-brand-gold/60`}>
+      <Link to={gamePath(friend.match._id)} className={`${SMALL_BUTTON} border border-white/20 bg-white/5 text-white hover:border-brand-gold/60`}>
         Challenge open
       </Link>
     )
   }
   if (friend.match) {
     return (
-      <Link to={`/games/farkle/${friend.match._id}`} className={`${SMALL_BUTTON} border border-white/20 bg-white/5 text-white hover:border-brand-gold/60`}>
+      <Link to={gamePath(friend.match._id)} className={`${SMALL_BUTTON} border border-white/20 bg-white/5 text-white hover:border-brand-gold/60`}>
         Your game
       </Link>
     )
   }
-  if (friend.points === 0) {
+  if (needsPoints && friend.points === 0) {
     return (
       <button type="button" disabled className={`${SMALL_BUTTON} cursor-default border border-white/10 text-white/40`}>
         No points
@@ -52,11 +52,15 @@ function FriendAction({ friend, onChallenge }) {
 // picture and points (PP and P-PP together, shown as PP like the PP
 // Leaderboard), and a Challenge button, which opens the challenge form on
 // them (`onChallenge(friend)`). Loads again when `reloads` changes (after a
-// challenge is sent, say), so their row says so.
-export default function FriendList({ className, onChallenge, reloads }) {
+// challenge is sent, say), so their row says so. Infinite Gomoku uses it
+// too, with its own `load` (each friend's `match` then being a Gomoku game)
+// and `gamePath`, and `needsPoints` false for games For Fun.
+const farklePath = (id) => `/games/farkle/${id}`
+
+export default function FriendList({ className, onChallenge, reloads, load = getFriends, gamePath = farklePath, needsPoints = true }) {
   const [open, setOpen] = useState(false)
   const listId = useId()
-  const friends = usePagedList(getFriends, [reloads], 'friends', { enabled: open })
+  const friends = usePagedList(load, [reloads], 'friends', { enabled: open })
   const rows = friends.data?.friends ?? []
 
   return (
@@ -104,7 +108,7 @@ export default function FriendList({ className, onChallenge, reloads }) {
                       <CoinIcon kind="pp" size={14} /> {formatPoints(friend.points)} PP
                     </p>
                   </div>
-                  <FriendAction friend={friend} onChallenge={onChallenge} />
+                  <FriendAction friend={friend} onChallenge={onChallenge} gamePath={gamePath} needsPoints={needsPoints} />
                 </li>
               ))}
             </ul>

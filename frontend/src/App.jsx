@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { LOGIN_EXPIRED_EVENT } from './utils/currentUser';
 import ScrollToTop from './components/ScrollToTop'
 import NavigationBar from './components/NavigationBar'
@@ -57,8 +57,17 @@ import PokerTable from "./pages/PokerTable";
 import LoanShark from "./pages/LoanShark";
 import BlackMarket from "./pages/BlackMarket";
 import BlackMarketDev from "./pages/BlackMarketDev";
+import GomokuLobby from "./pages/GomokuLobby";
+import GomokuMatch from "./pages/GomokuMatch";
+import GomokuLocal from "./pages/GomokuLocal";
+import GomokuShop from "./pages/GomokuShop";
 import HazeFilter from "./components/cosmetics/HazeFilter";
 import "./components/cosmetics/cosmetics.css";
+
+// Infinite Gomoku's developer tool: only in the Vite dev server. A
+// production build replaces import.meta.env.DEV with false, so the page
+// isn't even in it.
+const GomokuDev = import.meta.env.DEV ? lazy(() => import("./pages/GomokuDev")) : null;
 
 
 //ALWAYS KEEP IN MIND, WE WANT A CARD BASE LAYOUT
@@ -163,6 +172,26 @@ function App() {
           } />
           <Route path="/games/farkle/:matchId" element={
             isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          {/* Infinite Gomoku: its page (Play For Fun, Play For PP, Shop),
+              two players on one device, the shop, and a game between
+              members. The developer tool only exists in development. */}
+          <Route path="/games/gomoku" element={
+            isAuthenticated ? (<GomokuLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/gomoku/local" element={
+            isAuthenticated ? (<GomokuLocal />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/gomoku/shop" element={
+            isAuthenticated ? (<GomokuShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          {GomokuDev && (
+            <Route path="/games/gomoku/dev" element={
+              isAuthenticated ? (<Suspense fallback={null}><GomokuDev /></Suspense>) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+          )}
+          <Route path="/games/gomoku/:matchId" element={
+            isAuthenticated ? (<GomokuMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/games/scratch" element={
             isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)

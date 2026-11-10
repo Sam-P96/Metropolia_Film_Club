@@ -8,6 +8,7 @@ import VoteButtons from '../reviews/VoteButtons'
 import MemberAvatar from '../profile/MemberAvatar'
 import FollowButton from '../profile/FollowButton'
 import FarkleNotice from '../farkle/FarkleNotice'
+import GomokuNotice from '../gomoku/GomokuNotice'
 import PayoutNotice from '../wallet/PayoutNotice'
 import GiftNotice from '../wallet/GiftNotice'
 import ScratchNotice from '../scratch/ScratchNotice'
@@ -879,6 +880,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'pokerWin') return <PokerNotice item={item} />
   if (item.type.startsWith('loan')) return <LoanNotice item={item} light={light} />
   if (item.type.startsWith('farkle')) return <FarkleNotice item={item} />
+  if (item.type.startsWith('gomoku')) return <GomokuNotice item={item} />
   return <ReviewNotice item={item} tone={tone} solid={light} />
 }
 
