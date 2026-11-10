@@ -338,6 +338,25 @@ describe("Steal and Defend, end to end", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.equal(paidOut.ppp, 80);
     });
 
+    test("a Revenge Dagger takes a broke thief as far below 0 as it needs, and the defender gets the whole bill", async () => {
+        attacks.useRandomSource(() => 99);
+        const attacker = await member({ pp: 1 });
+        const victim = await member({ pp: 2000 });
+        await giveItem(victim, "revenge-dagger", { equip: true });
+        await follow(attacker, victim);
+
+        const started = await call(attacker, "POST", "/steal/attacks", { victim: victim._id, percent: 5 });
+        const done = await playQuiz(attacker, started.body._id, false);
+        assert.equal(done.outcome, "fail");
+        // 100 tried: an 80 fine and the dagger's 100.
+        assert.deepEqual([done.amounts.fine, done.amounts.revenge, done.amounts.bill], [80, 100, 180]);
+        assert.deepEqual([done.amounts.paid, done.amounts.debt, done.amounts.forgiven, done.amounts.defenderGot], [1, 179, 0, 180]);
+        const broke = await walletOf(attacker);
+        assert.equal(broke.pp + broke.ppp, -179);
+        const paid = await walletOf(victim);
+        assert.equal(paid.ppp, 180);
+    });
+
     test("the daily payout pays off debt first", async () => {
         const debtor = await member({ reviews: 5 });
         await User.updateOne({ _id: debtor._id }, { $set: { "wallet.ppp": -3 } });

@@ -102,12 +102,12 @@
     "id": "revenge-dagger",
     "name": "Revenge Dagger",
     "type": "defense",
-    "tier": "Rare",
-    "effect": "If the attacker fails, you also steal 100% of the attempted amount from them, on top of your fine",
+    "tier": "Epic",
+    "effect": "If the attacker fails, you also steal 100% of the attempted amount from them, on top of your fine. You get the whole bill, even if it takes them into the negative",
     "effects": { "revenge": 100 },
     "durability": 3,
     "dailyTickdown": false,
-    "priceMultiplier": 2
+    "priceMultiplier": 3
   },
   {
     "id": "wilson",

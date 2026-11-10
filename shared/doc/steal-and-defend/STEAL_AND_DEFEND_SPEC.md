@@ -234,6 +234,7 @@ In plain words:
 
 **Revenge Dagger**
 - The attacker also owes the defender **100% of the attempted amount**, added to the same bill as the fine.
+- With the dagger, nothing in that bill is forgiven: what the attacker can't pay becomes a negative balance in full, and the defender is paid the whole bill straight away.
 
 **Hattori Hanzo Katana**
 - The attacker's equipped items lose 2 extra durability.

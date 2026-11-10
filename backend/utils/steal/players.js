@@ -98,7 +98,7 @@ async function takeBackSteals(userId) {
         }
 
         const owed = claimed.reduce((sum, attack) => sum + (attack.amounts?.attackerGot ?? 0), 0);
-        let settled = { paid: 0, unpaid: 0, covered: 0, debt: 0, forgiven: 0 };
+        let settled = { paid: 0, unpaid: 0, covered: 0, debt: 0, forgiven: 0, collected: 0 };
         if (owed > 0) {
             // PP parked outside the wallet can't dodge it either.
             const elsewhere = (await moneyElsewhere(userId, session)).total;
@@ -114,7 +114,7 @@ async function takeBackSteals(userId) {
         }
 
         // What was paid, and what parked PP covers (owed in full).
-        let left = settled.paid + settled.covered;
+        let left = settled.collected;
         const refunds = [];
         for (const attack of claimed) {
             const lost = Math.max(0, (attack.amounts?.victimLost ?? 0) - (attack.amounts?.wilson ?? 0));
