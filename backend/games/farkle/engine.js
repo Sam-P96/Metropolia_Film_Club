@@ -201,14 +201,65 @@ function applyMove(game, seat, move, roll = cryptoDice) {
     return next;
 }
 
+// How often `count` dice Farkle on their own (nothing scores), worked out
+// over every possible roll once.
+const FARKLE_CHANCE = Array.from({ length: DICE_PER_TURN + 1 }, (_, count) => {
+    const total = 6 ** count;
+    let farkles = 0;
+    for (let outcome = 0; outcome < total; outcome++) {
+        const dice = [];
+        for (let i = 0, rest = outcome; i < count; i++, rest = Math.floor(rest / 6)) dice.push(1 + (rest % 6));
+        if (!hasScoringDice(dice)) farkles += 1;
+    }
+    return farkles / total;
+});
+
+// `count` dice that score nothing: no 1s or 5s, and no face three times.
+function farkleDice(count, random) {
+    const pool = [2, 2, 3, 3, 4, 4, 6, 6];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = random(i + 1);
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, count);
+}
+
+// A roll of `count` dice that Farkles `chance` of the time (0 to 1): rolled
+// as usual, and when they'd score, swapped for a Farkle just often enough
+// to make up the difference. Dice that Farkle more often than that on their
+// own are left alone. Never sent anywhere: the page only sees the dice.
+function rollWithBust(count, chance, roll, random) {
+    const dice = roll(count);
+    const natural = FARKLE_CHANCE[count] ?? 0;
+    if (!(chance > natural) || !hasScoringDice(dice)) return dice;
+    const swap = (chance - natural) / (1 - natural);
+    return random(1_000_000) < swap * 1_000_000 ? farkleDice(count, random) : dice;
+}
+
 // The bot's whole turn, if it's the bot's go (the bot sits in `seat`):
 // roll, set aside what botPick likes, then bank or roll on as botShouldBank
 // says, until it banks or Farkles. Its moves go through applyMove like
 // anyone's, so it can't break the rules either.
-function playBot(game, seat, roll = cryptoDice) {
+//
+// `bustChance` (games/happyHours.js), if given, is ({ turn, roll }) => 0 to
+// 1: how often roll number `roll` of the bot's `turn`th turn of the match
+// should Farkle. `random(max)` decides those: crypto.randomInt unless a
+// test passes its own.
+function playBot(game, seat, roll = cryptoDice, { bustChance = null, random = crypto.randomInt } = {}) {
     if (game.status !== "active" || game.current !== seat) return game;
 
-    let next = applyMove(game, seat, { type: "roll" }, roll);
+    let dice = roll;
+    if (bustChance) {
+        // Turns alternate, so each seat's go is every other one.
+        const turn = Math.ceil(game.turn / 2);
+        let rolls = 0;
+        dice = (count) => {
+            rolls += 1;
+            return rollWithBust(count, bustChance({ turn, roll: rolls }), roll, random);
+        };
+    }
+
+    let next = applyMove(game, seat, { type: "roll" }, dice);
 
     while (next.status === "active" && next.current === seat) {
         const pick = botPick(next.dice);
@@ -218,7 +269,7 @@ function playBot(game, seat, roll = cryptoDice) {
             score: next.scores[seat],
             target: next.target,
         });
-        next = applyMove(next, seat, { type: bank ? "bank" : "roll", keep: pick.indexes }, roll);
+        next = applyMove(next, seat, { type: bank ? "bank" : "roll", keep: pick.indexes }, dice);
     }
 
     return next;
@@ -234,4 +285,4 @@ function forfeit(game) {
     return next;
 }
 
-module.exports = { GAME_FIELDS, MoveError, cryptoDice, newGame, applyMove, playBot, forfeit };
+module.exports = { GAME_FIELDS, MoveError, FARKLE_CHANCE, cryptoDice, rollWithBust, newGame, applyMove, playBot, forfeit };

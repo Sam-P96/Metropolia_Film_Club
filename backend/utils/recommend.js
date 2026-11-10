@@ -167,8 +167,10 @@ async function recommendedReviewIds(userId, limit, exclude = []) {
 // the newest, and the rest are picked for the member (as Recommend picks
 // them), leaving out the newest ones already in. Logged out, the rest are
 // the most liked instead. Short of picks (too few reviews by anyone else),
-// more of the newest make up the rest. All mixed up together.
+// more of the newest make up the rest. The first FEATURED_NEWEST_FIRST are
+// always the very newest, newest first; the rest are mixed up together.
 const FEATURED_NEW_SHARE = 0.6;
+const FEATURED_NEWEST_FIRST = 2;
 
 const idsOf = async (query) => (await query.select("_id").lean()).map((review) => review._id);
 const newestFirst = { createdAt: -1 };
@@ -192,12 +194,14 @@ async function featuredReviewIds(userId, limit) {
         ids.push(...(await idsOf(Review.find({ _id: { $nin: ids } }).sort(newestFirst).limit(limit - ids.length))));
     }
 
-    return shuffle(ids);
+    // The newest came first, newest first, so the lead is already in order.
+    return [...ids.slice(0, FEATURED_NEWEST_FIRST), ...shuffle(ids.slice(FEATURED_NEWEST_FIRST))];
 }
 
 module.exports = {
     SEEN_SHARE,
     FEATURED_NEW_SHARE,
+    FEATURED_NEWEST_FIRST,
     WEIGHTS,
     genreFit,
     scoreReview,

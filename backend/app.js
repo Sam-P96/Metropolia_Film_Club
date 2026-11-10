@@ -36,6 +36,7 @@ const { startScratchSweep } = require("./jobs/scratchSweep");
 const { startResonanceSweep } = require("./jobs/resonanceSweep");
 const { startStealSweep } = require("./jobs/stealSweep");
 const { startLoanSweep } = require("./jobs/loanSweep");
+const { startSlotSweep } = require("./jobs/slotSweep");
 
 const app = express();
 
@@ -105,6 +106,12 @@ connected
 connected
     .then(() => startLoanSweep())
     .catch((error) => console.error("Couldn't start the Loan Shark sweep:", error.message));
+
+// Slot Machine: machines left alone for 15 minutes cash themselves out
+// (jobs/slotSweep.js).
+connected
+    .then(() => startSlotSweep())
+    .catch((error) => console.error("Couldn't start the Slot Machine sweep:", error.message));
 
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a

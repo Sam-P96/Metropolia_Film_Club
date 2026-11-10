@@ -204,7 +204,7 @@ describe("Featured, Shuffle and Recommend from the API", { skip: !uri ? "set MON
         assert.ok(draws.flat().some((review) => review.user._id === String(viewer._id)));
     });
 
-    test("Featured: 60% the newest, the rest picked for them (or the most liked), each once, mixed up", async () => {
+    test("Featured: 60% the newest, the rest picked for them (or the most liked), each once, the two newest first and the rest mixed up", async () => {
         // A second apart, oldest first, so which are the newest is clear; and
         // likes on the three oldest by others, for the logged-out list.
         const everyone = await Review.find().sort({ _id: 1 }).select("_id").lean();
@@ -230,6 +230,8 @@ describe("Featured, Shuffle and Recommend from the API", { skip: !uri ? "set MON
         assert.equal(picked.length, 15);
         assert.ok(picked.every((review) => review.user._id !== String(viewer._id)));
         assert.ok(theirs.body.every((review) => review.user.username && "myVote" in review));
+        // The first two cards are always the two newest, newest first.
+        assert.deepEqual(ids.slice(0, 2), newest.slice(0, 2));
 
         // Logged out, the rest are the most liked of the others.
         const loggedOut = await list(null, "featured", 38);
@@ -237,6 +239,7 @@ describe("Featured, Shuffle and Recommend from the API", { skip: !uri ? "set MON
         const rest = loggedOut.body.filter((review) => !newest.includes(review._id)).map((review) => review._id);
         const mostLiked = (await Review.find({ _id: { $nin: newest } }).sort({ likeCount: -1, createdAt: -1 }).limit(15).lean()).map((review) => String(review._id));
         assert.deepEqual(rest.sort(), mostLiked.sort());
+        assert.deepEqual(loggedOut.body.slice(0, 2).map((review) => review._id), newest.slice(0, 2));
 
         // Asking for more than there is: every review, each once.
         const all = (await list(viewer, "featured", 50)).body;

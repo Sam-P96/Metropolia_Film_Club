@@ -65,8 +65,13 @@ export const SLOTS = {
 
   // Cash out: P-PP winnings taken back to the wallet are capped each day
   // (12:00 to 12:00 Helsinki time) at this many times what the richest
-  // member held at 12:00. What's over the cap waits in the machine.
+  // member held at 12:00.
   cashOutCapMultiple: 3,
+
+  // A machine nobody has touched (no credits added, spin or cash out) for
+  // this many minutes cashes itself out: what the cap allows goes back to
+  // the wallet, and whatever's left (P-PP over the cap, fractions) is gone.
+  idleCashOutMinutes: 15,
 }
 
 // Every symbol by its key.

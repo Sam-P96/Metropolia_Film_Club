@@ -8,6 +8,7 @@ const { noteScratchJackpot, noteScratchWin } = require("./notify");
 const { announceJackpot } = require("../games/farkle/live");
 const { ScratchError, TILE_COUNT, newLayout, scratchTile, sealLayout, tierByKey } = require("../games/scratch/engine");
 const { SCRATCH } = require("../../shared/scratch/config.js");
+const { goldenTicketOneIn } = require("../games/happyHours");
 const {
     DEFAULT_TICKET_TYPE,
     TICKET_TYPES,
@@ -247,7 +248,7 @@ async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
         throw new ScratchError(`${kind.name} tickets are on sale ${describeHours(kind.hours)}.`, 403);
     }
 
-    const layout = newLayout();
+    const layout = newLayout(undefined, { goldenOneIn: goldenTicketOneIn(SCRATCH.goldenTicketOneIn, now) });
     const { salt, hash } = sealLayout(layout);
 
     let card;

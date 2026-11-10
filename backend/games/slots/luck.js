@@ -29,13 +29,14 @@ const BUCKETS = Object.keys(TABLES).map(Number).sort((a, b) => a - b);
 
 // The RTP a player gets. `active`: they've reviewed lately. `rank`: their
 // place among the active players in today's leaderboard order (1 is the
-// richest). `count`: how many active players there are.
+// richest). `count`: how many active players there are. `luck`: the
+// numbers to use, LUCK unless it's happy hour (games/happyHours.js).
 //   p = (count - rank) / (count - 1): 1 for the richest, 0 for the poorest.
-function targetRtp({ active, rank, count }) {
-    if (!active) return LUCK.inactiveRtp;
-    if (count <= 1) return LUCK.soloRtp;
+function targetRtp({ active, rank, count }, luck = LUCK) {
+    if (!active) return luck.inactiveRtp;
+    if (count <= 1) return luck.soloRtp;
     const p = (count - rank) / (count - 1);
-    return LUCK.poorestRtp + (LUCK.richestRtp - LUCK.poorestRtp) * p;
+    return luck.poorestRtp + (luck.richestRtp - luck.poorestRtp) * p;
 }
 
 // The weight table nearest `target`, and its bucket (the whole percentage,

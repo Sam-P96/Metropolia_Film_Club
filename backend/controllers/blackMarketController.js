@@ -1,4 +1,4 @@
-const { ShopError, WalletError, shopView, buyCosmetic, wearCosmetic } = require("../utils/blackMarket");
+const { ShopError, WalletError, shopView, buyCosmetic, wearCosmetic, wishCosmetic } = require("../utils/blackMarket");
 
 // The Black Market (routes/blackMarketRouter.js). Every rule is checked in
 // utils/blackMarket.js; these read the request and answer with what
@@ -27,8 +27,14 @@ const wear = (req, res) =>
         res.json({ done, view: await shopView(req.user._id) });
     });
 
+const wish = (req, res) =>
+    handle(res, async () => {
+        const done = await wishCosmetic(req.user._id, req.body?.itemId, req.body?.on);
+        res.json({ done, view: await shopView(req.user._id) });
+    });
+
 // Admins only: the developer test tool asks this to know it may open. It
 // reads and writes nothing else.
 const devAccess = (req, res) => res.json({ ok: true });
 
-module.exports = { getShop, buy, wear, devAccess };
+module.exports = { getShop, buy, wear, wish, devAccess };

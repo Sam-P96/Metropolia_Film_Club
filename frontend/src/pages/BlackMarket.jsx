@@ -11,7 +11,7 @@ import ItemCard from '../components/blackMarket/ItemCard'
 import StyledAvatar from '../components/cosmetics/StyledAvatar'
 import StyledUsername from '../components/cosmetics/StyledUsername'
 import useApi from '../hooks/useApi'
-import { buyCosmetic, getBlackMarket, wearCosmetic } from '../services/blackMarket'
+import { buyCosmetic, getBlackMarket, wearCosmetic, wishCosmetic } from '../services/blackMarket'
 import { getUser } from '../services/users'
 import { getCurrentUser, getCurrentUserId } from '../utils/currentUser'
 import { BORDER_ITEMS, CATEGORIES, NAME_ITEMS, cosmeticById } from '../../../shared/cosmetics/catalogue.js'
@@ -23,7 +23,43 @@ const KINDS = [
   { value: 'name', label: 'Name styles' },
   { value: 'border', label: 'Borders' },
 ]
-const FILTERS = [{ value: 'All', label: 'All' }, ...CATEGORIES.map((category) => ({ value: category, label: category }))]
+const FILTERS = [
+  { value: 'All', label: 'All' },
+  { value: 'Owned', label: 'Owned' },
+  { value: 'Wishlist', label: '♥ Wishlist' },
+  ...CATEGORIES.map((category) => ({ value: category, label: category })),
+]
+const SORTS = [
+  { value: 'price', label: 'Price ↑' },
+  { value: 'price-desc', label: 'Price ↓' },
+  { value: 'name', label: 'Name' },
+  { value: 'popular', label: 'Popular' },
+]
+
+const byName = (a, b) => a.name.localeCompare(b.name, 'en')
+
+// The items to show: those in `filter` (All, Owned, Wishlist or a
+// category), what they're wearing first, then Default, then the rest in
+// `sort`'s order. Popular is the most hearts first.
+function itemsToShow(kind, filter, sort, shop) {
+  const owns = (item) => item.price === 0 || shop.owned.includes(item.id)
+  const hearts = (item) => shop.hearts[item.id] ?? 0
+  const keep = {
+    All: () => true,
+    Owned: owns,
+    Wishlist: (item) => shop.wishlist.includes(item.id),
+  }[filter] ?? ((item) => item.category === filter)
+  const compare = {
+    price: (a, b) => a.price - b.price || byName(a, b),
+    'price-desc': (a, b) => b.price - a.price || byName(a, b),
+    name: byName,
+    popular: (a, b) => hearts(b) - hearts(a) || a.price - b.price || byName(a, b),
+  }[sort]
+
+  const worn = shop.wearing[kind] ?? `${kind}.default`
+  const place = (item) => (item.id === worn ? 0 : item.look ? 2 : 1)
+  return (kind === 'name' ? NAME_ITEMS : BORDER_ITEMS).filter(keep).sort((a, b) => place(a) - place(b) || compare(a, b))
+}
 
 function Skeleton({ className }) {
   return <div aria-hidden="true" className={`animate-pulse rounded-2xl bg-white/10 ${className}`} />
@@ -53,7 +89,8 @@ function Wearing({ me, shop }) {
 // name styles and profile-picture borders for P-PP (shared/cosmetics/
 // catalogue.js), sold by the boss's Chameleon. Every item can be tried on
 // the member's own name or picture before buying, buying asks first, and
-// what they own they can wear or take off. Admins also get the developer
+// what they own they can wear or take off. Hearts make a wishlist, and the
+// "Popular" sort. Admins also get the developer
 // test tool. The rules are all checked on the server (backend/utils/
 // blackMarket.js).
 export default function BlackMarket() {
@@ -61,10 +98,11 @@ export default function BlackMarket() {
   const profile = useApi(() => getUser(getCurrentUserId()), [])
   const [kind, setKind] = useState('name')
   const [filter, setFilter] = useState('All')
+  const [sort, setSort] = useState('price')
   const admin = getCurrentUser()?.role === 'admin'
 
   const me = profile.data ?? (getCurrentUser() ? { _id: getCurrentUserId(), username: getCurrentUser().username, avatarUrl: null } : null)
-  const items = (kind === 'name' ? NAME_ITEMS : BORDER_ITEMS).filter((item) => filter === 'All' || item.category === filter)
+  const items = shop.data ? itemsToShow(kind, filter, sort, shop.data) : []
 
   // A change, then the shop as it now is. Resolves to an error message, or null.
   async function change(action) {
@@ -133,8 +171,18 @@ export default function BlackMarket() {
 
             <div className="flex flex-col gap-3">
               <PillToggle options={KINDS} value={kind} onChange={setKind} label="Name styles or borders" />
-              <PillToggle options={FILTERS} value={filter} onChange={setFilter} label="Category" />
+              <PillToggle options={FILTERS} value={filter} onChange={setFilter} label="Show" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold tracking-widest text-white/50 uppercase">Sort</span>
+                <PillToggle options={SORTS} value={sort} onChange={setSort} label="Sort by" />
+              </div>
             </div>
+
+            {items.length === 0 && (
+              <p className={`${GLASS} p-6 text-white/70`}>
+                {filter === 'Wishlist' ? 'Nothing hearted yet. Tap the ♥ on anything you fancy.' : 'Nothing here yet.'}
+              </p>
+            )}
 
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((item) => (
@@ -146,6 +194,7 @@ export default function BlackMarket() {
                   onBuy={(chosen) => change(() => buyCosmetic(chosen.id))}
                   onWear={(chosen) => change(() => wearCosmetic(chosen.type, chosen.id))}
                   onTakeOff={(type) => change(() => wearCosmetic(type, null))}
+                  onHeart={(chosen, on) => change(() => wishCosmetic(chosen.id, on))}
                 />
               ))}
             </ul>

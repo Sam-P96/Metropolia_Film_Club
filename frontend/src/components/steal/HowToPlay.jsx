@@ -82,8 +82,9 @@ export default function HowToPlay() {
             {strong('Failure')}: you pay a fine of {fine.base}% of the amount to the defender. Only the two of you see a failure.
           </li>
           <li>
-            {strong("Can't pay?")} You pay what you have, and {STEAL.debtShare}% of the rest becomes a negative balance (the rest is forgiven). Until the
-            daily payout brings you back up, you can&apos;t attack, buy items or be attacked.
+            {strong("Can't pay?")} You pay what you have, and {STEAL.debtShare}% of the rest becomes a negative balance (the rest is forgiven). PP in your
+            Slot Machine, at the poker table or out on loan counts too: as much as that could cover becomes a negative balance in full. Until the daily
+            payout brings you back up, you can&apos;t attack, buy items or be attacked.
           </li>
           <li>If two people attack the same person at once, the first to finish counts. The other one fails.</li>
         </ul>
