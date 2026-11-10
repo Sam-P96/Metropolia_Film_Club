@@ -29,10 +29,13 @@ export default function HowToPlay() {
           <li>
             <span className="font-semibold text-white">Cash out</span> sends your credits back to your wallet: PP as PP, and your winnings as
             P-PP, in whole points. P-PP you can cash out each day is capped at {SLOTS.cashOutCapMultiple} times what the richest member held at
-            12:00, on top of whatever P-PP you put in that day. Anything over the cap waits safely in the machine for another day. The cap resets
-            at 12:00.
+            12:00, on top of whatever P-PP you put in that day. The cap resets at 12:00.
           </li>
-          <li>Your credits stay in the machine between visits, on any device.</li>
+          <li>
+            <span className="font-semibold text-white">Walk away</span> for {SLOTS.idleCashOutMinutes} minutes (no adding credits, spinning or
+            cashing out) and the machine cashes out for you, up to the cap. Anything it can&apos;t cash out, P-PP over the cap included, is gone.
+          </li>
+          <li>Until then, your credits stay in the machine between visits, on any device.</li>
         </ul>
       </section>
 

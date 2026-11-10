@@ -510,7 +510,7 @@ const exportMe = async (req, res) => {
         PokerSeat.findById(userId).lean(),
         // Loan Shark: their account, offers, loans both ways, jobs and log.
         loanDataOf(userId),
-        // Black Market: the cosmetics they bought, and what they're wearing.
+        // Black Market: the cosmetics they bought and hearted, and what they're wearing.
         cosmeticsDataOf(userId),
     ]);
 

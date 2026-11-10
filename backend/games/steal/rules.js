@@ -106,14 +106,23 @@ function fineBill({ attempted, attacker = {}, defender = {}, attackerClass = nul
     };
 }
 
-// What happens when someone owes `bill` and has `available` (spec §8.5):
-// they pay all they have, and 25% of what's left, rounded up, becomes a
-// negative balance (`debt`). The rest is forgiven.
-function settleBill(bill, available) {
+// What happens when someone owes `bill` and has `available` in their
+// wallet (spec §8.5): they pay all they have, and 25% of what's left,
+// rounded up, becomes a negative balance (`debt`). The rest is forgiven.
+//
+// `elsewhere` is the PP they've put outside their wallet (a Slot Machine,
+// the poker table, loan offers, money lent out: utils/steal/elsewhere.js).
+// That can't dodge a bill: as much of what's left as it could cover becomes
+// a negative balance in full (`covered`, part of `debt`), and only the
+// rest gets the 25% rule. A wallet already below zero has a claim on it
+// first.
+function settleBill(bill, available, elsewhere = 0) {
     const paid = Math.min(bill, Math.max(0, available));
     const unpaid = bill - paid;
-    const debt = unpaid > 0 ? atLeastOne(ceilPercent(unpaid, STEAL.debtShare)) : 0;
-    return { paid, unpaid, debt, forgiven: unpaid - debt };
+    const covered = Math.min(unpaid, Math.max(0, elsewhere + Math.min(0, available)));
+    const rest = unpaid - covered;
+    const share = rest > 0 ? atLeastOne(ceilPercent(rest, STEAL.debtShare)) : 0;
+    return { paid, unpaid, covered, debt: covered + share, forgiven: rest - share };
 }
 
 // Who gets what was actually paid of a bill: the defender first, up to

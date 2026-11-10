@@ -28,6 +28,18 @@ export default function useSlotMachine() {
 
   useEffect(load, [load])
 
+  // Back on the page after a while: the machine may have cashed itself out
+  // (SLOTS.idleCashOutMinutes), so it and the wallet are fetched again.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      load()
+      walletChanged()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [load])
+
   const add = useCallback(async (amount) => {
     const data = await addCredits(amount)
     setMachine(data.machine)

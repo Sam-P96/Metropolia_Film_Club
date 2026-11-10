@@ -21,10 +21,11 @@ class ScratchError extends Error {
 }
 
 // A new card's tiles: exactly SCRATCH.stars stars, the rest blank, and on one
-// card in goldenTicketOneIn, a Golden Ticket on one of the blanks.
-// `randomInt(max)` gives a whole number from 0 to max - 1: crypto.randomInt,
-// which can't be predicted, unless a test passes its own.
-function newLayout(randomInt = crypto.randomInt) {
+// card in `goldenOneIn` (goldenTicketOneIn unless the server says
+// otherwise), a Golden Ticket on one of the blanks. `randomInt(max)` gives
+// a whole number from 0 to max - 1: crypto.randomInt, which can't be
+// predicted, unless a test passes its own.
+function newLayout(randomInt = crypto.randomInt, { goldenOneIn = SCRATCH.goldenTicketOneIn } = {}) {
     const layout = Array(TILE_COUNT).fill(BLANK);
 
     // Shuffle just far enough to pick the star positions (the first few of a
@@ -36,7 +37,7 @@ function newLayout(randomInt = crypto.randomInt) {
     }
     for (const position of positions.slice(0, SCRATCH.stars)) layout[position] = STAR;
 
-    if (randomInt(SCRATCH.goldenTicketOneIn) === 0) {
+    if (randomInt(goldenOneIn) === 0) {
         const blanks = positions.slice(SCRATCH.stars);
         layout[blanks[randomInt(blanks.length)]] = GOLDEN;
     }

@@ -2,7 +2,8 @@ import { api } from './api'
 import { walletChanged } from './wallet'
 
 // The Black Market (backend/routes/blackMarketRouter.js). getBlackMarket
-// resolves to { ppp, reviews, owned: [item ids], wearing: { name, border } };
+// resolves to { ppp, reviews, owned: [item ids], wishlist: [item ids],
+// wearing: { name, border }, hearts: { [item id]: members who hearted it } };
 // buying and wearing resolve to { done, view }: what happened, and that again
 // as it now is. The items themselves are in shared/cosmetics/catalogue.js.
 
@@ -20,6 +21,11 @@ export async function buyCosmetic(itemId) {
 // Wears an owned item as the name style or border, or takes it off (null).
 export function wearCosmetic(type, itemId) {
   return api('/black-market/wear', { method: 'PUT', body: { type, itemId } })
+}
+
+// Hearts an item (their wishlist), or takes the heart off.
+export function wishCosmetic(itemId, on) {
+  return api('/black-market/wishlist', { method: 'PUT', body: { itemId, on } })
 }
 
 // Admins only: may the developer test tool open? 403 if not.

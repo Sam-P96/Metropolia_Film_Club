@@ -3,6 +3,7 @@ import CoinIcon from '../wallet/CoinIcon'
 import Sheet from './Sheet'
 import { getCashOutQuote } from '../../services/slots'
 import { formatPoints } from './format'
+import { SLOTS } from '../../../../shared/slots/config.js'
 
 const BUTTON = 'min-h-11 cursor-pointer rounded-xl font-bold transition disabled:cursor-default disabled:opacity-40'
 
@@ -62,7 +63,7 @@ export default function CashOutSheet({ onConfirm, onClose }) {
               <p className="text-white/70">
                 Staying in the machine: <span className="font-semibold text-white">{formatPoints(quote.stays)} PP</span>
                 {quote.overCap > 0
-                  ? `, ${formatPoints(quote.overCap)} of it P-PP over today's cap, which you can cash out on another day.`
+                  ? `, ${formatPoints(quote.overCap)} of it P-PP over today's cap. Leave the machine for ${SLOTS.idleCashOutMinutes} minutes and it's gone.`
                   : ': the fractions under 1 point.'}
               </p>
             )}

@@ -6,7 +6,8 @@ const { MEMBER_FIELDS, userSummary } = require("../utils/serialize");
 const { parseOffset } = require("../utils/paging");
 const { WalletError, changeWallet, spend } = require("../utils/wallet");
 const { noteFarkleAnswer, noteFarkleChallenge } = require("../utils/notify");
-const { MoveError, applyMove, newGame, playBot } = require("../games/farkle/engine");
+const { MoveError, applyMove, cryptoDice, newGame, playBot } = require("../games/farkle/engine");
+const { clankerBustChance } = require("../games/happyHours");
 const {
     BOT_SEAT,
     CHALLENGE_LIMIT_MS,
@@ -130,7 +131,7 @@ async function startBotMatch(req, res) {
         throw error;
     }
 
-    const game = playBot(newGame({ target, first: BOT_SEAT }), BOT_SEAT);
+    const game = playBot(newGame({ target, first: BOT_SEAT }), BOT_SEAT, cryptoDice, { bustChance: clankerBustChance() });
     const saved = await saveGame(match, game, {
         [`players.${MEMBER_SEAT}.paid`]: { pp: 0 - paid.pp, ppp: 0 - paid.ppp },
         lastMoveAt: new Date(),
@@ -183,7 +184,7 @@ async function makeMove(req, res) {
     try {
         const move = { type: req.body?.type, keep: req.body?.keep ?? [] };
         game = applyMove(gameOf(match), seatOf(match, userId), move);
-        if (match.mode === "bot") game = playBot(game, BOT_SEAT);
+        if (match.mode === "bot") game = playBot(game, BOT_SEAT, cryptoDice, { bustChance: clankerBustChance() });
     } catch (error) {
         if (error instanceof MoveError) {
             return res.status(error.status).json({ error: error.message });

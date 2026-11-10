@@ -299,6 +299,40 @@ describe("Steal and Defend, end to end", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.equal((await walletOf(attacker)).ppp, -15);
     });
 
+    test("PP parked in a Slot Machine, at poker or in lending can't dodge a fine", async () => {
+        const SlotMachine = require("../models/slotMachineModel");
+        const PokerSeat = require("../models/pokerSeatModel");
+        const LoanOffer = require("../models/loanOfferModel");
+        const PlayerDebt = require("../models/playerDebtModel");
+        const { moneyElsewhere } = require("../utils/steal/elsewhere");
+
+        attacks.useRandomSource(() => 99);
+        const attacker = await member({ pp: 1 });
+        const victim = await member({ pp: 2000 });
+        const borrower = await member();
+        await follow(attacker, victim);
+
+        // 30 in the Slot Machine (in cents), 10 at poker, 15 in an open
+        // offer and 25 lent out (of 40, 15 paid back) = 80, the whole fine.
+        await SlotMachine.create({ user: attacker._id, pp: 2000, ppp: 1050 });
+        await PokerSeat.create({ _id: attacker._id, funds: { pp: 10, ppp: 0 }, stack: 10 });
+        await LoanOffer.create({ lender: attacker._id, style: "flexible", amount: 50, available: 15, rate: 25 });
+        await LoanOffer.create({ lender: attacker._id, style: "fixed", amount: 99, available: 99, rate: 25, status: "closed", closedReason: "down" });
+        await PlayerDebt.create({ borrower: borrower._id, lender: attacker._id, principal: 40, interest: 10, principalPaid: 15 });
+        assert.deepEqual(await moneyElsewhere(attacker._id), { slots: 30, poker: 10, lending: 15, lent: 25, total: 80 });
+
+        const started = await call(attacker, "POST", "/steal/attacks", { victim: victim._id, percent: 5 });
+        const done = await playQuiz(attacker, started.body._id, false);
+        assert.equal(done.outcome, "fail");
+        assert.equal(done.amounts.fine, 80);
+        assert.equal(done.amounts.paid, 1);
+        // The 79 unpaid is all covered by what's parked: owed in full.
+        assert.equal(done.amounts.debt, 79);
+        assert.equal(done.amounts.forgiven, 0);
+        const broke = await walletOf(attacker);
+        assert.equal(broke.pp + broke.ppp, -79);
+    });
+
     test("the daily payout pays off debt first", async () => {
         const debtor = await member({ reviews: 5 });
         await User.updateOne({ _id: debtor._id }, { $set: { "wallet.ppp": -3 } });

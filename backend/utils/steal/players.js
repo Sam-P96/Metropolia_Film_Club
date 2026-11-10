@@ -6,6 +6,7 @@ const { StealError, classOf, lastWeeklyResetAt, settleBill, nextWeeklyResetAt } 
 const { changeWallet, WalletError } = require("../wallet");
 const { inSession } = require("./tx");
 const { checkRefunds } = require("./moderation");
+const { moneyElsewhere } = require("./elsewhere");
 
 // Steal and Defend's players: PvP, classes and follow penalties (spec §4,
 // §9, §12).
@@ -98,10 +99,12 @@ async function takeBackSteals(userId) {
         const owed = claimed.reduce((sum, attack) => sum + (attack.amounts?.attackerGot ?? 0), 0);
         let settled = { paid: 0, unpaid: 0, debt: 0, forgiven: 0 };
         if (owed > 0) {
+            // PP parked outside the wallet can't dodge it either.
+            const elsewhere = (await moneyElsewhere(userId, session)).total;
             await changeWallet(
                 userId,
                 (wallet) => {
-                    settled = settleBill(owed, wallet.pp + wallet.ppp);
+                    settled = settleBill(owed, wallet.pp + wallet.ppp, elsewhere);
                     const fromPp = Math.min(Math.max(0, wallet.pp), settled.paid);
                     return { pp: 0 - fromPp, ppp: 0 - (settled.paid - fromPp) - settled.debt };
                 },

@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const CosmeticOwned = require("../models/cosmeticOwnedModel");
+const CosmeticWish = require("../models/cosmeticWishModel");
 const { cosmeticById } = require("../../shared/cosmetics/catalogue.js");
 const { WalletError, changeWallet } = require("./wallet");
 const { inSession } = require("./steal/tx");
@@ -25,21 +26,52 @@ class ShopError extends Error {
 
 const isDefault = (item) => !item.look;
 
-// What the page needs about the member: their P-PP, reviews, what they own
-// and what they're wearing.
+// How many members have hearted each item: { [itemId]: count }, only the
+// items with any. The shop's "Popular" sort.
+async function popularity() {
+    const counts = await CosmeticWish.aggregate([{ $group: { _id: "$item", hearts: { $sum: 1 } } }]);
+    return Object.fromEntries(counts.filter((entry) => cosmeticById(entry._id)).map((entry) => [entry._id, entry.hearts]));
+}
+
+// What the page needs: the member's P-PP, reviews, what they own, what
+// they've hearted and what they're wearing, and every item's hearts.
 async function shopView(userId) {
-    const [user, reviews, owned] = await Promise.all([
+    const [user, reviews, owned, wished, hearts] = await Promise.all([
         User.findById(userId).select("wallet cosmetics").lean(),
         Review.countDocuments({ user: userId }),
         CosmeticOwned.find({ user: userId }).sort({ boughtAt: 1 }).select("item").lean(),
+        CosmeticWish.find({ user: userId }).sort({ at: 1 }).select("item").lean(),
+        popularity(),
     ]);
     if (!user) throw new ShopError("That member doesn't exist any more.", 404);
     return {
         ppp: user.wallet?.ppp ?? 0,
         reviews,
         owned: owned.map((entry) => entry.item).filter((id) => cosmeticById(id)),
+        wishlist: wished.map((entry) => entry.item).filter((id) => cosmeticById(id)),
         wearing: cosmeticsOf(user),
+        hearts,
     };
+}
+
+// Hearts `itemId` (`on` true) or takes the heart off (false): their
+// wishlist, owned or not. Default can't be hearted. Resolves to
+// { item, on }. Doing it twice is the same as once.
+async function wishCosmetic(userId, itemId, on) {
+    const item = cosmeticById(typeof itemId === "string" ? itemId : null);
+    if (!item) throw new ShopError("That isn't a cosmetic.", 404);
+    if (isDefault(item)) throw new ShopError("Default is free, and already yours.");
+    if (typeof on !== "boolean") throw new ShopError("Heart it, or take the heart off.");
+
+    if (on) {
+        await CosmeticWish.updateOne({ user: userId, item: item.id }, { $setOnInsert: { at: new Date() } }, { upsert: true }).catch((error) => {
+            // Two hearts at once: one of them made it, which is all we want.
+            if (error.code !== 11000) throw error;
+        });
+    } else {
+        await CosmeticWish.deleteOne({ user: userId, item: item.id });
+    }
+    return { item: item.id, on };
 }
 
 // Buys `itemId` for its price in P-PP. Resolves to { item, price, ppp }
@@ -107,18 +139,19 @@ async function wearCosmetic(userId, type, itemId) {
     return cosmeticsOf(user);
 }
 
-// An account is being deleted: what they bought goes with it.
+// An account is being deleted: what they bought, and their hearts, go with it.
 function forgetCosmetics(userId) {
-    return CosmeticOwned.deleteMany({ user: userId });
+    return Promise.all([CosmeticOwned.deleteMany({ user: userId }), CosmeticWish.deleteMany({ user: userId })]);
 }
 
 // Everything the Black Market holds about a member, for their data export.
 async function cosmeticsDataOf(userId) {
-    const [owned, user] = await Promise.all([
+    const [owned, wishlist, user] = await Promise.all([
         CosmeticOwned.find({ user: userId }).sort({ boughtAt: 1 }).select("item price boughtAt -_id").lean(),
+        CosmeticWish.find({ user: userId }).sort({ at: 1 }).select("item at -_id").lean(),
         mongoose.isValidObjectId(userId) ? User.findById(userId).select("cosmetics").lean() : null,
     ]);
-    return { owned, wearing: user ? cosmeticsOf(user) : null };
+    return { owned, wishlist, wearing: user ? cosmeticsOf(user) : null };
 }
 
-module.exports = { ShopError, WalletError, shopView, buyCosmetic, wearCosmetic, forgetCosmetics, cosmeticsDataOf };
+module.exports = { ShopError, WalletError, shopView, buyCosmetic, wearCosmetic, wishCosmetic, forgetCosmetics, cosmeticsDataOf };

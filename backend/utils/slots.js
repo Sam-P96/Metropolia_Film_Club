@@ -11,6 +11,7 @@ const { noteSlotTriple, noteSlotJackpot } = require("./notify");
 const { CENTS, toPp, SlotError, drawGrid, evaluate, splitBet, checkBet } = require("../games/slots/engine");
 const { LUCK, targetRtp, tableFor } = require("../games/slots/luck");
 const { SLOTS } = require("../../shared/slots/config.js");
+const { slotLuck } = require("../games/happyHours");
 
 // The Slot Machine in the database: the machine's credits, spins, cashing
 // out, and the daily leaderboard snapshot. The game itself is in
@@ -69,8 +70,10 @@ const byLeaderboard = (a, b) => b.total - a.total || (a.username < b.username ? 
 // in the last LUCK.activeDays days, checked live, so posting one counts
 // straight away. Ranked by today's snapshot among the players active right
 // now; anyone active who isn't in it (a new account) is placed by what
-// they hold now. Never leaves the server.
+// they hold now. In its happy hour the numbers are kinder
+// (games/happyHours.js). Never leaves the server.
 async function targetRtpFor(userId, now = new Date()) {
+    const luck = slotLuck(LUCK, now);
     const since = new Date(now.getTime() - LUCK.activeDays * 24 * 60 * 60 * 1000);
     const [writers, snapshot] = await Promise.all([
         Review.distinct("user", { createdAt: { $gte: since } }),
@@ -78,7 +81,7 @@ async function targetRtpFor(userId, now = new Date()) {
     ]);
 
     const active = new Set(writers.map(String));
-    if (!active.has(String(userId))) return targetRtp({ active: false });
+    if (!active.has(String(userId))) return targetRtp({ active: false }, luck);
 
     const ranked = snapshot.order.filter((entry) => active.has(String(entry.user)));
     const inSnapshot = new Set(snapshot.order.map((entry) => String(entry.user)));
@@ -93,7 +96,7 @@ async function targetRtpFor(userId, now = new Date()) {
     }
 
     const rank = ranked.findIndex((entry) => String(entry.user) === String(userId)) + 1;
-    return targetRtp({ active: true, rank, count: ranked.length });
+    return targetRtp({ active: true, rank, count: ranked.length }, luck);
 }
 
 // ---- Transactions ----
@@ -412,6 +415,60 @@ async function cashOut(userId, now = new Date()) {
     });
 }
 
+// ---- Idle machines ----
+
+// A machine left alone (no credits added, spin or cash out: each one
+// changes it, and so its updatedAt) for SLOTS.idleCashOutMinutes cashes
+// itself out (jobs/slotSweep.js): what the quote allows goes back to the
+// wallet, as Cash out would, and the rest, P-PP over today's cap and
+// fractions, is gone. The machine ends up empty, its session over.
+const IDLE_MS = SLOTS.idleCashOutMinutes * 60 * 1000;
+
+// One machine, if it's still idle and holds anything. Resolves to
+// { user, paid: { pp, ppp }, lost } (whole PP, and PP with cents), or null.
+async function cashOutIdle(machineId, now = new Date()) {
+    const day = slotDay(now);
+    const snapshot = await snapshotFor(day);
+
+    return inTransaction(async (session) => {
+        const machine = await SlotMachine.findById(machineId).session(session).lean();
+        if (!machine || machine.pp + machine.ppp <= 0) return null;
+        // Played since it was found.
+        if (machine.updatedAt && now - machine.updatedAt < IDLE_MS) return null;
+
+        const quote = cashOutQuote(machine, snapshot.richest, day);
+        await saveMachine(session, machine, {
+            $set: { ...quote.counts, pppOutToday: quote.counts.pppOutToday + quote.ppp, pp: 0, ppp: 0, sessionInput: 0, tripled: false },
+        });
+        if (quote.pp + quote.ppp > 0) {
+            await changeWallet(machine.user, () => ({ pp: quote.pp / CENTS, ppp: quote.ppp / CENTS }), { reason: "slotCashOut", session });
+        }
+        return { user: machine.user, paid: { pp: quote.pp / CENTS, ppp: quote.ppp / CENTS }, lost: toPp(quote.stays) };
+    });
+}
+
+// Every machine idle for SLOTS.idleCashOutMinutes that holds anything.
+// Resolves to how many were cashed out.
+async function sweepIdleMachines(now = new Date()) {
+    const idle = await SlotMachine.find({
+        updatedAt: { $lte: new Date(now.getTime() - IDLE_MS) },
+        $or: [{ pp: { $gt: 0 } }, { ppp: { $gt: 0 } }],
+    })
+        .select("_id")
+        .lean();
+
+    let cashedOut = 0;
+    for (const machine of idle) {
+        try {
+            if (await cashOutIdle(machine._id, now)) cashedOut += 1;
+        } catch (error) {
+            // Played at that very moment, say: it's tried again next time.
+            console.error("Slot Machine, cashing out an idle machine:", error.message);
+        }
+    }
+    return cashedOut;
+}
+
 // ---- Leaving the club ----
 
 // Their machine and every spin, for "Download my data", as the page would
@@ -448,6 +505,8 @@ module.exports = {
     cashOutQuote,
     cashOutPreview,
     cashOut,
+    cashOutIdle,
+    sweepIdleMachines,
     slotMachineOf,
     forgetSlotPlayer,
 };

@@ -55,7 +55,7 @@ describe("buying and wearing", { skip: !uri ? "set MONGO_TEST_URI to run these" 
 
     let base;
     let server;
-    let User, Review, CosmeticOwned, WalletTx;
+    let User, Review, CosmeticOwned, CosmeticWish, WalletTx;
     const tokens = new Map();
 
     let count = 0;
@@ -85,8 +85,9 @@ describe("buying and wearing", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         User = require("../models/userModel");
         Review = require("../models/reviewModel");
         CosmeticOwned = require("../models/cosmeticOwnedModel");
+        CosmeticWish = require("../models/cosmeticWishModel");
         WalletTx = require("../models/walletTxModel");
-        await Promise.all([User, Review, CosmeticOwned, WalletTx].map((model) => model.syncIndexes()));
+        await Promise.all([User, Review, CosmeticOwned, CosmeticWish, WalletTx].map((model) => model.syncIndexes()));
 
         const app = express();
         app.use(express.json());
@@ -108,7 +109,7 @@ describe("buying and wearing", { skip: !uri ? "set MONGO_TEST_URI to run these" 
     test("the shop: P-PP, reviews, what's owned and worn", async () => {
         const shopper = await member("shopper", { reviews: 60, ppp: 6000 });
         const shop = await call(shopper, "GET", "/black-market");
-        assert.deepEqual(shop.body, { ppp: 6000, reviews: 60, owned: [], wearing: { name: null, border: null } });
+        assert.deepEqual(shop.body, { ppp: 6000, reviews: 60, owned: [], wishlist: [], wearing: { name: null, border: null }, hearts: {} });
     });
 
     test("buying: P-PP only, burned, once; the review requirement checked as it's bought", async () => {
@@ -179,6 +180,46 @@ describe("buying and wearing", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         assert.deepEqual(off.body.done, { name: null, border: "border.metal.chrome" });
         const offToo = await call(wearer, "PUT", "/black-market/wear", { type: "border", itemId: null });
         assert.deepEqual(offToo.body.view.wearing, { name: null, border: null });
+    });
+
+    test("hearts: a wishlist, owned or not, counted for Popular; twice is once; Default and nonsense refused", async () => {
+        const fan = await member("fan", { reviews: 60, ppp: 6000 });
+        const other = await member("otherFan");
+        const heart = (user, itemId, on) => call(user, "PUT", "/black-market/wishlist", { itemId, on });
+
+        const first = await heart(fan, "name.neon.blue", true);
+        assert.equal(first.status, 200, JSON.stringify(first.body));
+        assert.deepEqual(first.body.done, { item: "name.neon.blue", on: true });
+        assert.deepEqual(first.body.view.wishlist, ["name.neon.blue"]);
+        assert.equal(first.body.view.hearts["name.neon.blue"], 1);
+
+        // Twice is once; someone else's heart adds to the count.
+        await heart(fan, "name.neon.blue", true);
+        await heart(other, "name.neon.blue", true);
+        await heart(other, "border.rainbow", true);
+        const both = (await call(fan, "GET", "/black-market")).body;
+        assert.deepEqual(both.wishlist, ["name.neon.blue"]);
+        assert.equal(both.hearts["name.neon.blue"], 2);
+        assert.equal(both.hearts["border.rainbow"], 1);
+
+        // Bought, it stays hearted.
+        assert.equal((await call(fan, "POST", "/black-market/buy", { itemId: "name.neon.blue" })).status, 201);
+        assert.deepEqual((await call(fan, "GET", "/black-market")).body.wishlist, ["name.neon.blue"]);
+
+        // Taking it off.
+        const off = await heart(fan, "name.neon.blue", false);
+        assert.deepEqual(off.body.view.wishlist, []);
+        assert.equal(off.body.view.hearts["name.neon.blue"], 1);
+        assert.equal((await heart(fan, "name.neon.blue", false)).status, 200);
+
+        assert.equal((await heart(fan, "name.default", true)).status, 400);
+        assert.equal((await heart(fan, "name.nonsense", true)).status, 404);
+        assert.equal((await heart(fan, "border.rainbow", "yes")).status, 400);
+        assert.equal(await CosmeticWish.countDocuments({ user: fan._id }), 0);
+
+        // Deleting an account takes its hearts with it.
+        await require("../utils/blackMarket").forgetCosmetics(other._id);
+        assert.deepEqual((await call(fan, "GET", "/black-market")).body.hearts, {});
     });
 
     test("the developer test tool is for admins only", async () => {

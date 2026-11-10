@@ -19,6 +19,7 @@ const { inSession } = require("./tx");
 const { equippedOf, wear, destroyAll, itemView } = require("./inventory");
 const { playerOf, unfollowsOf } = require("./players");
 const { activeBansOf, banFor, banMessage, recordSighting, checkSteal, checkDebt } = require("./moderation");
+const { moneyElsewhere } = require("./elsewhere");
 
 const { StealError } = rules;
 
@@ -607,11 +608,14 @@ async function resolveAttack(attackId, { fizzleRoll = null } = {}) {
             }
         } else if (outcome === "fail") {
             const bill = rules.fineBill({ attempted: attack.attempted, attacker: attackFx, defender: defendFx, attackerClass: attack.classes?.attacker });
-            let settled = rules.settleBill(bill.bill, 0);
+            // PP parked outside the wallet (a Slot Machine, the poker table,
+            // lending) can't dodge the fine: it's owed in full.
+            const elsewhere = (await moneyElsewhere(attack.attacker, session)).total;
+            let settled = rules.settleBill(bill.bill, 0, elsewhere);
             await changeWallet(
                 attack.attacker,
                 (wallet) => {
-                    settled = rules.settleBill(bill.bill, wallet.pp + wallet.ppp);
+                    settled = rules.settleBill(bill.bill, wallet.pp + wallet.ppp, elsewhere);
                     const fromPp = Math.min(Math.max(0, wallet.pp), settled.paid);
                     return { pp: 0 - fromPp, ppp: 0 - (settled.paid - fromPp) - settled.debt };
                 },

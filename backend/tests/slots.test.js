@@ -706,6 +706,33 @@ describe("the slot routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !
         assert.deepEqual(await walletOf(user), { pp: 0, ppp: 500 });
     });
 
+    routeTest("a machine left alone for 15 minutes cashes itself out up to the cap, and the rest is gone", async () => {
+        const idle = await member();
+        const busy = await member();
+        await call(idle, "GET", "/");
+        await call(busy, "GET", "/");
+        // 20.50 PP and 400.75 P-PP; today's cap is 300 P-PP.
+        const quarterAgo = new Date(Date.now() - (SLOTS.idleCashOutMinutes + 1) * 60 * 1000);
+        await SlotMachine.collection.updateOne({ user: idle._id }, { $set: { pp: 2050, ppp: 40075, sessionInput: 30000, updatedAt: quarterAgo } });
+        // Played a minute ago: left alone.
+        await SlotMachine.collection.updateOne({ user: busy._id }, { $set: { pp: 5000, ppp: 0, sessionInput: 5000, updatedAt: new Date(Date.now() - 60 * 1000) } });
+
+        assert.equal(await slots.sweepIdleMachines(), 1);
+        assert.deepEqual(await walletOf(idle), { pp: 20, ppp: 300 });
+        const emptied = await machineOf(idle);
+        assert.deepEqual([emptied.pp, emptied.ppp, emptied.sessionInput, emptied.pppOutToday], [0, 0, 0, 30000]);
+        assert.equal((await WalletTx.find({ user: idle._id, reason: "slotCashOut" }).lean()).length, 1);
+        assert.equal((await machineOf(busy)).pp, 5000);
+        assert.deepEqual(await walletOf(busy), { pp: 0, ppp: 0 });
+
+        // Empty now: nothing more to do. The cap stays used for today.
+        assert.equal(await slots.sweepIdleMachines(), 0);
+        await SlotMachine.collection.updateOne({ user: idle._id }, { $set: { ppp: 5000, updatedAt: quarterAgo } });
+        assert.equal(await slots.sweepIdleMachines(), 1);
+        assert.deepEqual(await walletOf(idle), { pp: 20, ppp: 300 });
+        assert.equal((await machineOf(idle)).ppp, 0);
+    });
+
     routeTest("luck follows today's snapshot among active players; new accounts by what they hold", async () => {
         const [rich, middle, poor, idle, fresh] = await Promise.all([member(900), member(500), member(100), member(800), member(300)]);
         const review = (user) => Review.create({ user: user._id, tmdbId: 1, filmTitle: "Alien", rating: 4, text: "Good." });

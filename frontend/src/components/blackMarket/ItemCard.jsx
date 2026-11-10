@@ -23,13 +23,38 @@ export function ItemPreview({ item, me }) {
   )
 }
 
+// The heart: on their wishlist or not, and how many members have hearted
+// it (the shop's "Popular" sort).
+function HeartButton({ item, hearted, hearts, busy, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      aria-pressed={hearted}
+      aria-label={`${hearted ? 'Take' : 'Put'} ${item.name} ${hearted ? 'off' : 'on'} your wishlist (${hearts} ${hearts === 1 ? 'heart' : 'hearts'})`}
+      title={hearted ? 'On your wishlist' : 'Add to your wishlist'}
+      className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-brand-gold disabled:opacity-60 ${
+        hearted ? 'text-rose-400 hover:text-rose-300' : 'text-white/50 hover:text-rose-300'
+      }`}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4" fill={hearted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+        <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2.1 0 3.7 1.1 5 2.9 1.3-1.8 2.9-2.9 5-2.9 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" />
+      </svg>
+      {hearts}
+    </button>
+  )
+}
+
 // One item in the shop: its preview, price and review requirement, and what
-// the member can do with it: buy it (asking first), wear it, or take it off.
-// `shop` is the member's state (backend/utils/blackMarket.js shopView);
-// `onBuy`, `onWear` and `onTakeOff` resolve to an error message, or null.
-export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff }) {
+// the member can do with it: buy it (asking first), wear it, take it off, or
+// heart it (their wishlist). `shop` is the member's state
+// (backend/utils/blackMarket.js shopView); `onBuy`, `onWear`, `onTakeOff`
+// and `onHeart` resolve to an error message, or null.
+export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff, onHeart }) {
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [hearting, setHearting] = useState(false)
   const [error, setError] = useState(null)
 
   const free = item.price === 0
@@ -37,6 +62,13 @@ export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff }) {
   const worn = (shop.wearing[item.type] ?? `${item.type}.default`) === item.id
   const fewReviews = shop.reviews < item.reviews
   const short = shop.ppp < item.price
+  const hearted = shop.wishlist.includes(item.id)
+
+  async function heart() {
+    setHearting(true)
+    setError(await onHeart(item, !hearted))
+    setHearting(false)
+  }
 
   async function run(action) {
     setBusy(true)
@@ -86,7 +118,10 @@ export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff }) {
       <ItemPreview item={item} me={me} />
       <div className="flex items-start justify-between gap-2 px-1">
         <h3 className="font-semibold text-white">{item.name}</h3>
-        <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem] font-semibold text-white/60">{item.category}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {!free && <HeartButton item={item} hearted={hearted} hearts={shop.hearts[item.id] ?? 0} busy={hearting} onClick={heart} />}
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[0.7rem] font-semibold text-white/60">{item.category}</span>
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-sm">
         <span className="flex items-center gap-1.5 font-semibold tabular-nums text-white">
