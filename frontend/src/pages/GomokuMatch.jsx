@@ -18,9 +18,8 @@ import { REPLAY_DAYS, formatPoints, pointName } from '../../../shared/gomoku/rul
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 
-// The board: the page's full width, but a little over half of it on a
-// computer (56%: 80%, then 30% smaller again).
-const BOARD_SIZE = 'mx-auto w-full lg:w-[56%]'
+// The board: the page's full width, but a fifth smaller on a computer.
+const BOARD_SIZE = 'mx-auto w-full lg:w-4/5'
 
 const CLOSED = {
   declined: 'This challenge was turned down.',
