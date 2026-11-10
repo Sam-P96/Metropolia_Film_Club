@@ -80,7 +80,8 @@ async function refuseTurningOff(userId) {
 // back: each victim gets back what they lost (Wilson's refund aside), and
 // the newly made extras (crits, the Rogue's bonus) are gone. If they can't
 // cover it, the usual debt rule applies, and victims only get what was
-// actually recovered, oldest steal first. Their items stay theirs,
+// actually recovered (paid, or owed in full for PP they'd parked
+// elsewhere), oldest steal first. Their items stay theirs,
 // unequipped. Returns what was taken back.
 async function takeBackSteals(userId) {
     await refuseTurningOff(userId);
@@ -97,7 +98,7 @@ async function takeBackSteals(userId) {
         }
 
         const owed = claimed.reduce((sum, attack) => sum + (attack.amounts?.attackerGot ?? 0), 0);
-        let settled = { paid: 0, unpaid: 0, debt: 0, forgiven: 0 };
+        let settled = { paid: 0, unpaid: 0, covered: 0, debt: 0, forgiven: 0, collected: 0 };
         if (owed > 0) {
             // PP parked outside the wallet can't dodge it either.
             const elsewhere = (await moneyElsewhere(userId, session)).total;
@@ -112,7 +113,8 @@ async function takeBackSteals(userId) {
             );
         }
 
-        let left = settled.paid;
+        // What was paid, and what parked PP covers (owed in full).
+        let left = settled.collected;
         const refunds = [];
         for (const attack of claimed) {
             const lost = Math.max(0, (attack.amounts?.victimLost ?? 0) - (attack.amounts?.wilson ?? 0));
@@ -137,7 +139,7 @@ async function takeBackSteals(userId) {
         const update = claimed.length > 0 ? { $set: { equipped: [] }, $push: { takebacks: now } } : { $set: { equipped: [] } };
         await StealPlayer.updateOne({ _id: userId }, update, { session });
 
-        return { steals: claimed.length, owed, paid: settled.paid, debt: settled.debt, refunds };
+        return { steals: claimed.length, owed, paid: settled.paid, covered: settled.covered, debt: settled.debt, refunds };
     });
 
     if (takenBack.steals > 0) {

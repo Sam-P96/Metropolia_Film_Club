@@ -115,14 +115,21 @@ function fineBill({ attempted, attacker = {}, defender = {}, attackerClass = nul
 // That can't dodge a bill: as much of what's left as it could cover becomes
 // a negative balance in full (`covered`, part of `debt`), and only the
 // rest gets the 25% rule. A wallet already below zero has a claim on it
-// first.
-function settleBill(bill, available, elsewhere = 0) {
+// first. Whoever the bill is owed to is paid `collected`: `paid` and
+// `covered` both (the covered part is real money, only parked, and the
+// negative balance gets it back as it comes in).
+//
+// `inFull` (a defender's Revenge Dagger is in the bill): nothing is
+// forgiven. Whatever isn't paid becomes a negative balance, however big,
+// and whoever it's owed to is paid the whole bill.
+function settleBill(bill, available, elsewhere = 0, { inFull = false } = {}) {
     const paid = Math.min(bill, Math.max(0, available));
     const unpaid = bill - paid;
     const covered = Math.min(unpaid, Math.max(0, elsewhere + Math.min(0, available)));
+    if (inFull) return { paid, unpaid, covered, debt: unpaid, forgiven: 0, collected: bill };
     const rest = unpaid - covered;
     const share = rest > 0 ? atLeastOne(ceilPercent(rest, STEAL.debtShare)) : 0;
-    return { paid, unpaid, covered, debt: covered + share, forgiven: rest - share };
+    return { paid, unpaid, covered, debt: covered + share, forgiven: rest - share, collected: paid + covered };
 }
 
 // Who gets what was actually paid of a bill: the defender first, up to

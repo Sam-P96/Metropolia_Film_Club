@@ -246,24 +246,33 @@ describe("fines and debt", () => {
     });
 
     test("the spec's example: an 81 PP fine with 1 PP to pay it leaves -20", () => {
-        assert.deepEqual(settleBill(81, 1), { paid: 1, unpaid: 80, covered: 0, debt: 20, forgiven: 60 });
+        assert.deepEqual(settleBill(81, 1), { paid: 1, unpaid: 80, covered: 0, debt: 20, forgiven: 60, collected: 1 });
     });
 
     test("PP parked outside the wallet can't dodge a bill: what it covers is owed in full", () => {
         // 81 owed, 1 in the wallet, 30 in a Slot Machine: 30 owed in full,
         // and 25% of the other 50.
-        assert.deepEqual(settleBill(81, 1, 30), { paid: 1, unpaid: 80, covered: 30, debt: 43, forgiven: 37 });
+        assert.deepEqual(settleBill(81, 1, 30), { paid: 1, unpaid: 80, covered: 30, debt: 43, forgiven: 37, collected: 31 });
         // Enough parked to cover it all: nothing forgiven.
-        assert.deepEqual(settleBill(81, 1, 500), { paid: 1, unpaid: 80, covered: 80, debt: 80, forgiven: 0 });
+        assert.deepEqual(settleBill(81, 1, 500), { paid: 1, unpaid: 80, covered: 80, debt: 80, forgiven: 0, collected: 81 });
         // A wallet at -20 has the first claim on what's parked.
-        assert.deepEqual(settleBill(10, -20, 25), { paid: 0, unpaid: 10, covered: 5, debt: 7, forgiven: 3 });
+        assert.deepEqual(settleBill(10, -20, 25), { paid: 0, unpaid: 10, covered: 5, debt: 7, forgiven: 3, collected: 5 });
         // Paying in full from the wallet never touches it.
-        assert.deepEqual(settleBill(10, 50, 100), { paid: 10, unpaid: 0, covered: 0, debt: 0, forgiven: 0 });
+        assert.deepEqual(settleBill(10, 50, 100), { paid: 10, unpaid: 0, covered: 0, debt: 0, forgiven: 0, collected: 10 });
+    });
+
+    test("with a Revenge Dagger in the bill, nothing is forgiven, and all of it is collected", () => {
+        // The attack that showed it: a 1,314 bill (584 fine and a 730 dagger),
+        // nothing in the wallet and 262 parked.
+        assert.deepEqual(settleBill(1314, 0, 262, { inFull: true }), { paid: 0, unpaid: 1314, covered: 262, debt: 1314, forgiven: 0, collected: 1314 });
+        assert.deepEqual(settleBill(90, 40, 0, { inFull: true }), { paid: 40, unpaid: 50, covered: 0, debt: 50, forgiven: 0, collected: 90 });
+        // A wallet already below 0 owes it all on top.
+        assert.deepEqual(settleBill(90, -10, 0, { inFull: true }), { paid: 0, unpaid: 90, covered: 0, debt: 90, forgiven: 0, collected: 90 });
     });
 
     test("debt rounds up, and paying in full leaves none", () => {
         assert.equal(settleBill(10, 7).debt, 1);
-        assert.deepEqual(settleBill(10, 50), { paid: 10, unpaid: 0, covered: 0, debt: 0, forgiven: 0 });
+        assert.deepEqual(settleBill(10, 50), { paid: 10, unpaid: 0, covered: 0, debt: 0, forgiven: 0, collected: 10 });
         assert.equal(settleBill(10, -5).paid, 0);
     });
 

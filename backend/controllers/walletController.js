@@ -5,9 +5,12 @@ const WalletTx = require("../models/walletTxModel");
 const { WalletError, dailyPp, giftPpp, leaderboardStages, ppCap } = require("../utils/wallet");
 const { nextPayoutAt, runPayout } = require("../jobs/dailyPayout");
 const { MEMBER_FIELDS, userSummary } = require("../utils/serialize");
+const { parseOffset } = require("../utils/paging");
 
 const HISTORY_SIZE = 30;
-const LEADERBOARD_SIZE = 10;
+// The PP Leaderboard: 10 at a time, down to the top 100.
+const LEADERBOARD_PAGE = 10;
+const LEADERBOARD_MAX = 100;
 
 // The logged-in member's wallet: both balances, what they get each day,
 // their PP cap, and when the next payout is.
@@ -58,18 +61,30 @@ const sendGift = async (req, res) => {
     }
 };
 
-// The PP Leaderboard on the Games page, for anyone: the members with the
-// most points, PP and P-PP added together and shown as one PP total. At
-// most 10, ties A to Z. Members with no points aren't ranked.
+// ?skip=n. The PP Leaderboard on the Games page, for anyone: the members
+// with the most points, PP and P-PP added together and shown as one PP
+// total, ties A to Z, 10 at a time down to the top 100. Members with no
+// points at all aren't ranked; members in debt (below 0, from a Steal and
+// Defend fine) are, at the bottom. { leaders, hasMore, next }.
 const getLeaderboard = async (req, res) => {
+    const skip = Math.min(parseOffset(req.query.skip), LEADERBOARD_MAX);
+    const limit = Math.min(LEADERBOARD_PAGE, LEADERBOARD_MAX - skip);
     const fields = Object.fromEntries(MEMBER_FIELDS.split(" ").map((field) => [field, 1]));
-    const rows = await User.aggregate([
-        ...leaderboardStages(fields),
-        { $match: { pp: { $gt: 0 } } },
-        { $limit: LEADERBOARD_SIZE },
-    ]);
+    const rows = limit > 0
+        ? await User.aggregate([
+            ...leaderboardStages(fields),
+            { $match: { pp: { $ne: 0 } } },
+            { $skip: skip },
+            { $limit: limit + 1 },
+        ])
+        : [];
+    const page = rows.slice(0, limit);
 
-    res.json(rows.map((row) => ({ user: userSummary(row), pp: row.pp })));
+    res.json({
+        leaders: page.map((row) => ({ user: userSummary(row), pp: row.pp })),
+        hasMore: rows.length > limit && skip + page.length < LEADERBOARD_MAX,
+        next: skip + page.length,
+    });
 };
 
 // Admins only: run the payout now instead of waiting for 12:00. It still
