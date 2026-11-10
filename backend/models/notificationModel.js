@@ -71,6 +71,17 @@ const KEEP_FOR_DAYS = 90;
 //                    how much from whom. Against the bot too.
 const FARKLE_TYPES = ["farkleChallenge", "farkleTurn", "farkleAccepted", "farkleDeclined", "farkleExpired", "farkleOver", "farkleResult"];
 
+// Infinite Gomoku against `actors[0]`, about `gomoku` (utils/notify.js),
+// the same as Farkle's. No review.
+//   gomokuChallenge  their challenge or counter, waiting on an answer. Pinned.
+//   gomokuAccepted   they accepted your challenge: the game's on
+//   gomokuDeclined   they turned your challenge down
+//   gomokuExpired    your challenge to them went unanswered for three days
+//   gomokuOver       the game ended: `gomoku` says who won and how
+//   gomokuResult     a game for points ended for a member you follow
+//                    (`actors`: the one you follow, or both)
+const GOMOKU_TYPES = ["gomokuChallenge", "gomokuAccepted", "gomokuDeclined", "gomokuExpired", "gomokuOver", "gomokuResult"];
+
 // Steal and Defend (utils/steal/), about `stealAttack`. No review.
 //   stealAttacked  `actors[0]` has started an attack on them: there's still
 //                  time to swap items
@@ -105,6 +116,7 @@ const LOAN_TYPES = ["loanCollector", "loanMissed", "loanJob", "loanRepay", "loan
 // more, so it never counts as unread at all.
 const GAME_TYPES = [
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
+    ...GOMOKU_TYPES,
     "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin",
     "stealAttacked", "stealResult", "stealCrit",
     "loanCollector", "loanMissed",
@@ -114,7 +126,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES, ...LOAN_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES],
         required: true,
     },
     review: {
@@ -122,10 +134,12 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...STEAL_TYPES, ...LOAN_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
+    // Infinite Gomoku: the game it's about.
+    gomoku: {type: Schema.Types.ObjectId, ref: "GomokuMatch", default: null},
     // Double or Nothing: the game it's about.
     doubleGame: {type: Schema.Types.ObjectId, ref: "DoubleGame", default: null},
     // Steal and Defend: the attack it's about, or the admin flag.
@@ -177,6 +191,7 @@ notificationSchema.index({comment: 1});
 notificationSchema.index({event: 1});
 notificationSchema.index({cut: 1});
 notificationSchema.index({match: 1});
+notificationSchema.index({gomoku: 1});
 notificationSchema.index({doubleGame: 1});
 notificationSchema.index({stealAttack: 1});
 // The Notifications page: pinned first, then newest first.
@@ -184,6 +199,7 @@ notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 
 const Notification = mongoose.model("Notification", notificationSchema);
 Notification.FARKLE_TYPES = FARKLE_TYPES;
+Notification.GOMOKU_TYPES = GOMOKU_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;

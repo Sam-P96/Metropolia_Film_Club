@@ -32,6 +32,10 @@ const REASONS = {
   loanOfferBack: 'Loan offer taken down',
   loanCollector: 'Kaveri, for King Loan Shark',
   blackMarket: 'Black Market',
+  gomokuBet: 'Infinite Gomoku stake',
+  gomokuWin: 'Infinite Gomoku win',
+  gomokuRefund: 'Infinite Gomoku: points back',
+  gomokuShop: 'Infinite Gomoku shop',
 }
 
 // What a history row was. Gifts and player loans say who to or from.

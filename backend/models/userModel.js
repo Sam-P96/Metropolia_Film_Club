@@ -165,6 +165,17 @@ const userSchema = new Schema(
             name: { type: String, default: null },
             border: { type: String, default: null },
         },
+
+        // What they have on in Infinite Gomoku (utils/gomokuShop.js): a
+        // piece, a shockwave, a board and a grid, each an item id from
+        // shared/gomoku/catalogue.js, or null for the default. What they
+        // own is in models/gomokuOwnedModel.js.
+        gomoku: {
+            piece: { type: String, default: null },
+            shockwave: { type: String, default: null },
+            board: { type: String, default: null },
+            grid: { type: String, default: null },
+        },
     },
     { timestamps: { createdAt: "joinedAt", updatedAt: "updatedAt" } }
 );

@@ -7,11 +7,13 @@ const Event = require("../models/eventModel");
 const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
 const FarkleMatch = require("../models/farkleMatchModel");
+const GomokuMatch = require("../models/gomokuMatchModel");
 const DoubleGame = require("../models/doubleGameModel");
 const StealAttack = require("../models/stealAttackModel");
 const StealFlag = require("../models/stealFlagModel");
 const { hasRole } = require("../middleware/auth");
 const { catchUp, matchViews } = require("../utils/farkle");
+const gomoku = require("../utils/gomoku");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { withAuthorStanding } = require("../utils/level");
 const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
@@ -31,7 +33,7 @@ const PAGE_SIZE = 10;
 //            decides who can dislike reviews)
 //   cuts     cuts (theirs, the members they follow, and viral ones) and
 //            replies to their cuts
-//   games    Farkle, Box Office Scratch, Double or Nothing, the Slot
+//   games    Farkle, Infinite Gomoku, Box Office Scratch, Double or Nothing, the Slot
 //            Machine and Kino Poker, Loan Shark, and the daily PP payout
 //            and gifts (points are only for games)
 // New followers are only in "all".
@@ -39,7 +41,7 @@ const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES],
+    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
@@ -135,6 +137,8 @@ async function hydrate(rows, viewer) {
     const stealFlags = await StealFlag.find({ _id: { $in: idsOf((row) => row.stealFlag) } }).lean();
     const flagById = new Map(stealFlags.map((flag) => [String(flag._id), flag]));
     const matchById = new Map((await matchViews(matches, viewer._id)).map((match) => [String(match._id), match]));
+    const gomokuGames = await GomokuMatch.find({ _id: { $in: idsOf((row) => row.gomoku) } }).lean();
+    const gomokuById = new Map((await gomoku.matchViews(gomokuGames, viewer._id)).map((game) => [String(game._id), game]));
 
     const [reviewById, actors, comments, followedBack, events, cuts] = await Promise.all([
         reviewCards(idsOf((row) => row.review), viewer),
@@ -200,6 +204,13 @@ async function hydrate(rows, viewer) {
             // A result about someone you follow is no use once they're gone.
             if (!match || (row.type === "farkleResult" && members.length === 0)) return [];
             return [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, match }];
+        }
+
+        // Infinite Gomoku, the same way: the game as it is now.
+        if (row.type.startsWith("gomoku")) {
+            const game = gomokuById.get(String(row.gomoku));
+            if (!game || (row.type === "gomokuResult" && members.length === 0)) return [];
+            return [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, gomoku: game }];
         }
 
         if (members.length === 0) return [];
@@ -346,6 +357,20 @@ async function ongoingGames(viewer) {
     return (await matchViews(going, viewer._id)).sort(yourTurnFirst);
 }
 
+// The same for the Infinite Gomoku games they're playing.
+async function ongoingGomoku(viewer) {
+    const found = await GomokuMatch.find({ status: "active", "players.user": viewer._id }).lean();
+    const going = [];
+    for (const game of found) {
+        const now = await gomoku.catchUp(game);
+        if (now.status === "active") going.push(now);
+    }
+
+    const yourTurnFirst = (a, b) => Number(b.current === b.mySeat) - Number(a.current === a.mySeat)
+        || new Date(b.lastMoveAt) - new Date(a.lastMoveAt);
+    return (await gomoku.matchViews(going, viewer._id)).sort(yourTurnFirst);
+}
+
 // Unread jackpot notices, newest first, for just under the games: a
 // jackpot is big news, so until it's been seen it doesn't wait in line.
 async function unreadJackpots(viewer, since) {
@@ -380,6 +405,7 @@ const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 //             those out)
 //   games     the Farkle games they're playing, near the very top (with
 //             "all" and "games")
+//   gomoku    the Infinite Gomoku games they're playing, with those
 //   poker     the Kino Poker table while members are playing at it, beside
 //             the games: who's there, and whether the reader is (table.js
 //             liveFor), or null
@@ -415,6 +441,7 @@ async function getFeed(req, res) {
         ...(skip === 0 && {
             promoted: await unseenPromotions(req.user, seenSince(req.user)),
             games: filter === "all" || filter === "games" ? await ongoingGames(req.user) : [],
+            gomoku: filter === "all" || filter === "games" ? await ongoingGomoku(req.user) : [],
             poker: filter === "all" || filter === "games" ? (getPokerTable()?.liveFor(req.user._id) ?? null) : null,
             jackpots: await unreadJackpots(req.user, seenSince(req.user)),
             seenAt: req.user.notificationsSeenAt ?? null,
@@ -429,7 +456,7 @@ async function getFeed(req, res) {
 // What lights up the bell in the nav: { unread, games }. `unread`: anything
 // new since they last opened Notifications (the bell glows purple).
 // `games`: some of it is about games (it blinks red instead): a game
-// notification, or a Farkle game that's come round to their turn. For
+// notification, or a Farkle or Infinite Gomoku game that's come round to their turn. For
 // moderators and admins, new reports count too. The nav asks every minute
 // or so, so each check is a quick "is there
 // at least one?" rather than loading anything.
@@ -438,7 +465,7 @@ async function getUnread(req, res) {
     const since = seenSince(viewer);
     const newer = { recipient: viewer._id, at: { $gt: since } };
 
-    const [gameNotice, yourTurn] = await Promise.all([
+    const [gameNotice, yourTurn, yourGomokuTurn] = await Promise.all([
         Notification.exists({ ...newer, type: { $in: Notification.GAME_TYPES } }),
         FarkleMatch.exists({
             mode: "pvp",
@@ -447,8 +474,14 @@ async function getUnread(req, res) {
             lastMoveAt: { $gt: since },
             $expr: { $eq: [{ $arrayElemAt: ["$players.user", "$current"] }, viewer._id] },
         }),
+        GomokuMatch.exists({
+            status: "active",
+            "players.user": viewer._id,
+            lastMoveAt: { $gt: since },
+            $expr: { $eq: [{ $arrayElemAt: ["$players.user", "$current"] }, viewer._id] },
+        }),
     ]);
-    const games = Boolean(gameNotice || yourTurn);
+    const games = Boolean(gameNotice || yourTurn || yourGomokuTurn);
 
     let unread = games || Boolean(await Notification.exists({ ...newer, type: { $ne: "farkleTurn" } }));
     if (!unread && hasRole(viewer, "moderator")) {

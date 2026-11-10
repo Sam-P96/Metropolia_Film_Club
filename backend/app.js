@@ -27,6 +27,7 @@ const pokerRouter = require("./routes/pokerRouter");
 const loanSharkRouter = require("./routes/loanSharkRouter");
 const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const blackMarketRouter = require("./routes/blackMarketRouter");
+const gomokuRouter = require("./routes/gomokuRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -37,6 +38,7 @@ const { startResonanceSweep } = require("./jobs/resonanceSweep");
 const { startStealSweep } = require("./jobs/stealSweep");
 const { startLoanSweep } = require("./jobs/loanSweep");
 const { startSlotSweep } = require("./jobs/slotSweep");
+const { startGomokuSweep } = require("./jobs/gomokuSweep");
 
 const app = express();
 
@@ -113,6 +115,12 @@ connected
     .then(() => startSlotSweep())
     .catch((error) => console.error("Couldn't start the Slot Machine sweep:", error.message));
 
+// Infinite Gomoku: forfeits games quiet for three days and tidies up
+// (jobs/gomokuSweep.js).
+connected
+    .then(() => startGomokuSweep())
+    .catch((error) => console.error("Couldn't start the Gomoku sweep:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -154,6 +162,7 @@ app.use("/api/cuts", cutRouter);
 app.use("/api/wallet", walletRouter);
 // An admin's "All games" ban stops anything being played (middleware/gameBans.js).
 app.use("/api/farkle", refuseGameBans, farkleRouter);
+app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/scratch", refuseGameBans, scratchRouter);
 app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
 app.use("/api/slots", refuseGameBans, slotRouter);

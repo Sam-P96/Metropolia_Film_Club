@@ -19,6 +19,7 @@ import StealLogo from '../components/steal/StealLogo'
 import { getStealStatus } from '../services/steal'
 import PokerLogo from '../components/poker/PokerLogo'
 import SharkBadge from '../components/loanShark/SharkBadge'
+import { GomokuLogo, GomokuTitle } from '../components/gomoku/GomokuChrome'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -31,7 +32,7 @@ const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
 const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Loan Shark first, then Farkle, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
+// Loan Shark first, then Farkle, Infinite Gomoku, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
 // Defend (whose picture says "Require PvP" until its PvP is on) and Kino
 // Poker. Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
@@ -83,6 +84,18 @@ export default function Games() {
                 notification.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Farkle →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/gomoku" className={CARD}>
+              <GomokuLogo size={30} />
+              <h2 className="font-['Cinzel'] text-2xl text-white">
+                <GomokuTitle />
+              </h2>
+              <p className="text-white/70">
+                Five in a row wins. Play a friend on this device or any member online, for fun or for PP, and land every piece with a shockwave.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Infinite Gomoku →</span>
             </Link>
           </li>
           <li>

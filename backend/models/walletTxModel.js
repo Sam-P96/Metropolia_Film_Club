@@ -44,6 +44,11 @@ const Schema = mongoose.Schema;
 //   loanRepay        paid `other` back early ("Pay off now"), PP first, then P-PP
 //   loanRepaid       `other` paid back what they borrowed, less income tax, in P-PP
 //   blackMarket      a cosmetic bought at the Black Market, in P-PP (burned)
+// Infinite Gomoku (utils/gomoku.js, utils/gomokuShop.js), with the game in `gomoku`:
+//   gomokuBet        a stake put up (PP first, then P-PP)
+//   gomokuWin        a win: both stakes, in P-PP
+//   gomokuRefund     a stake handed back: a draw, or a game that never got going
+//   gomokuShop       a piece, shockwave, board or grid bought (PP first, then P-PP)
 //   loanCollector    Kaveri took it for King Loan Shark, out of the
 //                    wallet: only ever an admin's development button (at 12:00
 //                    he takes it from the payout before it reaches the wallet)
@@ -60,6 +65,7 @@ const walletTxSchema = new Schema({
             "stealBuy", "stealSell", "stealTrade", "stealTakeback",
             "pokerBuyIn", "pokerCashOut",
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
+            "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
         ],
         required: true,
     },
@@ -79,6 +85,8 @@ const walletTxSchema = new Schema({
     other: {type: Schema.Types.ObjectId, ref: "User", default: null},
     // Steal and Defend: the attack, shop listing, market listing or trade.
     steal: {type: Schema.Types.ObjectId, default: null},
+    // The Infinite Gomoku game a bet, win or refund belongs to.
+    gomoku: {type: Schema.Types.ObjectId, ref: "GomokuMatch", default: null},
     at: {type: Date, default: Date.now},
 });
 
