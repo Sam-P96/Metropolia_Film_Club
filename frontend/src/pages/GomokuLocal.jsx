@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import Board from '../components/gomoku/Board'
 import GomokuPage from '../components/gomoku/GomokuChrome'
 import PlayersBar from '../components/gomoku/PlayersBar'
+import SoundToggle from '../components/gomoku/SoundToggle'
 import { GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import useApi from '../hooks/useApi'
 import { getGomokuShop } from '../services/gomoku'
@@ -63,7 +64,7 @@ export default function GomokuLocal() {
       : null
 
   return (
-    <GomokuPage back={BACK} subtitle="Play Local: two players on this device, taking turns. Player 1 moves first.">
+    <GomokuPage back={BACK} subtitle="Play Local: two players on this device, taking turns. Player 1 moves first." aside={<SoundToggle />}>
       <PlayersBar
         players={NAMES.map((name, seat) => ({ name, user: null, piece: pieces[seat], first: seat === 0 }))}
         current={current}
