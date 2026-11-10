@@ -13,8 +13,9 @@ import { DEFAULT_SIZE, boardOf, isFull, pointName, seatToMove, winningLine } fro
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 const NAMES = ['Player 1', 'Player 2']
 
-// The board: the page's full width, but a fifth smaller on a computer.
-const BOARD_SIZE = 'mx-auto w-full lg:w-4/5'
+// The board: the page's full width, but a little over half of it on a
+// computer (56%: 80%, then 30% smaller again).
+const BOARD_SIZE = 'mx-auto w-full lg:w-[56%]'
 const FRESH = { moves: [], winner: null, winLine: [], draw: false }
 
 // Play Local: two people on one device, taking turns, For Fun, on the
