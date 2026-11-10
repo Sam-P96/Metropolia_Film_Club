@@ -18,6 +18,9 @@ import { REPLAY_DAYS, formatPoints, pointName } from '../../../shared/gomoku/rul
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 
+// The board: the page's full width, but a fifth smaller on a computer.
+const BOARD_SIZE = 'mx-auto w-full lg:w-4/5'
+
 const CLOSED = {
   declined: 'This challenge was turned down.',
   expired: 'Nobody answered this challenge within three days, so it expired.',
@@ -118,17 +121,19 @@ function ReplayView({ match, pieceFor, onClose }) {
   const replay = useGomokuReplay(match.moves, (seat) => match.players[seat].look.shockwave)
   return (
     <>
-      <Board
-        size={match.size}
-        moves={replay.shown}
-        pieceFor={pieceFor}
-        boardId={match.myLook.board}
-        gridId={match.myLook.grid}
-        canPlay={false}
-        winLine={replay.step >= replay.total ? match.winLine : []}
-        impact={replay.impact}
-        label="The replay"
-      />
+      <div className={BOARD_SIZE}>
+        <Board
+          size={match.size}
+          moves={replay.shown}
+          pieceFor={pieceFor}
+          boardId={match.myLook.board}
+          gridId={match.myLook.grid}
+          canPlay={false}
+          winLine={replay.step >= replay.total ? match.winLine : []}
+          impact={replay.impact}
+          label="The replay"
+        />
+      </div>
       <ReplayControls replay={replay} names={match.players.map((player) => player.username)} onClose={onClose} />
     </>
   )
@@ -220,22 +225,24 @@ function MatchGame({ matchId }) {
       {replaying ? (
         <ReplayView match={match} pieceFor={game.pieceFor} onClose={() => setReplaying(false)} />
       ) : (
-        <Board
-          size={match.size}
-          moves={match.moves}
-          pieceFor={game.pieceFor}
-          boardId={match.myLook.board}
-          gridId={match.myLook.grid}
-          ghost={game.pieceFor(me)}
-          selected={game.selected}
-          onSelect={game.select}
-          canPlay={game.myTurn && !game.busy}
-          winLine={match.winLine}
-          impact={game.impact}
-          result={resultOf(match)}
-          markLast={!match.replay?.deleted}
-          label={`The board, ${match.size} by ${match.size}`}
-        />
+        <div className={BOARD_SIZE}>
+          <Board
+            size={match.size}
+            moves={match.moves}
+            pieceFor={game.pieceFor}
+            boardId={match.myLook.board}
+            gridId={match.myLook.grid}
+            ghost={game.pieceFor(me)}
+            selected={game.selected}
+            onSelect={game.select}
+            canPlay={game.myTurn && !game.busy}
+            winLine={match.winLine}
+            impact={game.impact}
+            result={resultOf(match)}
+            markLast={!match.replay?.deleted}
+            label={`The board, ${match.size} by ${match.size}`}
+          />
+        </div>
       )}
 
       <p className={`-mt-2 min-h-6 text-center text-lg font-semibold ${status.tone}`} aria-live="polite">
