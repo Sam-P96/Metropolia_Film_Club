@@ -14,10 +14,11 @@ export function getWalletHistory() {
   return api('/wallet/history')
 }
 
-// The PP Leaderboard: the top 10 members by PP and P-PP together, as
-// [{ user, pp }], `pp` being that total.
-export function getPpLeaderboard() {
-  return api('/wallet/leaderboard')
+// A page of the PP Leaderboard (members by PP and P-PP together), 10 at a
+// time down to the top 100: { leaders: [{ user, pp }], hasMore, next }.
+// `pp` is that total, below 0 for a member in debt.
+export function getPpLeaderboard(skip = 0) {
+  return api(`/wallet/leaderboard?skip=${skip}`)
 }
 
 // "Gift PP": `amount` P-PP to the member `to`, for a 1 point fee (PP if
