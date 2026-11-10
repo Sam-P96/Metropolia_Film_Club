@@ -12,6 +12,9 @@ import { DEFAULT_SIZE, boardOf, isFull, pointName, seatToMove, winningLine } fro
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 const NAMES = ['Player 1', 'Player 2']
+
+// The board: the page's full width, but a fifth smaller on a computer.
+const BOARD_SIZE = 'mx-auto w-full lg:w-4/5'
 const FRESH = { moves: [], winner: null, winLine: [], draw: false }
 
 // Play Local: two people on one device, taking turns, For Fun, on the
@@ -72,21 +75,23 @@ export default function GomokuLocal() {
         over={over}
       />
 
-      <Board
-        size={size}
-        moves={game.moves}
-        pieceFor={(seat) => pieces[seat]}
-        boardId={look.board}
-        gridId={look.grid}
-        ghost={pieces[current]}
-        selected={selected}
-        onSelect={(x, y) => !over && setSelected({ x, y })}
-        canPlay={!over}
-        winLine={game.winLine}
-        impact={impact}
-        result={result}
-        label="The board, 15 by 15"
-      />
+      <div className={BOARD_SIZE}>
+        <Board
+          size={size}
+          moves={game.moves}
+          pieceFor={(seat) => pieces[seat]}
+          boardId={look.board}
+          gridId={look.grid}
+          ghost={pieces[current]}
+          selected={selected}
+          onSelect={(x, y) => !over && setSelected({ x, y })}
+          canPlay={!over}
+          winLine={game.winLine}
+          impact={impact}
+          result={result}
+          label="The board, 15 by 15"
+        />
+      </div>
 
       <p className={`-mt-2 min-h-6 text-center text-lg font-semibold ${game.winner !== null ? 'text-brand-gold' : 'text-white'}`} aria-live="polite">
         {status}
