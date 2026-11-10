@@ -7,6 +7,7 @@ const { GAME_FIELDS, forfeit, resign } = require("../games/gomoku/engine");
 const { announceGomoku, gomokuPlayersAt } = require("../games/gomoku/live");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
 const { loadoutOf } = require("../../shared/gomoku/catalogue.js");
+const { REPLAY_DAYS } = require("../../shared/gomoku/rules.js");
 
 // Infinite Gomoku games in the database: saving a move, paying the winner
 // (or handing both stakes back after a draw), and ending games and
@@ -23,6 +24,9 @@ const CHALLENGE_LIMIT_MS = 3 * 24 * 60 * 60 * 1000;
 // A game takes the stakes and starts within a second. One still "starting"
 // after this never got going, so the sweep hands the stakes back.
 const STUCK_STARTING_MS = 10 * 60 * 1000;
+
+// How long a finished game's replay is kept.
+const REPLAY_KEEP_MS = REPLAY_DAYS * 24 * 60 * 60 * 1000;
 
 const OPEN = ["challenge", "starting", "active"];
 
@@ -60,6 +64,8 @@ async function saveGame(match, game, extra = {}) {
 
     if (game.status === "over") {
         set.endedAt = new Date();
+        // Its replay is kept for a week (forgetOldReplays).
+        set.replayUntil = new Date(set.endedAt.getTime() + REPLAY_KEEP_MS);
         // So they can play each other again.
         update.$unset = { pairKey: 1 };
     }
@@ -192,11 +198,57 @@ async function cancelStuckStart(matchId) {
     await forgetGomokuMatch(matchId);
 }
 
+// When a finished game's replay runs out: `replayUntil`, or for a game
+// that ended before replays were kept, a week after it ended.
+function replayEndsAt(match) {
+    if (match.replayUntil) return new Date(match.replayUntil);
+    return match.endedAt ? new Date(new Date(match.endedAt).getTime() + REPLAY_KEEP_MS) : null;
+}
+
+// Whether a finished game can still be watched again.
+function replayAvailable(match, now = Date.now()) {
+    const ends = replayEndsAt(match);
+    return match.status === "over" && !match.replayGone && match.moves?.length > 0 && Boolean(ends) && ends.getTime() > now;
+}
+
+// Deletes the replays of games that ended a week ago: the order the moves
+// were played in, and when, are gone. Only the final position stays (the
+// stones, read row by row), so the game still shows how the board ended.
+// Returns how many.
+async function forgetOldReplays(now = Date.now()) {
+    const due = await GomokuMatch.find({
+        status: "over",
+        replayGone: { $ne: true },
+        $or: [{ replayUntil: { $lte: new Date(now) } }, { replayUntil: null, endedAt: { $lte: new Date(now - REPLAY_KEEP_MS) } }],
+    })
+        .select("moves")
+        .lean();
+
+    let deleted = 0;
+    for (const match of due) deleted += (await forgetReplay(match)) ? 1 : 0;
+    return deleted;
+}
+
+// Deletes one finished game's replay now (`match` with its moves): the
+// moves become the final position, row by row. True if it had one.
+async function forgetReplay(match) {
+    const position = (match.moves ?? [])
+        .map(({ x, y, seat }) => ({ x, y, seat }))
+        .sort((a, b) => a.y - b.y || a.x - b.x);
+    const result = await GomokuMatch.updateOne(
+        { _id: match._id, status: "over", replayGone: { $ne: true } },
+        { $set: { moves: position, replayGone: true } },
+        { timestamps: false }
+    );
+    return result.modifiedCount === 1;
+}
+
 // Every few minutes (jobs/gomokuSweep.js): ends games quiet for three days,
 // expires challenges nobody answered, pays any game whose payout failed,
-// and refunds games stuck starting. Returns how many of each.
+// refunds games stuck starting, and deletes replays a week old. Returns
+// how many of each.
 async function sweepMatches(now = Date.now()) {
-    const counts = { forfeited: 0, expired: 0, paid: 0, refunded: 0 };
+    const counts = { forfeited: 0, expired: 0, paid: 0, refunded: 0, replays: 0 };
 
     const each = async (matches, job, label) => {
         for (const match of matches) {
@@ -220,6 +272,12 @@ async function sweepMatches(now = Date.now()) {
 
     const stuck = await GomokuMatch.find({ status: "starting", createdAt: { $lt: new Date(now - STUCK_STARTING_MS) } }).select("_id").lean();
     await each(stuck, (match) => cancelStuckStart(match._id), "refunded");
+
+    try {
+        counts.replays = await forgetOldReplays(now);
+    } catch (error) {
+        console.error("Gomoku sweep couldn't delete old replays:", error.message);
+    }
 
     return counts;
 }
@@ -286,7 +344,9 @@ async function matchViews(matches, viewerId, { full = false } = {}) {
             here: hereById.get(String(match._id)) ?? [],
             moveCount: moves.length,
             ...(full && { moves: moves.map(({ x, y, seat }) => ({ x, y, seat })) }),
-            lastMove: moves.length ? { x: moves.at(-1).x, y: moves.at(-1).y, seat: moves.at(-1).seat } : null,
+            // Once the replay is deleted the moves are only the final
+            // position, in no order, so there's no last move to point at.
+            lastMove: moves.length && !match.replayGone ? { x: moves.at(-1).x, y: moves.at(-1).y, seat: moves.at(-1).seat } : null,
             // How many moves the viewer had seen before this, so the page can
             // land the other player's newest stone in front of them.
             seen: mySeat >= 0 ? (match.players[mySeat].seen ?? 0) : 0,
@@ -297,6 +357,9 @@ async function matchViews(matches, viewerId, { full = false } = {}) {
             lastMoveAt: match.lastMoveAt,
             forfeitAt: new Date(new Date(match.lastMoveAt).getTime() + IDLE_LIMIT_MS),
             endedAt: match.endedAt,
+            // Finished games: whether the replay can still be watched, and
+            // until when (or when it was deleted).
+            replay: match.status === "over" ? { available: replayAvailable(match), until: replayEndsAt(match), deleted: Boolean(match.replayGone) } : null,
         };
     });
 }
@@ -345,6 +408,7 @@ function gomokuGamesOf(userId) {
 
 module.exports = {
     IDLE_LIMIT_MS,
+    REPLAY_KEEP_MS,
     CHALLENGE_LIMIT_MS,
     STUCK_STARTING_MS,
     gameOf,
@@ -360,6 +424,8 @@ module.exports = {
     catchUp,
     cancelStuckStart,
     sweepMatches,
+    forgetOldReplays,
+    forgetReplay,
     matchViews,
     matchView,
     forgetGomokuPlayer,

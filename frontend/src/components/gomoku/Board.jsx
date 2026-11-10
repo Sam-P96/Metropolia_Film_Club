@@ -127,11 +127,14 @@ function ResultBanner({ title, detail, tone = 'win' }) {
 //   impact            { x, y, wave, key, confirmed }: a stone landing at
 //                     (x, y) with shockwave `wave` (an item id). A new `key`
 //                     sets it off, with a buzz as it lands and rolls out
-//                     (`confirmed`: just placed here, so a click first).
+//                     (`confirmed`: just placed here, so a click first;
+//                     `quiet`: a replay, so no buzz at all).
+//   markLast          whether to dot the newest stone (not once a game's
+//                     replay is deleted: its moves are then in no order)
 //   result            { title, detail, tone }: once it's over, who won,
 //                     over the board (tone 'win', or 'draw')
 //   label             what the board is, for screen readers
-export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, selected, onSelect, canPlay, winLine = [], impact, result, label }) {
+export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, selected, onSelect, canPlay, winLine = [], impact, result, markLast = true, label }) {
   const boardRef = useRef(null)
   const canvasRef = useRef(null)
   const layerRef = useRef(null)
@@ -157,7 +160,7 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
     if (!impact || !layerRef.current || !boardRef.current) return
     const width = boardRef.current.getBoundingClientRect().width / size
     layerRef.current.play({ x: (impact.x + 0.5) * width, y: (impact.y + 0.5) * width, cell: width, look: lookOf(impact.wave, 'shockwave') })
-    haptic(impact.confirmed ? HAPTIC.confirm : HAPTIC.land)
+    if (!impact.quiet) haptic(impact.confirmed ? HAPTIC.confirm : HAPTIC.land)
     // Only a new impact sets one off, not the board drawing again.
   }, [impact?.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -196,7 +199,7 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
         let key = `${x},${y}`
         let style
         if (winning.has(pointIndex(size, x, y))) classes.push('gmk-win')
-        if (last && stone.number === moves.length && !winning.size) classes.push('gmk-last')
+        if (markLast && last && stone.number === moves.length && !winning.size) classes.push('gmk-last')
         if (impact && impact.x === x && impact.y === y) {
           classes.push('gmk-land')
           key += `:${impact.key}`

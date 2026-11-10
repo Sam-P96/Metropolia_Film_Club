@@ -13,6 +13,7 @@ const {
     catchUp,
     closeChallenge,
     finishMatch,
+    forgetReplay,
     gameOf,
     matchView,
     matchViews,
@@ -511,6 +512,16 @@ async function devUnsee(req, res) {
     res.json({ seen });
 }
 
+// Deletes a finished game's replay now, as the sweep would a week after
+// it ended, so that can be seen without waiting.
+async function devForgetReplay(req, res) {
+    const found = await findMine(req.params.id, req.user._id);
+    if (!found) return res.status(404).json({ error: "Game not found." });
+    if (found.status !== "over") return res.status(409).json({ error: "Only a finished game has a replay." });
+    await forgetReplay(found);
+    res.json(await matchView(await GomokuMatch.findById(found._id).lean(), req.user._id, { full: true }));
+}
+
 // Everything you bought in the shop goes, and its points come back.
 const devRefundShop = (req, res) =>
     handleShop(res, async () => {
@@ -537,5 +548,6 @@ module.exports = {
     devAccept,
     devTheirMove,
     devUnsee,
+    devForgetReplay,
     devRefundShop,
 };

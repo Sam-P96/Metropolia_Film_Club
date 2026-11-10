@@ -83,6 +83,10 @@ export function devUnsee(id) {
   return api(`/gomoku/dev/matches/${id}/unsee`, { method: 'POST' })
 }
 
+export function devForgetReplay(id) {
+  return api(`/gomoku/dev/matches/${id}/forget-replay`, { method: 'POST' })
+}
+
 export function devRefundShop() {
   return api('/gomoku/dev/shop/refund', { method: 'POST' })
 }

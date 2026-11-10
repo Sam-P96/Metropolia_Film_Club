@@ -27,6 +27,11 @@ export const MIN_STAKE = 2
 export const MAX_STAKE = null
 export const QUICK_STAKES = [2, 10, 50, 100, 500, 1000]
 
+// A finished game between members can be watched again, move by move, for
+// this many days after it ends. Then its replay (the order the moves were
+// played in, and when) is deleted, and only the final position is kept.
+export const REPLAY_DAYS = 7
+
 // What winning pays, in P-PP: the whole pot. 100 each -> 200.
 export function prizeFor(stake) {
   return stake * 2

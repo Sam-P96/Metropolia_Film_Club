@@ -93,6 +93,7 @@ function RecentRow({ match }) {
       </span>
       {match.status === 'over' && <span className="text-sm text-white/50">{endingOf(match, them.username)}</span>}
       <span className="text-sm">{outcome}</span>
+      {match.replay?.available && <span className="text-xs font-semibold tracking-wide text-brand-gold uppercase">▶ Replay</span>}
     </>
   )
   return match.status === 'over' ? (

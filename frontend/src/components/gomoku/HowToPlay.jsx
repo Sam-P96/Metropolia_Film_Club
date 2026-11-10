@@ -1,5 +1,5 @@
 import { CARD, HEADING } from './GomokuChrome'
-import { MIN_STAKE, QUICK_STAKES, formatPoints } from '../../../../shared/gomoku/rules.js'
+import { MIN_STAKE, QUICK_STAKES, REPLAY_DAYS, formatPoints } from '../../../../shared/gomoku/rules.js'
 
 const RULE = 'mx-auto max-w-xl text-center'
 
@@ -33,6 +33,10 @@ export default function HowToPlay() {
       <p className={RULE}>
         A challenge can be accepted, declined, or answered with new terms, back and forth. Whoever accepts moves first. Three days to answer a
         challenge, and three days for each move, or the game goes to the other player.
+      </p>
+      <p className={RULE}>
+        A finished online game can be watched again, move by move, for {REPLAY_DAYS} days after it ends. Then its replay is deleted, and only the
+        final board is kept.
       </p>
       <p className={RULE}>
         The <strong className="text-white">Shop</strong> sells pieces, shockwaves, boards and grids. You see your own board and grid; your opponent
