@@ -22,13 +22,14 @@ const playerSchema = new Schema(
     {_id: false}
 );
 
-// One stone put down: where, whose (a seat) and when.
+// One stone put down: where, whose (a seat) and when (games/gomoku/
+// engine.js sets it). Once the replay is deleted, only where and whose.
 const moveSchema = new Schema(
     {
         x: {type: Number, required: true},
         y: {type: Number, required: true},
         seat: {type: Number, required: true},
-        at: {type: Date, default: Date.now},
+        at: {type: Date},
     },
     {_id: false}
 );
@@ -91,6 +92,13 @@ const gomokuMatchSchema = new Schema(
         // Whether the winner has been paid (or, after a draw, both stakes
         // handed back).
         settled: {type: Boolean, default: false},
+        // The replay: `moves`, in the order they were played, with when.
+        // Kept until `replayUntil` (a week after the game ended: shared/
+        // gomoku/rules.js REPLAY_DAYS); then the sweep deletes it
+        // (utils/gomoku.js forgetOldReplays), leaving only the final
+        // position in `moves`, and `replayGone` is set.
+        replayUntil: {type: Date, default: null},
+        replayGone: {type: Boolean},
         // A developer tool (routes/gomokuRouter.js, local testing only) has
         // answered or moved for a player: nobody else hears how it ended.
         devPlayed: {type: Boolean},
@@ -110,5 +118,7 @@ gomokuMatchSchema.index({"players.user": 1, status: 1});
 // stuck starting or unpaid.
 gomokuMatchSchema.index({status: 1, lastMoveAt: 1});
 gomokuMatchSchema.index({status: 1, expiresAt: 1});
+// For the sweep: replays a week old.
+gomokuMatchSchema.index({status: 1, replayUntil: 1});
 
 module.exports = mongoose.model("GomokuMatch", gomokuMatchSchema);

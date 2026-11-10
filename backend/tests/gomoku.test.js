@@ -396,6 +396,12 @@ describe("Infinite Gomoku against a database", { skip: !uri ? "set MONGO_TEST_UR
             const pp = (await challenge(me, other, { size: 15, stake: 10 })).body;
             assert.equal((await call(me, "POST", `/gomoku/dev/matches/${pp._id}/accept`)).status, 403);
 
+            // A finished game's replay, deleted early.
+            await call(me, "POST", `/gomoku/matches/${sent._id}/moves`, { version: (await call(me, "GET", `/gomoku/matches/${sent._id}`)).body.version, type: "resign" });
+            const forgotten = await call(me, "POST", `/gomoku/dev/matches/${sent._id}/forget-replay`);
+            assert.deepEqual([forgotten.body.replay.available, forgotten.body.replay.deleted], [false, true]);
+            assert.equal((await call(me, "POST", `/gomoku/dev/matches/${pp._id}/forget-replay`)).status, 409);
+
             // The shop, undone: every item gone and its points back as they were paid.
             const buyer = await member(100, 200);
             await call(buyer, "POST", "/gomoku/shop/buy", { itemId: "board.dark" });
@@ -409,6 +415,53 @@ describe("Infinite Gomoku against a database", { skip: !uri ? "set MONGO_TEST_UR
         } finally {
             delete process.env.GOMOKU_DEV_TOOLS;
         }
+    });
+
+    test("a finished game's replay is kept for a week, then only the final position is left", async () => {
+        const { forgetOldReplays, REPLAY_KEEP_MS } = require("../utils/gomoku");
+        const a = await member();
+        const b = await member();
+        const sent = (await challenge(a, b, { stake: 0 })).body;
+        await answer(b, (await call(b, "GET", `/gomoku/matches/${sent._id}`)).body, "accept");
+        const played = [[b, 7, 7], [a, 0, 0], [b, 8, 7], [a, 0, 1], [b, 9, 7], [a, 0, 2], [b, 10, 7], [a, 0, 3], [b, 11, 7]];
+        for (const [who, x, y] of played) assert.equal((await move(who, sent._id, x, y)).status, 200);
+
+        const over = (await call(a, "GET", `/gomoku/matches/${sent._id}`)).body;
+        assert.equal(over.status, "over");
+        assert.deepEqual(over.moves.map(({ x, y }) => [x, y]), played.map(([, x, y]) => [x, y]));
+        assert.equal(over.replay.available, true);
+        assert.equal(new Date(over.replay.until) - new Date(over.endedAt), REPLAY_KEEP_MS);
+        // It shows in the lobby's finished games too.
+        assert.equal((await call(a, "GET", "/gomoku/lobby")).body.recent.find((game) => game._id === sent._id).replay.available, true);
+
+        // Six days on, still there; eight days on, gone.
+        assert.equal(await forgetOldReplays(Date.now() + 6 * 24 * 60 * 60 * 1000), 0);
+        assert.ok((await forgetOldReplays(Date.now() + 8 * 24 * 60 * 60 * 1000)) >= 1);
+        const stored = await GomokuMatch.findById(sent._id).lean();
+        assert.equal(stored.replayGone, true);
+        assert.ok(stored.moves.every((stone) => stone.at === undefined));
+        const order = stored.moves.map(({ x, y }) => y * 15 + x);
+        assert.deepEqual(order, [...order].sort((p, q) => p - q));
+        const after = (await call(a, "GET", `/gomoku/matches/${sent._id}`)).body;
+        assert.deepEqual([after.replay.available, after.replay.deleted, after.lastMove], [false, true, null]);
+        // The final position is all still there, and so is how it ended.
+        assert.deepEqual(new Set(after.moves.map(({ x, y, seat }) => `${x},${y},${seat}`)), new Set(over.moves.map(({ x, y, seat }) => `${x},${y},${seat}`)));
+        assert.deepEqual([after.winner, after.winLine.length], [0, 5]);
+
+        // A game that ended before replays were kept goes a week after it ended.
+        const old = await GomokuMatch.create({
+            status: "over",
+            players: [{ user: a._id }, { user: b._id }],
+            size: 15,
+            stake: 0,
+            prize: 0,
+            moves: [{ x: 1, y: 1, seat: 0 }, { x: 0, y: 0, seat: 1 }],
+            winner: 0,
+            endedBy: "resign",
+            endedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+        });
+        assert.equal(await forgetOldReplays(), 1);
+        assert.deepEqual((await GomokuMatch.findById(old._id).lean()).moves.map(({ x, y }) => [x, y]), [[0, 0], [1, 1]]);
     });
 
     test("leaving the club: an open challenge closes, a game being played goes to the other player", async () => {

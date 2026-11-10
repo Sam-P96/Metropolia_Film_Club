@@ -5,12 +5,14 @@ import Board from '../components/gomoku/Board'
 import ChallengeCard, { Terms } from '../components/gomoku/ChallengeCard'
 import GomokuPage, { CARD } from '../components/gomoku/GomokuChrome'
 import PlayersBar from '../components/gomoku/PlayersBar'
+import ReplayControls from '../components/gomoku/ReplayControls'
 import { DANGER_BUTTON, GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
 import useGomokuGame from '../hooks/useGomokuGame'
+import useGomokuReplay from '../hooks/useGomokuReplay'
 import { formatDeadline } from '../utils/farkle'
 import { endingOf } from '../utils/gomoku'
-import { formatPoints, pointName } from '../../../shared/gomoku/rules.js'
+import { REPLAY_DAYS, formatPoints, pointName } from '../../../shared/gomoku/rules.js'
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 
@@ -108,9 +110,49 @@ function resultOf(match) {
   return { title: `${winner} wins!`, detail: `${how ?? ''}${prize}`, tone: 'win' }
 }
 
+// Watching a finished game again: the board as it was after each move, and
+// the controls under it. Only while the replay is open.
+function ReplayView({ match, pieceFor, onClose }) {
+  const replay = useGomokuReplay(match.moves, (seat) => match.players[seat].look.shockwave)
+  return (
+    <>
+      <Board
+        size={match.size}
+        moves={replay.shown}
+        pieceFor={pieceFor}
+        boardId={match.myLook.board}
+        gridId={match.myLook.grid}
+        canPlay={false}
+        winLine={replay.step >= replay.total ? match.winLine : []}
+        impact={replay.impact}
+        label="The replay"
+      />
+      <ReplayControls replay={replay} names={match.players.map((player) => player.username)} onClose={onClose} />
+    </>
+  )
+}
+
+// Under a finished game: Watch the replay while it's kept (a week after
+// the game ended), or that it's been deleted.
+function ReplayOffer({ replay, onWatch }) {
+  if (!replay) return null
+  if (replay.available) {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center">
+        <button type="button" onClick={onWatch} className={`${QUIET_BUTTON} min-h-12 text-center`}>
+          ▶ Watch the replay
+        </button>
+        <p className="text-sm text-white/50">Kept until {formatDeadline(replay.until)}, then deleted.</p>
+      </div>
+    )
+  }
+  return <p className="text-center text-sm text-white/50">This game&apos;s replay was deleted {REPLAY_DAYS} days after it ended.</p>
+}
+
 function MatchGame({ matchId }) {
   const game = useGomokuGame(matchId)
   const { match, loading } = game
+  const [replaying, setReplaying] = useState(false)
 
   if (loading) return <GomokuPage back={BACK} subtitle="Setting up the board…" />
 
@@ -170,21 +212,26 @@ function MatchGame({ matchId }) {
 
       <PlayersBar players={players} current={side(match.current)} winner={side(match.winner)} over={over} />
 
-      <Board
-        size={match.size}
-        moves={match.moves}
-        pieceFor={game.pieceFor}
-        boardId={match.myLook.board}
-        gridId={match.myLook.grid}
-        ghost={game.pieceFor(me)}
-        selected={game.selected}
-        onSelect={game.select}
-        canPlay={game.myTurn && !game.busy}
-        winLine={match.winLine}
-        impact={game.impact}
-        result={resultOf(match)}
-        label={`The board, ${match.size} by ${match.size}`}
-      />
+      {replaying ? (
+        <ReplayView match={match} pieceFor={game.pieceFor} onClose={() => setReplaying(false)} />
+      ) : (
+        <Board
+          size={match.size}
+          moves={match.moves}
+          pieceFor={game.pieceFor}
+          boardId={match.myLook.board}
+          gridId={match.myLook.grid}
+          ghost={game.pieceFor(me)}
+          selected={game.selected}
+          onSelect={game.select}
+          canPlay={game.myTurn && !game.busy}
+          winLine={match.winLine}
+          impact={game.impact}
+          result={resultOf(match)}
+          markLast={!match.replay?.deleted}
+          label={`The board, ${match.size} by ${match.size}`}
+        />
+      )}
 
       <p className={`-mt-2 min-h-6 text-center text-lg font-semibold ${status.tone}`} aria-live="polite">
         {status.text}
@@ -204,6 +251,7 @@ function MatchGame({ matchId }) {
 
       {over ? (
         <div className="flex flex-col items-center gap-3">
+          {!replaying && <ReplayOffer replay={match.replay} onWatch={() => setReplaying(true)} />}
           {match.winner === me && !match.forFun && (
             <p className="flex items-center justify-center gap-1.5 text-center text-white/70">
               <CoinIcon kind="ppp" size={16} /> {formatPoints(match.prize)} P-PP added to your wallet.

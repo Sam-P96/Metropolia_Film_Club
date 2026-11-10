@@ -6,7 +6,7 @@ import GomokuPage, { CARD } from '../components/gomoku/GomokuChrome'
 import PlayersBar from '../components/gomoku/PlayersBar'
 import { QUIET_BUTTON, SMALL_BUTTON } from '../components/steal/style'
 import useApi from '../hooks/useApi'
-import { devAcceptAsThem, devPlayTheirMove, devRefundShop, devUnsee, getGomokuDev, getGomokuLobby } from '../services/gomoku'
+import { devAcceptAsThem, devForgetReplay, devPlayTheirMove, devRefundShop, devUnsee, getGomokuDev, getGomokuLobby } from '../services/gomoku'
 import { walletChanged } from '../services/wallet'
 import { DEFAULTS, KINDS, KIND_LABELS, itemsOfKind, pieceAgainst } from '../../../shared/gomoku/catalogue.js'
 import { DEFAULT_SIZE, boardOf, isFull, winningLine } from '../../../shared/gomoku/rules.js'
@@ -55,16 +55,16 @@ function Lab() {
   const winner = winLine.length ? moves.at(-1).seat : null
   const result = winner !== null ? { title: `${winner === 0 ? 'You' : 'Them'} win!`, detail: 'Five in a row.', tone: 'win' } : full ? { title: 'Draw', tone: 'draw' } : null
 
-  const land = (x, y, seat) => {
+  const land = (x, y, seat, confirmed = false) => {
     impacts.current += 1
-    setImpact({ x, y, wave: waves[seat], key: impacts.current })
+    setImpact({ x, y, wave: waves[seat], key: impacts.current, confirmed })
   }
   const put = (x, y) => {
     const after = [...moves, { x, y, seat: next }]
     setMoves(after)
     setWinLine(winningLine(boardOf(size, after), size, x, y) ?? [])
     setSelected(null)
-    land(x, y, next)
+    land(x, y, next, confirmStep)
   }
   const clear = () => {
     setMoves([])
@@ -176,6 +176,7 @@ function ServerTools() {
   const sent = fun(lobby.data?.outgoing)
   const games = fun(lobby.data?.games)
   const anyGames = lobby.data?.games ?? []
+  const finished = (lobby.data?.recent ?? []).filter((match) => match.replay?.available)
   const opponent = (match) => match.players[1 - match.mySeat].username
 
   return (
@@ -247,6 +248,31 @@ function ServerTools() {
                 </li>
               )
             })}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-white">Finished games with a replay</h3>
+        {finished.length === 0 ? (
+          <p className="mt-1 text-white/50">None. Replays are kept for a week after a game ends.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {finished.map((match) => (
+              <li key={match._id} className="flex flex-wrap items-center justify-center gap-2">
+                <Link to={`/games/gomoku/${match._id}`} className="text-sky-200 underline underline-offset-4 hover:text-white">
+                  vs {opponent(match)}
+                </Link>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className={`${SMALL_BUTTON} border border-sky-400/60 text-sky-100`}
+                  onClick={() => run(() => devForgetReplay(match._id), () => 'Replay deleted, as it would be after a week. Only the final board is left.')}
+                >
+                  Delete the replay now
+                </button>
+              </li>
+            ))}
           </ul>
         )}
       </div>

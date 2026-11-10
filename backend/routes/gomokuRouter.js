@@ -18,6 +18,7 @@ const {
     devAccept,
     devTheirMove,
     devUnsee,
+    devForgetReplay,
     devRefundShop,
 } = require("../controllers/gomokuController");
 const { requireAuth } = require("../middleware/auth");
@@ -58,11 +59,13 @@ router.get("/shop", getShop);
 router.post("/shop/buy", buyItem);
 router.put("/shop/equip", equipItem);
 
-// Developer tools, For Fun games only (see above).
+// Developer tools, For Fun games only (see above), except deleting a
+// finished game's replay early, which touches no points.
 router.get("/dev", devStatus);
 router.post("/dev/matches/:id/accept", devAccept);
 router.post("/dev/matches/:id/their-move", devTheirMove);
 router.post("/dev/matches/:id/unsee", devUnsee);
+router.post("/dev/matches/:id/forget-replay", devForgetReplay);
 router.post("/dev/shop/refund", devRefundShop);
 
 module.exports = router;
