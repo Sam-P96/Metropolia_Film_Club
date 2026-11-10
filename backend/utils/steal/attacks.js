@@ -609,7 +609,8 @@ async function resolveAttack(attackId, { fizzleRoll = null } = {}) {
         } else if (outcome === "fail") {
             const bill = rules.fineBill({ attempted: attack.attempted, attacker: attackFx, defender: defendFx, attackerClass: attack.classes?.attacker });
             // PP parked outside the wallet (a Slot Machine, the poker table,
-            // lending) can't dodge the fine: it's owed in full.
+            // lending) can't dodge the fine: it's owed in full, and the
+            // defender is paid it now, as if it had been in the wallet.
             const elsewhere = (await moneyElsewhere(attack.attacker, session)).total;
             let settled = rules.settleBill(bill.bill, 0, elsewhere);
             await changeWallet(
@@ -621,13 +622,14 @@ async function resolveAttack(attackId, { fizzleRoll = null } = {}) {
                 },
                 { reason: "stealFine", other: attack.victim, allowDebt: true, steal: true, ...ref }
             );
-            const split = rules.splitPaid(settled.paid, bill.toDefender);
+            const split = rules.splitPaid(settled.paid + settled.covered, bill.toDefender);
             await pay(attack.victim, split.defenderGets, { reason: "stealFineWon", other: attack.attacker, ...ref });
             Object.assign(amounts, {
                 fine: bill.fine,
                 revenge: bill.revenge,
                 bill: bill.bill,
                 paid: settled.paid,
+                covered: settled.covered,
                 defenderGot: split.defenderGets,
                 burned: split.burned,
                 debt: settled.debt,

@@ -87,6 +87,10 @@ const stealAttackSchema = new Schema({
         revenge: {type: Number, default: 0},
         bill: {type: Number, default: 0},
         paid: {type: Number, default: 0},
+        // Of a fine they couldn't pay: as much as their parked PP (Slot
+        // Machine, poker, loans) could cover, owed in full and paid to the
+        // defender anyway (games/steal/rules.js settleBill).
+        covered: {type: Number, default: 0},
         defenderGot: {type: Number, default: 0},
         burned: {type: Number, default: 0},
         debt: {type: Number, default: 0},

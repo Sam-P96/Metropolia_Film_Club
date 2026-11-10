@@ -115,7 +115,9 @@ function fineBill({ attempted, attacker = {}, defender = {}, attackerClass = nul
 // That can't dodge a bill: as much of what's left as it could cover becomes
 // a negative balance in full (`covered`, part of `debt`), and only the
 // rest gets the 25% rule. A wallet already below zero has a claim on it
-// first.
+// first. Whoever the bill is owed to is paid `paid` and `covered` both:
+// the covered part is real money, only parked, and the negative balance
+// gets it back as it comes in.
 function settleBill(bill, available, elsewhere = 0) {
     const paid = Math.min(bill, Math.max(0, available));
     const unpaid = bill - paid;

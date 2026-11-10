@@ -83,7 +83,8 @@ export default function HowToPlay() {
           </li>
           <li>
             {strong("Can't pay?")} You pay what you have, and {STEAL.debtShare}% of the rest becomes a negative balance (the rest is forgiven). PP in your
-            Slot Machine, at the poker table or out on loan counts too: as much as that could cover becomes a negative balance in full. Until the daily
+            Slot Machine, at the poker table or out on loan counts too: as much as that could cover becomes a negative balance in full, and the defender
+            is paid it straight away. Until the daily
             payout brings you back up, you can&apos;t attack, buy items or be attacked.
           </li>
           <li>If two people attack the same person at once, the first to finish counts. The other one fails.</li>

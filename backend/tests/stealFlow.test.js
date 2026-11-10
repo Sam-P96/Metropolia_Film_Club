@@ -327,10 +327,15 @@ describe("Steal and Defend, end to end", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.equal(done.amounts.fine, 80);
         assert.equal(done.amounts.paid, 1);
         // The 79 unpaid is all covered by what's parked: owed in full.
+        assert.equal(done.amounts.covered, 79);
         assert.equal(done.amounts.debt, 79);
         assert.equal(done.amounts.forgiven, 0);
         const broke = await walletOf(attacker);
         assert.equal(broke.pp + broke.ppp, -79);
+        // ...and the defender is paid all of it: the 1 paid and the 79 parked.
+        assert.equal(done.amounts.defenderGot, 80);
+        const paidOut = await walletOf(victim);
+        assert.equal(paidOut.ppp, 80);
     });
 
     test("the daily payout pays off debt first", async () => {
@@ -437,6 +442,26 @@ describe("Steal and Defend, end to end", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.equal(off.body.stealTakenBack.steals, 1);
         assert.equal((await call(attacker, "GET", "/steal/status")).body.pvp, false);
         assert.equal((await walletOf(attacker)).ppp, 0);
+        const back = await walletOf(victim);
+        assert.equal(back.pp + back.ppp, 1000);
+    });
+
+    test("turning PvP off with the stolen points parked in a Slot Machine: the victim still gets them back", async () => {
+        const SlotMachine = require("../models/slotMachineModel");
+        const attacker = await member();
+        const victim = await member({ pp: 1000 });
+        await follow(attacker, victim);
+        const started = await call(attacker, "POST", "/steal/attacks", { victim: victim._id, percent: 5 });
+        await playQuiz(attacker, started.body._id, true);
+
+        // The 50 stolen, moved out of the wallet into the Slot Machine.
+        await User.updateOne({ _id: attacker._id }, { $set: { "wallet.ppp": 0 } });
+        await SlotMachine.create({ user: attacker._id, pp: 0, ppp: 5000 });
+
+        const off = await call(attacker, "PATCH", "/users/me", { pvp: false });
+        assert.equal(off.body.stealTakenBack.steals, 1);
+        const owing = await walletOf(attacker);
+        assert.equal(owing.pp + owing.ppp, -50);
         const back = await walletOf(victim);
         assert.equal(back.pp + back.ppp, 1000);
     });
