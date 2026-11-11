@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { wheelColour } from './wheelColours'
 
-// The box's colour (white), between slices and round the wheel.
+// The wheel sits on a white disc (so its colours read on any box, the
+// gold one too), and the gaps between slices are that white.
 const SURFACE = '#ffffff'
 
 const percent = (share) => `${(share * 100).toFixed(share < 0.1 ? 1 : 0)}%`
@@ -41,6 +42,7 @@ export default function QuizWheel({ entries, myId }) {
   return (
     <figure className="mx-auto flex w-full max-w-xs flex-col items-center gap-3">
       <svg viewBox="0 0 200 200" className="w-full overflow-visible" role="img" aria-label={`The Quiz Wheel: ${entries.map((entry) => `${entry.user.username} ${percent(entry.share)}`).join(', ')}`}>
+        <circle cx="100" cy="100" r={OUTER + 7} fill={SURFACE} />
         {entries.length === 1 ? (
           <circle cx="100" cy="100" r={(OUTER + INNER) / 2} fill="none" stroke={wheelColour(0)} strokeWidth={OUTER - INNER} />
         ) : (
@@ -80,7 +82,7 @@ export default function QuizWheel({ entries, myId }) {
           {shown ? percent(shown.share) : total}
         </text>
       </svg>
-      <figcaption className="text-center text-sm text-ink/60">
+      <figcaption className="text-center text-sm text-ink/75">
         {total} ticket{total === 1 ? '' : 's'} this week: one for each quiz point.
       </figcaption>
     </figure>

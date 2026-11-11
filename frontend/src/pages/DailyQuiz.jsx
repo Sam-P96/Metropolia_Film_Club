@@ -103,7 +103,7 @@ export default function DailyQuiz() {
             </section>
 
             {played ? (
-              <section className="flex flex-col gap-5 rounded-2xl border border-white/20 bg-white p-5 text-ink shadow-xl shadow-black/40 sm:p-6" aria-labelledby="quiz-leaderboard">
+              <section className="flex flex-col gap-5 rounded-2xl border-2 border-white bg-brand-gold p-5 text-ink shadow-xl shadow-black/40 sm:p-6" aria-labelledby="quiz-leaderboard">
                 <h2 id="quiz-leaderboard" className="text-center font-['Cinzel'] text-xl text-plum">
                   Quiz Leaderboard
                 </h2>
@@ -113,7 +113,7 @@ export default function DailyQuiz() {
                     <QuizLeaderboard entries={board.data.entries} />
                   </div>
                 )}
-                <p className="text-center text-sm text-ink/60">
+                <p className="text-center text-sm text-ink/75">
                   Points go back to 0 after each Monday&apos;s draw. Everyone who plays all {quiz.week.streakDays} quizzes of a week also gets{' '}
                   {format(quiz.week.streakBonus)} P-PP at the draw.
                 </p>

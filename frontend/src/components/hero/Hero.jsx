@@ -1,16 +1,19 @@
+import '@fontsource/cinzel'
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import PosterMarquee from './PosterMarquee'
 import ResonanceCard from '../resonance/ResonanceCard'
 import DailyQuizPlayer from '../quiz/DailyQuizPlayer'
+import QuizLeaderboard from '../quiz/QuizLeaderboard'
+import QuizWheel from '../quiz/QuizWheel'
 import CoinIcon from '../wallet/CoinIcon'
 import useApi from '../../hooks/useApi'
 import { noteSoulMatches } from '../../hooks/useSoulResonance'
 import { getTrending } from '../../services/tmdb'
 import { getResonanceSuggestions } from '../../services/resonance'
-import { getQuizState } from '../../services/quiz'
-import { getCurrentUser } from '../../utils/currentUser'
+import { getQuizLeaderboard, getQuizState } from '../../services/quiz'
+import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { hasAtLeast } from '../../utils/permissions'
 
 // This was the placeholder file before we were able to use getTrending function
@@ -49,6 +52,7 @@ function rotate(array, by) {
 // on a Resonance card. A logged-in member also gets the Daily Quiz: the
 // first slide until they've played today's (a new one comes at 12:00),
 // the last after. It plays right here; while it does, the slides stay put.
+// Once they've played, it shows their score and the Quiz Leaderboard.
 // Arrows on the sides change slides on a computer; on a phone it's a
 // swipe, with dots to show where you are.
 function Hero({ isAuthenticated }) {
@@ -75,6 +79,11 @@ function Hero({ isAuthenticated }) {
   const [playing, setPlaying] = useState(false)
   const [score, setScore] = useState(null)
   const manager = hasAtLeast(getCurrentUser(), 'moderator')
+
+  // Played today (before or just now): their score, and the leaderboard.
+  const done = Boolean(score) || Boolean(quizState?.played)
+  const result = score?.result ?? (quizState?.played ? { correct: quizState.attempt.correct, total: quizState.total } : null)
+  const board = useApi(getQuizLeaderboard, [isAuthenticated, done], { enabled: Boolean(isAuthenticated) && done })
 
   const others = pool.length > 0 ? ['welcome', 'resonance'] : ['welcome']
   const slides = !quizState ? others : quizFirst ? ['quiz', ...others] : [...others, 'quiz']
@@ -148,15 +157,31 @@ function Hero({ isAuthenticated }) {
           className="absolute inset-0 flex flex-col items-center justify-center px-5 pb-6 text-center sm:px-8"
         >
           {slides[index] === 'quiz' ? (
-            <div className="flex w-full max-w-2xl flex-col items-center gap-4">
+            <div className={`flex w-full flex-col items-center ${done ? 'max-w-3xl gap-3' : 'max-w-2xl gap-4'}`}>
               <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">Daily Quiz</h2>
-              {quizState.played && !score ? (
-                <div className="flex flex-col items-center gap-2">
-                  <p className="text-3xl font-bold text-white">
-                    You got <span className="text-brand-gold">{quizState.attempt.correct}</span> of {quizState.total} right today
+              {done ? (
+                <>
+                  <p className="text-xl font-bold text-white sm:text-2xl">
+                    You got <span className="text-brand-gold">{result.correct}</span> of {result.total} right today
+                    <span className="block text-sm font-normal text-white/60">A new quiz comes at 12:00.</span>
                   </p>
-                  <p className="text-white/70">A new quiz comes at 12:00.</p>
-                </div>
+                  {/* The Quiz Leaderboard, in its white box: the top 3, and
+                      you after them if you're further down. The wheel
+                      beside it on a computer. */}
+                  <div className="w-full rounded-2xl bg-white p-3 text-left text-ink shadow-xl shadow-black/40 sm:p-4">
+                    <h3 className="mb-2 text-center font-['Cinzel'] text-lg text-plum">Quiz Leaderboard</h3>
+                    {board.data ? (
+                      <div className="grid items-center gap-4 md:grid-cols-[13rem_1fr]">
+                        <div className="hidden md:block">
+                          <QuizWheel entries={board.data.entries} myId={getCurrentUserId()} />
+                        </div>
+                        <QuizLeaderboard entries={board.data.entries} limit={3} myId={getCurrentUserId()} />
+                      </div>
+                    ) : (
+                      <p className="py-6 text-center text-sm text-ink/50">{board.error ? "The leaderboard won't load right now." : 'Loading…'}</p>
+                    )}
+                  </div>
+                </>
               ) : (
                 <>
                   {!playing && !score && (
@@ -171,8 +196,8 @@ function Hero({ isAuthenticated }) {
               )}
               {!playing && (
                 <div className="mt-2 flex flex-wrap justify-center gap-3">
-                  <Link to="/daily-quiz" className={quizState.played || score ? primaryButton : secondaryButton}>
-                    Quiz Leaderboard
+                  <Link to="/daily-quiz" className={done ? primaryButton : secondaryButton}>
+                    {done ? 'Full Quiz Leaderboard' : 'Quiz Leaderboard'}
                   </Link>
                   {manager && (
                     <>
