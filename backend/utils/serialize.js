@@ -11,7 +11,7 @@ const AUTHOR_FIELDS = "username role memberTitle avatarUrl reviewCardBanner leve
 // author read as PVP off and their cuts couldn't be disliked.
 const MEMBER_FIELDS = "username role memberTitle avatarUrl reviewCardBanner value privacy pvp cosmetics";
 
-const DEFAULT_BANNER = { type: "color", color: "#2D1B47", imageUrl: null, style: "opaque" };
+const DEFAULT_BANNER = { type: "color", color: "#2D1B47", imageUrl: null, style: "opaque", position: { x: 50, y: 50 } };
 const DEFAULT_LEVEL_STYLE = {
     textColor: "#FFFFFF",
     effect: "shadow",
@@ -27,7 +27,7 @@ function bannerOf(user) {
     const banner = user.reviewCardBanner;
 
     if (banner && typeof banner === "object") {
-        return { ...DEFAULT_BANNER, ...banner };
+        return { ...DEFAULT_BANNER, ...banner, position: { ...DEFAULT_BANNER.position, ...banner.position } };
     }
 
     return { ...DEFAULT_BANNER, color: user.value || DEFAULT_BANNER.color };

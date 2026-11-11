@@ -1,3 +1,8 @@
+import BannerNudge from './BannerNudge'
+import { bannerPosition } from '../../utils/bannerStyle'
+
+const CENTRE = { x: 50, y: 50 }
+
 const STYLES = [
   { id: 'glass', label: 'Glass' },
   { id: 'translucent', label: 'Translucent' },
@@ -17,6 +22,11 @@ const PRESET_COLORS = [
 
 function BannerPicker({ banner, onChange }) {
   const set = (patch) => onChange({ ...banner, ...patch })
+
+  // Moving the picture by hand (BannerNudge): never past its edges.
+  const position = bannerPosition(banner)
+  const clamp = (value) => Math.min(100, Math.max(0, value))
+  const nudge = (dx, dy) => set({ position: { x: clamp(position.x + dx), y: clamp(position.y + dy) } })
 
   const labelClasses = 'mb-2 block text-sm font-medium text-white/70'
 
@@ -92,12 +102,23 @@ function BannerPicker({ banner, onChange }) {
             type="url"
             placeholder="https://..."
             value={banner.imageUrl || ''}
-            onChange={(e) => set({ imageUrl: e.target.value || null })}
+            // A different picture starts centred, whatever the last one's position.
+            onChange={(e) => set({ imageUrl: e.target.value || null, position: CENTRE })}
             className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10"
           />
           <p className="mt-1 text-xs text-white/30">
             A wide image works best. Animated GIFs are fine.
           </p>
+
+          {banner.imageUrl && (
+            <div className="mt-4">
+              <span className={labelClasses}>Position</span>
+              <BannerNudge position={position} onMove={nudge} onCenter={() => set({ position: CENTRE })} />
+              <p className="mt-2 text-center text-xs text-white/30">
+                Tap or hold to move the picture; the middle recentres it. It always fills the banner, so it stops at the picture&apos;s edge.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
