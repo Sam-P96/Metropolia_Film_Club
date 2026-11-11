@@ -5,13 +5,12 @@ import Board from '../components/gomoku/Board'
 import ChallengeCard, { Terms } from '../components/gomoku/ChallengeCard'
 import GomokuPage, { CARD } from '../components/gomoku/GomokuChrome'
 import PlayersBar from '../components/gomoku/PlayersBar'
-import ReplayControls from '../components/gomoku/ReplayControls'
+import ReplayView from '../components/gomoku/ReplayView'
 import SoundToggle from '../components/gomoku/SoundToggle'
 import { wakeAudio } from '../components/gomoku/feedback'
 import { DANGER_BUTTON, GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
 import useGomokuGame from '../hooks/useGomokuGame'
-import useGomokuReplay from '../hooks/useGomokuReplay'
 import { formatDeadline } from '../utils/farkle'
 import { endingOf } from '../utils/gomoku'
 import { REPLAY_DAYS, formatPoints, pointName } from '../../../shared/gomoku/rules.js'
@@ -117,25 +116,20 @@ function resultOf(match) {
 
 // Watching a finished game again: the board as it was after each move, and
 // the controls under it. Only while the replay is open.
-function ReplayView({ match, pieceFor, onClose }) {
-  const replay = useGomokuReplay(match.moves, (seat) => match.players[seat].look.shockwave)
+function MatchReplay({ match, pieceFor, onClose }) {
   return (
-    <>
-      <div className={BOARD_SIZE}>
-        <Board
-          size={match.size}
-          moves={replay.shown}
-          pieceFor={pieceFor}
-          boardId={match.myLook.board}
-          gridId={match.myLook.grid}
-          canPlay={false}
-          winLine={replay.step >= replay.total ? match.winLine : []}
-          impact={replay.impact}
-          label="The replay"
-        />
-      </div>
-      <ReplayControls replay={replay} names={match.players.map((player) => player.username)} onClose={onClose} />
-    </>
+    <ReplayView
+      size={match.size}
+      moves={match.moves}
+      pieceFor={pieceFor}
+      boardId={match.myLook.board}
+      gridId={match.myLook.grid}
+      winLine={match.winLine}
+      waveFor={(seat) => match.players[seat].look.shockwave}
+      names={match.players.map((player) => player.username)}
+      onClose={onClose}
+      boardClassName={BOARD_SIZE}
+    />
   )
 }
 
@@ -223,7 +217,7 @@ function MatchGame({ matchId }) {
       <PlayersBar players={players} current={side(match.current)} winner={side(match.winner)} over={over} />
 
       {replaying ? (
-        <ReplayView match={match} pieceFor={game.pieceFor} onClose={() => setReplaying(false)} />
+        <MatchReplay match={match} pieceFor={game.pieceFor} onClose={() => setReplaying(false)} />
       ) : (
         <div className={BOARD_SIZE}>
           <Board

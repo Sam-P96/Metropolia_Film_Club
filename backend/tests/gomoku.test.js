@@ -80,6 +80,52 @@ describe("the engine", () => {
     });
 });
 
+describe("Clanker, the computer player", () => {
+    const { clankerMove, FUMBLE_CHANCE } = require("../../shared/gomoku/clanker.js");
+    const at = (stones) => boardOf(15, stones.map(([x, y, seat]) => ({ x, y, seat })));
+    // A random source that never fumbles (above 5%).
+    const steady = () => 0.5;
+
+    test("opens in the middle; takes its own five; blocks yours", () => {
+        assert.deepEqual(clankerMove(boardOf(15, []), 15, 0, { random: steady }), [7, 7]);
+        // Its four on row 3: it finishes it, at either end.
+        const own = clankerMove(at([[3, 3, 0], [4, 3, 0], [5, 3, 0], [6, 3, 0], [3, 4, 1], [4, 4, 1], [5, 4, 1], [9, 9, 1]]), 15, 0, { random: steady });
+        assert.ok(["2,3", "7,3"].includes(own.join()), own.join());
+        // Your four (closed at one end): it takes the only point left.
+        assert.deepEqual(clankerMove(at([[3, 3, 1], [4, 3, 1], [5, 3, 1], [6, 3, 1], [7, 3, 0], [9, 9, 0]]), 15, 0, { random: steady }), [2, 3]);
+    });
+
+    test("stops an open three before it becomes an open four", () => {
+        const move = clankerMove(at([[5, 7, 1], [6, 7, 1], [7, 7, 1], [7, 8, 0], [8, 9, 0]]), 15, 0, { random: steady });
+        assert.ok(["4,7", "8,7", "3,7", "9,7"].includes(move.join()), move.join());
+    });
+
+    test("1 move in 20 it fumbles: a plausible point, but not the one it would have played", () => {
+        assert.equal(FUMBLE_CHANCE, 0.05);
+        // Its four, blocked at one end: 2,3 is the only five.
+        const board = at([[3, 3, 0], [4, 3, 0], [5, 3, 0], [6, 3, 0], [7, 3, 1], [3, 4, 1], [4, 4, 1], [9, 9, 1]]);
+        assert.deepEqual(clankerMove(board, 15, 0, { random: steady }), [2, 3]);
+        let calls = 0;
+        // The first random() call decides a fumble (0.01: yes), the second picks which.
+        const fumbled = clankerMove(board, 15, 0, { random: () => (calls++ === 0 ? 0.01 : 0) });
+        assert.notEqual(fumbled.join(), "2,3");
+        assert.equal(board[fumbled[1] * 15 + fumbled[0]], null);
+    });
+
+    test("against itself, it never plays on a stone, and someone gets five", () => {
+        const board = boardOf(15, []);
+        let won = false;
+        for (let i = 0; i < 80 && !won; i++) {
+            const seat = i % 2;
+            const [x, y] = clankerMove(board, 15, seat, { random: steady });
+            assert.equal(board[y * 15 + x], null);
+            board[y * 15 + x] = seat;
+            won = Boolean(winningLine(board, 15, x, y));
+        }
+        assert.ok(won);
+    });
+});
+
 describe("the catalogue", () => {
     test("prices: Infinity Stones 1,000, emoji 200, the Gauntlet 10,000, shockwaves 500, boards and grids 300; ids are unique", () => {
         const price = (id) => gomokuItem(id).price;

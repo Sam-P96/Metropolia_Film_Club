@@ -139,7 +139,7 @@ function Online({ forFun, reloads, onSent }) {
 }
 
 // Infinite Gomoku's page, from the Games page: Play For Fun (on this
-// device, or online against a member), Play For PP (against a member), the
+// device, online against a member, or vs Clanker, the computer), Play For PP (against a member), the
 // Shop, how to play, and every challenge and game. App.jsx sends
 // logged-out visitors to log in first.
 export default function GomokuLobby() {
@@ -207,7 +207,7 @@ export default function GomokuLobby() {
 
       <Reveal show={mode === 'fun'} id="fun">
         <div className="flex flex-col gap-6">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <Link to="/games/gomoku/local" className={`${online ? QUIET_BUTTON : GOLD_BUTTON} min-h-14 py-2 text-center text-lg`}>
               <span className="flex flex-col items-center leading-tight">
                 <span>Play Local</span>
@@ -220,6 +220,12 @@ export default function GomokuLobby() {
                 <small className="text-sm leading-tight font-medium opacity-80">Challenge a member</small>
               </span>
             </button>
+            <Link to="/games/gomoku/clanker" className={`${QUIET_BUTTON} min-h-14 py-2 text-center text-lg`}>
+              <span className="flex flex-col items-center leading-tight">
+                <span>vs Clanker</span>
+                <small className="text-sm leading-tight font-medium opacity-80">You against the computer</small>
+              </span>
+            </Link>
           </div>
           <Reveal show={online} id="online">
             <Online forFun reloads={reloads} onSent={reload} />
