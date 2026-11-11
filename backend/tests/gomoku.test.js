@@ -133,6 +133,9 @@ describe("the catalogue", () => {
         assert.equal(ALL_ITEMS.filter((item) => item.id.startsWith("piece.gem.")).length, 6);
         assert.equal(price("piece.emoji.wolf"), 200);
         assert.equal(ALL_ITEMS.filter((item) => item.id.startsWith("piece.emoji.")).length, 21);
+        // The Spider Web became the Spider, outlined red to blue, under the same id.
+        assert.deepEqual(gomokuItem("piece.emoji.web").look, { type: "emoji", emoji: "🕷️", outline: ["#ff2a4d", "#2a7bff"] });
+        assert.equal(ALL_ITEMS.some((item) => item.look.emoji === "🕸️"), false);
         assert.equal(price("piece.gauntlet"), 10000);
         assert.equal(price("wave.fire"), 500);
         assert.equal(price("board.black-glass"), 300);

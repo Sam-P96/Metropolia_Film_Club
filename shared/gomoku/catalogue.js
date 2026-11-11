@@ -38,8 +38,9 @@ const PRICES = {
 
 // ---------- pieces ----------
 // look.type: 'stone' (a plain round stone, `color` black or white), 'gem'
-// (an Infinity Stone: it glows and breathes in its colours), 'emoji', or
-// 'image' (a picture from frontend/src/assets).
+// (an Infinity Stone: it glows and breathes in its colours), 'emoji' (with
+// `outline`, two colours: a gradient outline round it), or 'image' (a
+// picture from frontend/src/assets).
 
 const STONES = [
   { id: 'piece.black', name: 'Black Stone', look: { type: 'stone', color: 'black' } },
@@ -56,6 +57,7 @@ const GEMS = [
   { key: 'mind', name: 'Mind', colors: ['#fff6c2', '#ffd21a', '#a37a00'] },
 ]
 
+// [key, name, emoji, outline colours (optional)].
 const EMOJI = [
   ['wolf', 'Wolf', '🐺'],
   ['cool', 'Cool', '😎'],
@@ -76,7 +78,8 @@ const EMOJI = [
   ['bear', 'Bear', '🐻'],
   ['chick', 'Chick', '🐣'],
   ['snail', 'Snail', '🐌'],
-  ['web', 'Spider Web', '🕸️'],
+  // Was the Spider Web; the id stays, so whoever bought that has this.
+  ['web', 'Spider', '🕷️', ['#ff2a4d', '#2a7bff']],
   ['eye', 'Eye', '👁️'],
 ]
 
@@ -90,13 +93,13 @@ const PIECES = [
     price: PRICES.gem,
     look: { type: 'gem', colors: gem.colors },
   })),
-  ...EMOJI.map(([key, name, emoji]) => ({
+  ...EMOJI.map(([key, name, emoji, outline]) => ({
     id: `piece.emoji.${key}`,
     kind: 'piece',
     name,
     category: 'Emoji',
     price: PRICES.emoji,
-    look: { type: 'emoji', emoji },
+    look: { type: 'emoji', emoji, ...(outline && { outline }) },
   })),
   {
     id: 'piece.gauntlet',
