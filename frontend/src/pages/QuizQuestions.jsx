@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import GameBackdrop from '../components/GameBackdrop'
 import QuestionForm from '../components/quiz/QuestionForm'
 import useApi from '../hooks/useApi'
-import { deleteQuizQuestion, editQuizQuestion, getQuizQueue, moveQuizQuestion } from '../services/quiz'
+import { deleteQuizQuestion, editQuizQuestion, getQuizQueue, moveQuizQuestion, shuffleQuizQuestions } from '../services/quiz'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
 const SMALL = 'cursor-pointer rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-center text-sm font-semibold text-white transition hover:border-brand-gold/60 hover:bg-white/10 disabled:opacity-50'
@@ -140,11 +140,52 @@ function QueuedQuestion({ entry, total, onChange }) {
   )
 }
 
+// Shuffle questions: the whole queue in a random order. It asks first,
+// since whatever order it was in by hand is lost.
+function ShuffleButton({ onShuffle }) {
+  const [asking, setAsking] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const shuffle = async () => {
+    setBusy(true)
+    const problem = await onShuffle()
+    setBusy(false)
+    setError(problem)
+    if (!problem) setAsking(false)
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2 text-center">
+      {asking ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="text-sm text-white/80">Shuffle the whole queue? The order it's in now is lost.</span>
+          <button type="button" onClick={shuffle} disabled={busy} className={PICKED}>
+            {busy ? 'Shuffling…' : 'Shuffle'}
+          </button>
+          <button type="button" onClick={() => setAsking(false)} disabled={busy} className={SMALL}>
+            Keep this order
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setAsking(true)} className={SMALL}>
+          Shuffle questions
+        </button>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-red-300">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // /daily-quiz/questions, for moderators and admins: every question waiting
 // in the Daily Quiz's queue, the next to be asked first and the last to be
 // asked last. Each can be edited (its right answer ticked), have its
-// answers shown, or be moved to another place. The server checks who's
-// asking.
+// answers shown, or be moved to another place, and the whole queue can be
+// shuffled. The server checks who's asking.
 export default function QuizQuestions() {
   const queue = useApi(() => getQuizQueue(), [])
   const questions = queue.data?.questions ?? []
@@ -189,11 +230,14 @@ export default function QuizQuestions() {
             </Link>
           </p>
         ) : (
-          <ol className="flex flex-col gap-4" aria-label="The queue">
-            {questions.map((entry) => (
-              <QueuedQuestion key={`${entry._id}-${entry.position}`} entry={entry} total={questions.length} onChange={change} />
-            ))}
-          </ol>
+          <>
+            {questions.length > 1 && <ShuffleButton onShuffle={() => change(shuffleQuizQuestions())} />}
+            <ol className="flex flex-col gap-4" aria-label="The queue">
+              {questions.map((entry) => (
+                <QueuedQuestion key={`${entry._id}-${entry.position}`} entry={entry} total={questions.length} onChange={change} />
+              ))}
+            </ol>
+          </>
         )}
       </div>
     </>

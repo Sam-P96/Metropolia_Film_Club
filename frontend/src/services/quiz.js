@@ -52,6 +52,11 @@ export function moveQuizQuestion(id, position) {
   return api(`/quiz/questions/${id}/move`, { method: 'POST', body: { position } })
 }
 
+// The whole queue in a random order.
+export function shuffleQuizQuestions() {
+  return api('/quiz/questions/shuffle', { method: 'POST' })
+}
+
 export function deleteQuizQuestion(id) {
   return api(`/quiz/questions/${id}`, { method: 'DELETE' })
 }
