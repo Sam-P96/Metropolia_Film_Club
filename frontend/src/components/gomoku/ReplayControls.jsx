@@ -2,6 +2,15 @@ import { QUIET_BUTTON } from '../steal/style'
 
 const ROUND = `${QUIET_BUTTON} min-h-11 min-w-11 px-3 text-center text-lg`
 
+// One arrow, turned to point the way it goes, so every button's matches.
+function Arrow({ turn }) {
+  return (
+    <span aria-hidden="true" className="inline-flex text-sm leading-none" style={{ transform: `rotate(${turn}deg)` }}>
+      ▲
+    </span>
+  )
+}
+
 // Under the board while watching a replay (hooks/useGomokuReplay.js, at 4×
 // speed): which move it's on and whose, a slider through the whole game,
 // back, play or pause, and forward, and Close.
@@ -25,13 +34,13 @@ export default function ReplayControls({ replay, names, onClose }) {
       />
       <div className="flex flex-wrap items-center justify-center gap-2">
         <button type="button" onClick={replay.back} disabled={step === 0} className={ROUND} aria-label="Back one move">
-          ◀
+          <Arrow turn={270} />
         </button>
         <button type="button" onClick={playing ? replay.pause : replay.play} className={`${ROUND} min-w-24`}>
           {playing ? 'Pause' : step >= total ? 'Again' : 'Play'}
         </button>
         <button type="button" onClick={replay.forward} disabled={step >= total} className={ROUND} aria-label="Forward one move">
-          ▶
+          <Arrow turn={90} />
         </button>
       </div>
       <button type="button" onClick={onClose} className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white">

@@ -24,7 +24,8 @@ export default function HowToPlay() {
       </p>
       <p className={RULE}>
         <strong className="text-white">Play For Fun</strong>: <em>Play Local</em> is two people on this device, taking turns. <em>Play Online</em>{' '}
-        challenges another member, with nothing at stake.
+        challenges another member, with nothing at stake. <em>vs Clanker</em> is you against the computer: it moves first, plays hard, and now and then
+        fumbles.
       </p>
       <p className={RULE}>
         <strong className="text-white">Play For PP</strong>: each of you puts up the stake ({QUICK_STAKES.map(formatPoints).join(', ')}, or your own

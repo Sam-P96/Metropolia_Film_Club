@@ -4,15 +4,27 @@ const BANNER_ALPHA = {
   glass: 0.35,
 }
 
+// Where a banner's picture sits, as x and y from 0 to 100 (50 is centred).
+// Anything missing or out of range counts as centred, or the nearest edge.
+export function bannerPosition(banner) {
+  const clamp = (value) => (Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 50)
+  return { x: clamp(banner?.position?.x), y: clamp(banner?.position?.y) }
+}
+
 // What a banner shows: its picture, sized to cover the layer, or its colour.
+// The picture always covers the whole banner, and its position (percentages
+// of how far it can move) can only take it as far as its own edges, so it
+// never leaves a gap.
 export function bannerFillStyle(banner) {
-  return banner.type === 'image' && banner.imageUrl
-    ? {
-        backgroundImage: `url(${banner.imageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : { backgroundColor: banner.color || '#2D1B47' }
+  if (banner.type === 'image' && banner.imageUrl) {
+    const { x, y } = bannerPosition(banner)
+    return {
+      backgroundImage: `url(${banner.imageUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: `${x}% ${y}%`,
+    }
+  }
+  return { backgroundColor: banner.color || '#2D1B47' }
 }
 
 // How see-through a banner layer is, and the glass style's blur and edge.

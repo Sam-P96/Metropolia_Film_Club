@@ -372,11 +372,17 @@ function profileChanges(body, me) {
         if (!/^#[0-9a-f]{6}$/i.test(banner.color ?? "")) return { error: "The banner colour must look like #2D1B47." };
         if (imageUrl && !isHttpUrl(imageUrl)) return { error: "The banner image link must start with http:// or https://." };
 
+        // Where the picture sits: x and y from 0 to 100 (centred if left out).
+        const position = banner.position ?? { x: 50, y: 50 };
+        const inRange = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+        if (!inRange(position.x) || !inRange(position.y)) return { error: "The banner picture's position must be from 0 to 100." };
+
         set.reviewCardBanner = {
             type: banner.type,
             color: banner.color,
             imageUrl,
             style: banner.style ?? "opaque",
+            position: { x: Math.round(position.x * 10) / 10, y: Math.round(position.y * 10) / 10 },
         };
     }
 

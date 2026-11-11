@@ -70,6 +70,49 @@ function Gem({ colors }) {
   )
 }
 
+// An emoji, centred on the point. With `outline` (two colours), a gradient
+// outline round it: the emoji's own shape, a little fatter (a filter on a
+// white copy of it, used as a mask), filled with the gradient and drawn
+// just behind it. Colour emoji ignore an ordinary text outline, so it's
+// done this way.
+function Emoji({ emoji, outline }) {
+  const id = useId().replace(/:/g, '')
+  const glyph = (props) => (
+    <text x="50" y="52" textAnchor="middle" dominantBaseline="central" fontSize="80" {...props}>
+      {emoji}
+    </text>
+  )
+
+  if (!outline) {
+    return (
+      <svg viewBox="0 0 100 100" className="gmk-emoji" aria-hidden="true">
+        {glyph()}
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 100 100" className="gmk-emoji" aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}-paint`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={outline[0]} />
+          <stop offset="100%" stopColor={outline[1]} />
+        </linearGradient>
+        <filter id={`${id}-fatter`} x="-25%" y="-25%" width="150%" height="150%">
+          <feMorphology in="SourceAlpha" operator="dilate" radius="5" result="shape" />
+          <feFlood floodColor="#ffffff" />
+          <feComposite in2="shape" operator="in" />
+        </filter>
+        <mask id={`${id}-shape`} x="0" y="0" width="100" height="100" maskUnits="userSpaceOnUse">
+          {glyph({ filter: `url(#${id}-fatter)` })}
+        </mask>
+      </defs>
+      <rect width="100" height="100" fill={`url(#${id}-paint)`} mask={`url(#${id}-shape)`} />
+      {glyph()}
+    </svg>
+  )
+}
+
 // What a piece is made of, without anything round it.
 export function PieceFace({ id }) {
   const item = gomokuItem(id) ?? gomokuItem(DEFAULTS.piece)
@@ -77,15 +120,7 @@ export function PieceFace({ id }) {
 
   if (look.type === 'stone') return <span className={`gmk-stone gmk-stone-${look.color}`} />
   if (look.type === 'gem') return <Gem colors={look.colors} />
-  if (look.type === 'emoji') {
-    return (
-      <svg viewBox="0 0 100 100" className="gmk-emoji" aria-hidden="true">
-        <text x="50" y="52" textAnchor="middle" dominantBaseline="central" fontSize="80">
-          {look.emoji}
-        </text>
-      </svg>
-    )
-  }
+  if (look.type === 'emoji') return <Emoji emoji={look.emoji} outline={look.outline} />
   return <img src={IMAGES[look.image]} alt="" className="gmk-image" draggable="false" />
 }
 

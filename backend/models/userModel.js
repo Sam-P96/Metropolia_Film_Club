@@ -44,6 +44,14 @@ const userSchema = new Schema(
                 enum: ["glass", "translucent", "opaque"],
                 default: "opaque",
             },
+            // Where the picture sits in the banner: x and y from 0 to 100,
+            // as CSS background-position percentages. The picture always
+            // covers the banner, so 0 is its left (or top) edge against the
+            // banner's and 100 its right (or bottom); 50 is centred.
+            position: {
+                x: { type: Number, default: 50, min: 0, max: 100 },
+                y: { type: Number, default: 50, min: 0, max: 100 },
+            },
         },
 
         // How "Level: X" looks on their review card when someone hovers over

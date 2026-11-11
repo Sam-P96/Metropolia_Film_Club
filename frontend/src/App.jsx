@@ -61,6 +61,7 @@ import GomokuLobby from "./pages/GomokuLobby";
 import GomokuMatch from "./pages/GomokuMatch";
 import GomokuLocal from "./pages/GomokuLocal";
 import GomokuShop from "./pages/GomokuShop";
+import GomokuClanker from "./pages/GomokuClanker";
 import HazeFilter from "./components/cosmetics/HazeFilter";
 import "./components/cosmetics/cosmetics.css";
 
@@ -174,13 +175,16 @@ function App() {
             isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           {/* Infinite Gomoku: its page (Play For Fun, Play For PP, Shop),
-              two players on one device, the shop, and a game between
-              members. The developer tool only exists in development. */}
+              two players on one device, vs Clanker, the shop, and a game
+              between members. The developer tool only exists in development. */}
           <Route path="/games/gomoku" element={
             isAuthenticated ? (<GomokuLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/games/gomoku/local" element={
             isAuthenticated ? (<GomokuLocal />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/games/gomoku/clanker" element={
+            isAuthenticated ? (<GomokuClanker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
           } />
           <Route path="/games/gomoku/shop" element={
             isAuthenticated ? (<GomokuShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)

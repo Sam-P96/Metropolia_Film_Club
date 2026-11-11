@@ -53,7 +53,7 @@ function PictureCard({ name, src, url, me, isAuthenticated, onSaved }) {
       const changes =
         kind === 'avatar'
           ? { avatarUrl: url }
-          : { reviewCardBanner: { ...me.reviewCardBanner, type: 'image', imageUrl: url } }
+          : { reviewCardBanner: { ...me.reviewCardBanner, type: 'image', imageUrl: url, position: { x: 50, y: 50 } } }
       onSaved(await updateMe(changes))
     } catch (err) {
       setError(err.message)
