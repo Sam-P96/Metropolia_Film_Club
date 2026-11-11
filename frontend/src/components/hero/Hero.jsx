@@ -165,20 +165,20 @@ function Hero({ isAuthenticated }) {
                     You got <span className="text-brand-gold">{result.correct}</span> of {result.total} right today
                     <span className="block text-sm font-normal text-white/60">A new quiz comes at 12:00.</span>
                   </p>
-                  {/* The Quiz Leaderboard, in its white box: the top 3, and
-                      you after them if you're further down. The wheel
-                      beside it on a computer. */}
-                  <div className="w-full rounded-2xl bg-white p-3 text-left text-ink shadow-xl shadow-black/40 sm:p-4">
-                    <h3 className="mb-2 text-center font-['Cinzel'] text-lg text-plum">Quiz Leaderboard</h3>
+                  {/* The Quiz Leaderboard, on translucent black glass: the
+                      top 3, and you after them if you're further down. The
+                      wheel beside it on a computer. */}
+                  <div className="w-full rounded-2xl border border-white/15 bg-black/45 p-3 text-left text-white shadow-xl shadow-black/40 backdrop-blur-md sm:p-4">
+                    <h3 className="mb-2 text-center font-['Cinzel'] text-lg text-brand-gold">Quiz Leaderboard</h3>
                     {board.data ? (
                       <div className="grid items-center gap-4 md:grid-cols-[13rem_1fr]">
                         <div className="hidden md:block">
-                          <QuizWheel entries={board.data.entries} myId={getCurrentUserId()} />
+                          <QuizWheel entries={board.data.entries} myId={getCurrentUserId()} onDark />
                         </div>
                         <QuizLeaderboard entries={board.data.entries} limit={3} myId={getCurrentUserId()} />
                       </div>
                     ) : (
-                      <p className="py-6 text-center text-sm text-ink/50">{board.error ? "The leaderboard won't load right now." : 'Loading…'}</p>
+                      <p className="py-6 text-center text-sm text-white/60">{board.error ? "The leaderboard won't load right now." : 'Loading…'}</p>
                     )}
                   </div>
                 </>

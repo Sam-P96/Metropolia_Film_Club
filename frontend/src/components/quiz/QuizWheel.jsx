@@ -28,7 +28,8 @@ function slicePath(start, end, outer, inner) {
 // its legend, with the same colours.
 //   entries  [{ user, points, share }], most first
 //   myId     the viewer's id
-export default function QuizWheel({ entries, myId }) {
+//   onDark   on a dark box (the home page's glass): a light caption
+export default function QuizWheel({ entries, myId, onDark = false }) {
   const [pointed, setPointed] = useState(null)
   const OUTER = 92
   const INNER = 54
@@ -82,7 +83,7 @@ export default function QuizWheel({ entries, myId }) {
           {shown ? percent(shown.share) : total}
         </text>
       </svg>
-      <figcaption className="text-center text-sm text-ink/75">
+      <figcaption className={`text-center text-sm ${onDark ? 'text-white/65' : 'text-ink/75'}`}>
         {total} ticket{total === 1 ? '' : 's'} this week: one for each quiz point.
       </figcaption>
     </figure>
