@@ -19,6 +19,7 @@ const { forgetLoanMember, loanDataOf } = require("../utils/loanShark");
 const { forgetCosmetics, cosmeticsDataOf } = require("../utils/blackMarket");
 const { forgetGomokuPlayer, gomokuGamesOf } = require("../utils/gomoku");
 const { forgetGomokuShop, gomokuShopDataOf } = require("../utils/gomokuShop");
+const { forgetQuizMember, quizDataOf } = require("../utils/quiz");
 const PokerSeat = require("../models/pokerSeatModel");
 const { siteBanOf, banMessage, recordSighting } = require("../utils/steal/moderation");
 const { takeBackSteals } = require("../utils/steal/players");
@@ -499,7 +500,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket, gomokuGames, gomokuShop] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket, gomokuGames, gomokuShop, dailyQuiz] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -523,6 +524,8 @@ const exportMe = async (req, res) => {
         // Infinite Gomoku: their games, and what they bought and have on.
         gomokuGamesOf(userId),
         gomokuShopDataOf(userId),
+        // The Daily Quiz: their quizzes, and the questions they wrote.
+        quizDataOf(userId),
     ]);
 
     if (!account) {
@@ -546,6 +549,7 @@ const exportMe = async (req, res) => {
         loanShark,
         blackMarket,
         infiniteGomoku: { games: gomokuGames, shop: gomokuShop },
+        dailyQuiz,
     });
 }
 
@@ -595,6 +599,7 @@ async function deleteAccount(user) {
     await forgetCosmetics(userId);
     await forgetGomokuPlayer(userId);
     await forgetGomokuShop(userId);
+    await forgetQuizMember(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
 }

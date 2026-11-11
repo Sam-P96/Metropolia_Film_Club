@@ -28,6 +28,7 @@ const loanSharkRouter = require("./routes/loanSharkRouter");
 const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
+const quizRouter = require("./routes/quizRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -39,6 +40,7 @@ const { startStealSweep } = require("./jobs/stealSweep");
 const { startLoanSweep } = require("./jobs/loanSweep");
 const { startSlotSweep } = require("./jobs/slotSweep");
 const { startGomokuSweep } = require("./jobs/gomokuSweep");
+const { startQuizDraw } = require("./jobs/quizDraw");
 
 const app = express();
 
@@ -63,6 +65,9 @@ app.use(helmet({
 // here. Set CLIENT_ORIGIN in .env only if you host the frontend elsewhere.
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || false }));
 
+// The Daily Quiz's bulk upload of questions can be long: it gets more
+// room than the 100 KB everything else has (routes/quizRouter.js).
+app.use("/api/quiz/questions/bulk", express.json({ limit: "5mb" }));
 app.use(express.json());
 
 // Dislikes only count from members with PVP on (see utils/pvp.js). A full
@@ -121,6 +126,11 @@ connected
     .then(() => startGomokuSweep())
     .catch((error) => console.error("Couldn't start the Gomoku sweep:", error.message));
 
+// The Daily Quiz: Monday 12:00's weekly draw (jobs/quizDraw.js).
+connected
+    .then(() => startQuizDraw())
+    .catch((error) => console.error("Couldn't start the quiz draw:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -163,6 +173,7 @@ app.use("/api/wallet", walletRouter);
 // An admin's "All games" ban stops anything being played (middleware/gameBans.js).
 app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
+app.use("/api/quiz", quizRouter);
 app.use("/api/scratch", refuseGameBans, scratchRouter);
 app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
 app.use("/api/slots", refuseGameBans, slotRouter);

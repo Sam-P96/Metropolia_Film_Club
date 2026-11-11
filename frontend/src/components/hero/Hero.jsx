@@ -3,10 +3,15 @@ import { Link } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import PosterMarquee from './PosterMarquee'
 import ResonanceCard from '../resonance/ResonanceCard'
+import DailyQuizPlayer from '../quiz/DailyQuizPlayer'
+import CoinIcon from '../wallet/CoinIcon'
 import useApi from '../../hooks/useApi'
 import { noteSoulMatches } from '../../hooks/useSoulResonance'
 import { getTrending } from '../../services/tmdb'
 import { getResonanceSuggestions } from '../../services/resonance'
+import { getQuizState } from '../../services/quiz'
+import { getCurrentUser } from '../../utils/currentUser'
+import { hasAtLeast } from '../../utils/permissions'
 
 // This was the placeholder file before we were able to use getTrending function
 // const placeholder = Array.from({ length: 20 }, (_, i) => ({
@@ -41,8 +46,11 @@ function rotate(array, by) {
 // The home page's banner: trending posters scrolling behind a few slides.
 // The welcome is always there. A logged-in member who can use Resonance
 // and has a match at 75% or more also gets one of them, picked at random,
-// on a Resonance card. Arrows on the sides change slides on a computer;
-// on a phone it's a swipe, with dots to show where you are.
+// on a Resonance card. A logged-in member also gets the Daily Quiz: the
+// first slide until they've played today's (a new one comes at 12:00),
+// the last after. It plays right here; while it does, the slides stay put.
+// Arrows on the sides change slides on a computer; on a phone it's a
+// swipe, with dots to show where you are.
 function Hero({ isAuthenticated }) {
   const reduce = useReducedMotion()
   const [movies, setMovies] = useState([])
@@ -60,13 +68,25 @@ function Hero({ isAuthenticated }) {
   useEffect(() => {
     noteSoulMatches(suggestions.data?.matches)
   }, [suggestions.data])
-  const slides = pool.length > 0 ? ['welcome', 'resonance'] : ['welcome']
+  const quiz = useApi(getQuizState, [isAuthenticated], { enabled: Boolean(isAuthenticated) })
+  const quizState = isAuthenticated ? quiz.data : null
+  // Played today, as the page opened: the quiz goes last rather than first.
+  const quizFirst = Boolean(quizState && !quizState.played && quizState.total > 0)
+  const [playing, setPlaying] = useState(false)
+  const [score, setScore] = useState(null)
+  const manager = hasAtLeast(getCurrentUser(), 'moderator')
+
+  const others = pool.length > 0 ? ['welcome', 'resonance'] : ['welcome']
+  const slides = !quizState ? others : quizFirst ? ['quiz', ...others] : [...others, 'quiz']
+  // Logged in: wait for the quiz, so the slides don't change under them.
+  const ready = !isAuthenticated || !quiz.loading
 
   const [slide, setSlide] = useState(0)
   const [direction, setDirection] = useState(1)
   const index = Math.min(slide, slides.length - 1)
 
   const go = (step) => {
+    if (playing) return
     setDirection(step)
     setSlide((index + step + slides.length) % slides.length)
   }
@@ -97,6 +117,7 @@ function Hero({ isAuthenticated }) {
       <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-ink/70 via-ink/50 to-ink" />
 
       <AnimatePresence initial={false} custom={{ direction, reduce }}>
+        {ready && (
         <motion.div
           key={slides[index]}
           custom={{ direction, reduce }}
@@ -105,7 +126,7 @@ function Hero({ isAuthenticated }) {
           animate="centre"
           exit="exit"
           transition={{ duration: reduce ? 0.2 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-          drag={slides.length > 1 ? 'x' : false}
+          drag={slides.length > 1 && !playing ? 'x' : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.25}
           dragSnapToOrigin
@@ -126,7 +147,47 @@ function Hero({ isAuthenticated }) {
           }}
           className="absolute inset-0 flex flex-col items-center justify-center px-5 pb-6 text-center sm:px-8"
         >
-          {slides[index] === 'welcome' ? (
+          {slides[index] === 'quiz' ? (
+            <div className="flex w-full max-w-2xl flex-col items-center gap-4">
+              <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">Daily Quiz</h2>
+              {quizState.played && !score ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-3xl font-bold text-white">
+                    You got <span className="text-brand-gold">{quizState.attempt.correct}</span> of {quizState.total} right today
+                  </p>
+                  <p className="text-white/70">A new quiz comes at 12:00.</p>
+                </div>
+              ) : (
+                <>
+                  {!playing && !score && (
+                    <p className="flex max-w-xl flex-wrap items-center justify-center gap-1.5 text-lg text-white/70">
+                      Every point is a ticket in Monday&apos;s draw for
+                      <CoinIcon kind="ppp" size={16} />
+                      <span className="font-bold text-brand-gold">{quizState.week.prize.toLocaleString('en-US')} P-PP</span>
+                    </p>
+                  )}
+                  <DailyQuizPlayer state={quizState} compact onPlayingChange={setPlaying} onFinished={setScore} />
+                </>
+              )}
+              {!playing && (
+                <div className="mt-2 flex flex-wrap justify-center gap-3">
+                  <Link to="/daily-quiz" className={quizState.played || score ? primaryButton : secondaryButton}>
+                    Quiz Leaderboard
+                  </Link>
+                  {manager && (
+                    <>
+                      <Link to="/daily-quiz?add=1" className={secondaryButton}>
+                        Add Questions
+                      </Link>
+                      <Link to="/daily-quiz/questions" className={secondaryButton}>
+                        View All Questions
+                      </Link>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : slides[index] === 'welcome' ? (
             <>
               <h1 className="mb-4 text-5xl font-bold text-white">
                 Welcome to Kino <span className="text-brand-gold">Kaverit</span>
@@ -174,9 +235,10 @@ function Hero({ isAuthenticated }) {
             </div>
           )}
         </motion.div>
+        )}
       </AnimatePresence>
 
-      {slides.length > 1 && (
+      {slides.length > 1 && ready && !playing && (
         <>
           <SlideArrow side="left" label="Previous slide" onClick={() => go(-1)} />
           <SlideArrow side="right" label="Next slide" onClick={() => go(1)} />
