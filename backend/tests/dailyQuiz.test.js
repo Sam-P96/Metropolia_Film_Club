@@ -250,6 +250,14 @@ describe("the Daily Quiz against a database", { skip: !uri ? "set MONGO_TEST_URI
 
         const removed = await call(mod, "DELETE", `/questions/${bulk.body.questions[3]._id}`);
         assert.deepEqual(removed.body.questions.map((entry) => entry.position), [1, 2, 3]);
+
+        // Shuffled: the same questions, in some order, numbered from 1. Moderators only.
+        assert.equal((await call(member1, "POST", "/questions/shuffle")).status, 403);
+        const before = removed.body.questions.map((entry) => entry.text).sort();
+        const shuffled = await call(mod, "POST", "/questions/shuffle");
+        assert.equal(shuffled.status, 200);
+        assert.deepEqual(shuffled.body.questions.map((entry) => entry.text).sort(), before);
+        assert.deepEqual(shuffled.body.questions.map((entry) => entry.position), [1, 2, 3]);
     });
 
     test("a day's quiz takes questions from the queue, which leave it; their author gets a film question instead", async () => {

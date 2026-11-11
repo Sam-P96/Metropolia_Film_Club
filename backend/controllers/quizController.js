@@ -61,10 +61,17 @@ const move = (req, res) =>
         res.json({ position, questions: await quiz.queueView() });
     });
 
+// The whole queue in a random order.
+const shuffle = (req, res) =>
+    handle(res, async () => {
+        await quiz.shuffleQueue();
+        res.json({ questions: await quiz.queueView() });
+    });
+
 const remove = (req, res) =>
     handle(res, async () => {
         await quiz.deleteQuestion(req.params.id);
         res.json({ questions: await quiz.queueView() });
     });
 
-module.exports = { getState, start, answer, getLeaderboard, getQueue, addOne, addBulk, edit, move, remove };
+module.exports = { getState, start, answer, getLeaderboard, getQueue, addOne, addBulk, edit, move, shuffle, remove };

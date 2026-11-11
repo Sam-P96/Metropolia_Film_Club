@@ -472,6 +472,20 @@ async function moveQuestion(id, position) {
     return others.indexOf(String(found._id)) + 1;
 }
 
+// Puts the whole queue in a random order (`random(max)`: crypto.randomInt
+// unless a test passes its own), numbered 1, 2, 3... Returns how many.
+async function shuffleQueue(random = crypto.randomInt) {
+    const queue = (await QuizQuestion.find({ status: "queued" }).select("_id").lean()).map((entry) => entry._id);
+    for (let i = queue.length - 1; i > 0; i--) {
+        const j = random(i + 1);
+        [queue[i], queue[j]] = [queue[j], queue[i]];
+    }
+    if (queue.length > 0) {
+        await QuizQuestion.bulkWrite(queue.map((id, i) => ({ updateOne: { filter: { _id: id }, update: { $set: { position: i + 1 } } } })));
+    }
+    return queue.length;
+}
+
 async function deleteQuestion(id) {
     const found = await queuedQuestion(id);
     await found.deleteOne();
@@ -518,6 +532,7 @@ module.exports = {
     queueView,
     editQuestion,
     moveQuestion,
+    shuffleQueue,
     deleteQuestion,
     renumberQueue,
     forgetQuizMember,

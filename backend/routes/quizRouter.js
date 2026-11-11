@@ -1,5 +1,5 @@
 const express = require("express");
-const { getState, start, answer, getLeaderboard, getQueue, addOne, addBulk, edit, move, remove } = require("../controllers/quizController");
+const { getState, start, answer, getLeaderboard, getQueue, addOne, addBulk, edit, move, shuffle, remove } = require("../controllers/quizController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 // The Daily Quiz (utils/quiz.js), for logged-in members.
@@ -18,6 +18,7 @@ router.get("/leaderboard", getLeaderboard);
 router.get("/questions", requireRole("moderator"), getQueue);
 router.post("/questions", requireRole("moderator"), addOne);
 router.post("/questions/bulk", requireRole("moderator"), addBulk);
+router.post("/questions/shuffle", requireRole("moderator"), shuffle);
 router.put("/questions/:id", requireRole("moderator"), edit);
 router.post("/questions/:id/move", requireRole("moderator"), move);
 router.delete("/questions/:id", requireRole("moderator"), remove);
