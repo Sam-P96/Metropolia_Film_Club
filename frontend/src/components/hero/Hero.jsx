@@ -154,24 +154,28 @@ function Hero({ isAuthenticated }) {
             event.preventDefault()
             event.stopPropagation()
           }}
-          className="absolute inset-0 flex flex-col items-center justify-center px-5 pb-6 text-center sm:px-8"
+          className="absolute inset-0 flex flex-col items-center justify-center px-5 pt-6 pb-6 text-center sm:px-8"
         >
           {slides[index] === 'quiz' ? (
-            <div className={`flex w-full flex-col items-center ${done ? 'max-w-3xl gap-3' : 'max-w-2xl gap-4'}`}>
-              <h2 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">Daily Quiz</h2>
+            // The hero is a fixed height (630px), on a phone too. Everything
+            // here fits inside it: the quiz and the leaderboard take the
+            // room that's left and scroll inside themselves if they need
+            // more, so long names or a long question never spill out.
+            <div className={`flex max-h-full min-h-0 w-full flex-col items-center ${done ? 'max-w-3xl gap-3' : 'max-w-2xl gap-4'}`}>
+              <h2 className="shrink-0 text-sm font-semibold tracking-widest text-brand-gold uppercase">Daily Quiz</h2>
               {done ? (
                 <>
-                  <p className="text-xl font-bold text-white sm:text-2xl">
+                  <p className="shrink-0 text-xl font-bold text-white sm:text-2xl">
                     You got <span className="text-brand-gold">{result.correct}</span> of {result.total} right today
                     <span className="block text-sm font-normal text-white/60">A new quiz comes at 12:00.</span>
                   </p>
                   {/* The Quiz Leaderboard, on translucent black glass: the
                       top 3, and you after them if you're further down. The
                       wheel beside it on a computer. */}
-                  <div className="w-full rounded-2xl border border-white/15 bg-black/45 p-3 text-left text-white shadow-xl shadow-black/40 backdrop-blur-md sm:p-4">
-                    <h3 className="mb-2 text-center font-['Cinzel'] text-lg text-brand-gold">Quiz Leaderboard</h3>
+                  <div className="flex min-h-0 w-full flex-col rounded-2xl border border-white/15 bg-black/45 p-3 text-left text-white shadow-xl shadow-black/40 backdrop-blur-md sm:p-4">
+                    <h3 className="mb-2 shrink-0 text-center font-['Cinzel'] text-lg text-brand-gold">Quiz Leaderboard</h3>
                     {board.data ? (
-                      <div className="grid items-center gap-4 md:grid-cols-[13rem_1fr]">
+                      <div className="grid min-h-0 items-center gap-4 overflow-y-auto overscroll-contain md:grid-cols-[13rem_1fr]">
                         <div className="hidden md:block">
                           <QuizWheel entries={board.data.entries} myId={getCurrentUserId()} onDark />
                         </div>
@@ -185,17 +189,19 @@ function Hero({ isAuthenticated }) {
               ) : (
                 <>
                   {!playing && !score && (
-                    <p className="flex max-w-xl flex-wrap items-center justify-center gap-1.5 text-lg text-white/70">
+                    <p className="flex max-w-xl shrink-0 flex-wrap items-center justify-center gap-1.5 text-lg text-white/70">
                       Every point is a ticket in Monday&apos;s draw for
                       <CoinIcon kind="ppp" size={16} />
                       <span className="font-bold text-brand-gold">{quizState.week.prize.toLocaleString('en-US')} P-PP</span>
                     </p>
                   )}
-                  <DailyQuizPlayer state={quizState} compact onPlayingChange={setPlaying} onFinished={setScore} />
+                  <div className="flex min-h-0 w-full flex-col items-center overflow-y-auto overscroll-contain">
+                    <DailyQuizPlayer state={quizState} compact onPlayingChange={setPlaying} onFinished={setScore} />
+                  </div>
                 </>
               )}
               {!playing && (
-                <div className="mt-2 flex flex-wrap justify-center gap-3">
+                <div className="mt-2 flex shrink-0 flex-wrap justify-center gap-3">
                   <Link to="/daily-quiz" className={done ? primaryButton : secondaryButton}>
                     {done ? 'Full Quiz Leaderboard' : 'Quiz Leaderboard'}
                   </Link>
