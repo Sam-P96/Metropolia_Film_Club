@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { wheelColour } from './wheelColours'
 
-// The card's colour, between slices and round the wheel.
-const SURFACE = '#140d1d'
+// The box's colour (white), between slices and round the wheel.
+const SURFACE = '#ffffff'
 
 const percent = (share) => `${(share * 100).toFixed(share < 0.1 ? 1 : 0)}%`
 
@@ -73,14 +73,14 @@ export default function QuizWheel({ entries, myId }) {
             )
           })
         )}
-        <text x="100" y="92" textAnchor="middle" className="fill-white/60" style={{ fontSize: 10, letterSpacing: '0.08em' }}>
+        <text x="100" y="92" textAnchor="middle" className="fill-[#52514e]" style={{ fontSize: 10, letterSpacing: '0.08em' }}>
           {shown ? (shown === mine && pointed === null ? 'YOUR CHANCE' : shown.user.username.slice(0, 18).toUpperCase()) : 'TICKETS'}
         </text>
-        <text x="100" y="118" textAnchor="middle" className="fill-white font-bold" style={{ fontSize: 24 }}>
+        <text x="100" y="118" textAnchor="middle" className="fill-ink font-bold" style={{ fontSize: 24 }}>
           {shown ? percent(shown.share) : total}
         </text>
       </svg>
-      <figcaption className="text-center text-sm text-white/60">
+      <figcaption className="text-center text-sm text-ink/60">
         {total} ticket{total === 1 ? '' : 's'} this week: one for each quiz point.
       </figcaption>
     </figure>

@@ -9,10 +9,10 @@ const percent = (share) => `${(share * 100).toFixed(share < 0.1 ? 1 : 0)}%`
 // with their points and their chance in the draw. The chip beside each is
 // their colour on the Quiz Wheel.
 export default function QuizLeaderboard({ entries }) {
-  if (entries.length === 0) return <p className="text-center text-white/60">Nobody has played this week yet.</p>
+  if (entries.length === 0) return <p className="text-center text-ink/60">Nobody has played this week yet.</p>
 
   return (
-    <ol className="divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5">
+    <ol className="divide-y divide-white/10 rounded-xl border border-ink/10 bg-plum shadow-md shadow-black/20">
       {entries.map((entry, index) => (
         <LeaderboardRow
           key={entry.user._id}

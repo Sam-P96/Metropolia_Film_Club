@@ -17,7 +17,6 @@ import { formatDeadline } from '../utils/farkle'
 import { QUIZ } from '../../../shared/quiz/config.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
-const HEADING = "text-center font-['Cinzel'] text-xl text-brand-gold"
 const format = (points) => Number(points).toLocaleString('en-US')
 
 // One figure in the row at the top: a label over a number.
@@ -104,8 +103,8 @@ export default function DailyQuiz() {
             </section>
 
             {played ? (
-              <section className={`${CARD} flex flex-col gap-5`} aria-labelledby="quiz-leaderboard">
-                <h2 id="quiz-leaderboard" className={HEADING}>
+              <section className="flex flex-col gap-5 rounded-2xl border border-white/20 bg-white p-5 text-ink shadow-xl shadow-black/40 sm:p-6" aria-labelledby="quiz-leaderboard">
+                <h2 id="quiz-leaderboard" className="text-center font-['Cinzel'] text-xl text-plum">
                   Quiz Leaderboard
                 </h2>
                 {board.data && (
@@ -114,7 +113,7 @@ export default function DailyQuiz() {
                     <QuizLeaderboard entries={board.data.entries} />
                   </div>
                 )}
-                <p className="text-center text-sm text-white/50">
+                <p className="text-center text-sm text-ink/60">
                   Points go back to 0 after each Monday&apos;s draw. Everyone who plays all {quiz.week.streakDays} quizzes of a week also gets{' '}
                   {format(quiz.week.streakBonus)} P-PP at the draw.
                 </p>
