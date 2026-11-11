@@ -49,6 +49,8 @@ const Schema = mongoose.Schema;
 //   gomokuWin        a win: both stakes, in P-PP
 //   gomokuRefund     a stake handed back: a draw, or a game that never got going
 //   gomokuShop       a piece, shockwave, board or grid bought (PP first, then P-PP)
+//   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
+//   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   loanCollector    Kaveri took it for King Loan Shark, out of the
 //                    wallet: only ever an admin's development button (at 12:00
 //                    he takes it from the payout before it reaches the wallet)
@@ -66,6 +68,7 @@ const walletTxSchema = new Schema({
             "pokerBuyIn", "pokerCashOut",
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
+            "quizPrize", "quizStreak",
         ],
         required: true,
     },

@@ -9,6 +9,7 @@ import MemberAvatar from '../profile/MemberAvatar'
 import FollowButton from '../profile/FollowButton'
 import FarkleNotice from '../farkle/FarkleNotice'
 import GomokuNotice from '../gomoku/GomokuNotice'
+import QuizNotice from '../quiz/QuizNotice'
 import PayoutNotice from '../wallet/PayoutNotice'
 import GiftNotice from '../wallet/GiftNotice'
 import ScratchNotice from '../scratch/ScratchNotice'
@@ -876,6 +877,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'scratchWin' || item.type === 'scratchJackpot') return <ScratchNotice item={item} />
   if (item.type === 'doublePlay' || item.type === 'doubleWin') return <DoubleNotice item={item} />
   if (item.type === 'slotTriple' || item.type === 'slotJackpot') return <SlotNotice item={item} />
+  if (item.type === 'quizWinner' || item.type === 'quizStreak') return <QuizNotice item={item} />
   if (item.type.startsWith('steal')) return <StealNotice item={item} />
   if (item.type === 'pokerWin') return <PokerNotice item={item} />
   if (item.type.startsWith('loan')) return <LoanNotice item={item} light={light} />

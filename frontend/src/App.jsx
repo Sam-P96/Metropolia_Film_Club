@@ -62,6 +62,8 @@ import GomokuMatch from "./pages/GomokuMatch";
 import GomokuLocal from "./pages/GomokuLocal";
 import GomokuShop from "./pages/GomokuShop";
 import GomokuClanker from "./pages/GomokuClanker";
+import DailyQuiz from "./pages/DailyQuiz";
+import QuizQuestions from "./pages/QuizQuestions";
 import HazeFilter from "./components/cosmetics/HazeFilter";
 import "./components/cosmetics/cosmetics.css";
 
@@ -161,6 +163,14 @@ function App() {
           } />
 
           <Route path="/wheel" element={<Wheel />} />
+          {/* The Daily Quiz (also on the home page's first slide), and the
+              queue of questions for moderators and admins (the server checks). */}
+          <Route path="/daily-quiz" element={
+            isAuthenticated ? (<DailyQuiz />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
+          <Route path="/daily-quiz/questions" element={
+            isAuthenticated ? (<QuizQuestions />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+          } />
           {/* Games, from the nav. Anyone can see what there is; playing is
               for points, so the games themselves need a login, and come
               back to the same page after it (links from notifications). */}

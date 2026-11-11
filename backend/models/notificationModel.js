@@ -114,7 +114,14 @@ const LOAN_TYPES = ["loanCollector", "loanMissed", "loanJob", "loanRepay", "loan
 // The game ones: unread, they make the bell blink red rather than just
 // glow purple (controllers/feedController.js). farkleTurn isn't shown any
 // more, so it never counts as unread at all.
+// The Daily Quiz (utils/quiz.js):
+//   quizWinner  `actors[0]` won the weekly draw: `amount` P-PP. Goes to
+//               every member, the winner included.
+//   quizStreak  they played all 7 of last week's quizzes: `amount` P-PP
+const QUIZ_TYPES = ["quizWinner", "quizStreak"];
+
 const GAME_TYPES = [
+    ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
     ...GOMOKU_TYPES,
     "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin",
@@ -126,7 +133,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES],
         required: true,
     },
     review: {
@@ -134,7 +141,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -200,6 +207,7 @@ notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 const Notification = mongoose.model("Notification", notificationSchema);
 Notification.FARKLE_TYPES = FARKLE_TYPES;
 Notification.GOMOKU_TYPES = GOMOKU_TYPES;
+Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;

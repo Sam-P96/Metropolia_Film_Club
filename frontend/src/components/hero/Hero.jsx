@@ -1,12 +1,20 @@
+import '@fontsource/cinzel'
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import PosterMarquee from './PosterMarquee'
 import ResonanceCard from '../resonance/ResonanceCard'
+import DailyQuizPlayer from '../quiz/DailyQuizPlayer'
+import QuizLeaderboard from '../quiz/QuizLeaderboard'
+import QuizWheel from '../quiz/QuizWheel'
+import CoinIcon from '../wallet/CoinIcon'
 import useApi from '../../hooks/useApi'
 import { noteSoulMatches } from '../../hooks/useSoulResonance'
 import { getTrending } from '../../services/tmdb'
 import { getResonanceSuggestions } from '../../services/resonance'
+import { getQuizLeaderboard, getQuizState } from '../../services/quiz'
+import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
+import { hasAtLeast } from '../../utils/permissions'
 
 // This was the placeholder file before we were able to use getTrending function
 // const placeholder = Array.from({ length: 20 }, (_, i) => ({
@@ -41,8 +49,12 @@ function rotate(array, by) {
 // The home page's banner: trending posters scrolling behind a few slides.
 // The welcome is always there. A logged-in member who can use Resonance
 // and has a match at 75% or more also gets one of them, picked at random,
-// on a Resonance card. Arrows on the sides change slides on a computer;
-// on a phone it's a swipe, with dots to show where you are.
+// on a Resonance card. A logged-in member also gets the Daily Quiz: the
+// first slide until they've played today's (a new one comes at 12:00),
+// the last after. It plays right here; while it does, the slides stay put.
+// Once they've played, it shows their score and the Quiz Leaderboard.
+// Arrows on the sides change slides on a computer; on a phone it's a
+// swipe, with dots to show where you are.
 function Hero({ isAuthenticated }) {
   const reduce = useReducedMotion()
   const [movies, setMovies] = useState([])
@@ -60,13 +72,30 @@ function Hero({ isAuthenticated }) {
   useEffect(() => {
     noteSoulMatches(suggestions.data?.matches)
   }, [suggestions.data])
-  const slides = pool.length > 0 ? ['welcome', 'resonance'] : ['welcome']
+  const quiz = useApi(getQuizState, [isAuthenticated], { enabled: Boolean(isAuthenticated) })
+  const quizState = isAuthenticated ? quiz.data : null
+  // Played today, as the page opened: the quiz goes last rather than first.
+  const quizFirst = Boolean(quizState && !quizState.played && quizState.total > 0)
+  const [playing, setPlaying] = useState(false)
+  const [score, setScore] = useState(null)
+  const manager = hasAtLeast(getCurrentUser(), 'moderator')
+
+  // Played today (before or just now): their score, and the leaderboard.
+  const done = Boolean(score) || Boolean(quizState?.played)
+  const result = score?.result ?? (quizState?.played ? { correct: quizState.attempt.correct, total: quizState.total } : null)
+  const board = useApi(getQuizLeaderboard, [isAuthenticated, done], { enabled: Boolean(isAuthenticated) && done })
+
+  const others = pool.length > 0 ? ['welcome', 'resonance'] : ['welcome']
+  const slides = !quizState ? others : quizFirst ? ['quiz', ...others] : [...others, 'quiz']
+  // Logged in: wait for the quiz, so the slides don't change under them.
+  const ready = !isAuthenticated || !quiz.loading
 
   const [slide, setSlide] = useState(0)
   const [direction, setDirection] = useState(1)
   const index = Math.min(slide, slides.length - 1)
 
   const go = (step) => {
+    if (playing) return
     setDirection(step)
     setSlide((index + step + slides.length) % slides.length)
   }
@@ -97,6 +126,7 @@ function Hero({ isAuthenticated }) {
       <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-ink/70 via-ink/50 to-ink" />
 
       <AnimatePresence initial={false} custom={{ direction, reduce }}>
+        {ready && (
         <motion.div
           key={slides[index]}
           custom={{ direction, reduce }}
@@ -105,7 +135,7 @@ function Hero({ isAuthenticated }) {
           animate="centre"
           exit="exit"
           transition={{ duration: reduce ? 0.2 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-          drag={slides.length > 1 ? 'x' : false}
+          drag={slides.length > 1 && !playing ? 'x' : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.25}
           dragSnapToOrigin
@@ -124,9 +154,71 @@ function Hero({ isAuthenticated }) {
             event.preventDefault()
             event.stopPropagation()
           }}
-          className="absolute inset-0 flex flex-col items-center justify-center px-5 pb-6 text-center sm:px-8"
+          className="absolute inset-0 flex flex-col items-center justify-center px-5 pt-6 pb-6 text-center sm:px-8"
         >
-          {slides[index] === 'welcome' ? (
+          {slides[index] === 'quiz' ? (
+            // The hero is a fixed height (630px), on a phone too. Everything
+            // here fits inside it: the quiz and the leaderboard take the
+            // room that's left and scroll inside themselves if they need
+            // more, so long names or a long question never spill out.
+            <div className={`flex max-h-full min-h-0 w-full flex-col items-center ${done ? 'max-w-3xl gap-3' : 'max-w-2xl gap-4'}`}>
+              <h2 className="shrink-0 text-sm font-semibold tracking-widest text-brand-gold uppercase">Daily Quiz</h2>
+              {done ? (
+                <>
+                  <p className="shrink-0 text-xl font-bold text-white sm:text-2xl">
+                    You got <span className="text-brand-gold">{result.correct}</span> of {result.total} right today
+                    <span className="block text-sm font-normal text-white/60">A new quiz comes at 12:00.</span>
+                  </p>
+                  {/* The Quiz Leaderboard, on translucent black glass: the
+                      top 3, and you after them if you're further down. The
+                      wheel beside it on a computer. */}
+                  <div className="flex min-h-0 w-full flex-col rounded-2xl border border-white/15 bg-black/45 p-3 text-left text-white shadow-xl shadow-black/40 backdrop-blur-md sm:p-4">
+                    <h3 className="mb-2 shrink-0 text-center font-['Cinzel'] text-lg text-brand-gold">Quiz Leaderboard</h3>
+                    {board.data ? (
+                      <div className="grid min-h-0 items-center gap-4 overflow-y-auto overscroll-contain md:grid-cols-[13rem_1fr]">
+                        <div className="hidden md:block">
+                          <QuizWheel entries={board.data.entries} myId={getCurrentUserId()} onDark />
+                        </div>
+                        <QuizLeaderboard entries={board.data.entries} limit={3} myId={getCurrentUserId()} />
+                      </div>
+                    ) : (
+                      <p className="py-6 text-center text-sm text-white/60">{board.error ? "The leaderboard won't load right now." : 'Loading…'}</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {!playing && !score && (
+                    <p className="flex max-w-xl shrink-0 flex-wrap items-center justify-center gap-1.5 text-lg text-white/70">
+                      Every point is a ticket in Monday&apos;s draw for
+                      <CoinIcon kind="ppp" size={16} />
+                      <span className="font-bold text-brand-gold">{quizState.week.prize.toLocaleString('en-US')} P-PP</span>
+                    </p>
+                  )}
+                  <div className="flex min-h-0 w-full flex-col items-center overflow-y-auto overscroll-contain">
+                    <DailyQuizPlayer state={quizState} compact onPlayingChange={setPlaying} onFinished={setScore} />
+                  </div>
+                </>
+              )}
+              {!playing && (
+                <div className="mt-2 flex shrink-0 flex-wrap justify-center gap-3">
+                  <Link to="/daily-quiz" className={done ? primaryButton : secondaryButton}>
+                    {done ? 'Full Quiz Leaderboard' : 'Quiz Leaderboard'}
+                  </Link>
+                  {manager && (
+                    <>
+                      <Link to="/daily-quiz?add=1" className={secondaryButton}>
+                        Add Questions
+                      </Link>
+                      <Link to="/daily-quiz/questions" className={secondaryButton}>
+                        View All Questions
+                      </Link>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : slides[index] === 'welcome' ? (
             <>
               <h1 className="mb-4 text-5xl font-bold text-white">
                 Welcome to Kino <span className="text-brand-gold">Kaverit</span>
@@ -174,9 +266,10 @@ function Hero({ isAuthenticated }) {
             </div>
           )}
         </motion.div>
+        )}
       </AnimatePresence>
 
-      {slides.length > 1 && (
+      {slides.length > 1 && ready && !playing && (
         <>
           <SlideArrow side="left" label="Previous slide" onClick={() => go(-1)} />
           <SlideArrow side="right" label="Next slide" onClick={() => go(1)} />

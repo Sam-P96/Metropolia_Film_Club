@@ -18,7 +18,7 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES,
-    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed",
+    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner",
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -273,6 +273,19 @@ async function noteScratchWin(winnerId, tier, amount, ticketType) {
 async function noteScratchJackpot(winnerId, amount, ticketType) {
     const members = await User.find().distinct("_id");
     await sendToEach(members, { type: "scratchJackpot", ticketType, amount, actors: [winnerId] });
+}
+
+// The Daily Quiz's weekly draw (utils/quiz.js): `winnerId` won `amount`
+// P-PP. Every member hears about it, the winner included.
+async function noteQuizWinner(winnerId, amount) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, { type: "quizWinner", amount, actors: [winnerId] });
+}
+
+// The Daily Quiz's 7 day streak: each of `userIds` played every quiz of
+// the week, and gets `amount` P-PP.
+function noteQuizStreak(userIds, amount) {
+    return sendToEach(userIds, { type: "quizStreak", amount });
 }
 
 // The Slot Machine (utils/slots.js): `playerId` tripled what they put in
@@ -587,6 +600,8 @@ module.exports = {
     noteScratchJackpot,
     noteSlotTriple,
     noteSlotJackpot,
+    noteQuizWinner,
+    noteQuizStreak,
     noteDoubleResult,
     notePokerWin,
     noteStealAttacked,
