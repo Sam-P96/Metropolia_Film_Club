@@ -11,13 +11,13 @@ const percent = (share) => `${(share * 100).toFixed(share < 0.1 ? 1 : 0)}%`
 // only the top that many, and the viewer's own row (`myId`) after them if
 // they're further down, at their real place.
 export default function QuizLeaderboard({ entries, limit = null, myId = null }) {
-  if (entries.length === 0) return <p className="text-center text-ink/60">Nobody has played this week yet.</p>
+  if (entries.length === 0) return <p className="text-center text-white/60">Nobody has played this week yet.</p>
 
   const ranked = entries.map((entry, rank) => ({ ...entry, rank }))
   const shown = limit === null ? ranked : ranked.filter((entry) => entry.rank < limit || entry.user._id === myId)
 
   return (
-    <ol className="divide-y divide-white/10 rounded-xl border border-ink/10 bg-plum shadow-md shadow-black/20">
+    <ol className="divide-y divide-white/10 rounded-xl border border-white/10 bg-black/30 shadow-md shadow-black/20">
       {shown.map((entry, index) => (
         <LeaderboardRow
           key={entry.user._id}

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { wheelColour } from './wheelColours'
 
-// The wheel sits on a white disc (so its colours read on any box, the
-// gold one too), and the gaps between slices are that white.
+// The wheel sits on a white disc (so its colours read on any box), and the
+// gaps between slices are that white.
 const SURFACE = '#ffffff'
 
 const percent = (share) => `${(share * 100).toFixed(share < 0.1 ? 1 : 0)}%`
