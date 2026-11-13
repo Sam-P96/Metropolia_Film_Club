@@ -49,8 +49,9 @@ function PotCard({ bet, bonusPot, bonusEligible }) {
 
 // Double or Nothing: one pot for the whole site (backend/utils/double.js).
 // When the pot resets, in a small chip beside the title; the bet and what
-// it wins up top, then the throw box (or which list they're on), the bonus
-// pot, what others did with it lately, and How to play, which slides open. On a phone everything is one column; on a wide
+// it wins up top, then the throw box (or which list they're on) and the
+// bonus pot under it, what others did with it lately beside them, and How
+// to play, which slides open. On a phone everything is one column; on a wide
 // screen the pot and the throw box sit beside the rest. Coming back
 // mid-game picks the game up again. The page fades in and slides up a
 // little as it opens (with reduced motion, it only fades), over its own
@@ -119,16 +120,14 @@ export default function DoubleOrNothing() {
                   bonusEligible={game ? game.bet >= status.bonusUnlocksAt : status.bonusEligible}
                 />
                 <ThrowBox play={play} wallet={wallet} />
-              </div>
-              <div className="flex flex-col gap-5">
                 <BonusCard
                   bonusPot={status.bonusPot}
                   bonusCap={status.bonusCap}
                   eligible={status.bonusEligible}
                   unlocksAt={status.bonusUnlocksAt}
                 />
-                <RecentPlays recent={status.recent} />
               </div>
+              <RecentPlays recent={status.recent} />
             </div>
             <HowItWorks />
           </>
