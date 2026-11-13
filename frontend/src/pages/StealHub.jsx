@@ -6,7 +6,7 @@ import Reveal, { Placeholder } from '../components/steal/Reveal'
 import { FADE, LAYOUT, SLIDE } from '../components/steal/motion'
 import Loadout from '../components/steal/Loadout'
 import TargetList from '../components/steal/TargetList'
-import PublicFeed from '../components/steal/PublicFeed'
+import StealActivity from '../components/steal/StealActivity'
 import ClassPicker from '../components/steal/ClassPicker'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import CoinIcon from '../components/wallet/CoinIcon'
@@ -14,8 +14,7 @@ import AnimatedNumber from '../components/AnimatedNumber'
 import useApi from '../hooks/useApi'
 import useCountdown from '../hooks/useCountdown'
 import useStealSocket from '../hooks/useStealSocket'
-import { getStealHub, getStealHistory, setStealClass } from '../services/steal'
-import { timeAgo } from '../utils/timeAgo'
+import { getStealHub, setStealClass } from '../services/steal'
 import { STEAL } from '../../../shared/steal/config.js'
 import { GLASS, GOLD_BUTTON, QUIET_BUTTON, formatPp, formatSpan } from '../components/steal/style'
 
@@ -115,50 +114,6 @@ function AttackStatus({ attack }) {
   )
 }
 
-function History({ version }) {
-  const { data, reload } = useApi(getStealHistory, [])
-  useEffect(() => {
-    if (version) reload()
-  }, [version, reload])
-  const rows = data?.attacks ?? []
-  return (
-    <AnimatePresence initial={false}>
-      {rows.length > 0 && (
-        // No layout animation on the glass box or its rows: moving a
-        // backdrop-blurred box makes the blur flicker.
-        <motion.section key="history" {...SLIDE} className={`${GLASS} p-5`}>
-          <h2 className={HEADING}>Your history</h2>
-          <ul className="mt-2 flex flex-col gap-2">
-            <AnimatePresence initial={false}>
-              {rows.map((row) => {
-                const gained = row.role === 'attacker' ? row.amounts?.attackerGot : row.amounts?.defenderGot
-                const lost = row.role === 'attacker' ? row.amounts?.paid : row.amounts?.victimLost
-                return (
-                  <motion.li key={row._id} {...SLIDE}>
-                    <Link to={`/games/steal-and-defend/attacks/${row._id}`} className="flex items-center gap-2 rounded-lg px-1 py-1 text-sm hover:bg-white/5">
-                      {row.other && <MemberAvatar user={row.other} size="sm" />}
-                      <span className="min-w-0 flex-1 truncate text-white/80">
-                        {row.role === 'attacker' ? 'You attacked' : 'Attacked by'} {row.other?.username ?? 'someone who left'}
-                      </span>
-                      <span className="text-xs text-white/50">
-                        {row.status === 'playing' ? 'Playing' : OUTCOMES[row.outcome]}
-                        {row.crit ? ' · Crit' : ''}
-                        {gained ? ` · +${formatPp(gained)}` : ''}
-                        {lost ? ` · −${formatPp(lost)}` : ''}
-                      </span>
-                      <span className="hidden text-xs text-white/30 sm:inline">{timeAgo(row.startedAt)}</span>
-                    </Link>
-                  </motion.li>
-                )
-              })}
-            </AnimatePresence>
-          </ul>
-        </motion.section>
-      )}
-    </AnimatePresence>
-  )
-}
-
 // While the hub loads: boxes roughly where everything will go.
 function HubPlaceholder() {
   return (
@@ -241,7 +196,7 @@ export default function StealHub() {
               </Reveal>
             )}
             <Reveal order={2}>
-              <PublicFeed version={version} />
+              <StealActivity version={version} />
             </Reveal>
           </motion.div>
         ) : (
@@ -301,7 +256,7 @@ export default function StealHub() {
                   <Loadout hub={data} onChanged={refresh} />
                 </Reveal>
                 <Reveal order={3}>
-                  <History version={version} />
+                  <StealActivity version={version} />
                 </Reveal>
               </div>
               <div className="flex flex-col gap-5">
@@ -310,9 +265,6 @@ export default function StealHub() {
                 </Reveal>
                 <Reveal order={3}>
                   <AttackStatus attack={data.attack} />
-                </Reveal>
-                <Reveal order={4}>
-                  <PublicFeed version={version} />
                 </Reveal>
               </div>
             </div>
