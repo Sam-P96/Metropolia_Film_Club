@@ -7,8 +7,10 @@ import { getTopRated } from '../services/films'
 import useApi from '../hooks/useApi'
 import useReviewSorts from '../hooks/useReviewSorts'
 import GifBackground from '../components/GifBackground'
-import reviewsBg from '../assets/giphy.gif'
-import artLoveGif from '../assets/Art Glow GIF by Lucie Mullen.gif'
+import reviewsVideo from '../assets/reviews-bg.mp4'
+import reviewsPoster from '../assets/reviews-bg-poster.webp'
+import artGlowVideo from '../assets/art-glow.mp4'
+import artGlowPoster from '../assets/art-glow-poster.webp'
 
 
 function MovieReviews() {
@@ -19,7 +21,7 @@ function MovieReviews() {
     <section className="text-white">
 
       <div className="relative overflow-hidden border-b border-white/10">
-        <GifBackground src={artLoveGif} />
+        <GifBackground video={artGlowVideo} poster={artGlowPoster} />
 
         <div className="relative mx-auto max-w-4xl px-8 py-20 text-center">
           <h1 className="text-4xl font-bold">
@@ -65,7 +67,8 @@ function MovieReviews() {
         sorts={reviews.options}
         loading={reviews.loading}
         layout="marquee"
-        backgroundUrl={reviewsBg}
+        backgroundVideo={reviewsVideo}
+        backgroundPoster={reviewsPoster}
         linkTo="/films?mode=browse&reviewed=1&sort=release_date.desc"
       />
 

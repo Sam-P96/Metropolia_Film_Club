@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import backgroundImage from '../assets/purple_sparkle_1.gif'
+import LoopVideo from '../components/LoopVideo'
+import sparkleVideo from '../assets/purple-sparkle.mp4'
+import sparklePoster from '../assets/purple-sparkle-poster.webp'
 
 const Login = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
@@ -39,12 +41,7 @@ const Login = ({ setIsAuthenticated }) => {
 
   return (
     <section className="flex items-center justify-center px-8 py-24 text-white">
-      <img
-        src={backgroundImage}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
-      />
+      <LoopVideo src={sparkleVideo} poster={sparklePoster} />
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-ink/60 p-8 shadow-xl shadow-black/50 backdrop-blur-xl sm:p-10">
 
         <h2 className="text-3xl font-bold">

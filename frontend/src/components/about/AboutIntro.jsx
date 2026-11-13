@@ -1,14 +1,11 @@
-import aboutImage from '../../assets/purple_sparkle_1.gif'
+import LoopVideo from '../LoopVideo'
+import sparkleVideo from '../../assets/purple-sparkle.mp4'
+import sparklePoster from '../../assets/purple-sparkle-poster.webp'
 
 function AboutIntro() {
   return (
     <section className="relative overflow-hidden">
-      <img
-        src={aboutImage}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
-      />
+      <LoopVideo src={sparkleVideo} poster={sparklePoster} />
 
       <div className="absolute inset-0 bg-ink/50" />
 
