@@ -445,6 +445,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Movies with club reviews only" turned on.
 - Browse films' rating filter is now "Minimum TMDB rating" and goes in stars
   out of 5, like club ratings (★ 2.5 to ★ 4.0 and up), instead of out of 10.
+- Every page but the home page is a file of its own, loaded the first time
+  it's opened, instead of the whole site coming in one 1.37 MB file. The
+  home page needs about 0.6 MB of JavaScript now (the main file is 0.36 MB).
+  A small gold spinner shows while a page loads.
 
 ### Fixed
 - On phones and tablets, a black bar no longer flashes at the bottom when
