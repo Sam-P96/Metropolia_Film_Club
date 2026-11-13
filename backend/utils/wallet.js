@@ -60,9 +60,10 @@ const TRIES = 5;
 //     coming in pays that off first, since it's added to the same P-PP.
 //     Nothing else can take a wallet below 0.
 // `stealRef` is the attack, listing or trade, for the receipt.
+// `note`: an admin's note with P-PP they sent (utils/admin.js), for it too.
 async function changeWallet(userId, decide, {
     reason, match = null, card = null, game = null, other = null, session = null,
-    steal = false, allowDebt = false, stealRef = null, gomoku = null,
+    steal = false, allowDebt = false, stealRef = null, gomoku = null, note = null,
 } = {}) {
     for (let attempt = 0; attempt < TRIES; attempt++) {
         const user = await User.findById(userId).select("wallet").session(session).lean();
@@ -111,7 +112,7 @@ async function changeWallet(userId, decide, {
         if (result.matchedCount === 0) continue; // changed under us: try again
 
         if (pp !== 0 || ppp !== 0) {
-            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other, steal: stealRef, gomoku }], { session });
+            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other, steal: stealRef, gomoku, ...(note && { note }) }], { session });
         }
 
         return { pp, ppp, balance };

@@ -52,7 +52,8 @@ const Schema = mongoose.Schema;
 //   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
 //   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   adminGrant       P-PP sent by an admin from the admin panel (`other`: which
-//                    admin), newly made (utils/admin.js)
+//                    admin, `note`: what they wrote with it), newly made
+//                    (utils/admin.js)
 //   loanCollector    Kaveri took it for King Loan Shark, out of the
 //                    wallet: only ever an admin's development button (at 12:00
 //                    he takes it from the payout before it reaches the wallet)
@@ -92,6 +93,8 @@ const walletTxSchema = new Schema({
     steal: {type: Schema.Types.ObjectId, default: null},
     // The Infinite Gomoku game a bet, win or refund belongs to.
     gomoku: {type: Schema.Types.ObjectId, ref: "GomokuMatch", default: null},
+    // An admin's note with P-PP they sent (adminGrant), if they wrote one.
+    note: {type: String},
     at: {type: Date, default: Date.now},
 });
 

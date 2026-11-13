@@ -1,6 +1,7 @@
-const { AdminError, MAX_GRANT, MAX_NOTE, grantPpp, recentGrants } = require("../utils/admin");
+const { AdminError, grantPpp, recentGrants } = require("../utils/admin");
 
-// The admin panel (routes/adminRouter.js), admins only.
+// The admin panel's Send P-PP tool (routes/adminRouter.js), admins only.
+// It's in the admin panel and, for admins, the Wallet.
 
 async function handle(res, work) {
     try {
@@ -11,15 +12,15 @@ async function handle(res, work) {
     }
 }
 
-// What the panel shows: the latest P-PP sends, and the limits on one.
-const getPanel = (req, res) =>
-    handle(res, async () => res.json({ grants: await recentGrants(), maxGrant: MAX_GRANT, maxNote: MAX_NOTE }));
+// Every send by every admin, newest first, a page at a time:
+// { grants, hasMore }. `?before=` is the last one of the page before.
+const listGrants = (req, res) => handle(res, async () => res.json(await recentGrants(req.query.before || null)));
 
-// { userId, amount, note }: send P-PP to a member.
+// { userId, amount, note }: send P-PP to a member, or to themselves.
 const sendPpp = (req, res) =>
     handle(res, async () => {
         const sent = await grantPpp(req.user._id, req.body?.userId, req.body?.amount, req.body?.note);
-        res.status(201).json({ sent, grants: await recentGrants() });
+        res.status(201).json({ sent });
     });
 
-module.exports = { getPanel, sendPpp };
+module.exports = { listGrants, sendPpp };
