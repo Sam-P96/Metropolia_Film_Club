@@ -4,6 +4,7 @@ import { BOT_NAME, DICE_PER_TURN, clankerStarts, formatPoints, scoreDice } from 
 import { getBotMatch, getMatch, sendMove, startBotMatch } from '../services/farkle'
 import { walletChanged } from '../services/wallet'
 import { HAPTIC, feelChange, haptic } from '../components/farkle/haptics'
+import { withClankerPicture } from '../components/clankerPicture'
 
 // A game of Farkle played on the server, for points. The server rolls every
 // die and checks every move; this hook only sends moves ("set aside the
@@ -99,8 +100,9 @@ function gameFromMatch(match) {
     prize: match.prize,
     opponent,
     players: ['You', opponent],
-    // Both players, you first, with their avatars and banners.
-    people: [match.players[me], match.players[them]],
+    // Both players, you first, with their avatars and banners (and
+    // Clanker's picture, against the bot).
+    people: [match.players[me], match.players[them]].map(withClankerPicture),
     scores: [match.scores[me], match.scores[them]],
     current: side(match.current),
     dice: match.dice,
