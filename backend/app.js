@@ -4,6 +4,7 @@ const fs = require("fs");
 const express = require("express")
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const tmdbRouter = require("./routes/tmdb")
@@ -65,6 +66,14 @@ app.use(helmet({
 // through Vite in development — so no browser ever makes a cross-origin call
 // here. Set CLIENT_ORIGIN in .env only if you host the frontend elsewhere.
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || false }));
+
+// Gzip every response that's worth it: the API's JSON and, in production,
+// the built frontend's JS and CSS, which shrink to about a third. At 12:00
+// everyone opens the site at once for the daily resets, and smaller
+// responses get through quicker. Its default filter skips what's already
+// compressed (the MP4s and images). socket.io answers /socket.io/ on the
+// HTTP server before Express sees it, so the live games aren't affected.
+app.use(compression());
 
 // The Daily Quiz's bulk upload of questions can be long: it gets more
 // room than the 100 KB everything else has (routes/quizRouter.js).

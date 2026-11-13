@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import backgroundImage from '../assets/purple_sparkle_1.gif'
+import LoopVideo from '../components/LoopVideo'
+import sparkleVideo from '../assets/purple-sparkle.mp4'
+import sparklePoster from '../assets/purple-sparkle-poster.webp'
 
 const Signup = () => {
   const [username, setUsername] = useState("");
@@ -48,12 +50,7 @@ const Signup = () => {
 
   return (
     <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-8 py-24 text-white">
-  <img
-    src={backgroundImage}
-    alt=""
-    aria-hidden="true"
-    className="absolute inset-0 -z-10 h-full w-full object-cover motion-reduce:hidden"
-  />
+  <LoopVideo src={sparkleVideo} poster={sparklePoster} className="-z-10" />
   <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-ink/60 p-8 shadow-xl shadow-black/50 backdrop-blur-xl sm:p-10">
         <h2 className="text-3xl font-bold">
           Join the <span className="text-brand-gold">club</span>
