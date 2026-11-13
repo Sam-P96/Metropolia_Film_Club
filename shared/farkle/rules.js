@@ -20,11 +20,12 @@ export const clankerStarts = (roll) => roll <= CLANKER_STARTS_UP_TO
 // What a game against the bot can be played for, in points.
 export const BOT_STAKE = { min: 2, max: 500 }
 
-// What beating the bot pays, all in P-PP: the stake back plus half of it,
-// rounded down. 100 -> 150, 25 -> 37. The minimum stake is 2 because a
-// stake of 1 would win nothing extra.
-export function botPrize(stake) {
-  return stake + Math.floor(stake / 2)
+// What beating the bot pays, all in P-PP. When the player starts: the
+// stake back plus half of it, rounded down (100 -> 150, 25 -> 37). When
+// the die says Clanker starts: double the stake (100 -> 200, 25 -> 50).
+// The minimum stake is 2 because a stake of 1 would win nothing extra.
+export function botPrize(stake, clankerFirst = false) {
+  return clankerFirst ? stake * 2 : stake + Math.floor(stake / 2)
 }
 
 // Against a member, each puts up the stake: at least this much, and at

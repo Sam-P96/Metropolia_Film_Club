@@ -12,7 +12,7 @@ export default function TurnControls({ game, pick, opponent, onRoll, onBank, onP
     return (
       <button type="button" onClick={onRoll} className={`${PRIMARY} w-full`}>
         Roll the die
-        <small className="text-sm font-medium opacity-75">1 to 3: {opponent} starts · 4 to 6: you start</small>
+        <small className="text-sm font-medium opacity-75">1 to 3: {opponent} starts, a win pays double · 4 to 6: you start</small>
       </button>
     )
   }
