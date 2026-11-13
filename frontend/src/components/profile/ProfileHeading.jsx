@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import FollowButton from './FollowButton'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledUsername from '../cosmetics/StyledUsername'
+import InfinityButton from '../firstPlace/InfinityButton'
 import SettingRow from './SettingRow'
 import { deleteUser, setBans } from '../../services/users'
 import { BAN_RIGHTS, lostRights } from '../../utils/bans'
@@ -149,12 +150,14 @@ function BanPanel({ profileUser, onChange }) {
 // `onChange` merges follow and ban changes into the profile.
 // `adminLink`: the name links to /admin, the admin panel (for admins, on
 // their own profile).
-// The name wears their Black Market name style (profileUser.cosmetics); the
-// developer test tool passes made-up `cosmetics` and `resonancePercent`.
+// The name wears their Black Market name style (profileUser.cosmetics), or
+// the First Place effect if they hold a title; then, on their own profile,
+// the ∞ that opens its editor. The developer test tool passes made-up
+// `cosmetics` and `resonancePercent`.
 function ProfileHeading({ name, profileUser, isOwner, onChange, adminLink = false, cosmetics = profileUser.cosmetics, resonancePercent }) {
   const [banning, setBanning] = useState(false)
   const lost = lostRights(profileUser.bans).length
-  const styledName = <StyledUsername name={name} styleId={cosmetics?.name} />
+  const styledName = <StyledUsername name={name} styleId={cosmetics?.name} userId={profileUser._id} />
 
   return (
     <>
@@ -169,6 +172,7 @@ function ProfileHeading({ name, profileUser, isOwner, onChange, adminLink = fals
           ) : (
             <span className="min-w-0 break-words">{styledName}</span>
           )}
+          {isOwner && <InfinityButton user={{ ...profileUser, username: name, cosmetics }} />}
           <ResonanceIcon userId={profileUser._id} percent={resonancePercent} />
         </h1>
 

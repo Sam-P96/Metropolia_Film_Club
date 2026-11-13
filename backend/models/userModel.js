@@ -12,6 +12,26 @@ const favouriteFilmSchema = new Schema(
     { _id: false }
 );
 
+// How their First Place name effect looks (utils/firstPlace.js,
+// shared/firstPlace/config.js). Kept for good, title or not.
+const firstPlaceFxSchema = new Schema(
+    {
+        enabled: { type: Boolean },
+        stones: { type: [String], default: undefined },
+        order: { type: [String], default: undefined },
+        intervals: {
+            power: { type: Number },
+            space: { type: Number },
+            time: { type: Number },
+            mind: { type: Number },
+            soul: { type: Number },
+            reality: { type: Number },
+        },
+        random: { type: Boolean },
+    },
+    { _id: false }
+);
+
 const userSchema = new Schema(
     {
         username: { type: String, required: true, unique: true, trim: true },
@@ -184,6 +204,13 @@ const userSchema = new Schema(
             board: { type: String, default: null },
             grid: { type: String, default: null },
         },
+
+        // Their First Place name effect's settings, for when they're #1 on
+        // a ranking: the PP Leaderboard, the Critics Leaderboard (Top or
+        // Controversial) or by level (utils/firstPlace.js). None until they first save some; then
+        // they're kept for good, so losing every title and winning one back
+        // brings them back.
+        firstPlaceFx: { type: firstPlaceFxSchema, default: undefined },
     },
     { timestamps: { createdAt: "joinedAt", updatedAt: "updatedAt" } }
 );

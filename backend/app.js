@@ -31,6 +31,7 @@ const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
 const quizRouter = require("./routes/quizRouter");
 const adminRouter = require("./routes/adminRouter");
+const firstPlaceRouter = require("./routes/firstPlaceRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -201,6 +202,9 @@ app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/quiz", quizRouter);
 // The admin panel: admins only (routes/adminRouter.js).
 app.use("/api/admin", adminRouter);
+// First Place: who's #1 on each ranking, and their name effect's settings
+// (routes/firstPlaceRouter.js).
+app.use("/api/first-place", firstPlaceRouter);
 app.use("/api/scratch", refuseGameBans, scratchRouter);
 app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
 app.use("/api/slots", refuseGameBans, slotRouter);

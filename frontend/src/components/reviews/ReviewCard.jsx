@@ -10,6 +10,7 @@ import { RANK_TITLES, rankRing } from '../../utils/rankRings'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import StyledUsername from '../cosmetics/StyledUsername'
+import { useFirstPlaceShown } from '../firstPlace/firstPlaceStore'
 import CardShine from '../CardShine'
 import useSoulResonance from '../../hooks/useSoulResonance'
 import useFriends from '../../hooks/useFriends'
@@ -30,9 +31,13 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false, co
   const friend = useFriends().has(String(user?._id))
   const glow = previewGlow !== undefined ? (previewGlow === 'none' ? null : previewGlow) : soul ? 'soul' : friend ? 'friend' : null
   const cosmetics = previewCosmetics ?? user?.cosmetics
-  // A card with cosmetics doesn't hide its overflow, so their particles can
-  // float past its edge; its poster and banner round their own corners.
-  const styled = Boolean(cosmetics?.name || cosmetics?.border)
+  // The First Place effect, in place of their name style, if they hold a title.
+  const firstPlace = useFirstPlaceShown(user?._id)
+  const styledName = Boolean(cosmetics?.name) || firstPlace
+  // A card with cosmetics (or First Place's flares) doesn't hide its
+  // overflow, so they can float past its edge; its poster and banner round
+  // their own corners.
+  const styled = styledName || Boolean(cosmetics?.border)
 
   // The profile's "No reviews yet" stand-in has no film, so there's nothing
   // to link to or vote on.
@@ -171,9 +176,9 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false, co
           className="group relative flex items-center justify-end gap-4 px-5 py-4"
         >
           <div className="text-right">
-            <p className={`flex items-center justify-end gap-1.5 font-semibold transition-colors group-hover:text-brand-gold ${cosmetics?.name ? '' : 'drop-shadow'}`}>
+            <p className={`flex items-center justify-end gap-1.5 font-semibold transition-colors group-hover:text-brand-gold ${styledName ? '' : 'drop-shadow'}`}>
               <span className="min-w-0 [overflow-wrap:anywhere]">
-                <StyledUsername name={user.username} styleId={cosmetics?.name} />
+                <StyledUsername name={user.username} styleId={cosmetics?.name} userId={user._id} />
               </span>
               <ResonanceIcon userId={user._id} percent={resonancePercent} />
             </p>

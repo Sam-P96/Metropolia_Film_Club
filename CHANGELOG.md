@@ -417,6 +417,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The server logs every request that takes over 500 ms, as
   `SLOW 812ms GET /api/...`, to find out what's slow at 12:00 when everyone
   opens the site at once for the daily resets.
+- First Place: a name effect for whoever is #1 on the PP Leaderboard, the
+  Critics Leaderboard's Top or Controversial view, or by level (furthest
+  along within the level, so only an exact tie ties). A tie for #1, or a #1
+  at 0, and nobody holds that title; only #1 ever gets it. One member can
+  hold several and it's still one effect, and a new #1 takes over by
+  itself. The name glows in six stone colours, each pulsing with a vertical
+  lens flare, with a sheen when all six are on; it replaces their Black
+  Market name style (which comes back without a title, or with the effect
+  off) on leaderboards, the Resonance list, review cards and profiles, and
+  hovering it lists the titles. A holder's own profile has a rainbow ∞ by
+  their name that opens an editor: effect on or off, which stones, their
+  order (drag or arrows), Random or a left-to-right wave, and each stone's
+  interval, with a live preview. Settings are kept for good, title or not
+  (`GET /api/first-place`, `PUT /api/first-place/settings`; titles in
+  `backend/utils/firstPlace.js`, stones in `shared/firstPlace/config.js`).
+  The Black Market's developer test tool can preview it.
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
@@ -485,6 +501,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1,000 and 1,500 quick stakes, and 1,000 and 1,500 quick stakes for games
   between members in Kino Farkle and Infinite Gomoku (still up to what the
   poorer of the two has).
+- A new review starts with its author's own like. Liking or disliking your
+  own review no longer counts towards your level, the Critics Leaderboard
+  (Top and Controversial) or First Place: only other members' votes do.
+  `npm run reviews:self-like` (in `backend/`) gives existing reviews their
+  author's like; it only counts until it's run with `--apply`.
 
 ### Fixed
 - On phones and tablets, a black bar no longer flashes at the bottom when
