@@ -473,8 +473,11 @@ export default function useServerFarkle(matchId = null) {
       ...g,
       dice: [face],
       phase: 'bot',
+      prize: match.prize,
       tone: youStart ? 'good' : '',
-      message: youStart ? `You rolled a ${face}: you start!` : `You rolled a ${face}: ${BOT_NAME} starts.`,
+      message: youStart
+        ? `You rolled a ${face}: you start! A win pays ${formatPoints(match.prize)} P-PP.`
+        : `You rolled a ${face}: ${BOT_NAME} starts, so a win pays double: ${formatPoints(match.prize)} P-PP.`,
     })
     await wait(1600)
     if (run !== runRef.current) return
@@ -585,10 +588,13 @@ export default function useServerFarkle(matchId = null) {
         selected: [],
         turnPoints: 0,
         phase: 'firstRoll',
+        // What a win pays hangs on the roll, so it stays hidden until the
+        // die lands (the header shows both until then).
+        prize: null,
         winner: null,
         log: [],
         tone: '',
-        message: `Roll the die to see who starts: 1 to 3, ${BOT_NAME}. 4 to 6, you.`,
+        message: `Roll the die to see who starts: 1 to 3, ${BOT_NAME}, and a win pays double. 4 to 6, you.`,
       })
     },
     [show]

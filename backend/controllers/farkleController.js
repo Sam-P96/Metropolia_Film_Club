@@ -89,7 +89,8 @@ async function getBotMatch(req, res) {
 // A new game against the bot, { target, stake }. The stake is taken now,
 // PP first and then P-PP, and a die decides who starts (1 to 3, the bot,
 // which plays its first turn straight away; 4 to 6, the member). Beating
-// it pays botPrize(stake) P-PP.
+// it pays botPrize(stake, clankerFirst) P-PP: double the stake when
+// Clanker started, the stake plus half when the member did.
 async function startBotMatch(req, res) {
     const userId = req.user._id;
     const target = Number(req.body?.target);
@@ -135,8 +136,8 @@ async function startBotMatch(req, res) {
     }
 
     // Who starts: a die, rolled here (it can't be the page's: there are
-    // points on it). 1 to 3, the bot starts and plays its first turn now;
-    // 4 to 6, the member does.
+    // points on it). 1 to 3, the bot starts and plays its first turn now,
+    // and a win pays double; 4 to 6, the member does.
     const firstRoll = crypto.randomInt(1, 7);
     const botFirst = clankerStarts(firstRoll);
     const opening = newGame({ target, first: botFirst ? BOT_SEAT : MEMBER_SEAT });
@@ -145,6 +146,7 @@ async function startBotMatch(req, res) {
         [`players.${MEMBER_SEAT}.paid`]: { pp: 0 - paid.pp, ppp: 0 - paid.ppp },
         lastMoveAt: new Date(),
         firstRoll,
+        prize: botPrize(stake, botFirst),
     });
     if (!saved) throw new Error(`Farkle match ${match._id} changed before it started`);
 

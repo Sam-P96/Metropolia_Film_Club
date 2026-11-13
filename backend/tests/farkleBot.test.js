@@ -13,7 +13,7 @@ process.env.SECRET ??= "farkle-bot-test-secret";
 const mongoose = require("mongoose");
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { clankerStarts } = require("../../shared/farkle/rules.js");
+const { botPrize, clankerStarts } = require("../../shared/farkle/rules.js");
 
 const uri = process.env.MONGO_TEST_URI;
 const dbName = uri ? new URL(uri).pathname.slice(1) : "";
@@ -56,14 +56,17 @@ describe("Farkle against Clanker: who starts", { skip: !uri ? "set MONGO_TEST_UR
         return { status: response.status, body: await response.json() };
     };
 
-    test("each new game rolls a die: 1 to 3 Clanker has had its first turn, 4 to 6 it's the member's to start", async () => {
+    test("each new game rolls a die: 1 to 3 Clanker has had its first turn and a win pays double, 4 to 6 it's the member's to start", async () => {
         const seen = new Set();
         for (let i = 0; i < 16; i++) {
-            const started = await call("POST", "/bot", { target: 8000, stake: 2 });
+            const started = await call("POST", "/bot", { target: 8000, stake: 10 });
             assert.equal(started.status, 201, JSON.stringify(started.body));
             const match = started.body;
             assert.ok(Number.isInteger(match.firstRoll) && match.firstRoll >= 1 && match.firstRoll <= 6, String(match.firstRoll));
             seen.add(clankerStarts(match.firstRoll));
+            // Stake 10: 20 when Clanker starts, 15 when the member does.
+            assert.equal(match.prize, clankerStarts(match.firstRoll) ? 20 : 15);
+            assert.deepEqual([botPrize(10), botPrize(10, true)], [15, 20]);
 
             if (clankerStarts(match.firstRoll)) {
                 // Clanker went first: its turn is done, and it's the member's go (seat 1).
@@ -80,5 +83,13 @@ describe("Farkle against Clanker: who starts", { skip: !uri ? "set MONGO_TEST_UR
         }
         // Sixteen rolls: both ways came up (a 1 in 32,768 chance they wouldn't).
         assert.deepEqual([...seen].sort(), [false, true]);
+    });
+
+    test("stakes against Clanker go up to 1,500", async () => {
+        assert.equal((await call("POST", "/bot", { target: 8000, stake: 1501 })).status, 400);
+        const started = await call("POST", "/bot", { target: 8000, stake: 1500 });
+        assert.equal(started.status, 201, JSON.stringify(started.body));
+        assert.equal(started.body.prize, clankerStarts(started.body.firstRoll) ? 3000 : 2250);
+        await call("POST", `/matches/${started.body._id}/moves`, { version: started.body.version, type: "resign" });
     });
 });

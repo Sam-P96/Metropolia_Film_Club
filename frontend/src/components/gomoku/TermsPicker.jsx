@@ -10,7 +10,7 @@ const choice = (on) =>
 const LEGEND = 'mb-2 w-full text-center text-xs uppercase tracking-widest text-white/60'
 
 // The terms of a game between members: For Fun, or a stake each (2 at the
-// least: 2, 10, 50, 100, 500, 1,000, or any amount typed in, up to what the
+// least: 2, 10, 50, 100, 500, 1,000, 1,500, or any amount typed in, up to what the
 // poorer of the two has), with what the winner takes. Every game is on the
 // 15 x 15 board. With `canSwitch` (a counter), For Fun and For PP can be
 // swapped too. The parent keeps the values and checks them with termsHint

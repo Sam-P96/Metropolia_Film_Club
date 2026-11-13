@@ -14,7 +14,7 @@ import TurnControls from '../components/farkle/TurnControls'
 import useServerFarkle, { selectionOf } from '../hooks/useServerFarkle'
 import useWallet from '../hooks/useWallet'
 import { formatDeadline } from '../utils/farkle'
-import { BOT_MODE, BOT_NAME, formatPoints } from '../../../shared/farkle/rules.js'
+import { BOT_MODE, BOT_NAME, botPrize, formatPoints } from '../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
 const PAGE = 'mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-8 sm:py-12'
@@ -226,7 +226,10 @@ function FarkleGame({ matchId }) {
             <span className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm tabular-nums text-white/80">
               {pvp ? `Stake ${formatPoints(game.stake)} each · winner takes` : `Stake ${formatPoints(game.stake)} · win`}
               <CoinIcon kind="ppp" size={15} />
-              <span className="font-bold text-brand-gold">{formatPoints(game.prize)} P-PP</span>
+              <span className="font-bold text-brand-gold">
+                {/* Before the die for who starts lands, both ways it can go. */}
+                {game.prize === null ? `${formatPoints(botPrize(game.stake))} or ${formatPoints(botPrize(game.stake, true))}` : formatPoints(game.prize)} P-PP
+              </span>
             </span>
           }
         >

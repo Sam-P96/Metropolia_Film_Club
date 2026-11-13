@@ -3,7 +3,7 @@ import CoinIcon from '../wallet/CoinIcon'
 import { stakeHint } from '../../utils/farkle'
 import { WINNING_SCORES, formatPoints, pvpPrize } from '../../../../shared/farkle/rules.js'
 
-const QUICK_STAKES = [10, 50, 100, 250, 500]
+const QUICK_STAKES = [10, 50, 100, 250, 500, 1000, 1500]
 
 const choiceClasses = (on) =>
   `cursor-pointer rounded-xl border px-3 py-2 text-sm tabular-nums transition-colors disabled:cursor-default disabled:opacity-40 ${

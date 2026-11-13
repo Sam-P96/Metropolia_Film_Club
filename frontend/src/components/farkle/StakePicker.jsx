@@ -4,7 +4,7 @@ import CoinIcon from '../wallet/CoinIcon'
 import { BOT_MODE, BOT_NAME, BOT_STAKE, WINNING_SCORES, botPrize, formatPoints } from '../../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
-const QUICK_STAKES = [10, 50, 100, 250, 500]
+const QUICK_STAKES = [10, 50, 100, 250, 500, 1000, 1500]
 
 const choiceClasses = (on) =>
   `cursor-pointer rounded-xl border px-3 py-2 text-sm tabular-nums transition-colors disabled:cursor-default disabled:opacity-40 ${
@@ -33,12 +33,14 @@ export default function StakePicker({ wallet, onStart, initial }) {
   let hint = ''
   if (!whole) hint = 'A stake is a whole number of points.'
   else if (stake < BOT_STAKE.min) hint = `The smallest stake is ${BOT_STAKE.min}.`
-  else if (stake > BOT_STAKE.max) hint = `Stakes against ${BOT_NAME} go up to ${BOT_STAKE.max}.`
+  else if (stake > BOT_STAKE.max) hint = `Stakes against ${BOT_NAME} go up to ${formatPoints(BOT_STAKE.max)}.`
   else if (balance !== null && stake > balance) hint = `You have ${formatPoints(balance)} points.`
 
   const fromPp = wallet && valid ? Math.min(wallet.pp, stake) : 0
   const fromPpp = valid ? stake - fromPp : 0
+  // Both ways the die can go: you start, or Clanker does (double).
   const prize = valid ? botPrize(stake) : 0
+  const doublePrize = valid ? botPrize(stake, true) : 0
 
   const handleStart = async () => {
     setStarting(true)
@@ -119,10 +121,17 @@ export default function StakePicker({ wallet, onStart, initial }) {
         <div className="mt-3 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
           <div>
             <div className="text-xs uppercase tracking-widest text-white/60">If you win</div>
-            <div className="mt-1 flex items-center gap-1.5 text-lg font-bold tabular-nums text-brand-gold">
+            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-lg font-bold tabular-nums text-brand-gold">
               <CoinIcon kind="ppp" /> {formatPoints(prize)} P-PP
+              <span className="text-sm font-medium text-white/60">if you start</span>
             </div>
-            <div className="text-white/60">Your {formatPoints(stake)} back, plus {formatPoints(prize - stake)}.</div>
+            <div className="flex flex-wrap items-center gap-x-1.5 text-lg font-bold tabular-nums text-brand-gold">
+              <CoinIcon kind="ppp" /> {formatPoints(doublePrize)} P-PP
+              <span className="text-sm font-medium text-white/60">if {BOT_NAME} starts</span>
+            </div>
+            <div className="text-white/60">
+              Your {formatPoints(stake)} back, plus {formatPoints(prize - stake)}, or plus {formatPoints(doublePrize - stake)} if {BOT_NAME} starts.
+            </div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-widest text-white/60">Paid with</div>
@@ -144,7 +153,7 @@ export default function StakePicker({ wallet, onStart, initial }) {
       )}
 
       <ul className="mt-4 flex list-disc flex-col gap-1 pl-5 text-sm text-white/70">
-        <li>You roll a die to see who starts: 1 to 3, {BOT_NAME}; 4 to 6, you.</li>
+        <li>You roll a die to see who starts: 1 to 3, {BOT_NAME} (and a win pays double); 4 to 6, you.</li>
         <li>Three days without a move and you lose the game.</li>
       </ul>
 

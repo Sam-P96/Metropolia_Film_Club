@@ -9,7 +9,7 @@ import GameBackdrop from '../components/GameBackdrop'
 import CoinIcon from '../components/wallet/CoinIcon'
 import MemberAvatar from '../components/profile/MemberAvatar'
 import { getLobby } from '../services/farkle'
-import { BOT_MODE, formatPoints } from '../../../shared/farkle/rules.js'
+import { BOT_MODE, BOT_NAME, BOT_STAKE, formatPoints } from '../../../shared/farkle/rules.js'
 import ResonanceIcon from '../components/resonance/ResonanceIcon'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
@@ -163,7 +163,7 @@ export default function FarkleLobby() {
           <section className={`${CARD} flex flex-col gap-3`}>
             <h2 className={HEADING}>{BOT_MODE}</h2>
             <p className="text-white/70">
-              Any time, 2 to 500 points. Win and you get your stake back plus half again, in P-PP. A die decides who starts.
+              Any time, {BOT_STAKE.min} to {formatPoints(BOT_STAKE.max)} points. A die decides who starts. Win and you get your stake back plus half again, in P-PP, or double your stake if {BOT_NAME} started.
             </p>
             <Link
               to="/games/farkle/bot"
