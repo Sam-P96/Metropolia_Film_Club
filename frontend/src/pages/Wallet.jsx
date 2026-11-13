@@ -15,6 +15,7 @@ const REASONS = {
   refund: 'Bet returned',
   shop: 'Shop',
   admin: 'Changed by an admin',
+  adminGrant: 'Sent by an admin',
   giftSent: 'Gift',
   giftReceived: 'Gift',
   scratchTicket: 'Box Office Scratch ticket',
