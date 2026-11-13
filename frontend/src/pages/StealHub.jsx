@@ -255,9 +255,6 @@ export default function StealHub() {
                 <Reveal order={2}>
                   <Loadout hub={data} onChanged={refresh} />
                 </Reveal>
-                <Reveal order={3}>
-                  <StealActivity version={version} />
-                </Reveal>
               </div>
               <div className="flex flex-col gap-5">
                 <Reveal order={2}>
@@ -265,6 +262,9 @@ export default function StealHub() {
                 </Reveal>
                 <Reveal order={3}>
                   <AttackStatus attack={data.attack} />
+                </Reveal>
+                <Reveal order={4}>
+                  <StealActivity version={version} />
                 </Reveal>
               </div>
             </div>
