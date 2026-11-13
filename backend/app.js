@@ -80,6 +80,18 @@ app.use(compression());
 app.use("/api/quiz/questions/bulk", express.json({ limit: "5mb" }));
 app.use(express.json());
 
+// Logs every request that takes over half a second, with how long it took,
+// to find out what's slow at 12:00, when everyone opens the site at once
+// for the daily resets. Quiet the rest of the day.
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+        const ms = Date.now() - start;
+        if (ms > 500) console.log(`SLOW ${ms}ms ${req.method} ${req.originalUrl}`);
+    });
+    next();
+});
+
 // Dislikes only count from members with PVP on (see utils/pvp.js). A full
 // recount once connected keeps the stored totals right, including dislikes
 // given before PVP existed.

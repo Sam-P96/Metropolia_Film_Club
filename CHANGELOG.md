@@ -401,6 +401,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Every number is in `shared/poker/config.js` and every bot
   line in `shared/poker/lines.js`. Chips at the table are kept in
   `PokerSeat` and refunded if the server restarts.
+- The server logs every request that takes over 500 ms, as
+  `SLOW 812ms GET /api/...`, to find out what's slow at 12:00 when everyone
+  opens the site at once for the daily resets.
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
