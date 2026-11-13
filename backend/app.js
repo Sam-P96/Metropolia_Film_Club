@@ -29,6 +29,7 @@ const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
 const quizRouter = require("./routes/quizRouter");
+const adminRouter = require("./routes/adminRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -174,6 +175,8 @@ app.use("/api/wallet", walletRouter);
 app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/quiz", quizRouter);
+// The admin panel: admins only (routes/adminRouter.js).
+app.use("/api/admin", adminRouter);
 app.use("/api/scratch", refuseGameBans, scratchRouter);
 app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
 app.use("/api/slots", refuseGameBans, slotRouter);

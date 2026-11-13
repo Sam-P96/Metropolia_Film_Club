@@ -64,6 +64,7 @@ import GomokuShop from "./pages/GomokuShop";
 import GomokuClanker from "./pages/GomokuClanker";
 import DailyQuiz from "./pages/DailyQuiz";
 import QuizQuestions from "./pages/QuizQuestions";
+import AdminPanel from "./pages/AdminPanel";
 import HazeFilter from "./components/cosmetics/HazeFilter";
 import "./components/cosmetics/cosmetics.css";
 
@@ -129,8 +130,13 @@ function App() {
           <Route path="/SECRETresonance" element={
             isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
           } />
-          {/* Every SECRET page, for the admin named ADMIN: their name on
-              their own profile links here. Anyone else sees nothing. */}
+          {/* Every SECRET page, for admins (the admin panel lists them
+              too). Anyone else sees nothing. */}
+          {/* The admin panel, for admins (the server checks): an admin's
+              name on their own profile links here. Not in the nav. */}
+          <Route path="/admin" element={
+            isAuthenticated ? (<AdminPanel />) : (<Navigate to="/login" state={{ from: '/admin' }} />)
+          } />
           <Route path="/SECRET" element={
             isAuthenticated ? (<SecretIndex />) : (<Navigate to="/login" state={{ from: '/SECRET' }} />)
           } />

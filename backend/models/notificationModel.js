@@ -120,6 +120,10 @@ const LOAN_TYPES = ["loanCollector", "loanMissed", "loanJob", "loanRepay", "loan
 //   quizStreak  they played all 7 of last week's quizzes: `amount` P-PP
 const QUIZ_TYPES = ["quizWinner", "quizStreak"];
 
+// The admin panel (utils/admin.js):
+//   adminGrant  an admin (`actors[0]`) sent them `amount` P-PP, with `note`
+const ADMIN_TYPES = ["adminGrant"];
+
 const GAME_TYPES = [
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
@@ -133,7 +137,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES],
         required: true,
     },
     review: {
@@ -141,7 +145,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -153,6 +157,8 @@ const notificationSchema = new Schema({
     stealAttack: {type: Schema.Types.ObjectId, ref: "StealAttack", default: null},
     stealFlag: {type: Schema.Types.ObjectId, ref: "StealFlag", default: null},
     amount: {type: Number, default: null},
+    // An admin's P-PP send: the note they wrote with it.
+    note: {type: String},
     // Kino Poker: a win's hands won and best hand.
     poker: {
         hands: {type: Number},

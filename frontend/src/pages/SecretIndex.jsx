@@ -27,8 +27,8 @@ function PageLink({ page }) {
   )
 }
 
-// /SECRET: every SECRET page, for the admin named ADMIN, who reaches it by
-// clicking their name on their own profile. Who's looking is checked
+// /SECRET: every SECRET page, for admins (whatever their name). The admin
+// panel (/admin) lists them too. Who's looking is checked
 // against their profile from the server, not the stored login. Anyone else
 // sees nothing here. Not linked from anywhere else.
 export default function SecretIndex() {

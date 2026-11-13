@@ -41,7 +41,7 @@ const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
@@ -172,6 +172,11 @@ async function hydrate(rows, viewer) {
 
         if (row.type === "payout" || row.type === "quizStreak") {
             return [{ _id: row._id, type: row.type, at: row.at, amount: row.amount }];
+        }
+
+        // From the admins: the admin who sent it may have left since; it stays.
+        if (row.type === "adminGrant") {
+            return [{ _id: row._id, type: row.type, at: row.at, amount: row.amount, note: row.note ?? null }];
         }
 
         // Loan Shark. Kaveri and missed payments have nobody else in them;
