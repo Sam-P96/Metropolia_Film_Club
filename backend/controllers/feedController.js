@@ -6,12 +6,13 @@ const Follow = require("../models/followModel");
 const Event = require("../models/eventModel");
 const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
+const PasswordReset = require("../models/passwordResetModel");
 const FarkleMatch = require("../models/farkleMatchModel");
 const GomokuMatch = require("../models/gomokuMatchModel");
 const DoubleGame = require("../models/doubleGameModel");
 const StealAttack = require("../models/stealAttackModel");
 const StealFlag = require("../models/stealFlagModel");
-const { hasRole } = require("../middleware/auth");
+const { hasRole, canApproveReset } = require("../middleware/auth");
 const { catchUp, matchViews } = require("../utils/farkle");
 const gomoku = require("../utils/gomoku");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
@@ -77,6 +78,26 @@ async function reviewCards(ids, viewer) {
     );
 
     return new Map(cards.map((card) => [String(card._id), card]));
+}
+
+// "Reset Locally" password reset requests waiting for a moderator or admin,
+// newest first, leaving out any `viewer` may not decide (see
+// canApproveReset). Each with the member (never their email), when they
+// asked, and when it times out.
+async function openPasswordResets(viewer) {
+    const requests = await PasswordReset.find({ kind: "local", status: "pending", expiresAt: { $gt: new Date() } })
+        .sort({ createdAt: -1 })
+        .populate("user", MEMBER_FIELDS)
+        .lean();
+
+    return requests
+        .filter((request) => request.user && canApproveReset(viewer, request.user))
+        .map((request) => ({
+            _id: request._id,
+            user: userSummary(request.user),
+            at: request.createdAt,
+            expiresAt: request.expiresAt,
+        }));
 }
 
 // Open reports for moderators and admins, one per review, newest report
@@ -419,8 +440,9 @@ const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 //             those out)
 //   seenAt    when they last opened the page (null if never), and `now`,
 //             for marking everything up to it seen (markSeen below)
-// Moderators and admins also get `reports`, with "all" and "reviews": the
-// open ones, above everything. In `items`, pinned notifications come first
+// Moderators and admins also get `passwordResets` (whatever the filter: a
+// member is waiting on them, in person) and `reports`, with "all" and
+// "reviews": the open ones, above everything. In `items`, pinned notifications come first
 // (Farkle challenges waiting on them), then the rest newest first.
 async function getFeed(req, res) {
     const now = new Date();
@@ -453,6 +475,7 @@ async function getFeed(req, res) {
             now,
         }),
         ...(skip === 0 && hasRole(req.user, "moderator") && {
+            passwordResets: await openPasswordResets(req.user),
             reports: filter === "all" || filter === "reviews" ? await openReports(req.user) : [],
         }),
     });
@@ -462,7 +485,7 @@ async function getFeed(req, res) {
 // new since they last opened Notifications (the bell glows purple).
 // `games`: some of it is about games (it blinks red instead): a game
 // notification, or a Farkle or Infinite Gomoku game that's come round to their turn. For
-// moderators and admins, new reports count too. The nav asks every minute
+// moderators and admins, new reports and password reset requests count too. The nav asks every minute
 // or so, so each check is a quick "is there
 // at least one?" rather than loading anything.
 async function getUnread(req, res) {
@@ -490,7 +513,11 @@ async function getUnread(req, res) {
 
     let unread = games || Boolean(await Notification.exists({ ...newer, type: { $ne: "farkleTurn" } }));
     if (!unread && hasRole(viewer, "moderator")) {
-        unread = Boolean(await Report.exists({ status: "open", createdAt: { $gt: since } }));
+        const [report, resets] = await Promise.all([
+            Report.exists({ status: "open", createdAt: { $gt: since } }),
+            openPasswordResets(viewer),
+        ]);
+        unread = Boolean(report) || resets.some((request) => request.at > since);
     }
 
     res.json({ unread, games });

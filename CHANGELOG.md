@@ -180,6 +180,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Without `RESEND_API_KEY` set, the link is logged to the server console
   instead of emailed, for local development. Requesting a link shares the
   login rate limit.
+- "Reset Locally" on "Forgot password?", beside "Send reset link", with an
+  i that explains it on hover or tap ("Reset password locally, send a
+  request to an admin to reset password in person"). The request is pinned
+  at the top of the moderators' and admins' Notifications as "X has
+  requested to change passwords", with Approve and Dismiss, and lights the
+  bell. Moderators decide members' requests, only admins a moderator's,
+  another admin an admin's, and nobody their own. The member's page checks
+  every few seconds and, once it's approved, moves on by itself to choosing
+  the new password, then logs them in. A request times out after 20
+  minutes, and so does an approval (`POST /api/password-resets/local`,
+  `POST /api/password-resets/status`, `PUT /api/password-resets/:id`).
+  Unlike the emailed link, it says when there's no account with the email;
+  it shares the login rate limit.
 - Admins can delete a member's or moderator's account from the Ban Hammer,
   after three confirmations. It removes the same things as a member
   deleting their own account (`DELETE /api/users/:id`).

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
 import CutComposer from '../components/feed/CutComposer'
-import FeedItem, { ReportNotice } from '../components/feed/FeedItem'
+import FeedItem, { PasswordResetNotice, ReportNotice } from '../components/feed/FeedItem'
 import { OngoingGame } from '../components/farkle/FarkleNotice'
 import { OngoingGomoku } from '../components/gomoku/GomokuNotice'
 import { PokerLive } from '../components/poker/PokerNotice'
@@ -98,8 +98,9 @@ const withoutCut = (cutId) => (previous) => {
 // in the nav. Votes on their
 // reviews, replies, new followers, cuts and new reviews from members they
 // follow, and trending reviews. The newest 100, 10 at a time. Above it all,
-// the box for posting a cut of their own. From the top: promoted events
-// they haven't seen yet; for moderators and admins, open reports; then the
+// the box for posting a cut of their own. From the top: for moderators and
+// admins, "Reset Locally" password reset requests; promoted events they
+// haven't seen yet; for moderators and admins, open reports; then the
 // Kino Poker table while members are playing, and the Farkle games they're
 // playing; then jackpots they haven't seen yet; then everything else as
 // usual (pinned challenges, then newest first). Opening the page marks it
@@ -120,6 +121,9 @@ function Feed() {
     window.scrollTo(0, 0)
   }, [key])
 
+  // Moderators and admins only: members waiting on them for a "Reset
+  // Locally" password reset, above everything, with every filter.
+  const passwordResets = feed.data?.passwordResets ?? []
   // Events promoted since they last looked (the Promote button, or a member
   // screening made official), at the very top, with every filter.
   const promoted = feed.data?.promoted ?? []
@@ -154,6 +158,12 @@ function Feed() {
   // A new cut is in the first page, so that's loaded again to show it.
   const handleCutPosted = () => feed.reload()
 
+  const handleResetDecided = (requestId) =>
+    feed.setData((previous) => ({
+      ...previous,
+      passwordResets: previous.passwordResets.filter((request) => request._id !== requestId),
+    }))
+
   const handleResolved = (reviewId) =>
     feed.setData((previous) => ({
       ...previous,
@@ -178,6 +188,16 @@ function Feed() {
           <PillToggle options={FILTERS} value={filter} onChange={setFilter} label="Show" />
         </div>
         <p className={`mt-2 text-sm ${tone.text}`}>{shown.about}</p>
+
+        {passwordResets.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Password reset requests">
+            {passwordResets.map((request) => (
+              <li key={request._id}>
+                <PasswordResetNotice request={request} light={light} onResolved={handleResetDecided} />
+              </li>
+            ))}
+          </ul>
+        )}
 
         {promoted.length > 0 && (
           <ul className="mt-10 space-y-12" aria-label="Promoted events">
