@@ -445,6 +445,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Movies with club reviews only" turned on.
 - Browse films' rating filter is now "Minimum TMDB rating" and goes in stars
   out of 5, like club ratings (★ 2.5 to ★ 4.0 and up), instead of out of 10.
+- The server gzips its responses (the `compression` package): the API's
+  JSON and the built site's JS and CSS. The main JS file goes from 1.37 MB
+  to 0.39 MB over the wire. Videos, images and responses under 1 KB are
+  sent as they are, and the live games' socket.io connection isn't
+  affected.
 - The looping backgrounds (the reviews section on the home and Movie
   Reviews pages, Upcoming Events, Notifications, About, Plan to Watch, and
   the log in, sign up and password reset pages) are short MP4 videos instead
