@@ -250,7 +250,9 @@ function playBot(game, seat, roll = cryptoDice, { bustChance = null, random = cr
 
     let dice = roll;
     if (bustChance) {
-        // Turns alternate, so each seat's go is every other one.
+        // Turns alternate, so each seat's go is every other one: the bot's
+        // nth turn is the match's (2n - 1)th if it started, its 2nth if not,
+        // and either way that's n = turn / 2, rounded up.
         const turn = Math.ceil(game.turn / 2);
         let rolls = 0;
         dice = (count) => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import useMatchSocket from './useMatchSocket'
-import { DICE_PER_TURN, formatPoints, scoreDice } from '../../../shared/farkle/rules.js'
+import { BOT_NAME, DICE_PER_TURN, clankerStarts, formatPoints, scoreDice } from '../../../shared/farkle/rules.js'
 import { getBotMatch, getMatch, sendMove, startBotMatch } from '../services/farkle'
 import { walletChanged } from '../services/wallet'
 import { HAPTIC, feelChange, haptic } from '../components/farkle/haptics'
@@ -265,6 +265,11 @@ export default function useServerFarkle(matchId = null) {
   // { turn, shown } pictures. Each new roll carries on from there.
   const seenRef = useRef({ turn: null, shown: 0 })
 
+  // Against the bot, a new game waits for the member to roll the die that
+  // decides who starts (the server rolled it as it made the game): the
+  // match as the server sent it, until then.
+  const firstRef = useRef(null)
+
   // A change that came in while something was still playing out, to look
   // at once it's done.
   const missedRef = useRef(false)
@@ -447,10 +452,49 @@ export default function useServerFarkle(matchId = null) {
     [playOut, show]
   )
 
+  // Rolling for who starts against the bot: the die tumbles and lands on
+  // the server's roll (1 to 3, the bot starts; 4 to 6, you do), says so,
+  // then the bot's first turn plays out, or yours begins.
+  const rollForFirst = useCallback(async () => {
+    const match = firstRef.current
+    const g = gameRef.current
+    if (!match || !g) return
+    firstRef.current = null
+    const run = runRef.current
+    const face = match.firstRoll ?? 4
+    const youStart = !clankerStarts(face)
+
+    show({ ...g, dice: [face], phase: 'rolling', tone: '', message: 'Rolling…' })
+    await wait(ROLL_MS)
+    if (run !== runRef.current) return
+    show({
+      ...g,
+      dice: [face],
+      phase: 'bot',
+      tone: youStart ? 'good' : '',
+      message: youStart ? `You rolled a ${face}: you start!` : `You rolled a ${face}: ${BOT_NAME} starts.`,
+    })
+    await wait(1600)
+    if (run !== runRef.current) return
+
+    if (youStart) {
+      show(gameFromMatch(match))
+      return
+    }
+    const fresh = { ...gameFromMatch(match), scores: [0, 0], current: 1, dice: [], kept: [], selected: [], turnPoints: 0, phase: 'bot', winner: null, log: [], tone: '', message: '' }
+    show(fresh)
+    await playOut(match, framesFor(match, 0, fresh).frames, null)
+  }, [show, playOut])
+
   // The Roll button: the first roll of your turn, or set aside what you
-  // tapped and roll the rest (all six again on hot dice).
+  // tapped and roll the rest (all six again on hot dice). Before a game
+  // against the bot begins, the roll for who starts.
   const roll = useCallback(() => {
     const g = gameRef.current
+    if (g?.phase === 'firstRoll') {
+      rollForFirst()
+      return
+    }
     if (!g || g.current !== 0) return
 
     let keep = []
@@ -472,7 +516,7 @@ export default function useServerFarkle(matchId = null) {
     const start = { ...g, ...change }
     show({ ...start, dice: tumblingDice(count), selected: [], phase: 'rolling', tone: '', message: 'Rolling…' })
     send({ type: 'roll', keep }, g, start, Date.now())
-  }, [show, send])
+  }, [show, send, rollForFirst])
 
   // The Bank button: add this turn's points, including what you tapped, to
   // your score and pass the dice.
@@ -517,22 +561,35 @@ export default function useServerFarkle(matchId = null) {
     send({ type: 'resign' }, g, g)
   }, [show, send])
 
-  // A new game against the bot, for `stake` points, to `target`. The bot
-  // rolls first, so its first turn plays out before yours. Rejects with
-  // the server's reason (not enough points, say) if it can't start.
+  // A new game against the bot, for `stake` points, to `target`. It
+  // waits for the member to roll the die that decides who starts
+  // (rollForFirst). Rejects with the server's reason (not enough points,
+  // say) if it can't start.
   const start = useCallback(
     async ({ target, stake }) => {
       const match = await startBotMatch({ target, stake })
       walletChanged()
       runRef.current += 1
       setMatch(match)
+      firstRef.current = match
 
       const final = gameFromMatch(match)
-      const fresh = { ...final, scores: [0, 0], current: 1, dice: [], kept: [], selected: [], turnPoints: 0, phase: 'bot', winner: null, log: [], tone: '', message: '' }
-      show(fresh)
-      await playOut(match, framesFor(match, 0, fresh).frames, null)
+      show({
+        ...final,
+        scores: [0, 0],
+        current: 0,
+        dice: [],
+        kept: [],
+        selected: [],
+        turnPoints: 0,
+        phase: 'firstRoll',
+        winner: null,
+        log: [],
+        tone: '',
+        message: `Roll the die to see who starts: 1 to 3, ${BOT_NAME}. 4 to 6, you.`,
+      })
     },
-    [show, playOut]
+    [show]
   )
 
   // "Play again": back to picking a stake.

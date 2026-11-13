@@ -12,8 +12,8 @@ const { BOT_NAME } = require("../../shared/farkle/rules.js");
 // ending games and challenges nobody is answering any more. The game itself
 // is in games/farkle/engine.js.
 
-// Against the bot, the bot sits in seat 0 (it always rolls first) and the
-// member in seat 1. Between members, whoever accepted the challenge sits
+// Against the bot, the bot sits in seat 0 and the member in seat 1 (a die
+// decides which of them starts). Between members, whoever accepted the challenge sits
 // in seat 0, because they roll first.
 const BOT_SEAT = 0;
 const MEMBER_SEAT = 1;
@@ -311,6 +311,8 @@ async function matchViews(matches, viewerId) {
             lastTurns: match.lastTurns,
             log: match.log,
             winner: match.winner,
+            // Against the bot: the die that decided who started.
+            firstRoll: match.firstRoll ?? null,
             endedBy: match.endedBy,
             lastMoveAt: match.lastMoveAt,
             forfeitAt: new Date(new Date(match.lastMoveAt).getTime() + IDLE_LIMIT_MS),

@@ -5,8 +5,18 @@ const PRIMARY = `${BUTTON} cursor-pointer bg-brand-gold text-ink hover:brightnes
 const SECONDARY = `${BUTTON} cursor-pointer border border-white/20 bg-white/5 text-white hover:border-brand-gold/60 hover:bg-white/10`
 
 // Roll and Bank, with a line under each saying what it will do. When the
-// game is over, one Play again button instead.
+// game is over, one Play again button instead. Before a game against the
+// bot begins, one Roll the die button, for who starts.
 export default function TurnControls({ game, pick, opponent, onRoll, onBank, onPlayAgain }) {
+  if (game.phase === 'firstRoll') {
+    return (
+      <button type="button" onClick={onRoll} className={`${PRIMARY} w-full`}>
+        Roll the die
+        <small className="text-sm font-medium opacity-75">1 to 3: {opponent} starts · 4 to 6: you start</small>
+      </button>
+    )
+  }
+
   if (game.phase === 'over') {
     return (
       <button type="button" onClick={onPlayAgain} className={`${PRIMARY} w-full`}>
