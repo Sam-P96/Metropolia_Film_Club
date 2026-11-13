@@ -1,7 +1,5 @@
 import bret from '../../assets/Bret.png'
-import kaveriBaseForm from '../../assets/SECRETpfp/kaveri_base_form.png'
-import kaveriEyes1 from '../../assets/SECRETpfp/kaveri_eyes_1.png'
-import kaveriEyes2 from '../../assets/SECRETpfp/kaveri_eyes_2.png'
+import kaveriPokerFace from '../../assets/SECRETpfp/kaveri_poker_face.webp'
 import { KING_LOAN_SHARK_PICTURE } from '../loanShark/kingLoanShark'
 
 // The bots' pictures at Kino Poker, by the names in shared/poker/config.js
@@ -13,9 +11,6 @@ export const BOT_PICTURES = {
   kingLoanShark: KING_LOAN_SHARK_PICTURE,
   // A wide photo: in close on the face and hat.
   bret: { src: bret, size: '220% auto', position: '57% 0%' },
-  // Close-ups already: just fill the circle.
-  kaveriEyes1: { src: kaveriEyes1, size: 'cover', position: 'center' },
-  kaveriEyes2: { src: kaveriEyes2, size: 'cover', position: 'center' },
-  // The whole bunny: in on the head.
-  kaveriBaseForm: { src: kaveriBaseForm, size: '250% auto', position: '55% 46%' },
+  // Head and shoulders in a suit: a little in on the face.
+  kaveriPokerFace: { src: kaveriPokerFace, size: '125% auto', position: '50% 30%' },
 }

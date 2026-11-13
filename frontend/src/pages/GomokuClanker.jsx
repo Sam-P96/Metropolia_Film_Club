@@ -15,8 +15,12 @@ import { getUser } from '../services/users'
 import { getCurrentUser, getCurrentUserId } from '../utils/currentUser'
 import { DEFAULTS, itemsOfKind, pieceAgainst } from '../../../shared/gomoku/catalogue.js'
 import { CLANKER_NAME } from '../../../shared/gomoku/clanker.js'
+import { CLANKER_PICTURE } from '../components/clankerPicture'
 import { CLANKER_STARTS_UP_TO, clankerStarts } from '../../../shared/farkle/rules.js'
 import { DEFAULT_SIZE, boardOf, isFull, pointName, seatToMove, winningLine } from '../../../shared/gomoku/rules.js'
+
+// Clanker in the players bar: its picture, and no banner.
+const CLANKER_USER = { _id: null, username: CLANKER_NAME, avatarUrl: CLANKER_PICTURE, reviewCardBanner: null }
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 
@@ -169,7 +173,7 @@ export default function GomokuClanker() {
   const side = (seat) => (seat === null ? null : seat === MY_SEAT ? 0 : 1)
   const players = [
     { name: 'You', user: profile.data ?? null, piece: myPiece, first: started && !clankerFirst },
-    { name: CLANKER_NAME, user: null, piece: clankerPiece, first: started && clankerFirst },
+    { name: CLANKER_NAME, user: CLANKER_USER, piece: clankerPiece, first: started && clankerFirst },
   ]
 
   return (

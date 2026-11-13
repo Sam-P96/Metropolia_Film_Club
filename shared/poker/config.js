@@ -89,7 +89,7 @@ export const POKER = {
   // picture is ever missing. How they play is backend/games/poker/bots.js.
   bots: {
     shark: { name: 'King Loan Shark', pictures: ['kingLoanShark'], placeholder: '🦈' },
-    kaveri: { name: 'Kaveri', pictures: ['kaveriEyes1', 'kaveriEyes2', 'kaveriBaseForm'], placeholder: '🐰' },
+    kaveri: { name: 'Kaveri', pictures: ['kaveriPokerFace'], placeholder: '🐰' },
     maverick: { name: 'Bret Maverick', pictures: ['bret'], placeholder: '🎩' },
   },
 }
