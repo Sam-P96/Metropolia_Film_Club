@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import GrantLog from '../components/admin/GrantLog'
+import SendPpp from '../components/admin/SendPpp'
 import CoinIcon from '../components/wallet/CoinIcon'
 import GiftForm from '../components/wallet/GiftForm'
 import useWallet from '../hooks/useWallet'
 import { WALLET_CHANGED_EVENT, getWalletHistory } from '../services/wallet'
+import { getCurrentUser } from '../utils/currentUser'
+import { hasAtLeast } from '../utils/permissions'
 import { timeAgo } from '../utils/timeAgo'
 import { SLOTS } from '../../../shared/slots/config.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md'
+const EASE = [0.22, 1, 0.36, 1]
 
 const REASONS = {
   dailyPayout: 'Daily payout',
@@ -60,11 +66,72 @@ function payoutTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/Helsinki', weekday: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
+// Admins only, at the bottom of the Wallet: the admin panel's Send P-PP
+// tool (components/admin/SendPpp.jsx), which can send to themselves too,
+// and every send by every admin. Hidden until its button is pressed, when
+// it slides open.
+function AdminSend() {
+  const [open, setOpen] = useState(false)
+  const [sends, setSends] = useState(0)
+  const panelId = useId()
+
+  return (
+    <section className={`${CARD} border-brand-gold/40 p-0`}>
+      <h2>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          className="flex w-full cursor-pointer items-center gap-2 rounded-2xl p-6 text-left text-lg font-semibold text-white transition-colors hover:text-brand-gold focus-visible:outline-2 focus-visible:outline-brand-gold"
+        >
+          Send P-PP
+          <span className="rounded-full border border-brand-gold/50 bg-brand-gold/15 px-2 py-0.5 text-xs font-bold tracking-widest text-brand-gold uppercase">
+            Admin
+          </span>
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+            className={`ml-auto h-5 w-5 text-white/60 transition-transform duration-300 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+          >
+            <path d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" />
+          </svg>
+        </button>
+      </h2>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={panelId}
+            key="admin-send"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <div className="px-6 pb-6">
+              <p className="mb-4 text-sm text-white/70">
+                New P-PP for any member, or yourself, made from nothing: no fee, and it doesn&apos;t come out of your wallet. It shows on
+                their history as sent by an admin.
+              </p>
+              <SendPpp onSent={() => setSends((count) => count + 1)} />
+              <h3 className="mt-6 mb-1 text-sm font-semibold tracking-widest text-white/60 uppercase">Sent by admins</h3>
+              <GrantLog version={sends} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  )
+}
+
 // The logged-in member's PP and P-PP, how they earn PP, how bets are paid
-// for, and their latest wallet changes. App.jsx sends logged-out visitors
-// to log in first.
+// for, and their latest wallet changes. Admins also get the Send P-PP tool
+// at the bottom. App.jsx sends logged-out visitors to log in first.
 export default function Wallet() {
   const wallet = useWallet()
+  const admin = hasAtLeast(getCurrentUser(), 'admin')
   const [history, setHistory] = useState(null)
 
   useEffect(() => {
@@ -163,6 +230,8 @@ export default function Wallet() {
           </ul>
         )}
       </section>
+
+      {admin && <AdminSend />}
     </div>
   )
 }

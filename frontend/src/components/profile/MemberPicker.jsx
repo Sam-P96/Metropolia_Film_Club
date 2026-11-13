@@ -9,15 +9,16 @@ import ResonanceIcon from '../resonance/ResonanceIcon'
 const SHOWN = 6
 
 // Finding another member by name: type part of it, then pick from the list.
-// Never lists the logged-in member. `onPick(member)` gets the one picked.
-export default function MemberPicker({ label, onPick }) {
+// Never lists the logged-in member, unless `includeSelf` (the admin Send
+// P-PP tool). `onPick(member)` gets the one picked.
+export default function MemberPicker({ label, onPick, includeSelf = false }) {
   const me = getCurrentUserId()
   const { data: members = [] } = useApi(getUsers, [])
   const [query, setQuery] = useState('')
 
   const search = query.trim().toLowerCase()
   const found = search
-    ? members.filter((member) => member._id !== me && member.username.toLowerCase().includes(search)).slice(0, SHOWN)
+    ? members.filter((member) => (includeSelf || member._id !== me) && member.username.toLowerCase().includes(search)).slice(0, SHOWN)
     : []
 
   return (

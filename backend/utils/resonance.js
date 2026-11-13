@@ -25,7 +25,7 @@ const WEIGHTS = {
 
 // The furthest apart two ratings can be (5 - 0.5). Ratings this far apart,
 // or further once adjusted, are 0% alike.
-const RATING_SPREAD = 3;
+const RATING_SPREAD = 2.75;
 
 // The ends of the rating scale. The same top or bottom rating is no gap at
 // all, however generous or harsh the two usually are: neither could have

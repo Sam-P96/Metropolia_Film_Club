@@ -11,7 +11,7 @@ import KingBox from '../components/loanShark/KingBox'
 import LendForm from '../components/loanShark/LendForm'
 import MyLoans from '../components/loanShark/MyLoans'
 import Postings from '../components/loanShark/Postings'
-import { BUTTON, Feedback, GLASS, INPUT } from '../components/loanShark/parts'
+import { BUTTON, Feedback, GLASS } from '../components/loanShark/parts'
 import useApi from '../hooks/useApi'
 import useWallet from '../hooks/useWallet'
 import {
@@ -21,7 +21,6 @@ import {
   payOffDebt,
   payShark,
   postOffer,
-  runTestCheck,
   sendCollector,
   takeDownOffer,
 } from '../services/loanShark'
@@ -31,48 +30,6 @@ const EASE = [0.22, 1, 0.36, 1]
 
 function Skeleton({ className }) {
   return <div aria-hidden="true" className={`animate-pulse rounded-2xl bg-white/10 ${className}`} />
-}
-
-// Admins only, for testing: the next 12:00 check, right now, for
-// themselves or another member. It pays that day's PP too, and the real
-// payout then skips that day for them.
-function TestTools({ onRun }) {
-  const [username, setUsername] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState(null)
-
-  async function submit(event) {
-    event.preventDefault()
-    setBusy(true)
-    setMessage(null)
-    setMessage(await onRun(username.trim()))
-    setBusy(false)
-  }
-
-  return (
-    <details className={`${GLASS} p-5 text-sm text-white/70 sm:p-6`}>
-      <summary className="cursor-pointer font-semibold text-white">Admin test tools</summary>
-      <p className="mt-3">
-        Runs a member&apos;s next 12:00 check now, as if it were noon on that day: their payout, player loan repayments, the missed-payment check and
-        Kaveri. Each press is the next day. That day&apos;s real payout then skips them, so nobody is ever paid twice for a day.
-      </p>
-      <form onSubmit={submit} className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <input
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          placeholder="Username (blank: you)"
-          className={`${INPUT} sm:max-w-xs`}
-          aria-label="Username to run the check for"
-        />
-        <button type="submit" className={BUTTON} disabled={busy}>
-          {busy ? 'Running…' : 'Run the next 12:00 check'}
-        </button>
-      </form>
-      <div className="mt-2">
-        <Feedback message={message} />
-      </div>
-    </details>
-  )
 }
 
 // Development mode only (the Vite dev server: a production build leaves it
@@ -167,14 +124,6 @@ export default function LoanShark() {
             ? `Kaveri took the last ${points(done.take)} PP. Your debt is cleared.`
             : `Kaveri took ${points(done.take)} PP. You still owe ${points(done.left)}.`,
       ),
-    test: (username) =>
-      run(
-        () => runTestCheck(username || undefined),
-        (done) =>
-          done.result
-            ? `Checked ${done.day}: ${points(done.result.daily)} daily PP, ${points(done.result.deducted)} to loans, ${points(done.result.credited)} into the wallet.`
-            : `Nothing to do for ${done.day}.`,
-      ),
   }
 
   return (
@@ -256,7 +205,6 @@ export default function LoanShark() {
             <MyLoans player={view.player} rules={view.rules} onPayOff={handlers.payOff} onTakeDown={handlers.takeDown} />
             <Postings player={view.player} rules={view.rules} canBorrow={view.me.canBorrow} onBorrow={handlers.borrowOffer} />
             {import.meta.env.DEV && <DevTools inDebt={view.shark.borrowed > 0} onSend={handlers.collector} />}
-            {view.me.isAdmin && <TestTools onRun={handlers.test} />}
           </>
         )}
       </motion.div>
