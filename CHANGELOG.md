@@ -464,6 +464,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the home page alone drops from 17.4 MB to 0.3 MB). Anyone who has asked
   for reduced motion sees the first frame, standing still, instead of no
   background, and the video isn't downloaded for them.
+- Kino Farkle against Clanker pays more when the die says Clanker starts:
+  double the stake (bet 10, get 20) instead of the stake plus half (bet 10,
+  get 15), which is still what a win pays when you start. The stake picker
+  shows both, and the game shows both until the die lands.
+- Stakes go up to 1,500: against Clanker in Kino Farkle (from 500), with
+  1,000 and 1,500 quick stakes, and 1,000 and 1,500 quick stakes for games
+  between members in Kino Farkle and Infinite Gomoku (still up to what the
+  poorer of the two has).
 
 ### Fixed
 - On phones and tablets, a black bar no longer flashes at the bottom when
