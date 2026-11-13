@@ -304,10 +304,18 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
                 <Link to="/resonance" className={buttonClasses}>
                   Resonance
                 </Link>
-                {canModerate(profileUser) && (
-                  <Link to="/banned" className={buttonClasses}>
-                    Banned list
+                {/* Admins get the admin panel instead (it links to the
+                    Banned list); moderators the Banned list. */}
+                {profileUser.role === 'admin' ? (
+                  <Link to="/admin" className={buttonClasses}>
+                    Admin panel
                   </Link>
+                ) : (
+                  canModerate(profileUser) && (
+                    <Link to="/banned" className={buttonClasses}>
+                      Banned list
+                    </Link>
+                  )
                 )}
               </div>
             )}
