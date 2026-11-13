@@ -4,7 +4,10 @@ import ReviewCard from "./ReviewCard";
 import ReviewMarquee, { ReviewMarqueeSkeleton } from "./ReviewMarquee";
 import MarqueeArrows from "./MarqueeArrows";
 import PillToggle from "../PillToggle";
+import LoopVideo from "../LoopVideo";
 
+// `backgroundVideo` and `backgroundPoster`: a looping video behind it
+// (see LoopVideo), under the dark wash.
 // Pass `sorts` ([{ value, label }]), sort and onSortChange to show a toggle
 // beside the title (useReviewSorts has Featured / Recent / Top /
 // Controversial). With `loading`,
@@ -14,7 +17,8 @@ function ReviewSection({
   title,
   reviews,
   layout = "grid",
-  backgroundUrl,
+  backgroundVideo,
+  backgroundPoster,
   linkTo,
   linkText = "See all reviews",
   emptyMessage = "No reviews here.",
@@ -29,14 +33,7 @@ function ReviewSection({
 
   return (
     <section className="relative border-t border-white/10 py-20 text-white">
-      {backgroundUrl && (
-        <img
-          src={backgroundUrl}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
-        />
-      )}
+      {backgroundVideo && <LoopVideo src={backgroundVideo} poster={backgroundPoster} />}
 
       <div className="absolute inset-0 bg-linear-to-b from-ink/90 via-ink/40 to-ink/90" />
 

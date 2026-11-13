@@ -5,67 +5,74 @@ import ScrollToTop from './components/ScrollToTop'
 import NavigationBar from './components/NavigationBar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
-import About from './pages/About'
-import Signup from "./pages/Signup";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import ClubEvents from './pages/ClubEvents'
-import Profile from "./pages/Profile";
-import Wheel from './pages/Wheel';
-import UserFilmList from "./pages/UserFilmList";
-import ReviewDetail from "./pages/ReviewDetail";
-import FilmDetail from "./pages/FilmDetail";
-import FilmBrowser from "./pages/FilmBrowser";
-import MovieReviews from "./pages/MovieReviews";
-import FilmReviews from "./pages/FilmReviews";
-import WriteReview from "./pages/WriteReview";
-import AllEvents from "./pages/AllEvents";
-import CreateEvent from "./pages/CreateEvent";
-import EventDetail from "./pages/EventDetail";
-import EditEvent from "./pages/EditEvent";
-import PlanToWatchAll from "./pages/PlanToWatchAll";
-import Members from "./pages/Members";
-import SearchResults from "./pages/SearchResults";
-import Privacy from "./pages/Privacy";
-import Feed from "./pages/Feed";
-import CutDetail from "./pages/CutDetail";
-import FollowList from "./pages/FollowList";
-import BannedList from "./pages/BannedList";
-import SecretPfp from "./pages/SecretPfp";
-import FarkleMatch from "./pages/FarkleMatch";
-import FarkleLobby from "./pages/FarkleLobby";
-import Games from "./pages/Games";
-import ScratchGame from "./pages/ScratchGame";
-import DoubleOrNothing from "./pages/DoubleOrNothing";
-import SlotMachine from "./pages/SlotMachine";
-import Wallet from "./pages/Wallet";
-import Resonance from "./pages/Resonance";
-import ResonanceCompare from "./pages/ResonanceCompare";
-import SecretResonance from "./pages/SecretResonance";
-import SecretLoanShark from "./pages/SecretLoanShark";
-import SecretIndex from "./pages/SecretIndex";
-import StealAndDefend from "./pages/StealAndDefend";
-import StealHub from "./pages/StealHub";
-import StealShop from "./pages/StealShop";
-import StealMarket from "./pages/StealMarket";
-import StealAttack from "./pages/StealAttack";
-import StealAdmin from "./pages/StealAdmin";
 import StealAlert from "./components/steal/StealAlert";
-import Poker from "./pages/Poker";
-import PokerTable from "./pages/PokerTable";
-import LoanShark from "./pages/LoanShark";
-import BlackMarket from "./pages/BlackMarket";
-import BlackMarketDev from "./pages/BlackMarketDev";
-import GomokuLobby from "./pages/GomokuLobby";
-import GomokuMatch from "./pages/GomokuMatch";
-import GomokuLocal from "./pages/GomokuLocal";
-import GomokuShop from "./pages/GomokuShop";
-import GomokuClanker from "./pages/GomokuClanker";
-import DailyQuiz from "./pages/DailyQuiz";
-import QuizQuestions from "./pages/QuizQuestions";
 import HazeFilter from "./components/cosmetics/HazeFilter";
 import "./components/cosmetics/cosmetics.css";
+import PageLoading from "./components/PageLoading";
+
+// Every page but Home loads the first time it's opened, as a file of its
+// own, instead of all of them in one big file before anything shows. Home
+// comes with the site, since nearly everyone lands there first. While a
+// page loads, PageLoading shows (the <Suspense> round the routes).
+const About = lazy(() => import("./pages/About"));
+const Signup = lazy(() => import("./pages/Signup"));
+const Login = lazy(() => import("./pages/Login"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ClubEvents = lazy(() => import("./pages/ClubEvents"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Wheel = lazy(() => import("./pages/Wheel"));
+const UserFilmList = lazy(() => import("./pages/UserFilmList"));
+const ReviewDetail = lazy(() => import("./pages/ReviewDetail"));
+const FilmDetail = lazy(() => import("./pages/FilmDetail"));
+const FilmBrowser = lazy(() => import("./pages/FilmBrowser"));
+const MovieReviews = lazy(() => import("./pages/MovieReviews"));
+const FilmReviews = lazy(() => import("./pages/FilmReviews"));
+const WriteReview = lazy(() => import("./pages/WriteReview"));
+const AllEvents = lazy(() => import("./pages/AllEvents"));
+const CreateEvent = lazy(() => import("./pages/CreateEvent"));
+const EventDetail = lazy(() => import("./pages/EventDetail"));
+const EditEvent = lazy(() => import("./pages/EditEvent"));
+const PlanToWatchAll = lazy(() => import("./pages/PlanToWatchAll"));
+const Members = lazy(() => import("./pages/Members"));
+const SearchResults = lazy(() => import("./pages/SearchResults"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Feed = lazy(() => import("./pages/Feed"));
+const CutDetail = lazy(() => import("./pages/CutDetail"));
+const FollowList = lazy(() => import("./pages/FollowList"));
+const BannedList = lazy(() => import("./pages/BannedList"));
+const SecretPfp = lazy(() => import("./pages/SecretPfp"));
+const FarkleMatch = lazy(() => import("./pages/FarkleMatch"));
+const FarkleLobby = lazy(() => import("./pages/FarkleLobby"));
+const Games = lazy(() => import("./pages/Games"));
+const ScratchGame = lazy(() => import("./pages/ScratchGame"));
+const DoubleOrNothing = lazy(() => import("./pages/DoubleOrNothing"));
+const SlotMachine = lazy(() => import("./pages/SlotMachine"));
+const Wallet = lazy(() => import("./pages/Wallet"));
+const Resonance = lazy(() => import("./pages/Resonance"));
+const ResonanceCompare = lazy(() => import("./pages/ResonanceCompare"));
+const SecretResonance = lazy(() => import("./pages/SecretResonance"));
+const SecretLoanShark = lazy(() => import("./pages/SecretLoanShark"));
+const SecretIndex = lazy(() => import("./pages/SecretIndex"));
+const StealAndDefend = lazy(() => import("./pages/StealAndDefend"));
+const StealHub = lazy(() => import("./pages/StealHub"));
+const StealShop = lazy(() => import("./pages/StealShop"));
+const StealMarket = lazy(() => import("./pages/StealMarket"));
+const StealAttack = lazy(() => import("./pages/StealAttack"));
+const StealAdmin = lazy(() => import("./pages/StealAdmin"));
+const Poker = lazy(() => import("./pages/Poker"));
+const PokerTable = lazy(() => import("./pages/PokerTable"));
+const LoanShark = lazy(() => import("./pages/LoanShark"));
+const BlackMarket = lazy(() => import("./pages/BlackMarket"));
+const BlackMarketDev = lazy(() => import("./pages/BlackMarketDev"));
+const GomokuLobby = lazy(() => import("./pages/GomokuLobby"));
+const GomokuMatch = lazy(() => import("./pages/GomokuMatch"));
+const GomokuLocal = lazy(() => import("./pages/GomokuLocal"));
+const GomokuShop = lazy(() => import("./pages/GomokuShop"));
+const GomokuClanker = lazy(() => import("./pages/GomokuClanker"));
+const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
+const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 
 // Infinite Gomoku's developer tool: only in the Vite dev server. A
 // production build replaces import.meta.env.DEV with false, so the page
@@ -103,187 +110,194 @@ function App() {
       />
 
       <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
-          <Route path="/about" element={<About isAuthenticated={isAuthenticated} />} />
-          <Route path="/club_events" element={<ClubEvents isAuthenticated={isAuthenticated} />} />
-          <Route path="/signup" element={
-            isAuthenticated ? (<Navigate to="/" />) : (<Signup setIsAuthenticated={setIsAuthenticated} />)
-          } />
-          <Route path="/login" element={
-            isAuthenticated ? (<Navigate to={afterLogin} />) : (<Login setIsAuthenticated={setIsAuthenticated} />)
-          } />
-          <Route path="/account" element={
-            isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
-          } />
-          {/* "Forgot password?" on the login page, then choosing the new one
-              once a moderator or admin approves. */}
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/search" element={<SearchResults />} />
-          <Route path="/privacy" element={<Privacy />} />
-          {/* Not linked from anywhere on purpose. */}
-          <Route path="/SECRETpfp" element={<SecretPfp isAuthenticated={isAuthenticated} />} />
-          {/* Moderators and admins only (the server checks): the icon in
-              the Resonance page's heading links here for them. */}
-          <Route path="/SECRETresonance" element={
-            isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
-          } />
-          {/* Every SECRET page, for the admin named ADMIN: their name on
-              their own profile links here. Anyone else sees nothing. */}
-          <Route path="/SECRET" element={
-            isAuthenticated ? (<SecretIndex />) : (<Navigate to="/login" state={{ from: '/SECRET' }} />)
-          } />
-          {/* Admins only (the server checks): who King Loan Shark's jobs can
-              pick. Not linked from anywhere on purpose. */}
-          <Route path="/SECRETloanshark" element={
-            isAuthenticated ? (<SecretLoanShark />) : (<Navigate to="/login" state={{ from: '/SECRETloanshark' }} />)
-          } />
-          <Route path="/members" element={<Members />} />
-          {/* Resonance: everyone's taste match with you. Reached from the
-              home page's Resonance slide, your profile and Members. */}
-          <Route path="/resonance" element={
-            isAuthenticated ? (<Resonance />) : (<Navigate to="/login" state={{ from: '/resonance' }} />)
-          } />
-          {/* Every film you and one member have both rated, side by side:
-              the score on their Resonance card links here. */}
-          <Route path="/resonance/:userId" element={
-            isAuthenticated ? (<ResonanceCompare />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/users/:userId" element={<Profile />} />
-          <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />
-          <Route path="/users/:userId/following" element={<FollowList key="following" kind="following" />} />
-          <Route path="/banned" element={
-            isAuthenticated ? (<BannedList />) : (<Navigate to="/login" state={{ from: '/banned' }} />)
-          } />
-          {/* A cut and its replies, where Feed links to a reply go. */}
-          <Route path="/cuts/:cutId" element={<CutDetail isAuthenticated={isAuthenticated} />} />
-          <Route path="/feed" element={
-            isAuthenticated ? (<Feed />) : (<Navigate to="/login" state={{ from: '/feed' }} />)
-          } />
-
-          <Route path="/wheel" element={<Wheel />} />
-          {/* The Daily Quiz (also on the home page's first slide), and the
-              queue of questions for moderators and admins (the server checks). */}
-          <Route path="/daily-quiz" element={
-            isAuthenticated ? (<DailyQuiz />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/daily-quiz/questions" element={
-            isAuthenticated ? (<QuizQuestions />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {/* Games, from the nav. Anyone can see what there is; playing is
-              for points, so the games themselves need a login, and come
-              back to the same page after it (links from notifications). */}
-          <Route path="/games" element={<Games />} />
-          <Route path="/games/farkle" element={
-            isAuthenticated ? (<FarkleLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/farkle/bot" element={
-            isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/farkle/:matchId" element={
-            isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {/* Infinite Gomoku: its page (Play For Fun, Play For PP, Shop),
-              two players on one device, vs Clanker, the shop, and a game
-              between members. The developer tool only exists in development. */}
-          <Route path="/games/gomoku" element={
-            isAuthenticated ? (<GomokuLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/gomoku/local" element={
-            isAuthenticated ? (<GomokuLocal />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/gomoku/clanker" element={
-            isAuthenticated ? (<GomokuClanker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/gomoku/shop" element={
-            isAuthenticated ? (<GomokuShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {GomokuDev && (
-            <Route path="/games/gomoku/dev" element={
-              isAuthenticated ? (<Suspense fallback={null}><GomokuDev /></Suspense>) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
+            <Route path="/about" element={<About isAuthenticated={isAuthenticated} />} />
+            <Route path="/club_events" element={<ClubEvents isAuthenticated={isAuthenticated} />} />
+            <Route path="/signup" element={
+              isAuthenticated ? (<Navigate to="/" />) : (<Signup setIsAuthenticated={setIsAuthenticated} />)
             } />
-          )}
-          <Route path="/games/gomoku/:matchId" element={
-            isAuthenticated ? (<GomokuMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/scratch" element={
-            isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/slots" element={
-            isAuthenticated ? (<SlotMachine />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/double-or-nothing" element={
-            isAuthenticated ? (<DoubleOrNothing />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {/* Steal and Defend: the intro, the hub, the shop, the market and
-              trades, one attack (its quiz, then its result), and admins'
-              flags and Ban List (the server checks who's an admin). */}
-          <Route path="/games/steal-and-defend" element={
-            isAuthenticated ? (<StealAndDefend />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/steal-and-defend/play" element={
-            isAuthenticated ? (<StealHub />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/steal-and-defend/shop" element={
-            isAuthenticated ? (<StealShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/steal-and-defend/market" element={
-            isAuthenticated ? (<StealMarket />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/steal-and-defend/attacks/:attackId" element={
-            isAuthenticated ? (<StealAttack />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/steal-and-defend/admin" element={
-            isAuthenticated ? (<StealAdmin />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {/* Kino Poker: the intro, then the one table (played live, over
-              the socket: backend/games/poker/live.js). */}
-          <Route path="/games/poker" element={
-            isAuthenticated ? (<Poker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/poker/table" element={
-            isAuthenticated ? (<PokerTable />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {/* Loan Shark: King Loan Shark, and members lending to each other. */}
-          <Route path="/games/loan-shark" element={
-            isAuthenticated ? (<LoanShark />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          {/* The Black Market, from the Loan Shark page: cosmetics for P-PP.
-              Its developer test tool is for admins (the server checks). */}
-          <Route path="/games/loan-shark/black-market" element={
-            isAuthenticated ? (<BlackMarket />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/games/loan-shark/black-market/dev" element={
-            isAuthenticated ? (<BlackMarketDev />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
-          } />
-          <Route path="/users/:userId/films" element={<UserFilmList />} />
-          <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
-          <Route path="/movie_reviews" element={<MovieReviews />} />
+            <Route path="/login" element={
+              isAuthenticated ? (<Navigate to={afterLogin} />) : (<Login setIsAuthenticated={setIsAuthenticated} />)
+            } />
+            <Route path="/account" element={
+              isAuthenticated ? (<Profile />) : (<Navigate to="/login" />)
+            } />
+            {/* "Forgot password?" on the login page, then choosing the new one
+                once a moderator or admin approves. */}
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/search" element={<SearchResults />} />
+            <Route path="/privacy" element={<Privacy />} />
+            {/* Not linked from anywhere on purpose. */}
+            <Route path="/SECRETpfp" element={<SecretPfp isAuthenticated={isAuthenticated} />} />
+            {/* Moderators and admins only (the server checks): the icon in
+                the Resonance page's heading links here for them. */}
+            <Route path="/SECRETresonance" element={
+              isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
+            } />
+            {/* Every SECRET page, for admins (the admin panel lists them
+                too). Anyone else sees nothing. */}
+            {/* The admin panel, for admins (the server checks): an admin's
+                name on their own profile links here. Not in the nav. */}
+            <Route path="/admin" element={
+              isAuthenticated ? (<AdminPanel />) : (<Navigate to="/login" state={{ from: '/admin' }} />)
+            } />
+            <Route path="/SECRET" element={
+              isAuthenticated ? (<SecretIndex />) : (<Navigate to="/login" state={{ from: '/SECRET' }} />)
+            } />
+            {/* Admins only (the server checks): who King Loan Shark's jobs can
+                pick. Not linked from anywhere on purpose. */}
+            <Route path="/SECRETloanshark" element={
+              isAuthenticated ? (<SecretLoanShark />) : (<Navigate to="/login" state={{ from: '/SECRETloanshark' }} />)
+            } />
+            <Route path="/members" element={<Members />} />
+            {/* Resonance: everyone's taste match with you. Reached from the
+                home page's Resonance slide, your profile and Members. */}
+            <Route path="/resonance" element={
+              isAuthenticated ? (<Resonance />) : (<Navigate to="/login" state={{ from: '/resonance' }} />)
+            } />
+            {/* Every film you and one member have both rated, side by side:
+                the score on their Resonance card links here. */}
+            <Route path="/resonance/:userId" element={
+              isAuthenticated ? (<ResonanceCompare />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/users/:userId" element={<Profile />} />
+            <Route path="/users/:userId/followers" element={<FollowList key="followers" kind="followers" />} />
+            <Route path="/users/:userId/following" element={<FollowList key="following" kind="following" />} />
+            <Route path="/banned" element={
+              isAuthenticated ? (<BannedList />) : (<Navigate to="/login" state={{ from: '/banned' }} />)
+            } />
+            {/* A cut and its replies, where Feed links to a reply go. */}
+            <Route path="/cuts/:cutId" element={<CutDetail isAuthenticated={isAuthenticated} />} />
+            <Route path="/feed" element={
+              isAuthenticated ? (<Feed />) : (<Navigate to="/login" state={{ from: '/feed' }} />)
+            } />
 
-          {/* film routes — one route per path, all using :tmdbId */}
-          <Route path="/films" element={<FilmBrowser />} />
-          <Route
-            path="/films/:tmdbId"
-            element={<FilmDetail isAuthenticated={isAuthenticated} />}
-          />
-          <Route
-            path="/films/:tmdbId/review"
-            element={isAuthenticated ? <WriteReview /> : <Navigate to="/login" />}
-          />
-          <Route path="/films/:tmdbId/reviews" element={<FilmReviews />} />
-          <Route path="/club_events/all" element={<AllEvents />} />
-          <Route path="/club_events/plan_to_watch" element={<PlanToWatchAll />} />
-          <Route path="/club_events/new" element={<CreateEvent />} />
-          <Route
-            path="/club_events/:eventId"
-            element={<EventDetail isAuthenticated={isAuthenticated} />}
-          />
-          <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
-          <Route path="/wallet" element={
-            isAuthenticated ? (<Wallet />) : (<Navigate to="/login" state={{ from: '/wallet' }} />)
-          } />
-        </Routes>
+            <Route path="/wheel" element={<Wheel />} />
+            {/* The Daily Quiz (also on the home page's first slide), and the
+                queue of questions for moderators and admins (the server checks). */}
+            <Route path="/daily-quiz" element={
+              isAuthenticated ? (<DailyQuiz />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/daily-quiz/questions" element={
+              isAuthenticated ? (<QuizQuestions />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Games, from the nav. Anyone can see what there is; playing is
+                for points, so the games themselves need a login, and come
+                back to the same page after it (links from notifications). */}
+            <Route path="/games" element={<Games />} />
+            <Route path="/games/farkle" element={
+              isAuthenticated ? (<FarkleLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/farkle/bot" element={
+              isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/farkle/:matchId" element={
+              isAuthenticated ? (<FarkleMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Infinite Gomoku: its page (Play For Fun, Play For PP, Shop),
+                two players on one device, vs Clanker, the shop, and a game
+                between members. The developer tool only exists in development. */}
+            <Route path="/games/gomoku" element={
+              isAuthenticated ? (<GomokuLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/gomoku/local" element={
+              isAuthenticated ? (<GomokuLocal />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/gomoku/clanker" element={
+              isAuthenticated ? (<GomokuClanker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/gomoku/shop" element={
+              isAuthenticated ? (<GomokuShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {GomokuDev && (
+              <Route path="/games/gomoku/dev" element={
+                isAuthenticated ? (<Suspense fallback={null}><GomokuDev /></Suspense>) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+              } />
+            )}
+            <Route path="/games/gomoku/:matchId" element={
+              isAuthenticated ? (<GomokuMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/scratch" element={
+              isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/slots" element={
+              isAuthenticated ? (<SlotMachine />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/double-or-nothing" element={
+              isAuthenticated ? (<DoubleOrNothing />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Steal and Defend: the intro, the hub, the shop, the market and
+                trades, one attack (its quiz, then its result), and admins'
+                flags and Ban List (the server checks who's an admin). */}
+            <Route path="/games/steal-and-defend" element={
+              isAuthenticated ? (<StealAndDefend />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/steal-and-defend/play" element={
+              isAuthenticated ? (<StealHub />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/steal-and-defend/shop" element={
+              isAuthenticated ? (<StealShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/steal-and-defend/market" element={
+              isAuthenticated ? (<StealMarket />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/steal-and-defend/attacks/:attackId" element={
+              isAuthenticated ? (<StealAttack />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/steal-and-defend/admin" element={
+              isAuthenticated ? (<StealAdmin />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Kino Poker: the intro, then the one table (played live, over
+                the socket: backend/games/poker/live.js). */}
+            <Route path="/games/poker" element={
+              isAuthenticated ? (<Poker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/poker/table" element={
+              isAuthenticated ? (<PokerTable />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Loan Shark: King Loan Shark, and members lending to each other. */}
+            <Route path="/games/loan-shark" element={
+              isAuthenticated ? (<LoanShark />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* The Black Market, from the Loan Shark page: cosmetics for P-PP.
+                Its developer test tool is for admins (the server checks). */}
+            <Route path="/games/loan-shark/black-market" element={
+              isAuthenticated ? (<BlackMarket />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/loan-shark/black-market/dev" element={
+              isAuthenticated ? (<BlackMarketDev />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/users/:userId/films" element={<UserFilmList />} />
+            <Route path="/reviews/:reviewId" element={<ReviewDetail isAuthenticated={isAuthenticated} />} />
+            <Route path="/movie_reviews" element={<MovieReviews />} />
+
+            {/* film routes — one route per path, all using :tmdbId */}
+            <Route path="/films" element={<FilmBrowser />} />
+            <Route
+              path="/films/:tmdbId"
+              element={<FilmDetail isAuthenticated={isAuthenticated} />}
+            />
+            <Route
+              path="/films/:tmdbId/review"
+              element={isAuthenticated ? <WriteReview /> : <Navigate to="/login" />}
+            />
+            <Route path="/films/:tmdbId/reviews" element={<FilmReviews />} />
+            <Route path="/club_events/all" element={<AllEvents />} />
+            <Route path="/club_events/plan_to_watch" element={<PlanToWatchAll />} />
+            <Route path="/club_events/new" element={<CreateEvent />} />
+            <Route
+              path="/club_events/:eventId"
+              element={<EventDetail isAuthenticated={isAuthenticated} />}
+            />
+            <Route path="/club_events/:eventId/edit" element={<EditEvent />} />
+            <Route path="/wallet" element={
+              isAuthenticated ? (<Wallet />) : (<Navigate to="/login" state={{ from: '/wallet' }} />)
+            } />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* Steal and Defend's "you're being attacked" alert, on any page. */}

@@ -401,6 +401,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Every number is in `shared/poker/config.js` and every bot
   line in `shared/poker/lines.js`. Chips at the table are kept in
   `PokerSeat` and refunded if the server restarts.
+- The server logs every request that takes over 500 ms, as
+  `SLOW 812ms GET /api/...`, to find out what's slow at 12:00 when everyone
+  opens the site at once for the daily resets.
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
@@ -445,6 +448,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Movies with club reviews only" turned on.
 - Browse films' rating filter is now "Minimum TMDB rating" and goes in stars
   out of 5, like club ratings (★ 2.5 to ★ 4.0 and up), instead of out of 10.
+- Every page but the home page is a file of its own, loaded the first time
+  it's opened, instead of the whole site coming in one 1.37 MB file. The
+  home page needs about 0.6 MB of JavaScript now (the main file is 0.36 MB).
+  A small gold spinner shows while a page loads.
+- The server gzips its responses (the `compression` package): the API's
+  JSON and the built site's JS and CSS. The main JS file goes from 1.37 MB
+  to 0.39 MB over the wire. Videos, images and responses under 1 KB are
+  sent as they are, and the live games' socket.io connection isn't
+  affected.
+- The looping backgrounds (the reviews section on the home and Movie
+  Reviews pages, Upcoming Events, Notifications, About, Plan to Watch, and
+  the log in, sign up and password reset pages) are short MP4 videos instead
+  of GIFs: the same picture at about 0.8 MB for all four instead of 30.8 MB
+  (the home page alone drops from 17.4 MB to 0.3 MB). Anyone who has asked
+  for reduced motion sees the first frame, standing still, instead of no
+  background, and the video isn't downloaded for them.
 
 ### Fixed
 - On phones and tablets, a black bar no longer flashes at the bottom when

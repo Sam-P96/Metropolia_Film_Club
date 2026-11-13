@@ -4,6 +4,7 @@ const fs = require("fs");
 const express = require("express")
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const tmdbRouter = require("./routes/tmdb")
@@ -29,6 +30,7 @@ const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
 const quizRouter = require("./routes/quizRouter");
+const adminRouter = require("./routes/adminRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
 const { giveEveryoneAWallet } = require("./utils/wallet");
@@ -65,10 +67,30 @@ app.use(helmet({
 // here. Set CLIENT_ORIGIN in .env only if you host the frontend elsewhere.
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || false }));
 
+// Gzip every response that's worth it: the API's JSON and, in production,
+// the built frontend's JS and CSS, which shrink to about a third. At 12:00
+// everyone opens the site at once for the daily resets, and smaller
+// responses get through quicker. Its default filter skips what's already
+// compressed (the MP4s and images). socket.io answers /socket.io/ on the
+// HTTP server before Express sees it, so the live games aren't affected.
+app.use(compression());
+
 // The Daily Quiz's bulk upload of questions can be long: it gets more
 // room than the 100 KB everything else has (routes/quizRouter.js).
 app.use("/api/quiz/questions/bulk", express.json({ limit: "5mb" }));
 app.use(express.json());
+
+// Logs every request that takes over half a second, with how long it took,
+// to find out what's slow at 12:00, when everyone opens the site at once
+// for the daily resets. Quiet the rest of the day.
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+        const ms = Date.now() - start;
+        if (ms > 500) console.log(`SLOW ${ms}ms ${req.method} ${req.originalUrl}`);
+    });
+    next();
+});
 
 // Dislikes only count from members with PVP on (see utils/pvp.js). A full
 // recount once connected keeps the stored totals right, including dislikes
@@ -174,6 +196,8 @@ app.use("/api/wallet", walletRouter);
 app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/quiz", quizRouter);
+// The admin panel: admins only (routes/adminRouter.js).
+app.use("/api/admin", adminRouter);
 app.use("/api/scratch", refuseGameBans, scratchRouter);
 app.use("/api/double-or-nothing", refuseGameBans, doubleRouter);
 app.use("/api/slots", refuseGameBans, slotRouter);

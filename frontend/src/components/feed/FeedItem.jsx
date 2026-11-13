@@ -873,7 +873,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'cut') return <CutNotice item={item} onDeleted={onCutDeleted} />
   if (item.type === 'cutReply') return <CutReplyNotice item={item} />
   if (item.type === 'payout') return <PayoutNotice item={item} light={light} />
-  if (item.type === 'gift') return <GiftNotice item={item} light={light} />
+  if (item.type === 'gift' || item.type === 'adminGrant') return <GiftNotice item={item} light={light} />
   if (item.type === 'scratchWin' || item.type === 'scratchJackpot') return <ScratchNotice item={item} />
   if (item.type === 'doublePlay' || item.type === 'doubleWin') return <DoubleNotice item={item} />
   if (item.type === 'slotTriple' || item.type === 'slotJackpot') return <SlotNotice item={item} />

@@ -1,5 +1,6 @@
 // The SECRET pages (routes in App.jsx, linked from nowhere), listed on
-// /SECRET for the admin named ADMIN. Add a new one here when it's made.
+// /SECRET and in the admin panel (/admin) for admins. Add a new one here
+// when it's made.
 //   adminOnly  the server only answers admins (or, `who` says, moderators too)
 export const SECRET_PAGES = [
   {
@@ -25,8 +26,8 @@ export const SECRET_PAGES = [
   },
 ]
 
-// Whether `user` (a profile from the server) is the one who gets /SECRET:
-// an admin whose username is ADMIN, in any case ("admin", "Admin", ...).
+// Whether `user` (a profile from the server) gets /SECRET: any admin,
+// whatever their username.
 export function isSecretKeeper(user) {
-  return user?.role === 'admin' && String(user.username ?? '').trim().toLowerCase() === 'admin'
+  return user?.role === 'admin'
 }

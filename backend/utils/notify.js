@@ -259,6 +259,12 @@ function noteGift(toId, fromId, amount) {
     return Notification.create({ recipient: toId, type: "gift", amount, actors: [fromId] });
 }
 
+// An admin sent them `amount` P-PP from the admin panel (utils/admin.js),
+// with `note` if they wrote one.
+function noteAdminGrant(toId, adminId, amount, note = "") {
+    return Notification.create({ recipient: toId, type: "adminGrant", amount, actors: [adminId], ...(note && { note }) });
+}
+
 // Box Office Scratch (utils/scratch.js): `winnerId` won `tier` (its key)
 // on a `ticketType` ticket, worth `amount`. Everyone who follows them hears
 // about it.
@@ -596,6 +602,7 @@ module.exports = {
     forgetMember,
     notePayout,
     noteGift,
+    noteAdminGrant,
     noteScratchWin,
     noteScratchJackpot,
     noteSlotTriple,

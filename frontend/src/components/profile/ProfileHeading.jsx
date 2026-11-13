@@ -147,11 +147,11 @@ function BanPanel({ profileUser, onChange }) {
 // A member's name with the Follow button beside it, and for moderators and
 // admins who outrank them, the Ban Hammer: its switches open above the name.
 // `onChange` merges follow and ban changes into the profile.
-// `secretLink`: the name links to /SECRET, the list of SECRET pages (only
-// for the admin named ADMIN, on their own profile: utils/secretPages.js).
+// `adminLink`: the name links to /admin, the admin panel (for admins, on
+// their own profile).
 // The name wears their Black Market name style (profileUser.cosmetics); the
 // developer test tool passes made-up `cosmetics` and `resonancePercent`.
-function ProfileHeading({ name, profileUser, isOwner, onChange, secretLink = false, cosmetics = profileUser.cosmetics, resonancePercent }) {
+function ProfileHeading({ name, profileUser, isOwner, onChange, adminLink = false, cosmetics = profileUser.cosmetics, resonancePercent }) {
   const [banning, setBanning] = useState(false)
   const lost = lostRights(profileUser.bans).length
   const styledName = <StyledUsername name={name} styleId={cosmetics?.name} />
@@ -162,8 +162,8 @@ function ProfileHeading({ name, profileUser, isOwner, onChange, secretLink = fal
 
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex min-w-0 items-center gap-2 text-3xl font-bold">
-          {secretLink ? (
-            <Link to="/SECRET" className="min-w-0 break-words transition-colors hover:text-brand-gold">
+          {adminLink ? (
+            <Link to="/admin" title="Admin panel" className="min-w-0 break-words transition-colors hover:text-brand-gold">
               {styledName}
             </Link>
           ) : (

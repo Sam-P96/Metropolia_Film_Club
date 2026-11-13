@@ -17,7 +17,6 @@ import { getCurrentUser, updateCurrentUser } from '../utils/currentUser'
 import { getProfileStats } from '../utils/profileStats'
 import { isWanted } from '../utils/watchlist'
 import { canModerate } from '../utils/permissions'
-import { isSecretKeeper } from '../utils/secretPages'
 
 const MAX_FAVOURITES = 4
 
@@ -305,10 +304,18 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
                 <Link to="/resonance" className={buttonClasses}>
                   Resonance
                 </Link>
-                {canModerate(profileUser) && (
-                  <Link to="/banned" className={buttonClasses}>
-                    Banned list
+                {/* Admins get the admin panel instead (it links to the
+                    Banned list); moderators the Banned list. */}
+                {profileUser.role === 'admin' ? (
+                  <Link to="/admin" className={buttonClasses}>
+                    Admin panel
                   </Link>
+                ) : (
+                  canModerate(profileUser) && (
+                    <Link to="/banned" className={buttonClasses}>
+                      Banned list
+                    </Link>
+                  )
                 )}
               </div>
             )}
@@ -320,7 +327,7 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
               profileUser={profileUser}
               isOwner={isOwner}
               onChange={onFollowChange}
-              secretLink={isOwner && isSecretKeeper(profileUser)}
+              adminLink={isOwner && profileUser.role === 'admin'}
             />
             <p className="mt-1 text-sm text-brand-gold">{displayUser.memberTitle}</p>
 

@@ -49,9 +49,10 @@ function rotate(array, by) {
 // The home page's banner: trending posters scrolling behind a few slides.
 // The welcome is always there. A logged-in member who can use Resonance
 // and has a match at 75% or more also gets one of them, picked at random,
-// on a Resonance card. A logged-in member also gets the Daily Quiz: the
-// first slide until they've played today's (a new one comes at 12:00),
-// the last after. It plays right here; while it does, the slides stay put.
+// on a Resonance card. A logged-in member also gets the Daily Quiz. The
+// slides go Welcome, Daily Quiz, Resonance; until they've played today's
+// quiz (a new one comes at 12:00), the hero opens on it. It plays right
+// here; while it does, the slides stay put.
 // Once they've played, it shows their score and the Quiz Leaderboard.
 // Arrows on the sides change slides on a computer; on a phone it's a
 // swipe, with dots to show where you are.
@@ -74,7 +75,7 @@ function Hero({ isAuthenticated }) {
   }, [suggestions.data])
   const quiz = useApi(getQuizState, [isAuthenticated], { enabled: Boolean(isAuthenticated) })
   const quizState = isAuthenticated ? quiz.data : null
-  // Played today, as the page opened: the quiz goes last rather than first.
+  // Not played today's yet, as the page opened: the hero opens on the quiz.
   const quizFirst = Boolean(quizState && !quizState.played && quizState.total > 0)
   const [playing, setPlaying] = useState(false)
   const [score, setScore] = useState(null)
@@ -85,14 +86,15 @@ function Hero({ isAuthenticated }) {
   const result = score?.result ?? (quizState?.played ? { correct: quizState.attempt.correct, total: quizState.total } : null)
   const board = useApi(getQuizLeaderboard, [isAuthenticated, done], { enabled: Boolean(isAuthenticated) && done })
 
-  const others = pool.length > 0 ? ['welcome', 'resonance'] : ['welcome']
-  const slides = !quizState ? others : quizFirst ? ['quiz', ...others] : [...others, 'quiz']
+  const slides = ['welcome', ...(quizState ? ['quiz'] : []), ...(pool.length > 0 ? ['resonance'] : [])]
   // Logged in: wait for the quiz, so the slides don't change under them.
   const ready = !isAuthenticated || !quiz.loading
 
-  const [slide, setSlide] = useState(0)
+  // null until they change slides: then it opens on the quiz if they
+  // haven't played it, the welcome otherwise.
+  const [slide, setSlide] = useState(null)
   const [direction, setDirection] = useState(1)
-  const index = Math.min(slide, slides.length - 1)
+  const index = Math.min(slide ?? (quizFirst ? slides.indexOf('quiz') : 0), slides.length - 1)
 
   const go = (step) => {
     if (playing) return

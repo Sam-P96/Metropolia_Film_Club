@@ -48,9 +48,10 @@ function PotCard({ bet, bonusPot, bonusEligible }) {
 }
 
 // Double or Nothing: one pot for the whole site (backend/utils/double.js).
-// The bet and what it wins up top, then the throw box (or which list
-// they're on), the bonus pot, when the pot resets, what others did with it
-// lately, and the rules. On a phone everything is one column; on a wide
+// When the pot resets, in a small chip beside the title; the bet and what
+// it wins up top, then the throw box (or which list they're on) and the
+// bonus pot under it, what others did with it lately beside them, and How
+// to play, which slides open. On a phone everything is one column; on a wide
 // screen the pot and the throw box sit beside the rest. Coming back
 // mid-game picks the game up again. The page fades in and slides up a
 // little as it opens (with reduced motion, it only fades), over its own
@@ -75,9 +76,12 @@ export default function DoubleOrNothing() {
           <Link to="/games" className="text-sm text-white/60 hover:text-white">
             ← Games
           </Link>
-          <h1 className="mt-2 font-['Bebas_Neue'] text-5xl leading-none tracking-wide text-white">
-            Double <span className="text-brand-gold">or Nothing</span>
-          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <h1 className="font-['Bebas_Neue'] text-5xl leading-none tracking-wide text-white">
+              Double <span className="text-brand-gold">or Nothing</span>
+            </h1>
+            {status && <ResetCountdown nextResetAt={status.nextResetAt} offset={play.offset} />}
+          </div>
           <p className="mt-2 max-w-2xl text-white/70">
             Match the pot and win 2 of 3 throws. Win and you double your bet. Lose, and you double the pot and leave it for the next person.
           </p>
@@ -116,17 +120,14 @@ export default function DoubleOrNothing() {
                   bonusEligible={game ? game.bet >= status.bonusUnlocksAt : status.bonusEligible}
                 />
                 <ThrowBox play={play} wallet={wallet} />
-              </div>
-              <div className="flex flex-col gap-5">
                 <BonusCard
                   bonusPot={status.bonusPot}
                   bonusCap={status.bonusCap}
                   eligible={status.bonusEligible}
                   unlocksAt={status.bonusUnlocksAt}
                 />
-                <ResetCountdown nextResetAt={status.nextResetAt} offset={play.offset} />
-                <RecentPlays recent={status.recent} />
               </div>
+              <RecentPlays recent={status.recent} />
             </div>
             <HowItWorks />
           </>
