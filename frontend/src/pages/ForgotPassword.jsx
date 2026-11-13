@@ -75,7 +75,7 @@ function ResetLocallyButton({ onClick, busy, disabled }) {
       <p
         id={infoId}
         role="tooltip"
-        className={`absolute right-0 bottom-full z-20 mb-2 w-64 max-w-full rounded-md border border-white/15 bg-ink px-3 py-2 text-sm leading-snug text-white/90 shadow-xl shadow-black/50 transition-opacity duration-150 ${
+        className={`absolute top-full right-0 z-20 mt-2 w-64 max-w-full rounded-md border border-white/15 bg-ink px-3 py-2 text-sm leading-snug text-white/90 shadow-xl shadow-black/50 transition-opacity duration-150 ${
           showInfo ? 'visible opacity-100' : 'invisible opacity-0'
         }`}
       >
