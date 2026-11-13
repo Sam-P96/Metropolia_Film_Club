@@ -34,11 +34,6 @@ const TOOLS = [
     about: 'Everyone who has lost rights to the Ban Hammer, and which. Their name opens their profile, where the Ban Hammer changes it.',
   },
   {
-    path: '/games/loan-shark',
-    name: 'Loan Shark test tools',
-    about: 'At the bottom of the Loan Shark page, for admins: the daily checks and sending Kaveri, now.',
-  },
-  {
     path: '/games/loan-shark/black-market/dev',
     name: 'Black Market test tool',
     about: 'Every name style and border on made-up members, side by side.',
@@ -215,20 +210,42 @@ function RecentGrants({ grants }) {
   )
 }
 
+// The three warnings before running the payout early, one after another:
+// what each part of it does to members if it runs before 12:00.
+const PAYOUT_WARNINGS = [
+  {
+    title: 'Everyone is paid now, not at 12:00',
+    why: "Every member not paid today gets today's PP straight away, and the real 12:00 payout then pays nobody, since nobody is paid twice in a day. Reviews written between now and 12:00 won't count until tomorrow's payout. (If today's payout has already gone out, this does nothing.)",
+    next: 'I understand, next',
+  },
+  {
+    title: "Loan Shark's daily check runs now too",
+    why: "The payout is when loans are settled. Anyone with a King Loan Shark payment due who hasn't paid it yet has their rate doubled now, hours before they expect it. Kaveri collects from everyone at the top rate, lenders get their share of borrowers' PP, and Steal and Defend debts are paid off out of it.",
+    next: 'I understand, next',
+  },
+  {
+    title: "It can't be undone",
+    why: "Nobody's PP, doubled loan rates or Kaveri's collecting can be taken back from here, and every member paid gets the payout notification now. Only run it if the 12:00 payout didn't happen (say the server was down) or everyone knows it's coming.",
+    next: 'Yes, pay everyone now',
+  },
+]
+
 // Today's 12:00 PP payout, now, for anyone not paid today yet (it never
-// pays anyone twice in a day). It asks first.
+// pays anyone twice in a day). It asks three times first, each time saying
+// why running it could be a problem.
 function PayoutNow() {
-  const [asking, setAsking] = useState(false)
+  const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(null)
+  const warning = step > 0 ? PAYOUT_WARNINGS[step - 1] : null
 
   const run = async () => {
     setBusy(true)
     try {
       await runPayoutNow()
       walletChanged()
-      setMessage({ text: "Done: everyone not paid today has their PP." })
-      setAsking(false)
+      setMessage({ text: 'Done: everyone not paid today has their PP.' })
+      setStep(0)
     } catch (failure) {
       setMessage({ error: true, text: failure.message })
     } finally {
@@ -236,25 +253,46 @@ function PayoutNow() {
     }
   }
 
+  const next = () => {
+    if (step < PAYOUT_WARNINGS.length) setStep(step + 1)
+    else run()
+  }
+
   return (
-    <li className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-4">
+    // The warnings take the whole row while they're up, to be read.
+    <li className={`flex flex-col gap-2 rounded-xl border p-4 ${warning ? 'border-red-400/60 bg-red-950/40 sm:col-span-2 lg:col-span-3' : 'border-white/10 bg-white/5'}`}>
       <span className="font-semibold text-white">Daily PP payout, now</span>
-      <span className="text-sm text-white/60">
-        Runs today&apos;s 12:00 payout straight away for everyone not paid today yet (nobody is paid twice in a day), then retakes the Slot Machine&apos;s snapshot.
-      </span>
-      {asking ? (
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-white/80">Run it now?</span>
-          <button type="button" onClick={run} disabled={busy} className={GOLD}>
-            {busy ? 'Paying…' : 'Yes, pay now'}
-          </button>
-          <button type="button" onClick={() => setAsking(false)} disabled={busy} className={QUIET}>
-            Cancel
-          </button>
-        </span>
+      <span className="text-sm text-white/60">Runs today&apos;s 12:00 payout straight away, for everyone not paid today yet. Nobody is paid twice in a day.</span>
+      {warning ? (
+        <div className="flex flex-col gap-3" role="alertdialog" aria-labelledby="payout-warning" aria-describedby="payout-why">
+          <p className="text-xs font-semibold tracking-widest text-red-300 uppercase">
+            Warning {step} of {PAYOUT_WARNINGS.length}
+          </p>
+          <p id="payout-warning" className="text-lg font-bold text-white">
+            {warning.title}
+          </p>
+          <p id="payout-why" className="text-sm text-white/80">
+            {warning.why}
+          </p>
+          <span className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={next} disabled={busy} className={step === PAYOUT_WARNINGS.length ? GOLD : QUIET}>
+              {busy ? 'Paying…' : warning.next}
+            </button>
+            <button type="button" onClick={() => setStep(0)} disabled={busy} className={QUIET}>
+              Cancel
+            </button>
+          </span>
+        </div>
       ) : (
         <span>
-          <button type="button" onClick={() => setAsking(true)} className={QUIET}>
+          <button
+            type="button"
+            onClick={() => {
+              setMessage(null)
+              setStep(1)
+            }}
+            className={QUIET}
+          >
             Run the payout
           </button>
         </span>
