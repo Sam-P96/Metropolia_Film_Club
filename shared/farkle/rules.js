@@ -7,10 +7,15 @@ export const DICE_PER_TURN = 6
 // The winning scores a game can be played to.
 export const WINNING_SCORES = [2000, 4000, 8000]
 
-// The bot's name at the table, and what playing it is called. It always
-// rolls first.
+// The bot's name at the table, and what playing it is called.
 export const BOT_NAME = 'Clanker'
 export const BOT_MODE = `Vs ${BOT_NAME}`
+
+// Who starts against Clanker (Kino Farkle and Infinite Gomoku, and only
+// against Clanker): the player rolls a die. Up to this, Clanker starts;
+// above it, the player does. 1 to 3: Clanker. 4 to 6: you.
+export const CLANKER_STARTS_UP_TO = 3
+export const clankerStarts = (roll) => roll <= CLANKER_STARTS_UP_TO
 
 // What a game against the bot can be played for, in points.
 export const BOT_STAKE = { min: 2, max: 500 }

@@ -113,6 +113,11 @@ const farkleMatchSchema = new Schema(
         // Whether the winner has been paid.
         settled: {type: Boolean, default: false},
 
+        // Against the bot: the die the member rolled to see who starts (1 to
+        // 3, the bot; 4 to 6, the member), rolled on the server as the game
+        // was made. The page shows it landing.
+        firstRoll: {type: Number, default: null},
+
         // The member's id while their game against the bot is open, missing
         // otherwise. It's unique, so the database itself stops anyone having
         // two going at once, even if they tap Start twice.

@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const mongoose = require("mongoose");
 const FarkleMatch = require("../models/farkleMatchModel");
 const User = require("../models/userModel");
@@ -28,6 +29,7 @@ const {
     BOT_NAME,
     BOT_STAKE,
     PVP_MIN_STAKE,
+    clankerStarts,
     WINNING_SCORES,
     botPrize,
     formatPoints,
@@ -85,8 +87,9 @@ async function getBotMatch(req, res) {
 }
 
 // A new game against the bot, { target, stake }. The stake is taken now,
-// PP first and then P-PP, and the bot plays its first turn straight away,
-// because the bot always rolls first. Beating it pays botPrize(stake) P-PP.
+// PP first and then P-PP, and a die decides who starts (1 to 3, the bot,
+// which plays its first turn straight away; 4 to 6, the member). Beating
+// it pays botPrize(stake) P-PP.
 async function startBotMatch(req, res) {
     const userId = req.user._id;
     const target = Number(req.body?.target);
@@ -131,10 +134,17 @@ async function startBotMatch(req, res) {
         throw error;
     }
 
-    const game = playBot(newGame({ target, first: BOT_SEAT }), BOT_SEAT, cryptoDice, { bustChance: clankerBustChance() });
+    // Who starts: a die, rolled here (it can't be the page's: there are
+    // points on it). 1 to 3, the bot starts and plays its first turn now;
+    // 4 to 6, the member does.
+    const firstRoll = crypto.randomInt(1, 7);
+    const botFirst = clankerStarts(firstRoll);
+    const opening = newGame({ target, first: botFirst ? BOT_SEAT : MEMBER_SEAT });
+    const game = botFirst ? playBot(opening, BOT_SEAT, cryptoDice, { bustChance: clankerBustChance() }) : opening;
     const saved = await saveGame(match, game, {
         [`players.${MEMBER_SEAT}.paid`]: { pp: 0 - paid.pp, ppp: 0 - paid.ppp },
         lastMoveAt: new Date(),
+        firstRoll,
     });
     if (!saved) throw new Error(`Farkle match ${match._id} changed before it started`);
 

@@ -144,7 +144,7 @@ export default function StakePicker({ wallet, onStart, initial }) {
       )}
 
       <ul className="mt-4 flex list-disc flex-col gap-1 pl-5 text-sm text-white/70">
-        <li>{BOT_NAME} always rolls first.</li>
+        <li>You roll a die to see who starts: 1 to 3, {BOT_NAME}; 4 to 6, you.</li>
         <li>Three days without a move and you lose the game.</li>
       </ul>
 
