@@ -18,7 +18,7 @@ export const CLANKER_STARTS_UP_TO = 3
 export const clankerStarts = (roll) => roll <= CLANKER_STARTS_UP_TO
 
 // What a game against the bot can be played for, in points.
-export const BOT_STAKE = { min: 2, max: 500 }
+export const BOT_STAKE = { min: 2, max: 1500 }
 
 // What beating the bot pays, all in P-PP. When the player starts: the
 // stake back plus half of it, rounded down (100 -> 150, 25 -> 37). When

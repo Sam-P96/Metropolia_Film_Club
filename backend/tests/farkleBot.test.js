@@ -84,4 +84,12 @@ describe("Farkle against Clanker: who starts", { skip: !uri ? "set MONGO_TEST_UR
         // Sixteen rolls: both ways came up (a 1 in 32,768 chance they wouldn't).
         assert.deepEqual([...seen].sort(), [false, true]);
     });
+
+    test("stakes against Clanker go up to 1,500", async () => {
+        assert.equal((await call("POST", "/bot", { target: 8000, stake: 1501 })).status, 400);
+        const started = await call("POST", "/bot", { target: 8000, stake: 1500 });
+        assert.equal(started.status, 201, JSON.stringify(started.body));
+        assert.equal(started.body.prize, clankerStarts(started.body.firstRoll) ? 3000 : 2250);
+        await call("POST", `/matches/${started.body._id}/moves`, { version: started.body.version, type: "resign" });
+    });
 });

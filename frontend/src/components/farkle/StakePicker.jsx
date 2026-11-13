@@ -4,7 +4,7 @@ import CoinIcon from '../wallet/CoinIcon'
 import { BOT_MODE, BOT_NAME, BOT_STAKE, WINNING_SCORES, botPrize, formatPoints } from '../../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
-const QUICK_STAKES = [10, 50, 100, 250, 500]
+const QUICK_STAKES = [10, 50, 100, 250, 500, 1000, 1500]
 
 const choiceClasses = (on) =>
   `cursor-pointer rounded-xl border px-3 py-2 text-sm tabular-nums transition-colors disabled:cursor-default disabled:opacity-40 ${
@@ -33,7 +33,7 @@ export default function StakePicker({ wallet, onStart, initial }) {
   let hint = ''
   if (!whole) hint = 'A stake is a whole number of points.'
   else if (stake < BOT_STAKE.min) hint = `The smallest stake is ${BOT_STAKE.min}.`
-  else if (stake > BOT_STAKE.max) hint = `Stakes against ${BOT_NAME} go up to ${BOT_STAKE.max}.`
+  else if (stake > BOT_STAKE.max) hint = `Stakes against ${BOT_NAME} go up to ${formatPoints(BOT_STAKE.max)}.`
   else if (balance !== null && stake > balance) hint = `You have ${formatPoints(balance)} points.`
 
   const fromPp = wallet && valid ? Math.min(wallet.pp, stake) : 0

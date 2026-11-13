@@ -25,7 +25,7 @@ export const WIN_LENGTH = 5
 export const FUN = 0
 export const MIN_STAKE = 2
 export const MAX_STAKE = null
-export const QUICK_STAKES = [2, 10, 50, 100, 500, 1000]
+export const QUICK_STAKES = [2, 10, 50, 100, 500, 1000, 1500]
 
 // A finished game between members can be watched again, move by move, for
 // this many days after it ends. Then its replay (the order the moves were
