@@ -48,8 +48,3 @@ export function payOffDebt(id) {
 export function sendCollector() {
   return change('/loan-shark/test/collector', { method: 'POST' })
 }
-
-// Admins, for testing: the next 12:00 check, now, for them or `username`.
-export function runTestCheck(username) {
-  return change('/loan-shark/test/check', { method: 'POST', body: { username } })
-}
