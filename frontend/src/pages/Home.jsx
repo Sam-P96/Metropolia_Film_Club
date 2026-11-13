@@ -3,7 +3,8 @@ import NextEvent from '../components/events/NextEvent'
 import AboutClub from '../components/about/AboutClub'
 import ReviewSection from '../components/reviews/ReviewSection'
 import useReviewSorts from '../hooks/useReviewSorts'
-import reviewsBg from '../assets/giphy.gif'
+import reviewsVideo from '../assets/reviews-bg.mp4'
+import reviewsPoster from '../assets/reviews-bg-poster.webp'
 
 function Home({ isAuthenticated }) {
   // Each with its author attached by the server.
@@ -21,7 +22,8 @@ function Home({ isAuthenticated }) {
         sorts={reviews.options}
         loading={reviews.loading}
         layout="marquee"
-        backgroundUrl={reviewsBg}
+        backgroundVideo={reviewsVideo}
+        backgroundPoster={reviewsPoster}
         linkTo="/movie_reviews"
       />
       <AboutClub isAuthenticated={isAuthenticated} />

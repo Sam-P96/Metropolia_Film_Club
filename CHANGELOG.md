@@ -450,6 +450,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to 0.39 MB over the wire. Videos, images and responses under 1 KB are
   sent as they are, and the live games' socket.io connection isn't
   affected.
+- The looping backgrounds (the reviews section on the home and Movie
+  Reviews pages, Upcoming Events, Notifications, About, Plan to Watch, and
+  the log in, sign up and password reset pages) are short MP4 videos instead
+  of GIFs: the same picture at about 0.8 MB for all four instead of 30.8 MB
+  (the home page alone drops from 17.4 MB to 0.3 MB). Anyone who has asked
+  for reduced motion sees the first frame, standing still, instead of no
+  background, and the video isn't downloaded for them.
 
 ### Fixed
 - On phones and tablets, a black bar no longer flashes at the bottom when

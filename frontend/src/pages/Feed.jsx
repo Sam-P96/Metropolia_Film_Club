@@ -11,7 +11,8 @@ import PillToggle from '../components/PillToggle'
 import usePagedList from '../hooks/usePagedList'
 import { getFeed, markNotificationsSeen } from '../services/feed'
 import { getCurrentUser } from '../utils/currentUser'
-import pinkGlowGif from '../assets/Pink Glow GIF by xponentialdesign.gif'
+import pinkGlowVideo from '../assets/pink-glow.mp4'
+import pinkGlowPoster from '../assets/pink-glow-poster.webp'
 
 // Text straight on the page: light on the GIF and the purple, dark on white.
 const TONES = {
@@ -38,7 +39,7 @@ function GifBackdrop() {
     // On a phone it runs on past the bottom, so the address bar sliding
     // away never uncovers a black bar (like GameBackdrop).
     <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 bottom-0 -z-10 max-lg:-bottom-[10%]">
-      <GifBackground src={pinkGlowGif} />
+      <GifBackground video={pinkGlowVideo} poster={pinkGlowPoster} />
       <div className="absolute inset-0 bg-black/65" />
     </div>
   )
