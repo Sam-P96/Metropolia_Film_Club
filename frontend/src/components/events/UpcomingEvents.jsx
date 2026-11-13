@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 
 import EventCalendar from './EventCalendar'
 import GifBackground from '../GifBackground'
-import pinkGlowGif from '../../assets/Pink Glow GIF by xponentialdesign.gif'
-import artGlowGif from '../../assets/Art Glow GIF by Lucie Mullen.gif'
+import pinkGlowVideo from '../../assets/pink-glow.mp4'
+import pinkGlowPoster from '../../assets/pink-glow-poster.webp'
+import artGlowVideo from '../../assets/art-glow.mp4'
+import artGlowPoster from '../../assets/art-glow-poster.webp'
 import EventListItem from './EventListItem'
 import { getUpcomingEvents } from '../../utils/eventDates'
 import { getCurrentUser } from '../../utils/currentUser'
@@ -58,7 +60,7 @@ function UpcomingEvents({ screenings = false }) {
 
   return (
     <section className="relative overflow-hidden border-b border-white/10 text-white">
-      <GifBackground src={screenings ? artGlowGif : pinkGlowGif} />
+      <GifBackground video={screenings ? artGlowVideo : pinkGlowVideo} poster={screenings ? artGlowPoster : pinkGlowPoster} />
       <div className="pointer-events-none absolute inset-0 bg-black/60" />
       <div className="relative mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
 
