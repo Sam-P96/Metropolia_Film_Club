@@ -179,6 +179,9 @@ app.use("/api/users/signup", authLimiter);
 // "Forgot password?" sends an email, so it's limited the same way as login,
 // or a script could make us send a flood of them.
 app.post("/api/password-resets", authLimiter);
+// "Reset Locally" says whether an email has an account and pings every
+// moderator and admin, so it's limited the same way too.
+app.post("/api/password-resets/local", authLimiter);
 app.use("/api/tmdb", tmdbLimiter);
 
 app.use("/api/tmdb", tmdbRouter);
