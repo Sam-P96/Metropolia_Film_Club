@@ -3,6 +3,7 @@ import BannerStrip from '../profile/BannerStrip'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import StyledUsername from '../cosmetics/StyledUsername'
+import { useFirstPlaceShown } from '../firstPlace/firstPlaceStore'
 
 // The corners of the list's first and last rows. The lists don't hide their
 // overflow (that would cut off the particles of the cosmetics in their top
@@ -22,11 +23,14 @@ const EDGES = {
 //
 // The name wears the member's name style and the picture their border
 // (`cosmetics`, from the server's member summary; the developer test tool
-// passes its own). Long names show in full and wrap, styled or not, so
-// wearing a style never moves anything. `resonancePercent` shows the
-// Resonance icon for a made-up member (the developer test tool).
+// passes its own), or the First Place effect if they hold a title. Long
+// names show in full and wrap, styled or not, so wearing a style never
+// moves anything. `resonancePercent` shows the Resonance icon for a
+// made-up member (the developer test tool).
 export default function LeaderboardRow({ user, position, subtitle, score, edge = null, cosmetics = user.cosmetics, resonancePercent }) {
-  const styled = Boolean(cosmetics?.name || cosmetics?.border)
+  const firstPlace = useFirstPlaceShown(user._id)
+  const styledName = Boolean(cosmetics?.name) || firstPlace
+  const styled = styledName || Boolean(cosmetics?.border)
   const corners = EDGES[edge] ?? { row: '', banner: '' }
 
   return (
@@ -45,10 +49,10 @@ export default function LeaderboardRow({ user, position, subtitle, score, edge =
 
         <div className="min-w-0 flex-1">
           <p
-            className={`flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold ${cosmetics?.name ? '' : 'drop-shadow'}`}
+            className={`flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold ${styledName ? '' : 'drop-shadow'}`}
           >
             <span className="min-w-0 [overflow-wrap:anywhere]">
-              <StyledUsername name={user.username} styleId={cosmetics?.name} />
+              <StyledUsername name={user.username} styleId={cosmetics?.name} userId={user._id} />
             </span>
             <ResonanceIcon userId={user._id} percent={resonancePercent} />
           </p>

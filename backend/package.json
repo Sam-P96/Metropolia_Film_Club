@@ -10,7 +10,8 @@
     "slots:rtp": "node scripts/slots-rtp.js",
     "slots:tune": "node scripts/tune-slots.js",
     "backfill:certifications": "node scripts/backfill-certifications.js",
-    "resonance:sweep": "node scripts/resonance-sweep.js"
+    "resonance:sweep": "node scripts/resonance-sweep.js",
+    "reviews:self-like": "node scripts/self-like-reviews.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -1,16 +1,20 @@
-const Review = require("../models/reviewModel");
-const { everyCritic, topCriticRanks } = require("./critics");
+const { criticTotals, everyCritic, topCriticRanks } = require("./critics");
 
-// A member's level: reviews / 20 + likes / 5 - dislikes / 3, counting the
-// likes and dislikes on their reviews. Reviews can make up at most 75% of
-// the total, so they only count up to three times what the votes add: a
-// member nobody has liked yet stays at 0 however much they write. Whole
-// levels only, never below 0. Worked in sixtieths so the sums are exact.
-function levelFrom({ reviews = 0, likes = 0, dislikes = 0 }) {
+// How far along a member is, in sixtieths of a level: reviews / 20 +
+// likes / 5 - dislikes / 3, counting the likes and dislikes on their
+// reviews. Reviews can make up at most 75% of the total, so they only
+// count up to three times what the votes add: a member nobody has liked
+// yet stays at 0 however much they write. Sixtieths so the sums are exact.
+function xpFrom({ reviews = 0, likes = 0, dislikes = 0 }) {
     const fromVotes = 12 * likes - 20 * dislikes;
     const fromReviews = Math.min(3 * reviews, Math.max(0, 3 * fromVotes));
 
-    return Math.max(0, Math.floor((fromReviews + fromVotes) / 60));
+    return fromReviews + fromVotes;
+}
+
+// A member's level: whole levels only, never below 0.
+function levelFrom(stats) {
+    return Math.max(0, Math.floor(xpFrom(stats) / 60));
 }
 
 // The level of `user` (anything with `pvp`) from their stats. With PVP off
@@ -19,22 +23,17 @@ function levelOf(user, stats = {}) {
     return levelFrom(user.pvp ? stats : { ...stats, dislikes: 0 });
 }
 
-// How many reviews each of `userIds` has written and the likes and dislikes
-// those have collected, keyed by id string. Members with no reviews are left
-// out.
-async function authorStats(userIds) {
-    const rows = await Review.aggregate([
-        { $match: { user: { $in: userIds } } },
-        {
-            $group: {
-                _id: "$user",
-                reviews: { $sum: 1 },
-                likes: { $sum: "$likeCount" },
-                dislikes: { $sum: "$dislikeCount" },
-            },
-        },
-    ]);
+// The same, before rounding down to a whole level: who's furthest along
+// between members on the same level (First Place, utils/firstPlace.js).
+function xpOf(user, stats = {}) {
+    return xpFrom(user.pvp ? stats : { ...stats, dislikes: 0 });
+}
 
+// How many reviews each of `userIds` has written and the likes and dislikes
+// those have collected from others (their own don't count: utils/critics.js),
+// keyed by id string. Members with no reviews are left out.
+async function authorStats(userIds) {
+    const rows = await criticTotals(userIds);
     return new Map(rows.map((row) => [String(row._id), row]));
 }
 
@@ -82,4 +81,4 @@ async function rankByLevel({ limit }) {
         .slice(0, limit);
 }
 
-module.exports = { levelOf, rankByLevel, withAuthorStanding, withStanding };
+module.exports = { levelOf, xpOf, rankByLevel, withAuthorStanding, withStanding };

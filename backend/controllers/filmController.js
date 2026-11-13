@@ -729,6 +729,12 @@ async function saveReview(req, res) {
         ).lean();
 
         if (isNew) {
+            // Every review starts with its author's own like, so liking your
+            // own review is never an edge over anyone (Top Critics, levels,
+            // First Place). No notification or trending check for it.
+            const liked = await Review.castVote(review._id, req.user, "like");
+            if (liked) review = { ...review, likeCount: liked.likeCount, dislikeCount: liked.dislikeCount };
+
             await noteNewReview(review);
             // "Convince X to post a movie review" (Loan Shark jobs).
             await onReviewPosted(req.user._id).catch((error) => console.error("Loan Shark review job:", error.message));

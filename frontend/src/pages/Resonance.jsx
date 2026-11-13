@@ -6,6 +6,7 @@ import PillToggle from '../components/PillToggle'
 import SettingRow from '../components/profile/SettingRow'
 import StyledAvatar from '../components/cosmetics/StyledAvatar'
 import StyledUsername from '../components/cosmetics/StyledUsername'
+import { useFirstPlaceShown } from '../components/firstPlace/firstPlaceStore'
 import { edgeOf } from '../components/leaderboard/edges'
 import BannerStrip from '../components/profile/BannerStrip'
 import ResonanceCard from '../components/resonance/ResonanceCard'
@@ -256,6 +257,9 @@ function Row({ match, rank, edge }) {
   const tier = resonanceTier(match.percent)
   const { user } = match
   const cosmetics = user.cosmetics
+  // The First Place effect, in place of their name style, if they hold a title.
+  const firstPlace = useFirstPlaceShown(user._id)
+  const styledName = Boolean(cosmetics?.name) || firstPlace
 
   return (
     <li
@@ -274,7 +278,7 @@ function Row({ match, rank, edge }) {
           else setOpen(!open)
           pointer.current = null
         }}
-        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-white/5' : ''} ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${cosmetics?.name || cosmetics?.border ? 'z-10' : ''}`}
+        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-white/5' : ''} ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${styledName || cosmetics?.border ? 'z-10' : ''}`}
       >
         <BannerStrip banner={user.reviewCardBanner} className={EDGE_BANNER[edge] ?? ''} />
 
@@ -285,9 +289,9 @@ function Row({ match, rank, edge }) {
         <StyledAvatar borderId={cosmetics?.border} user={user} />
 
         <div className="min-w-0 flex-1">
-          <p className={`flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold ${cosmetics?.name ? '' : 'drop-shadow'}`}>
+          <p className={`flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold ${styledName ? '' : 'drop-shadow'}`}>
             <span className="min-w-0 [overflow-wrap:anywhere]">
-              <StyledUsername name={user.username} styleId={cosmetics?.name} />
+              <StyledUsername name={user.username} styleId={cosmetics?.name} userId={user._id} />
             </span>
             <ResonanceIcon userId={user._id} />
           </p>

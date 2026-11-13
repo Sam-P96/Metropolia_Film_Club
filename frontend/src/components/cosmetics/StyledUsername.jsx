@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { cosmeticById, lookOf } from '../../../../shared/cosmetics/catalogue.js'
+import FirstPlaceName from '../firstPlace/FirstPlaceName'
+import { useFirstPlace } from '../firstPlace/firstPlaceStore'
 import { attachParticles } from './particleEngine'
 import { useCosmeticsStill } from './stillCosmetics'
 
@@ -10,8 +12,16 @@ const colourVars = (colors) => Object.fromEntries(colors.map((color, i) => [`--c
 // It keeps the font, size and weight of wherever it sits, never takes more
 // room than the plain name, and wraps like it at any length. Particles, if
 // the style has them, go on a canvas over it (particleEngine.js).
-export default function StyledUsername({ name, styleId }) {
-  const item = cosmeticById(styleId)
+//
+// With `userId` (leaderboards, the Resonance list, review cards and
+// profiles), a member who holds a First Place title and has its effect on
+// gets that instead (components/firstPlace/): it only takes the name
+// style's place, which comes back when they lose the title or turn it off.
+// The shop's own previews leave userId out, so they always show the item.
+export default function StyledUsername({ name, styleId, userId }) {
+  const firstPlace = useFirstPlace(userId)
+  const crowned = Boolean(firstPlace?.settings.enabled)
+  const item = crowned ? null : cosmeticById(styleId)
   const look = item?.type === 'name' ? lookOf(item) : null
   const still = useCosmeticsStill()
   const wrap = useRef(null)
@@ -31,6 +41,7 @@ export default function StyledUsername({ name, styleId }) {
     })
   }, [particles, colours, name])
 
+  if (crowned) return <FirstPlaceName name={name} settings={firstPlace.settings} titles={firstPlace.titles} />
   if (!look) return name
 
   return (
