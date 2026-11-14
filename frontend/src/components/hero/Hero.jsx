@@ -81,6 +81,15 @@ function Hero({ isAuthenticated }) {
   const [score, setScore] = useState(null)
   const manager = hasAtLeast(getCurrentUser(), 'moderator')
 
+  // The last answer is in. It's no longer playing, said here: the player
+  // goes from the slide at once (the score and leaderboard take its place),
+  // so it never gets to say so itself, and the buttons and slide changes
+  // would stay hidden until a refresh.
+  const finished = (view) => {
+    setScore(view)
+    setPlaying(false)
+  }
+
   // Played today (before or just now): their score, and the leaderboard.
   const done = Boolean(score) || Boolean(quizState?.played)
   const result = score?.result ?? (quizState?.played ? { correct: quizState.attempt.correct, total: quizState.total } : null)
@@ -198,7 +207,7 @@ function Hero({ isAuthenticated }) {
                     </p>
                   )}
                   <div className="flex min-h-0 w-full flex-col items-center overflow-y-auto overscroll-contain">
-                    <DailyQuizPlayer state={quizState} compact onPlayingChange={setPlaying} onFinished={setScore} />
+                    <DailyQuizPlayer state={quizState} compact onPlayingChange={setPlaying} onFinished={finished} />
                   </div>
                 </>
               )}

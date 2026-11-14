@@ -519,6 +519,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   author's like; it only counts until it's run with `--apply`.
 
 ### Fixed
+- Finishing the Daily Quiz on the home page shows the Full Quiz Leaderboard
+  button straight away, and the hero's slides can be changed again, instead
+  of both waiting for a refresh.
 - On phones and tablets, a black bar no longer flashes at the bottom when
   the address bar slides away: the site's background, every game page's,
   the Notifications GIF, and the full-screen Kino Poker table and Steal
