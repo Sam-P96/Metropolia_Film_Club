@@ -433,6 +433,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`GET /api/first-place`, `PUT /api/first-place/settings`; titles in
   `backend/utils/firstPlace.js`, stones in `shared/firstPlace/config.js`).
   The Black Market's developer test tool can preview it.
+- A "Page not found" page for addresses the site doesn't have (an old link
+  or a typo), with links home and to the films, instead of an empty page.
+- Each page has its own name in the browser tab, history and bookmarks
+  ("Kino Farkle · Kino Kaverit", "Wallet · Kino Kaverit"), from one table in
+  `frontend/src/utils/pageTitles.js`. Home and the SECRET pages stay
+  "Kino Kaverit".
+- Link previews: a link to the site shared in WhatsApp, Discord and the like
+  shows the club's name and a line about it, and a link to an event shows
+  the event's own title, date, time and place, the start of its description
+  and its image (`backend/utils/linkPreview.js` puts them in the page the
+  server sends, since preview bots don't run the site's JavaScript).
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
@@ -508,6 +519,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   author's like; it only counts until it's run with `--apply`.
 
 ### Fixed
+- Finishing the Daily Quiz on the home page shows the Full Quiz Leaderboard
+  button straight away, and the hero's slides can be changed again, instead
+  of both waiting for a refresh.
 - On phones and tablets, a black bar no longer flashes at the bottom when
   the address bar slides away: the site's background, every game page's,
   the Notifications GIF, and the full-screen Kino Poker table and Steal

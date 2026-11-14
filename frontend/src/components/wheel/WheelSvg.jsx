@@ -1,3 +1,5 @@
+import { sliceColor } from "./wheelColors";
+
 const SIZE = 400;
 const C = SIZE / 2;
 const R = C - 8;
@@ -14,7 +16,6 @@ const slicePath = (i, seg) => {
   return `M${C},${C} L${x1},${y1} A${R},${R} 0 ${seg > 180 ? 1 : 0} 1 ${x2},${y2} Z`;
 };
 
-export const sliceColor = (i) => `hsl(${(i * 47) % 360} 55% ${i % 2 ? 42 : 34}%)`;
 const clip = (s, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 export default function WheelSvg({ items, rotation, spinning, spinMs = 5500 }) {

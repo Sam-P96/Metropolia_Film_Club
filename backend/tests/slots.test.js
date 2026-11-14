@@ -324,13 +324,13 @@ describe("weight tables and luck", () => {
         });
     }
 
-    test("rank to RTP: richest active 100%, poorest active 105%, a straight line between", () => {
-        assert.equal(LUCK.richestRtp, 1.0);
-        assert.equal(LUCK.poorestRtp, 1.05);
-        assert.equal(targetRtp({ active: true, rank: 1, count: 5 }), LUCK.richestRtp);
-        assert.equal(targetRtp({ active: true, rank: 5, count: 5 }), LUCK.poorestRtp);
-        assert.ok(Math.abs(targetRtp({ active: true, rank: 3, count: 5 }) - 1.025) < 1e-12);
-        assert.ok(Math.abs(targetRtp({ active: true, rank: 2, count: 5 }) - 1.0125) < 1e-12);
+    test("rank to RTP: richest active gets LUCK.richestRtp, poorest LUCK.poorestRtp, a straight line between", () => {
+        const { richestRtp, poorestRtp } = LUCK;
+        assert.ok(richestRtp < poorestRtp, "the richer you are, the less comes back");
+        assert.equal(targetRtp({ active: true, rank: 1, count: 5 }), richestRtp);
+        assert.equal(targetRtp({ active: true, rank: 5, count: 5 }), poorestRtp);
+        assert.ok(Math.abs(targetRtp({ active: true, rank: 3, count: 5 }) - (richestRtp + (poorestRtp - richestRtp) / 2)) < 1e-12);
+        assert.ok(Math.abs(targetRtp({ active: true, rank: 2, count: 5 }) - (richestRtp + (poorestRtp - richestRtp) / 4)) < 1e-12);
     });
 
     test("the only active player gets 103%, and inactive players 95%", () => {

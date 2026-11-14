@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { LOGIN_EXPIRED_EVENT } from './utils/currentUser';
+import { pageTitle } from './utils/pageTitles';
 import ScrollToTop from './components/ScrollToTop'
 import NavigationBar from './components/NavigationBar'
 import Footer from './components/Footer'
@@ -73,6 +74,7 @@ const GomokuClanker = lazy(() => import("./pages/GomokuClanker"));
 const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
 const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Infinite Gomoku's developer tool: only in the Vite dev server. A
 // production build replaces import.meta.env.DEV with false, so the page
@@ -98,6 +100,11 @@ function App() {
   // (e.g. "Write a review"), otherwise home.
   const location = useLocation()
   const afterLogin = location.state?.from ?? '/'
+
+  // Each page's name in the browser tab (utils/pageTitles.js).
+  useEffect(() => {
+    document.title = pageTitle(location.pathname)
+  }, [location.pathname])
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -296,6 +303,8 @@ function App() {
             <Route path="/wallet" element={
               isAuthenticated ? (<Wallet />) : (<Navigate to="/login" state={{ from: '/wallet' }} />)
             } />
+            {/* Any other address: "Page not found", with the way back. */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>

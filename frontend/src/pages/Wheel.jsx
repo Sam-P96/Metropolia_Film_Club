@@ -20,7 +20,7 @@ function Confetti({ fire }) {
     canvas.height = h * dpr;
     ctx.scale(dpr, dpr);
 
-    const pieces = Array.from({ length: 180 }, (_, i) => {
+    const pieces = Array.from({ length: 180 }, () => {
       return {
         x: Math.random() * w,
         y: Math.random() * h,
@@ -189,9 +189,20 @@ export default function Wheel() {
     }
   }, []);
 
+  // The first load: state is only set once the answer is in (load() is for
+  // after adding or removing a film).
   useEffect(() => {
-    load();
-  }, [load]);
+    let stopped = false;
+    api()
+      .then(
+        (data) => !stopped && setItems(data.entries),
+        (e) => !stopped && setError(e.message)
+      )
+      .finally(() => !stopped && setLoading(false));
+    return () => {
+      stopped = true;
+    };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();

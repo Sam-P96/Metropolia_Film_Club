@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Confetti from "./Confetti";
-import WheelSvg, { sliceColor } from "./WheelSvg";
+import WheelSvg from "./WheelSvg";
+import { sliceColor } from "./wheelColors";
 
 const SPIN_MS = 5500;
 
@@ -45,10 +46,21 @@ export default function MovieWheel({
     }
   }, [api]);
 
+  // The first load: state is only set once the answer is in (load() is for
+  // after adding or removing a film).
   useEffect(() => {
-    load();
-    return () => clearTimeout(spinTimer.current);
-  }, [load]);
+    let stopped = false;
+    api()
+      .then(
+        (data) => !stopped && setItems(data.entries),
+        (e) => !stopped && setError(e.message)
+      )
+      .finally(() => !stopped && setLoading(false));
+    return () => {
+      stopped = true;
+      clearTimeout(spinTimer.current);
+    };
+  }, [api]);
 
   async function handleSubmit(e) {
     e.preventDefault();
