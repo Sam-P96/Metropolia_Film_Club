@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { LOGIN_EXPIRED_EVENT } from './utils/currentUser';
+import { pageTitle } from './utils/pageTitles';
 import ScrollToTop from './components/ScrollToTop'
 import NavigationBar from './components/NavigationBar'
 import Footer from './components/Footer'
@@ -99,6 +100,11 @@ function App() {
   // (e.g. "Write a review"), otherwise home.
   const location = useLocation()
   const afterLogin = location.state?.from ?? '/'
+
+  // Each page's name in the browser tab (utils/pageTitles.js).
+  useEffect(() => {
+    document.title = pageTitle(location.pathname)
+  }, [location.pathname])
 
   return (
     <div className="flex min-h-screen flex-col">

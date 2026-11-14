@@ -435,6 +435,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The Black Market's developer test tool can preview it.
 - A "Page not found" page for addresses the site doesn't have (an old link
   or a typo), with links home and to the films, instead of an empty page.
+- Each page has its own name in the browser tab, history and bookmarks
+  ("Kino Farkle · Kino Kaverit", "Wallet · Kino Kaverit"), from one table in
+  `frontend/src/utils/pageTitles.js`. Home and the SECRET pages stay
+  "Kino Kaverit".
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
