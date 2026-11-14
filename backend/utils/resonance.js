@@ -23,8 +23,9 @@ const WEIGHTS = {
     ageRating: 0,
 };
 
-// The furthest apart two ratings can be (5 - 0.5). Ratings this far apart,
-// or further once adjusted, are 0% alike.
+// How far apart two ratings are, once adjusted, before they count as
+// nothing alike: this far or further is 0%. Less than the whole scale
+// (5 - 0.5 = 4.5), so a big disagreement already counts as none.
 const RATING_SPREAD = 2.75;
 
 // The ends of the rating scale. The same top or bottom rating is no gap at
@@ -266,6 +267,7 @@ module.exports = {
     SCORING_VERSION,
     MIN_RATED,
     SUGGEST_FROM,
+    RATING_SPREAD,
     similarity,
     filmGap,
     filmSimilarity,

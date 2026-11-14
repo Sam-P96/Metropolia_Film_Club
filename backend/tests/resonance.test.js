@@ -12,6 +12,7 @@ const assert = require("node:assert/strict");
 const {
     WEIGHTS,
     SCORING_VERSION,
+    RATING_SPREAD,
     similarity,
     filmGap,
     filmSimilarity,
@@ -45,10 +46,11 @@ describe("Resonance scoring", () => {
         close(Object.values(WEIGHTS).reduce((sum, weight) => sum + weight, 0), 1);
     });
 
-    test("similarity is 1 for the same rating, 0 at 4.5 apart, and never below 0", () => {
+    test("similarity is 1 for the same rating, 0 at RATING_SPREAD apart, a straight line between, and never below 0", () => {
         assert.equal(similarity(1.5, 1.5), 1);
-        close(similarity(-1, 1.25), 0.5);
-        assert.equal(similarity(-2.25, 2.25), 0);
+        close(similarity(-1, -1 + RATING_SPREAD / 2), 0.5);
+        close(similarity(2, 2 + RATING_SPREAD / 4), 0.75);
+        assert.equal(similarity(-RATING_SPREAD / 2, RATING_SPREAD / 2), 0);
         assert.equal(similarity(-3, 3), 0);
     });
 
