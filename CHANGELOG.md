@@ -439,6 +439,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ("Kino Farkle · Kino Kaverit", "Wallet · Kino Kaverit"), from one table in
   `frontend/src/utils/pageTitles.js`. Home and the SECRET pages stay
   "Kino Kaverit".
+- Link previews: a link to the site shared in WhatsApp, Discord and the like
+  shows the club's name and a line about it, and a link to an event shows
+  the event's own title, date, time and place, the start of its description
+  and its image (`backend/utils/linkPreview.js` puts them in the page the
+  server sends, since preview bots don't run the site's JavaScript).
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated

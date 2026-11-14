@@ -44,6 +44,7 @@ const { startLoanSweep } = require("./jobs/loanSweep");
 const { startSlotSweep } = require("./jobs/slotSweep");
 const { startGomokuSweep } = require("./jobs/gomokuSweep");
 const { startQuizDraw } = require("./jobs/quizDraw");
+const { sendPage } = require("./utils/linkPreview");
 
 const app = express();
 
@@ -245,10 +246,9 @@ if (fs.existsSync(frontendDist)) {
 
     // Not an API route, not a real file — so it's a React Router path. Hand
     // back index.html and let the browser's router read the URL. Without this,
-    // refreshing /films/969681 returns 404.
-    app.use((req, res) => {
-        res.sendFile(path.join(frontendDist, "index.html"));
-    });
+    // refreshing /films/969681 returns 404. An event's page gets the event's
+    // own link preview in it (utils/linkPreview.js).
+    app.use(sendPage(path.join(frontendDist, "index.html")));
 } else {
     console.log("No frontend build found. Run `npm run build` in /frontend to serve it from here.");
 }
