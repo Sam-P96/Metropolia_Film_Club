@@ -73,6 +73,7 @@ const GomokuClanker = lazy(() => import("./pages/GomokuClanker"));
 const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
 const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Infinite Gomoku's developer tool: only in the Vite dev server. A
 // production build replaces import.meta.env.DEV with false, so the page
@@ -296,6 +297,8 @@ function App() {
             <Route path="/wallet" element={
               isAuthenticated ? (<Wallet />) : (<Navigate to="/login" state={{ from: '/wallet' }} />)
             } />
+            {/* Any other address: "Page not found", with the way back. */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>

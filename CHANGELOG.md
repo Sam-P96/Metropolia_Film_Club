@@ -433,6 +433,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`GET /api/first-place`, `PUT /api/first-place/settings`; titles in
   `backend/utils/firstPlace.js`, stones in `shared/firstPlace/config.js`).
   The Black Market's developer test tool can preview it.
+- A "Page not found" page for addresses the site doesn't have (an old link
+  or a typo), with links home and to the films, instead of an empty page.
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
