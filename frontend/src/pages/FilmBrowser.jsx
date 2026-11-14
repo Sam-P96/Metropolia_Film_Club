@@ -27,22 +27,37 @@ const FILTER_KEYS = [
   'sort',
 ]
 
+// One page of films for a search or a set of filters. "Movies with club
+// reviews only" asks our server, which filters the club's reviewed films
+// itself. Everything else asks TMDB.
+function fetchFilms({ mode, query, filters }, pageNumber) {
+  if (mode === 'search') return searchFilms(query, pageNumber)
+  if (filters.reviewed) return getReviewedFilms(filters, pageNumber)
+  return discoverFilms(filters, pageNumber)
+}
+
+const NO_RESULTS = { key: null, films: [], page: 1, totalPages: 0, totalResults: 0, error: null }
+
 function FilmBrowser() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [genres, setGenres] = useState([])
-  const [films, setFilms] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(0)
-  const [totalResults, setTotalResults] = useState(0)
-  const [loading, setLoading] = useState(false)
+  // The films shown, and which search or filters (`key`) they're for. While
+  // they're for different ones, the new ones are loading.
+  const [results, setResults] = useState(NO_RESULTS)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState(null)
 
   const mode = searchParams.get('mode') === 'search' ? 'search' : 'browse'
   const query = searchParams.get('q') || ''
 
+  // The search box, which follows the address when it changes (the back
+  // button, a search from the nav) but is the member's to type in.
   const [searchInput, setSearchInput] = useState(query)
+  const [searchInputFor, setSearchInputFor] = useState(query)
+  if (searchInputFor !== query) {
+    setSearchInputFor(query)
+    setSearchInput(query)
+  }
 
   const filters = {}
   FILTER_KEYS.forEach((key) => {
@@ -50,13 +65,12 @@ function FilmBrowser() {
   })
   if (!filters.sort) filters.sort = 'popularity.desc'
 
-  // "Movies with club reviews only" asks our server, which filters the
-  // club's reviewed films itself. Everything else asks TMDB.
-  const fetchPage = (pageNumber) => {
-    if (mode === 'search') return searchFilms(query, pageNumber)
-    if (filters.reviewed) return getReviewedFilms(filters, pageNumber)
-    return discoverFilms(filters, pageNumber)
-  }
+  // Everything the first page depends on, as text: a new one loads afresh.
+  const fetchKey = JSON.stringify({ mode, query, filters })
+  const tooShort = mode === 'search' && query.trim().length < 2
+  const current = !tooShort && results.key === fetchKey
+  const loading = !tooShort && !current
+  const { films, page, totalPages, totalResults, error } = current ? results : NO_RESULTS
 
   // A bare /films lands on the default browse view, written into the URL so it
   // is shareable and the controls match what is on screen.
@@ -69,7 +83,7 @@ function FilmBrowser() {
     } else {
       setSearchParams({ mode: 'browse', ...DEFAULT_FILTERS }, { replace: true })
     }
-  }, [])
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     getGenres()
@@ -77,44 +91,26 @@ function FilmBrowser() {
       .catch(() => setGenres([]))
   }, [])
 
-  useEffect(() => {
-    setSearchInput(query)
-  }, [query])
-
   // Refetch from page 1 whenever the mode, the search or any filter changes
   useEffect(() => {
-    if (mode === 'search' && query.trim().length < 2) {
-      setFilms([])
-      setTotalResults(0)
-      setTotalPages(0)
-      setLoading(false)
-      return
-    }
+    const asked = JSON.parse(fetchKey)
+    if (asked.mode === 'search' && asked.query.trim().length < 2) return undefined
 
     let cancelled = false
 
-    setLoading(true)
-    setError(null)
-
-    fetchPage(1)
+    fetchFilms(asked, 1)
       .then((data) => {
         if (cancelled) return
-        setFilms(data.films)
-        setPage(data.page)
-        setTotalPages(data.totalPages)
-        setTotalResults(data.totalResults)
+        setResults({ key: fetchKey, films: data.films, page: data.page, totalPages: data.totalPages, totalResults: data.totalResults, error: null })
       })
       .catch(() => {
-        if (!cancelled) setError('Could not load films. Is the backend running?')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setResults({ ...NO_RESULTS, key: fetchKey, error: 'Could not load films. Is the backend running?' })
       })
 
     return () => {
       cancelled = true
     }
-  }, [mode, query, ...FILTER_KEYS.map((key) => filters[key])])
+  }, [fetchKey])
 
   const switchMode = (nextMode) => {
     if (nextMode === mode) return
@@ -171,12 +167,13 @@ function FilmBrowser() {
 
     setLoadingMore(true)
 
-    fetchPage(nextPage)
+    // Added to the films shown, if they're still for the same search.
+    const forKey = fetchKey
+    fetchFilms({ mode, query, filters }, nextPage)
       .then((data) => {
-        setFilms((previous) => [...previous, ...data.films])
-        setPage(data.page)
+        setResults((previous) => (previous.key === forKey ? { ...previous, films: [...previous.films, ...data.films], page: data.page } : previous))
       })
-      .catch(() => setError('Could not load more films.'))
+      .catch(() => setResults((previous) => (previous.key === forKey ? { ...previous, error: 'Could not load more films.' } : previous)))
       .finally(() => setLoadingMore(false))
   }
 
