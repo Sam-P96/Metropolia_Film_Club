@@ -460,7 +460,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
-- Loan Shark: King Loan Shark lends up to 25x a member's daily PP (was 5x),
+- Loan Shark: King Loan Shark lends up to 30x a member's daily PP (was 5x),
   missed payments double his rate up to 320% (was 160%), and Kaveri starts
   collecting well before the top. Where he starts is set in
   `backend/config/loanShark.js` (`collectorRate`) and, like before, never

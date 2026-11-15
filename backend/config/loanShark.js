@@ -10,7 +10,7 @@ const LOAN_SHARK = {
     // King Loan Shark: borrowing P-PP from the house.
     shark: {
         // The most a member can have borrowed at once, times their daily PP.
-        capTimesDaily: 25,
+        capTimesDaily: 30,
         // The rate a new loan starts at. Each missed payment doubles it,
         // up to maxRate.
         startRate: 0.1,

@@ -195,7 +195,7 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         server = app.listen(0);
         base = `http://127.0.0.1:${server.address().port}/api`;
 
-        // The borrower: 40 reviews, so 40 PP a day (shark cap 1,000, player cap 80).
+        // The borrower: 40 reviews, so 40 PP a day (shark cap 1,200, player cap 80).
         await member("borrower", { reviews: 40 });
         await member("borrower2", { reviews: 40 });
         await member("lender", { reviews: 10, pp: 100 });
@@ -224,16 +224,16 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.equal((await view(people.newbie)).me.canBorrow, false);
     });
 
-    test("shark loans: up to 25x daily PP, paid in P-PP, starting a loan with 4 jobs nobody excluded is in", async () => {
+    test("shark loans: up to 30x daily PP, paid in P-PP, starting a loan with 4 jobs nobody excluded is in", async () => {
         const borrowed = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 100 });
         assert.equal(borrowed.status, 200);
         const shark = borrowed.body.view.shark;
-        assert.deepEqual([shark.borrowed, shark.rate, shark.owed, shark.minimum, shark.maxBorrow, shark.cap], [100, 10, 110, 6, 900, 1000]);
+        assert.deepEqual([shark.borrowed, shark.rate, shark.owed, shark.minimum, shark.maxBorrow, shark.cap], [100, 10, 110, 6, 1100, 1200]);
         assert.equal(shark.state, "covered");
         assert.deepEqual(await walletOf(people.borrower), { pp: 0, ppp: 100, lastPayoutDay: null });
 
-        const tooMuch = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 901 });
-        assert.deepEqual([tooMuch.status, tooMuch.body.error], [400, "You can borrow 900 more P-PP at most."]);
+        const tooMuch = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 1101 });
+        assert.deepEqual([tooMuch.status, tooMuch.body.error], [400, "You can borrow 1100 more P-PP at most."]);
         for (const amount of [0, -5, 2.5, "lots"]) {
             assert.equal((await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount })).status, 400, String(amount));
         }
@@ -527,16 +527,16 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
     });
 
     test("double clicks and two tabs: never past a cap, never paid twice", async () => {
-        // 10 reviews: the shark lends 250 at most.
+        // 10 reviews: the shark lends 300 at most.
         const quick = await member("quick", { reviews: 10 });
-        const borrows = await Promise.all(Array.from({ length: 8 }, () => call(quick, "POST", "/loan-shark/shark/borrow", { amount: 50 })));
+        const borrows = await Promise.all(Array.from({ length: 8 }, () => call(quick, "POST", "/loan-shark/shark/borrow", { amount: 60 })));
         assert.equal(borrows.filter((result) => result.status === 200).length, 5);
-        assert.equal((await LoanAccount.findById(quick._id).lean()).shark.borrowed, 250);
-        assert.equal((await walletOf(quick)).ppp, 250);
+        assert.equal((await LoanAccount.findById(quick._id).lean()).shark.borrowed, 300);
+        assert.equal((await walletOf(quick)).ppp, 300);
 
-        // Paying the 275 owed from two tabs at once: only one of them can.
-        await setWallet(quick, 25, 250);
-        const pays = await Promise.all([1, 2].map(() => call(quick, "POST", "/loan-shark/shark/pay", { amount: 275 })));
+        // Paying the 330 owed from two tabs at once: only one of them can.
+        await setWallet(quick, 30, 300);
+        const pays = await Promise.all([1, 2].map(() => call(quick, "POST", "/loan-shark/shark/pay", { amount: 330 })));
         assert.deepEqual(pays.map((result) => result.status).sort(), [200, 400]);
         assert.equal((await walletOf(quick)).ppp, 0);
 
