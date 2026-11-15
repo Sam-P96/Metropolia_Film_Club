@@ -16,7 +16,8 @@ const LOAN_SHARK = {
         startRate: 0.1,
         maxRate: 3.2,
         // Each day's minimum payment, as a share of the total borrowed.
-        minimumPayment: 0.05,
+        // (Was 0.05; 20% more.)
+        minimumPayment: 0.06,
         // From collectorRate on, Kaveri takes collectorTake of their daily
         // PP every day at 12:00 until it's paid, and missed payments still
         // double the rate up to maxRate. Members are never told
