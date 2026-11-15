@@ -39,7 +39,8 @@ function rules() {
         sharkMaxRate: MAX_RATE,
         minimumPayment: percentOf(shark.minimumPayment),
         collectorTake: percentOf(shark.collectorTake),
-        jobReduction: percentOf(jobs.reduction),
+        // To one decimal place (15.6), as it isn't always a whole percent.
+        jobReduction: Math.round(jobs.reduction * 1000) / 10,
         jobsPerLoan: jobs.perLoan,
         dislikeHours: jobs.dislikeHours,
         playerCapTimesDaily: player.capTimesDaily,

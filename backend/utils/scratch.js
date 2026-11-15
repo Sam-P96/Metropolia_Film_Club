@@ -9,6 +9,7 @@ const { announceJackpot } = require("../games/farkle/live");
 const { ScratchError, TILE_COUNT, newLayout, scratchTile, sealLayout, tierByKey } = require("../games/scratch/engine");
 const { SCRATCH } = require("../../shared/scratch/config.js");
 const { goldenTicketOneIn } = require("../games/happyHours");
+const { JACKPOT_FEED } = require("../config/jackpotFeed");
 const {
     DEFAULT_TICKET_TYPE,
     TICKET_TYPES,
@@ -82,22 +83,56 @@ async function jackpotView() {
     return { amounts, recent: recent.slice(0, RECENT_JACKPOTS) };
 }
 
-// A `type` ticket was sold: its share goes into that type's pool, in one
-// atomic step (starting from the seed if there's no pool yet), and every
-// page showing the game hears the new amount.
-async function addToJackpot(type) {
-    const { jackpotSeed, jackpotContribution } = ticketType(type);
+// `amount` P-PP into `type`'s pool, in one atomic step (starting from the
+// seed if there's no pool yet), and every page showing the game hears the
+// new amount.
+async function addToPool(type, amount) {
+    const { jackpotSeed } = ticketType(type);
     const pool = await Jackpot.collection.findOneAndUpdate(
         { _id: jackpotId(type) },
         [{
             $set: {
-                amount: { $add: [{ $ifNull: ["$amount", jackpotSeed] }, jackpotContribution] },
+                amount: { $add: [{ $ifNull: ["$amount", jackpotSeed] }, amount] },
                 recent: { $ifNull: ["$recent", []] },
             },
         }],
         { upsert: true, returnDocument: "after" }
     );
     announceJackpot(type, pool.amount);
+}
+
+// A `type` ticket was sold: its share goes into that type's pool.
+async function addToJackpot(type) {
+    await addToPool(type, ticketType(type).jackpotContribution);
+}
+
+// `amount` whole points shared between the pools by `split` (config/
+// jackpotFeed.js), so the shares add up to exactly `amount`: each gets its
+// share rounded down, and the points left over go to the biggest leftover
+// fractions (the first in `split` on a tie). 100 -> 15 / 35 / 50, 8 -> 1 /
+// 3 / 4, 1 -> 0 / 0 / 1.
+function splitFeed(amount, split = JACKPOT_FEED.split) {
+    const parts = Object.entries(split).map(([type, share]) => {
+        const exact = amount * Math.round(share * 10000);
+        return { type, whole: Math.floor(exact / 10000), over: exact % 10000 };
+    });
+    let left = amount - parts.reduce((sum, part) => sum + part.whole, 0);
+    for (const part of [...parts].sort((a, b) => b.over - a.over)) {
+        if (left <= 0) break;
+        part.whole += 1;
+        left -= 1;
+    }
+    return Object.fromEntries(parts.map((part) => [part.type, part.whole]));
+}
+
+// `amount` P-PP from elsewhere on the site (utils/jackpotFeed.js), shared
+// between the pools. Resolves to the shares, { standard, premium, vip }.
+async function feedJackpots(amount) {
+    const shares = splitFeed(amount);
+    for (const [type, share] of Object.entries(shares)) {
+        if (share > 0) await addToPool(type, share);
+    }
+    return shares;
 }
 
 // `card` found the Golden Ticket: it wins the whole pool of its ticket type.
@@ -483,6 +518,8 @@ module.exports = {
     jackpotView,
     hoursView,
     addToJackpot,
+    splitFeed,
+    feedJackpots,
     claimJackpot,
     cardView,
     currentCard,

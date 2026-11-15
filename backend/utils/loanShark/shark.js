@@ -6,6 +6,7 @@ const { changeWallet, dailyPp } = require("../wallet");
 const { inSession } = require("../steal/tx");
 const { LoanError, emptyShark, loadAccount, changeAccount, logTx } = require("./account");
 const { sharkOwed, sharkSplit, coverage, firstDueAt } = require("./math");
+const { feedFromLoanShark } = require("../jackpotFeed");
 
 // King Loan Shark: borrowing P-PP from the house, and paying it back.
 //
@@ -90,12 +91,14 @@ async function sharkBorrow(userId, amount, now = new Date()) {
 
 // "Pay back": up to `requested` towards the shark debt (never more than is
 // owed), PP first, then P-PP. Each payment covers as many 12:00 checks as
-// it and any credit make whole daily minimums; the rest is credit.
-// Resolves to { paid, left, cleared, days, paidUntil }.
+// it and any credit make whole daily minimums; the rest is credit. Half
+// of what he takes goes to the scratch jackpots (config/jackpotFeed.js),
+// once it's all gone through. Resolves to { paid, left, cleared, days,
+// paidUntil }.
 async function sharkPay(userId, requested, now = new Date()) {
     wholeAmount(requested);
 
-    return inSession(async (session) => {
+    return inSession(async (session, after) => {
         const before = await loadAccount(userId, session);
         const owing = sharkOwed(before.shark);
         if (owing === 0) throw new LoanError("You don't owe King Loan Shark anything. Yet.");
@@ -150,6 +153,7 @@ async function sharkPay(userId, requested, now = new Date()) {
             session,
         );
         if (result.cleared) await closeLoan(userId, result.loan, session);
+        after(() => feedFromLoanShark(paid));
 
         return { paid, left: result.left, cleared: result.cleared, days: result.days, paidUntil: result.paidUntil };
     });
