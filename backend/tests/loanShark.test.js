@@ -30,10 +30,11 @@ describe("Loan Shark sums", () => {
         assert.equal(math.sharkMinimum(shark({ borrowed: 100, paid: 107 })), 3);
     });
 
-    test("a missed payment doubles the rate, up to 160%", () => {
+    test("a missed payment doubles the rate, up to 320%; Kaveri collects from 80%", () => {
         const rates = [10];
-        for (let i = 0; i < 5; i++) rates.push(math.doubled(rates.at(-1)));
-        assert.deepEqual(rates, [10, 20, 40, 80, 160, 160]);
+        for (let i = 0; i < 6; i++) rates.push(math.doubled(rates.at(-1)));
+        assert.deepEqual(rates, [10, 20, 40, 80, 160, 320, 320]);
+        assert.deepEqual(rates.map(math.collecting), [false, false, false, true, true, true, true]);
     });
 
     test("12:00 in Helsinki, summer and winter", () => {
@@ -193,7 +194,7 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         server = app.listen(0);
         base = `http://127.0.0.1:${server.address().port}/api`;
 
-        // The borrower: 40 reviews, so 40 PP a day (shark cap 200, player cap 80).
+        // The borrower: 40 reviews, so 40 PP a day (shark cap 1,000, player cap 80).
         await member("borrower", { reviews: 40 });
         await member("borrower2", { reviews: 40 });
         await member("lender", { reviews: 10, pp: 100 });
@@ -222,16 +223,16 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.equal((await view(people.newbie)).me.canBorrow, false);
     });
 
-    test("shark loans: up to 5x daily PP, paid in P-PP, starting a loan with 4 jobs nobody excluded is in", async () => {
+    test("shark loans: up to 25x daily PP, paid in P-PP, starting a loan with 4 jobs nobody excluded is in", async () => {
         const borrowed = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 100 });
         assert.equal(borrowed.status, 200);
         const shark = borrowed.body.view.shark;
-        assert.deepEqual([shark.borrowed, shark.rate, shark.owed, shark.minimum, shark.maxBorrow], [100, 10, 110, 5, 100]);
+        assert.deepEqual([shark.borrowed, shark.rate, shark.owed, shark.minimum, shark.maxBorrow, shark.cap], [100, 10, 110, 5, 900, 1000]);
         assert.equal(shark.state, "covered");
         assert.deepEqual(await walletOf(people.borrower), { pp: 0, ppp: 100, lastPayoutDay: null });
 
-        const tooMuch = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 101 });
-        assert.deepEqual([tooMuch.status, tooMuch.body.error], [400, "You can borrow 100 more P-PP at most."]);
+        const tooMuch = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 901 });
+        assert.deepEqual([tooMuch.status, tooMuch.body.error], [400, "You can borrow 900 more P-PP at most."]);
         for (const amount of [0, -5, 2.5, "lots"]) {
             assert.equal((await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount })).status, 400, String(amount));
         }
@@ -290,7 +291,7 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.match(broke.body.error, /You need 96 points/);
     });
 
-    test("the 12:00 check: covered checks are fine, each missed one doubles the rate to 160%, then Kaveri takes 40% of the daily PP", async () => {
+    test("the 12:00 check: covered checks are fine, each missed one doubles the rate up to 320%, and from 80% Kaveri takes 40% of the daily PP", async () => {
         const account = await LoanAccount.findById(people.borrower._id).lean();
         const firstDue = new Date(account.shark.firstDueAt).toLocaleDateString("en-CA", { timeZone: "Europe/Helsinki" });
         const before = math.addDays(firstDue, -1);
@@ -303,38 +304,55 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         let shark = (await view(people.borrower)).shark;
         assert.equal(shark.rate, 10);
 
-        // Four missed: 20, 40, 80, 160. Kaveri comes with the fourth.
+        // Five missed: 20, 40, 80, 160, 320. Kaveri comes with the third, and
+        // what he takes isn't a payment: the rate keeps doubling to the top.
         const rates = [];
-        for (let i = 2; i <= 5; i++) {
-            // Room under the PP cap again for Kaveri's day.
-            if (i === 5) await setWallet(people.borrower, 0, 95);
+        for (let i = 2; i <= 6; i++) {
+            // Room under the PP cap each day.
+            await setWallet(people.borrower, 0, 95);
             const result = await payout(people.borrower, math.addDays(firstDue, i));
             rates.push(result.loans.rate);
-            if (i < 5) assert.equal(result.deducted, 0);
-            else assert.deepEqual([result.deducted, result.loans.collector, result.credited], [16, 16, 24]);
+            if (i < 4) assert.deepEqual([result.deducted, result.loans.collector, result.credited], [0, 0, 40], `day ${i}`);
+            else assert.deepEqual([result.deducted, result.loans.collector, result.credited], [16, 16, 24], `day ${i}`);
+
+            if (i === 4) {
+                // At 80%: Kaveri's here, and a payment due still doubles the rate.
+                const page = await view(people.borrower);
+                assert.deepEqual([page.shark.state, page.shark.warnings, page.shark.nextRate], ["collector", { due: true, missed: true, collector: true }, 160]);
+                // Where he starts is never sent to the page.
+                assert.ok(!JSON.stringify(page.rules).match(/collectorRate|"80"|:80/), JSON.stringify(page.rules));
+            }
         }
-        assert.deepEqual(rates, [20, 40, 80, 160]);
+        assert.deepEqual(rates, [20, 40, 80, 160, 320]);
         shark = (await view(people.borrower)).shark;
-        // 100 at 160% = 260, less 12 paid and Kaveri's 16.
-        assert.deepEqual([shark.state, shark.owed, shark.warnings.collector], ["collector", 232, true]);
-        assert.equal((await notes(people.borrower, "loanMissed")).length, 4);
+        // 100 at 320% = 420, less 12 paid and Kaveri's 3 x 16. Nothing left
+        // to double, so no payment-due warning.
+        assert.deepEqual([shark.state, shark.owed, shark.warnings], ["collector", 360, { due: false, missed: true, collector: true }]);
+        assert.equal((await notes(people.borrower, "loanMissed")).length, 5);
 
         const kaveri = await notes(people.borrower, "loanCollector");
-        assert.equal(kaveri.length, 1);
-        assert.deepEqual([kaveri[0].amount, kaveri[0].loan.left], [16, 232]);
-        assert.ok(Number.isInteger(kaveri[0].variant));
+        assert.deepEqual(kaveri.map((note) => [note.amount, note.loan.left]), [[16, 152], [16, 216], [16, 360]]);
+        assert.ok(kaveri.every((note) => Number.isInteger(note.variant)));
 
-        // The next day: a different line.
-        await payout(people.borrower, math.addDays(firstDue, 6));
-        const both = await notes(people.borrower, "loanCollector");
-        assert.notEqual(both[1].variant, both[0].variant);
+        // The next day, at the top: no more doubling, Kaveri again, a different line.
+        await setWallet(people.borrower, 0, 95);
+        const top = await payout(people.borrower, math.addDays(firstDue, 7));
+        assert.deepEqual([top.loans.missed, top.loans.rate, top.loans.collector], [false, 320, 16]);
+        const all = await notes(people.borrower, "loanCollector");
+        assert.notEqual(all[3].variant, all[2].variant);
 
         // A day is only ever paid once.
-        assert.equal(await payout(people.borrower, math.addDays(firstDue, 6)), null);
+        assert.equal(await payout(people.borrower, math.addDays(firstDue, 7)), null);
         assert.equal(await payout(people.borrower, math.addDays(firstDue, 3)), null);
 
         const log = await LoanTx.find({ user: people.borrower._id, kind: { $in: ["sharkMissed", "sharkCollector"] } }).sort({ at: 1, _id: 1 }).lean();
-        assert.deepEqual(log.map((entry) => entry.kind), ["sharkMissed", "sharkMissed", "sharkMissed", "sharkMissed", "sharkCollector", "sharkCollector"]);
+        assert.deepEqual(log.map((entry) => entry.kind), [
+            "sharkMissed", "sharkMissed",
+            "sharkMissed", "sharkCollector",
+            "sharkMissed", "sharkCollector",
+            "sharkMissed", "sharkCollector",
+            "sharkCollector",
+        ]);
     });
 
     test("paying it all off ends the loan: the rate, credit and timer reset, and the jobs close", async () => {
@@ -507,16 +525,16 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
     });
 
     test("double clicks and two tabs: never past a cap, never paid twice", async () => {
-        // 10 reviews: the shark lends 50 at most.
+        // 10 reviews: the shark lends 250 at most.
         const quick = await member("quick", { reviews: 10 });
-        const borrows = await Promise.all(Array.from({ length: 8 }, () => call(quick, "POST", "/loan-shark/shark/borrow", { amount: 10 })));
+        const borrows = await Promise.all(Array.from({ length: 8 }, () => call(quick, "POST", "/loan-shark/shark/borrow", { amount: 50 })));
         assert.equal(borrows.filter((result) => result.status === 200).length, 5);
-        assert.equal((await LoanAccount.findById(quick._id).lean()).shark.borrowed, 50);
-        assert.equal((await walletOf(quick)).ppp, 50);
+        assert.equal((await LoanAccount.findById(quick._id).lean()).shark.borrowed, 250);
+        assert.equal((await walletOf(quick)).ppp, 250);
 
-        // Paying the 55 owed from two tabs at once: only one of them can.
-        await setWallet(quick, 5, 50);
-        const pays = await Promise.all([1, 2].map(() => call(quick, "POST", "/loan-shark/shark/pay", { amount: 55 })));
+        // Paying the 275 owed from two tabs at once: only one of them can.
+        await setWallet(quick, 25, 250);
+        const pays = await Promise.all([1, 2].map(() => call(quick, "POST", "/loan-shark/shark/pay", { amount: 275 })));
         assert.deepEqual(pays.map((result) => result.status).sort(), [200, 400]);
         assert.equal((await walletOf(quick)).ppp, 0);
 
@@ -546,22 +564,22 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         await setWallet(dev, 3, 10);
         const first = await call(dev, "POST", "/loan-shark/test/collector");
         assert.equal(first.status, 200);
-        // 20 at 160% = 52, less Kaveri's 4: 3 PP first, then 1 P-PP.
-        assert.deepEqual(first.body.done, { take: 4, left: 48, cleared: false, rate: 160 });
+        // Up to 80%, where he starts: 20 at 80% = 36, less Kaveri's 4: 3 PP first, then 1 P-PP.
+        assert.deepEqual(first.body.done, { take: 4, left: 32, cleared: false, rate: 80 });
         assert.deepEqual(await walletOf(dev), { pp: 0, ppp: 9, lastPayoutDay: null });
-        assert.deepEqual([first.body.view.shark.state, first.body.view.shark.owed], ["collector", 48]);
+        assert.deepEqual([first.body.view.shark.state, first.body.view.shark.owed], ["collector", 32]);
 
         const second = await call(dev, "POST", "/loan-shark/test/collector");
-        assert.equal(second.body.done.left, 44);
+        assert.equal(second.body.done.left, 28);
         const visits = await notes(dev, "loanCollector");
-        assert.deepEqual(visits.map((note) => [note.amount, note.loan.left]), [[4, 48], [4, 44]]);
+        assert.deepEqual(visits.map((note) => [note.amount, note.loan.left]), [[4, 32], [4, 28]]);
         assert.notEqual(visits[0].variant, visits[1].variant);
         assert.equal(await LoanTx.countDocuments({ user: dev._id, kind: "devRate" }), 1, "the rate jumps once");
         assert.equal(await LoanTx.countDocuments({ user: dev._id, kind: "sharkCollector" }), 2);
 
         // The last of it: his cleared line, and the loan ends.
         await setWallet(dev, 0, 100);
-        await call(dev, "POST", "/loan-shark/shark/pay", { amount: 42 });
+        await call(dev, "POST", "/loan-shark/shark/pay", { amount: 26 });
         const last = await call(dev, "POST", "/loan-shark/test/collector");
         assert.deepEqual(last.body.done, { take: 2, left: 0, cleared: true, rate: null });
         assert.equal(last.body.view.shark.state, "clear");

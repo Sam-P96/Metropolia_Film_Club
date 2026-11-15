@@ -22,6 +22,11 @@ const percentOf = (share) => Math.round(share * 100);
 
 const START_RATE = percentOf(LOAN_SHARK.shark.startRate);
 const MAX_RATE = percentOf(LOAN_SHARK.shark.maxRate);
+// Kaveri collects from this rate on (kept from the page).
+const COLLECTOR_RATE = percentOf(LOAN_SHARK.shark.collectorRate);
+
+// Whether Kaveri comes for a loan at `rate` %.
+const collecting = (rate) => rate >= COLLECTOR_RATE;
 
 // --- the shark ---
 
@@ -155,6 +160,8 @@ function checkState(shark, day) {
 module.exports = {
     START_RATE,
     MAX_RATE,
+    COLLECTOR_RATE,
+    collecting,
     ceilDiv,
     ceilShare,
     percentOf,

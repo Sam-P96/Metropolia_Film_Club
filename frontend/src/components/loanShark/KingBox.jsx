@@ -116,7 +116,7 @@ function Warnings({ shark, daily }) {
           is {shark.rate}%.
         </p>
       )}
-      {warnings.due && !warnings.collector && (
+      {warnings.due && (
         <p>
           <strong className="text-red-300">Payment due.</strong> Pay at least {points(shark.toCoverNext)} by {checkTime(shark.nextCheckAt)}, or your rate
           doubles to {shark.nextRate}%.

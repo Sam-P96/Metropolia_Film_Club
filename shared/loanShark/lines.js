@@ -33,16 +33,18 @@ export const SHARK_LINES = {
     "Tick tock. I'm a shark, I don't own a clock. But Kaveri does.",
     'I believe in you. I also believe in consequences.',
   ],
-  // Missed a payment: the rate is above where it started, below the top.
+  // Missed a payment: the rate is above where it started, and Kaveri's
+  // not collecting yet.
   missed: [
     "You missed a payment. That's fine. I'm fine. Your interest rate isn't fine.",
     'I waited by the phone all day. You never called. The rate doubled out of sadness.',
     'Forgetting is human. Doubling is shark.',
     "I'm not angry. I'm just disappointed. And also angry.",
   ],
-  // The rate is at the top, and Kaveri is collecting.
+  // The rate is high enough that Kaveri is collecting (config/loanShark.js
+  // collectorRate). Nothing here says how high: they find out when he comes.
   collector: [
-    "160%. You've reached the top. Unfortunately, so has my patience.",
+    "You've reached a certain number. So has my patience.",
     "I sent Kaveri. He's small. He's fluffy. You should be terrified.",
     "Every day at noon, a little bunny takes a little money. Until it's done.",
     'We had something special. Now we have a collections arrangement.',

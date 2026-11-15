@@ -28,7 +28,8 @@ async function reviewsOf(userId, session = null) {
     return Review.countDocuments({ user: userId }).session(session);
 }
 
-// The most `reviews` reviews can borrow from the shark in all: 5x daily PP.
+// The most `reviews` reviews can borrow from the shark in all: capTimesDaily
+// (config/loanShark.js) times their daily PP.
 const sharkCap = (reviews) => LOAN_SHARK.shark.capTimesDaily * dailyPp(reviews);
 
 // The loan ended (paid off, by them, Kaveri or jobs): jobs still open

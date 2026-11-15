@@ -13,6 +13,7 @@ const {
     START_RATE,
     ceilShare,
     checkState,
+    collecting,
     debtOwed,
     drawInterest,
     firstUncoveredDay,
@@ -79,7 +80,7 @@ async function sharkView(account, reviews, now) {
     const nextDay = nextCheckDay(now, account.lastCheckDay);
     const next = checkState(shark, nextDay);
     const dueNext = next.due && !next.covered;
-    const collector = shark.rate >= MAX_RATE;
+    const collector = collecting(shark.rate);
     const state = collector ? "collector" : shark.rate > START_RATE ? "missed" : dueNext ? "due" : "covered";
     const minimum = sharkMinimum(shark);
 
@@ -99,15 +100,16 @@ async function sharkView(account, reviews, now) {
         // What still has to be paid to cover the next check.
         toCoverNext: dueNext ? Math.max(0, minimum - shark.credit) : 0,
         nextCheckAt: noonOf(nextDay),
-        // "King Loan Shark leaves you alone for": Kaveri comes every day at
-        // the top rate; otherwise, until the first check not paid for.
+        // "King Loan Shark leaves you alone for": Kaveri comes every day
+        // while he is collecting; otherwise, until the first check not paid for.
         leavesAloneUntil: collector ? noonOf(nextDay) : noonOf(firstUncoveredDay(account, now)),
         paidUntil: shark.paidUntil,
         firstDueAt: shark.firstDueAt,
         startedAt: shark.startedAt,
         missed: shark.missed,
         nextRate: Math.min(MAX_RATE, shark.rate * 2),
-        warnings: { due: dueNext, missed: shark.rate > START_RATE, collector },
+        // A payment due only matters while the rate can still double.
+        warnings: { due: dueNext && shark.rate < MAX_RATE, missed: shark.rate > START_RATE, collector },
         collectorTakes: collector ? ceilShare(dailyPp(reviews), LOAN_SHARK.shark.collectorTake) : 0,
         // What the next job done would take off.
         jobValue: ceilShare(shark.borrowed, LOAN_SHARK.jobs.reduction),
