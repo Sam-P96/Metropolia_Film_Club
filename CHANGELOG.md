@@ -531,7 +531,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Every banner is opaque: the Glass and Translucent finishes are gone.
 - The banners behind list rows have no blur, and fade into the row with a
   gradient instead of a mask; leaderboard lists are an opaque colour (no
-  blur behind them), so a row is the same on both sides, hovered too.
+  blur behind them), so a row is the same on both sides; hovering a row
+  washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
 - Finishing the Daily Quiz on the home page shows the Full Quiz Leaderboard

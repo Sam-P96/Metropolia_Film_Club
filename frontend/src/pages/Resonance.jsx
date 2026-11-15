@@ -278,9 +278,10 @@ function Row({ match, rank, edge }) {
           else setOpen(!open)
           pointer.current = null
         }}
-        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-[color,background-color,--strip-fade] hover:bg-list-hover hover:[--strip-fade:var(--color-list-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-list-hover [--strip-fade:var(--color-list-hover)]' : ''} ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${styledName || cosmetics?.border ? 'z-10' : ''}`}
+        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${styledName || cosmetics?.border ? 'z-10' : ''}`}
       >
         <BannerStrip banner={user.reviewCardBanner} className={EDGE_BANNER[edge] ?? ''} />
+        <span aria-hidden="true" className={`row-wipe ${open ? 'row-wipe-on' : ''}`} />
 
         <span className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${rank <= 3 ? 'text-brand-gold' : 'text-white/40'}`}>
           {rank}

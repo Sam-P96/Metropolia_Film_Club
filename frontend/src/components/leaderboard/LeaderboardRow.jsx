@@ -37,9 +37,10 @@ export default function LeaderboardRow({ user, position, subtitle, score, edge =
     <li>
       <Link
         to={`/users/${user._id}`}
-        className={`group relative isolate flex items-center gap-4 px-5 py-4 transition-[color,background-color,--strip-fade] hover:bg-list-hover hover:[--strip-fade:var(--color-list-hover)] ${corners.row} ${styled ? 'z-10' : ''}`}
+        className={`group relative isolate flex items-center gap-4 px-5 py-4 transition-colors ${corners.row} ${styled ? 'z-10' : ''}`}
       >
         <BannerStrip banner={user.reviewCardBanner} className={corners.banner} />
+        <span aria-hidden="true" className="row-wipe" />
 
         <span className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${position <= 3 ? 'text-brand-gold' : 'text-white/40'}`}>
           {position}

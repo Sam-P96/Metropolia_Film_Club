@@ -1,9 +1,9 @@
 import BannerFill from './BannerFill'
 
 // What the banner fades into: the row's colour. A leaderboard list is
-// bg-list (index.css), and a row under the pointer sets --strip-fade to its
-// hover colour; a card with a colour of its own passes `fade`.
-const ROW_COLOUR = 'var(--strip-fade, var(--color-list))'
+// bg-list (index.css); a card with a colour of its own passes `fade`. A
+// hovered row's wash goes over the banner too (.row-wipe in index.css).
+const ROW_COLOUR = 'var(--color-list)'
 
 // A member's review card banner behind the left of a list row: as long as a
 // card, 15% longer on desktop, fading out on the right. The row needs

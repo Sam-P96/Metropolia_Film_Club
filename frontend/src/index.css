@@ -1,13 +1,37 @@
 @import "tailwindcss";
 
-/* What a list row's banner fades into (components/profile/BannerStrip.jsx):
-   the row's colour. A colour the browser knows, so it can change gradually
-   with the row's own background when a row is hovered, instead of jumping
-   ahead of it and splitting the row in two. Starts as --color-list. */
-@property --strip-fade {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #171320;
+/* A list row's hover (leaderboards and the other lists with banners): a
+   light wash over the whole row, its banner too, so the banner and the rest
+   never differ. It wipes in from the right with a soft edge, and back out.
+   The row is `group relative isolate`; this goes inside it, after the
+   banner (`row-wipe-on` keeps it in, for an opened row). */
+.row-wipe {
+  position: absolute;
+  inset: 0;
+  z-index: -5;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.row-wipe::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 200%;
+  background: linear-gradient(to left, rgb(255 255 255 / 0.05) 50%, transparent);
+  transform: translateX(100%);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.group:hover > .row-wipe::before,
+.group:focus-visible > .row-wipe::before,
+.row-wipe-on::before {
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-wipe::before {
+    transition: none;
+  }
 }
 
 @theme {
@@ -24,10 +48,8 @@
   --color-plum: #2D1B47;
 
   /* Leaderboard lists, opaque, so a row's banner on the left and its score
-     on the right are on the same colour (the banner fades into it); and a
-     row under the pointer. */
+     on the right are on the same colour (the banner fades into it). */
   --color-list: #171320;
-  --color-list-hover: #231F2B;
 
   /* A thumb on the like and dislike buttons, when it's picked */
   --animate-like-pop: like-pop 0.38s ease-out;
