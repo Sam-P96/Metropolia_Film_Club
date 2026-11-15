@@ -24,8 +24,8 @@ describe("Loan Shark sums", () => {
         assert.equal(math.sharkOwed(shark({ borrowed: 0 })), 0);
     });
 
-    test("the daily minimum is 6% of the borrowed, rounded up, or what's left", () => {
-        assert.equal(math.sharkMinimum(shark({ borrowed: 100 })), 6);
+    test("the daily minimum is 3.6% of the borrowed, rounded up, or what's left", () => {
+        assert.equal(math.sharkMinimum(shark({ borrowed: 100 })), 4);
         assert.equal(math.sharkMinimum(shark({ borrowed: 30 })), 2);
         assert.equal(math.sharkMinimum(shark({ borrowed: 100, paid: 107 })), 3);
     });
@@ -63,8 +63,8 @@ describe("Loan Shark sums", () => {
 
     test("prepaying: minimum 20, paying 60 covers 3 checks; the rest is credit for the next", () => {
         const now = new Date("2026-11-06T11:00:00Z");
-        // 333 borrowed: 6% is 19.98, so 20.
-        const account = { lastCheckDay: "2026-11-06", shark: shark({ borrowed: 333, firstDueAt: math.noonOf("2026-11-08") }) };
+        // 555 borrowed: 3.6% is 19.98, so 20.
+        const account = { lastCheckDay: "2026-11-06", shark: shark({ borrowed: 555, firstDueAt: math.noonOf("2026-11-08") }) };
         const three = math.coverage(account, 60, now);
         assert.equal(three.days, 3);
         assert.equal(three.credit, 0);
@@ -228,7 +228,7 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         const borrowed = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 100 });
         assert.equal(borrowed.status, 200);
         const shark = borrowed.body.view.shark;
-        assert.deepEqual([shark.borrowed, shark.rate, shark.owed, shark.minimum, shark.maxBorrow, shark.cap], [100, 10, 110, 6, 1100, 1200]);
+        assert.deepEqual([shark.borrowed, shark.rate, shark.owed, shark.minimum, shark.maxBorrow, shark.cap], [100, 10, 110, 4, 1100, 1200]);
         assert.equal(shark.state, "covered");
         assert.deepEqual(await walletOf(people.borrower), { pp: 0, ppp: 100, lastPayoutDay: null });
 
@@ -281,12 +281,13 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.equal(paid.status, 200);
         assert.deepEqual(await walletOf(people.borrower), { pp: 0, ppp: 95, lastPayoutDay: null });
         const shark = paid.body.view.shark;
-        // Two minimums of 6: two checks, nothing over.
-        assert.deepEqual([shark.owed, shark.credit, paid.body.done.days], [98, 0, 2]);
+        // Three minimums of 4: three checks, nothing over.
+        assert.deepEqual([shark.owed, shark.credit, paid.body.done.days], [98, 0, 3]);
         const firstDue = math.noonOf(new Date(shark.firstDueAt).toLocaleDateString("en-CA", { timeZone: "Europe/Helsinki" }));
-        assert.equal(new Date(shark.paidUntil).getTime(), firstDue.getTime() + 24 * 60 * 60 * 1000);
-        // Countdown: until the first check not paid for, two after the first due.
-        assert.equal(new Date(shark.leavesAloneUntil).getTime(), firstDue.getTime() + 2 * 24 * 60 * 60 * 1000);
+        assert.equal(new Date(shark.paidUntil).getTime(), firstDue.getTime() + 2 * 24 * 60 * 60 * 1000);
+        // Countdown: until the first check not paid for, three after the first due.
+        assert.equal(new Date(shark.leavesAloneUntil).getTime(), firstDue.getTime() + 3 * 24 * 60 * 60 * 1000);
+        assert.equal(paid.body.view.rules.minimumPayment, 3.6, "the page says 3.6%, not 4%");
 
         const broke = await call(people.borrower, "POST", "/loan-shark/shark/pay", { amount: 96 });
         assert.equal(broke.status, 400);
@@ -298,8 +299,10 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         const firstDue = new Date(account.shark.firstDueAt).toLocaleDateString("en-CA", { timeZone: "Europe/Helsinki" });
         const before = math.addDays(firstDue, -1);
 
-        // Not due yet, then the two covered checks.
-        for (const day of [before, firstDue, math.addDays(firstDue, 1)]) {
+        // Not due yet, then the three covered checks.
+        for (const day of [before, firstDue, math.addDays(firstDue, 1), math.addDays(firstDue, 2)]) {
+            // Room under the PP cap each day.
+            await setWallet(people.borrower, 0, 95);
             const result = await payout(people.borrower, day);
             assert.deepEqual([result.deducted, result.credited, result.loans.missed], [0, 40, false], day);
         }
@@ -309,15 +312,15 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         // Five missed: 20, 40, 80, 160, 320. Kaveri comes with the third, and
         // what he takes isn't a payment: the rate keeps doubling to the top.
         const rates = [];
-        for (let i = 2; i <= 6; i++) {
+        for (let i = 3; i <= 7; i++) {
             // Room under the PP cap each day.
             await setWallet(people.borrower, 0, 95);
             const result = await payout(people.borrower, math.addDays(firstDue, i));
             rates.push(result.loans.rate);
-            if (i < 4) assert.deepEqual([result.deducted, result.loans.collector, result.credited], [0, 0, 40], `day ${i}`);
+            if (i < 5) assert.deepEqual([result.deducted, result.loans.collector, result.credited], [0, 0, 40], `day ${i}`);
             else assert.deepEqual([result.deducted, result.loans.collector, result.credited], [16, 16, 24], `day ${i}`);
 
-            if (i === 4) {
+            if (i === 5) {
                 // At 80%: Kaveri's here, and a payment due still doubles the rate.
                 const page = await view(people.borrower);
                 assert.deepEqual([page.shark.state, page.shark.warnings, page.shark.nextRate], ["collector", { due: true, missed: true, collector: true }, 160]);
@@ -338,14 +341,14 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
 
         // The next day, at the top: no more doubling, Kaveri again, a different line.
         await setWallet(people.borrower, 0, 95);
-        const top = await payout(people.borrower, math.addDays(firstDue, 7));
+        const top = await payout(people.borrower, math.addDays(firstDue, 8));
         assert.deepEqual([top.loans.missed, top.loans.rate, top.loans.collector], [false, 320, 16]);
         const all = await notes(people.borrower, "loanCollector");
         assert.notEqual(all[3].variant, all[2].variant);
 
         // A day is only ever paid once.
-        assert.equal(await payout(people.borrower, math.addDays(firstDue, 7)), null);
-        assert.equal(await payout(people.borrower, math.addDays(firstDue, 3)), null);
+        assert.equal(await payout(people.borrower, math.addDays(firstDue, 8)), null);
+        assert.equal(await payout(people.borrower, math.addDays(firstDue, 4)), null);
 
         const log = await LoanTx.find({ user: people.borrower._id, kind: { $in: ["sharkMissed", "sharkCollector"] } }).sort({ at: 1, _id: 1 }).lean();
         assert.deepEqual(log.map((entry) => entry.kind), [
