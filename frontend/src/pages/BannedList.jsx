@@ -51,14 +51,15 @@ function BannedList() {
         {users.length === 0 ? (
           <p className="mt-8 text-white/60">Nobody is banned from anything.</p>
         ) : (
-          <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+          <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-list">
             {users.map((user) => (
               <li key={user._id}>
                 <Link
                   to={`/users/${user._id}`}
-                  className="group relative isolate flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-white/5"
+                  className="group relative isolate flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors"
                 >
                   <BannerStrip banner={user.reviewCardBanner} />
+                  <span aria-hidden="true" className="row-wipe" />
 
                   <MemberAvatar user={user} />
 

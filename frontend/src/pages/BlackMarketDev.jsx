@@ -312,7 +312,7 @@ export default function BlackMarketDev() {
             <h2 id="leaderboard-heading" className={HEADING}>
               Leaderboard
             </h2>
-            <ol className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+            <ol className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-list">
               {rows.map((row, i) => (
                 <LeaderboardRow
                   key={row.user._id}

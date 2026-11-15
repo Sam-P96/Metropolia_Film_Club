@@ -5,7 +5,7 @@ import VoteButtons, { VoteBar } from './VoteButtons'
 import { setReviewVote } from '../../services/films'
 import { timeAgo } from '../../utils/timeAgo'
 import { levelTextStyle } from '../../utils/levelStyle'
-import { bannerLayerStyle } from '../../utils/bannerStyle'
+import BannerFill from '../profile/BannerFill'
 import { RANK_TITLES, rankRing } from '../../utils/rankRings'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
@@ -164,10 +164,7 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false, co
 
       <div className="relative border-t border-white/10">
       
-        <div
-          className={`absolute inset-0 ${styled ? 'rounded-b-2xl' : ''}`}
-          style={bannerLayerStyle(user.reviewCardBanner)}
-        />
+        <BannerFill banner={user.reviewCardBanner} className={styled ? 'overflow-hidden rounded-b-2xl' : ''} />
       
         <div className={`absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80 ${styled ? 'rounded-b-2xl' : ''}`} />
 

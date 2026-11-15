@@ -59,6 +59,8 @@ const userSchema = new Schema(
             },
             color: { type: String, default: "#2D1B47" },
             imageUrl: { type: String, default: null },
+            // Every banner is opaque now, and saving one always says so.
+            // Kept so older saves (glass, translucent) still read as before.
             style: {
                 type: String,
                 enum: ["glass", "translucent", "opaque"],
@@ -71,6 +73,16 @@ const userSchema = new Schema(
             position: {
                 x: { type: Number, default: 50, min: 0, max: 100 },
                 y: { type: Number, default: 50, min: 0, max: 100 },
+            },
+            // The small copies the server made of the picture
+            // (utils/bannerMedia.js): `from` is the link they were made
+            // from, `video` the looping MP4 (null for a still picture) and
+            // `poster` its first frame, both paths on this site. None until
+            // they're made; the pages show the original picture till then.
+            converted: {
+                from: { type: String },
+                video: { type: String },
+                poster: { type: String },
             },
         },
 

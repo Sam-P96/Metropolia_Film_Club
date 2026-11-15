@@ -1,8 +1,12 @@
 import { sliceColor } from "./wheelColors";
+import { wheelSlices } from "./wheelSlices";
 
 const SIZE = 400;
 const C = SIZE / 2;
 const R = C - 8;
+
+// Slices narrower than this (in degrees) have no room for their title.
+const MIN_LABEL_SLICE = 4;
 
 // angle is degrees clockwise from the top, where the pointer sits
 const point = (angle, radius = R) => {
@@ -10,16 +14,17 @@ const point = (angle, radius = R) => {
   return [C + radius * Math.sin(rad), C - radius * Math.cos(rad)];
 };
 
-const slicePath = (i, seg) => {
-  const [x1, y1] = point(i * seg);
-  const [x2, y2] = point((i + 1) * seg);
-  return `M${C},${C} L${x1},${y1} A${R},${R} 0 ${seg > 180 ? 1 : 0} 1 ${x2},${y2} Z`;
+const slicePath = (start, size) => {
+  const [x1, y1] = point(start);
+  const [x2, y2] = point(start + size);
+  return `M${C},${C} L${x1},${y1} A${R},${R} 0 ${size > 180 ? 1 : 0} 1 ${x2},${y2} Z`;
 };
 
 const clip = (s, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+// Each film's slice is as wide as its weight (wheelSlices.js).
 export default function WheelSvg({ items, rotation, spinning, spinMs = 5500 }) {
-  const seg = 360 / items.length;
+  const slices = wheelSlices(items);
 
   return (
     <div className="relative mx-auto w-full max-w-md">
@@ -43,12 +48,20 @@ export default function WheelSvg({ items, rotation, spinning, spinMs = 5500 }) {
           <circle cx={C} cy={C} r={R} fill={sliceColor(0)} />
         ) : (
           items.map((item, i) => (
-            <path key={item.id} d={slicePath(i, seg)} fill={sliceColor(i)} stroke="#0a0a0a" strokeWidth="2" />
+            <path
+              key={item.id}
+              d={slicePath(slices[i].start, slices[i].size)}
+              fill={sliceColor(i)}
+              stroke="#0a0a0a"
+              strokeWidth="2"
+            />
           ))
         )}
 
         {items.map((item, i) => {
-          const mid = items.length === 1 ? 0 : (i + 0.5) * seg;
+          const { start, size } = slices[i];
+          if (items.length > 1 && size < MIN_LABEL_SLICE) return null;
+          const mid = items.length === 1 ? 0 : start + size / 2;
           const [tx, ty] = point(mid, R - 14);
           return (
             <text
@@ -56,7 +69,7 @@ export default function WheelSvg({ items, rotation, spinning, spinMs = 5500 }) {
               x={tx}
               y={ty}
               fill="white"
-              fontSize={items.length > 14 ? 10 : 13}
+              fontSize={items.length > 14 || size < 12 ? 10 : 13}
               fontWeight="600"
               textAnchor="end"
               dominantBaseline="middle"

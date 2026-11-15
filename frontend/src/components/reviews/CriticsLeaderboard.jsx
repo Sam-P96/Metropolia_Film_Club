@@ -71,7 +71,7 @@ function CriticsLeaderboard() {
         ) : critics.length === 0 ? (
           <p className="mt-8 text-white/60">{current.empty}</p>
         ) : (
-          <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+          <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-list">
             {/* The top 3 always get their ring here, whatever their
                 "Ranking" setting says about their review cards (unless
                 they wear a border, which takes its place). */}

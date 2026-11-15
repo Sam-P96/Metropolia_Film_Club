@@ -24,7 +24,8 @@ export default function Scoreboard({ players, scores, current, winner, target, o
           >
             {person?.reviewCardBanner && (
               <>
-                <BannerStrip banner={person.reviewCardBanner} />
+                {/* Fading into the card's plum. */}
+                <BannerStrip banner={person.reviewCardBanner} fade="#190F26" />
                 {/* A little darker, so the score reads on any banner. */}
                 <div className="pointer-events-none absolute inset-0 -z-10 bg-ink/35" />
               </>

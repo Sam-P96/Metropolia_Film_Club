@@ -26,7 +26,8 @@ export default function PlayersBar({ players, current, winner, over }) {
           >
             {banner && (
               <>
-                <BannerStrip banner={banner} />
+                {/* Fading into the card's dark ink. */}
+                <BannerStrip banner={banner} fade="#0B0710" />
                 {/* A little darker, so the name reads on any banner. */}
                 <div className="pointer-events-none absolute inset-0 -z-10 bg-ink/40" />
               </>

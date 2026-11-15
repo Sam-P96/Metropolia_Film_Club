@@ -26,7 +26,7 @@ const EDGES = {
 // passes its own), or the First Place effect if they hold a title. Long
 // names show in full and wrap, styled or not, so wearing a style never
 // moves anything. `resonancePercent` shows the Resonance icon for a
-// made-up member (the developer test tool).
+// made-up member (the developer test tool). The list it's in is bg-list.
 export default function LeaderboardRow({ user, position, subtitle, score, edge = null, cosmetics = user.cosmetics, resonancePercent }) {
   const firstPlace = useFirstPlaceShown(user._id)
   const styledName = Boolean(cosmetics?.name) || firstPlace
@@ -37,9 +37,10 @@ export default function LeaderboardRow({ user, position, subtitle, score, edge =
     <li>
       <Link
         to={`/users/${user._id}`}
-        className={`group relative isolate flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5 ${corners.row} ${styled ? 'z-10' : ''}`}
+        className={`group relative isolate flex items-center gap-4 px-5 py-4 transition-colors ${corners.row} ${styled ? 'z-10' : ''}`}
       >
         <BannerStrip banner={user.reviewCardBanner} className={corners.banner} />
+        <span aria-hidden="true" className="row-wipe" />
 
         <span className={`w-6 shrink-0 text-right text-lg font-bold tabular-nums ${position <= 3 ? 'text-brand-gold' : 'text-white/40'}`}>
           {position}

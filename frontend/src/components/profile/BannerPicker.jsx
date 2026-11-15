@@ -3,12 +3,6 @@ import { bannerPosition } from '../../utils/bannerStyle'
 
 const CENTRE = { x: 50, y: 50 }
 
-const STYLES = [
-  { id: 'glass', label: 'Glass' },
-  { id: 'translucent', label: 'Translucent' },
-  { id: 'opaque', label: 'Opaque' },
-]
-
 const PRESET_COLORS = [
   '#821131',
   '#C7253E',
@@ -107,7 +101,8 @@ function BannerPicker({ banner, onChange }) {
             className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-brand-gold/60 focus:bg-white/10"
           />
           <p className="mt-1 text-xs text-white/30">
-            A wide image works best. Animated GIFs are fine.
+            A wide image works best. Animated GIFs are fine: once it&apos;s saved, the site makes a small video of it, so it plays smoothly
+            on phones.
           </p>
 
           {banner.imageUrl && (
@@ -121,26 +116,6 @@ function BannerPicker({ banner, onChange }) {
           )}
         </div>
       )}
-
-      <div>
-        <span className={labelClasses}>Finish</span>
-        <div className="flex flex-wrap gap-2">
-          {STYLES.map((style) => (
-            <button
-              key={style.id}
-              type="button"
-              onClick={() => set({ style: style.id })}
-              className={toggleClasses(banner.style === style.id)}
-            >
-              {style.label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-white/30">
-          Glass blurs what is behind it. Translucent lets the card show through.
-          Opaque is solid.
-        </p>
-      </div>
 
     </div>
   )

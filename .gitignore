@@ -1,3 +1,5 @@
 node_modules/
 .env
 dist/
+# Banner videos and pictures the server makes (backend/utils/bannerMedia.js)
+backend/media/

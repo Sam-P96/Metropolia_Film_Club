@@ -444,6 +444,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the event's own title, date, time and place, the start of its description
   and its image (`backend/utils/linkPreview.js` puts them in the page the
   server sends, since preview bots don't run the site's JavaScript).
+- Two wheels on the Club Events page. Local Wheel (the one it opens on) is
+  your own, kept on this device. The Club Wheel is the same for everyone:
+  moderators and admins add films, set each film's weight, take films off one
+  at a time and clear it. An admin can open it so every member can add films
+  too, and set how much weight each member can add in all (1 by default, up
+  to no limit), over one film or several; adding a film that's already on
+  it adds to its weight. A film's slice, and its chance, is as big as its
+  weight (1 by default) on both wheels. Under the Club Wheel, a public
+  activity box shows who added, removed or reweighed what and who cleared
+  it, 3 lines at a time with "Show more" (`GET`/`POST`/`DELETE /api/wheel`,
+  `PATCH`/`DELETE /api/wheel/:id`, `PUT /api/wheel/settings`; new
+  `wheelsettings` and `wheelactivities` collections, and `weight`,
+  `addedBy` and `backers` on wheel entries, which films from before count
+  as weight 1).
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
@@ -517,6 +531,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Top and Controversial) or First Place: only other members' votes do.
   `npm run reviews:self-like` (in `backend/`) gives existing reviews their
   author's like; it only counts until it's run with `--apply`.
+- Banners are much lighter on phones. A banner picture is turned into a
+  small looping MP4 about 552px wide (or, for a still picture, a small
+  JPEG) by the server when it's saved, and existing ones when the server
+  starts; leaderboards, the Resonance list, follower and banned lists, the
+  Farkle and Gomoku player cards, review cards, Resonance cards and
+  Notifications play that instead of the original GIF, which phones decode
+  in hardware, pause off screen and hold still for reduce motion. It needs
+  ffmpeg on the server (on the PATH, or `FFMPEG_PATH` in `.env`); without
+  it banners stay as their pictures. The files live in `backend/media/`
+  and are served at `/api/banner-media/` (`backend/utils/bannerMedia.js`).
+  The server only fetches pictures from the public internet.
+- Every banner is opaque: the Glass and Translucent finishes are gone.
+- The banners behind list rows have no blur, and fade into the row with a
+  gradient instead of a mask; leaderboard lists are an opaque colour (no
+  blur behind them), so a row is the same on both sides; hovering a row
+  washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
 - Finishing the Daily Quiz on the home page shows the Full Quiz Leaderboard
@@ -540,5 +570,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   being cropped at the sides.
 
 ### Removed
+- The old Movie Wheel page (`/wheel`, `Wheel.jsx`); its wheel lives on the
+  Club Events page.
 - Unused duplicate component `frontend/src/components/about/AboutIntro copy.jsx`.
 - Unused images in `frontend/src/assets/` (about 75 MB of GIFs and images).
