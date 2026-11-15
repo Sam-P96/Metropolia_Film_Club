@@ -35,8 +35,9 @@ const LOAN_SHARK = {
         // How many a new loan comes with, at most.
         perLoan: 4,
         // Each done takes this share of the total borrowed (at the time
-        // it's done) off the debt. (Was 0.2; 40% less.)
-        reduction: 0.12,
+        // it's done) off the debt. (Was 0.2, then 0.12; now 30% more than
+        // that.)
+        reduction: 0.156,
         // "Convince X to dislike Y's review": the dislike comes off again
         // this long after it was made.
         dislikeHours: 48,
