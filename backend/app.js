@@ -45,6 +45,7 @@ const { startSlotSweep } = require("./jobs/slotSweep");
 const { startGomokuSweep } = require("./jobs/gomokuSweep");
 const { startQuizDraw } = require("./jobs/quizDraw");
 const { sendPage } = require("./utils/linkPreview");
+const { PUBLIC_PATH, bannerMediaRoute, sweepBanners } = require("./utils/bannerMedia");
 
 const app = express();
 
@@ -155,6 +156,13 @@ connected
     .then(() => startQuizDraw())
     .catch((error) => console.error("Couldn't start the quiz draw:", error.message));
 
+// Banners: any picture banner without its small video or copy yet gets one,
+// one at a time in the background (utils/bannerMedia.js). Needs ffmpeg.
+connected
+    .then(() => sweepBanners())
+    .then((count) => count && console.log(`Banner videos: ${count} picture(s) made.`))
+    .catch((error) => console.error("Couldn't make the banner videos:", error.message));
+
 // Guessing a password is cheap for an attacker and expensive for us: every
 // attempt costs a bcrypt comparison. 20 per 15 minutes is generous for a
 // human and useless for a script.
@@ -226,6 +234,10 @@ app.use("/api/password-resets", passwordResetRouter);
 app.get("/api/health", (req, res) => {
     res.json({status: "ok"})
 });
+
+// The small banner videos and pictures (utils/bannerMedia.js). Under /api so
+// the Vite dev server passes them through too.
+app.use(PUBLIC_PATH, bannerMediaRoute());
 
 // Anything under /api that no router claimed.
 app.use("/api", (req, res) => {

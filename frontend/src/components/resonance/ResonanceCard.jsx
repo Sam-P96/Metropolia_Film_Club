@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import MemberAvatar from '../profile/MemberAvatar'
 import ResonanceIcon, { ResonanceMark } from './ResonanceIcon'
 import CardShine from '../CardShine'
-import { bannerLayerStyle } from '../../utils/bannerStyle'
+import BannerFill from '../profile/BannerFill'
 import { RELATIONS, TIER_COLOURS } from '../../utils/resonance'
 import { resonanceTier } from '../../../../shared/resonance.js'
 
@@ -100,7 +100,7 @@ function ResonanceCard({ match, className = '' }) {
         </div>
 
         <div className="relative border-t border-white/10">
-          <div className="absolute inset-0" style={bannerLayerStyle(user.reviewCardBanner)} />
+          <BannerFill banner={user.reviewCardBanner} />
           <div className="absolute inset-0 bg-linear-to-r from-ink/0 via-ink/40 to-ink/80" />
 
           {/* The score: to every film they've both rated. The shadow is on

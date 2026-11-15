@@ -36,12 +36,12 @@ const Report = require("../models/reportModel");
 const { BAN_RIGHTS, bansOf } = require("../utils/bans");
 const { hasRole, outranks } = require("../middleware/auth");
 const { parseOffset } = require("../utils/paging");
+const { keepConverted, queueBannerConversion } = require("../utils/bannerMedia");
 
 const MAX_FAVOURITES = 4;
 const MAX_USERNAME_LENGTH = 30;
 const MAX_BIO_LENGTH = 300;
 const BANNER_TYPES = ["color", "image"];
-const BANNER_STYLES = ["glass", "translucent", "opaque"];
 const LEVEL_EFFECTS = ["none", "shadow", "glow"];
 const LEVEL_BACKINGS = ["none", "glass", "frosted"];
 const LEVEL_SHAPES = ["round", "rounded", "sharp"];
@@ -369,7 +369,6 @@ function profileChanges(body, me) {
         const imageUrl = String(banner.imageUrl ?? "").trim() || null;
 
         if (!BANNER_TYPES.includes(banner.type)) return { error: "Unknown banner type." };
-        if (!BANNER_STYLES.includes(banner.style ?? "opaque")) return { error: "Unknown banner style." };
         if (!/^#[0-9a-f]{6}$/i.test(banner.color ?? "")) return { error: "The banner colour must look like #2D1B47." };
         if (imageUrl && !isHttpUrl(imageUrl)) return { error: "The banner image link must start with http:// or https://." };
 
@@ -382,7 +381,8 @@ function profileChanges(body, me) {
             type: banner.type,
             color: banner.color,
             imageUrl,
-            style: banner.style ?? "opaque",
+            // Every banner is opaque; whatever an older page sends.
+            style: "opaque",
             position: { x: Math.round(position.x * 10) / 10, y: Math.round(position.y * 10) / 10 },
         };
     }
@@ -469,6 +469,18 @@ const updateMe = async (req, res) => {
     }
     if (pvpChanged && set.pvp) await recordSighting(req, req.user._id).catch(() => {});
 
+    // A banner saved with the same picture keeps the small copies already
+    // made of it (utils/bannerMedia.js); a new picture gets them made, in
+    // the background, after the save.
+    let newBannerPicture = null;
+    if (set.reviewCardBanner) {
+        const before = await User.findById(req.user._id).select("reviewCardBanner").lean();
+        set.reviewCardBanner = keepConverted(set.reviewCardBanner, before?.reviewCardBanner);
+        if (set.reviewCardBanner.type === "image" && set.reviewCardBanner.imageUrl && !set.reviewCardBanner.converted) {
+            newBannerPicture = set.reviewCardBanner.imageUrl;
+        }
+    }
+
     // $unset clears the flattened banner colour older accounts still carry.
     // `value` isn't in the schema any more, so Mongoose would drop it from the
     // update unless strict is off. Everything in `set` is already whitelisted.
@@ -477,6 +489,7 @@ const updateMe = async (req, res) => {
         { $set: set, $unset: { value: "" } },
         { runValidators: true, strict: false }
     );
+    if (newBannerPicture) queueBannerConversion(newBannerPicture);
 
     // Their dislikes only count while PVP is on, and everyone hears when
     // they turn it on (and stops hearing it if they turn it off).

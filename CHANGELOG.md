@@ -517,6 +517,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Top and Controversial) or First Place: only other members' votes do.
   `npm run reviews:self-like` (in `backend/`) gives existing reviews their
   author's like; it only counts until it's run with `--apply`.
+- Banners are much lighter on phones. A banner picture is turned into a
+  small looping MP4 about 552px wide (or, for a still picture, a small
+  JPEG) by the server when it's saved, and existing ones when the server
+  starts; leaderboards, the Resonance list, follower and banned lists, the
+  Farkle and Gomoku player cards, review cards, Resonance cards and
+  Notifications play that instead of the original GIF, which phones decode
+  in hardware, pause off screen and hold still for reduce motion. It needs
+  ffmpeg on the server (on the PATH, or `FFMPEG_PATH` in `.env`); without
+  it banners stay as their pictures. The files live in `backend/media/`
+  and are served at `/api/banner-media/` (`backend/utils/bannerMedia.js`).
+  The server only fetches pictures from the public internet.
+- Every banner is opaque: the Glass and Translucent finishes are gone.
+- The banners behind list rows have no blur, and fade into the row with a
+  gradient instead of a mask; leaderboard lists are an opaque colour (no
+  blur behind them), so a row is the same on both sides, hovered too.
 
 ### Fixed
 - Finishing the Daily Quiz on the home page shows the Full Quiz Leaderboard

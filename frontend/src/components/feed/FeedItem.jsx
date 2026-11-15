@@ -18,7 +18,8 @@ import SlotNotice from '../slots/SlotNotice'
 import StealNotice from '../steal/StealNotice'
 import PokerNotice from '../poker/PokerNotice'
 import LoanNotice from '../loanShark/LoanNotice'
-import { bannerFillStyle, bannerFrameStyle, bannerLayerStyle } from '../../utils/bannerStyle'
+import { bannerMedia } from '../../utils/bannerStyle'
+import BannerFill from '../profile/BannerFill'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
 import { splitLinks } from '../../utils/links'
@@ -222,13 +223,14 @@ function BannerBackdrop({ user, fadeWhenTall = false }) {
   const banner = user.reviewCardBanner
   const fades = fadeWhenTall && banner?.type === 'image' && Boolean(banner.imageUrl)
   // Until it's worked out, or if the host won't let us read the picture,
-  // the banner colour they picked.
-  const dominant = useDominantColor(fades ? banner.imageUrl : null)
+  // the banner colour they picked. From the server's small copy of the
+  // picture once there is one: ours to read, and quicker.
+  const dominant = useDominantColor(fades ? (bannerMedia(banner)?.poster ?? banner.imageUrl) : null)
 
   return (
     <>
       {fades ? (
-        <div className="absolute inset-0 -z-10 overflow-hidden" style={bannerFrameStyle(banner)}>
+        <div className="absolute inset-0 -z-10 overflow-hidden">
           <div
             className="absolute inset-0"
             style={{
@@ -237,18 +239,10 @@ function BannerBackdrop({ user, fadeWhenTall = false }) {
               WebkitMaskImage: COLOUR_FADE,
             }}
           />
-          <div
-            className="absolute inset-x-0 top-0 h-full"
-            style={{
-              ...bannerFillStyle(banner),
-              maxHeight: 'calc(50vh + 8rem)',
-              maskImage: PICTURE_FADE,
-              WebkitMaskImage: PICTURE_FADE,
-            }}
-          />
+          <BannerFill banner={banner} style={{ maxHeight: 'calc(50vh + 8rem)', maskImage: PICTURE_FADE, WebkitMaskImage: PICTURE_FADE }} />
         </div>
       ) : (
-        <div className="absolute inset-0 -z-10" style={bannerLayerStyle(banner)} />
+        <BannerFill banner={banner} className="-z-10" />
       )}
       <div className="absolute inset-0 -z-10 bg-linear-to-r from-ink/85 via-ink/60 to-ink/30" />
     </>

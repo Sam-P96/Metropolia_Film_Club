@@ -17,7 +17,7 @@ export default function QuizLeaderboard({ entries, limit = null, myId = null }) 
   const shown = limit === null ? ranked : ranked.filter((entry) => entry.rank < limit || entry.user._id === myId)
 
   return (
-    <ol className="divide-y divide-white/10 rounded-xl border border-white/10 bg-black/30 shadow-md shadow-black/20">
+    <ol className="divide-y divide-white/10 rounded-xl border border-white/10 bg-list shadow-md shadow-black/20">
       {shown.map((entry, index) => (
         <LeaderboardRow
           key={entry.user._id}

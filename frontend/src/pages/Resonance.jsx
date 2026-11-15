@@ -217,7 +217,7 @@ function Ranking({ waiting }) {
               : current.empty}
         </p>
       ) : (
-        <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+        <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-list">
           {matches.map((match, index) => (
             <Row key={match.user._id} match={match} rank={match.rank} edge={edgeOf(index, matches.length)} />
           ))}
@@ -278,7 +278,7 @@ function Row({ match, rank, edge }) {
           else setOpen(!open)
           pointer.current = null
         }}
-        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-white/5' : ''} ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${styledName || cosmetics?.border ? 'z-10' : ''}`}
+        className={`group relative isolate flex w-full items-center gap-4 px-5 py-4 text-left transition-[color,background-color,--strip-fade] hover:bg-list-hover hover:[--strip-fade:var(--color-list-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-gold ${open ? 'bg-list-hover [--strip-fade:var(--color-list-hover)]' : ''} ${EDGE_ROW[edge] && !open ? EDGE_ROW[edge] : edge === 'first' || edge === 'only' ? 'rounded-t-xl' : ''} ${styledName || cosmetics?.border ? 'z-10' : ''}`}
       >
         <BannerStrip banner={user.reviewCardBanner} className={EDGE_BANNER[edge] ?? ''} />
 

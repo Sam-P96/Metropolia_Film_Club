@@ -65,12 +65,12 @@ function FollowList({ kind }) {
             {kind === 'followers' ? 'No followers yet.' : "Not following anyone yet."}
           </p>
         ) : (
-          <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+          <ol className="mt-8 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-list">
             {users.map((user) => (
               <li key={user._id}>
                 <Link
                   to={`/users/${user._id}`}
-                  className="group relative isolate flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/5"
+                  className="group relative isolate flex items-center gap-4 px-5 py-4 transition-[color,background-color,--strip-fade] hover:bg-list-hover hover:[--strip-fade:var(--color-list-hover)]"
                 >
                   <BannerStrip banner={user.reviewCardBanner} />
 

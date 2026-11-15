@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* What a list row's banner fades into (components/profile/BannerStrip.jsx):
+   the row's colour. A colour the browser knows, so it can change gradually
+   with the row's own background when a row is hovered, instead of jumping
+   ahead of it and splitting the row in two. Starts as --color-list. */
+@property --strip-fade {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #171320;
+}
+
 @theme {
   --color-brand-red: #C7253E;
   --color-brand-gold: #FABC3F;
@@ -12,6 +22,12 @@
   --color-ink: #0B0710;
   --color-ink-light: #1A1024;
   --color-plum: #2D1B47;
+
+  /* Leaderboard lists, opaque, so a row's banner on the left and its score
+     on the right are on the same colour (the banner fades into it); and a
+     row under the pointer. */
+  --color-list: #171320;
+  --color-list-hover: #231F2B;
 
   /* A thumb on the like and dislike buttons, when it's picked */
   --animate-like-pop: like-pop 0.38s ease-out;

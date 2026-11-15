@@ -34,7 +34,7 @@ export default function PpLeaderboard() {
         ) : leaders.length === 0 ? (
           <p className="mt-8 text-white/60">Nobody has any PP yet.</p>
         ) : (
-          <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+          <ol className="mt-8 divide-y divide-white/5 rounded-xl border border-white/10 bg-list">
             {shown.map((leader, index) => (
               <LeaderboardRow
                 key={leader.user._id}
