@@ -21,7 +21,7 @@
   width: 200%;
   background: linear-gradient(to left, rgb(255 255 255 / 0.05) 50%, transparent);
   transform: translateX(100%);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.45s ease-out;
 }
 .group:hover > .row-wipe::before,
 .group:focus-visible > .row-wipe::before,
