@@ -10,13 +10,14 @@ const LOAN_SHARK = {
     // King Loan Shark: borrowing P-PP from the house.
     shark: {
         // The most a member can have borrowed at once, times their daily PP.
-        capTimesDaily: 25,
+        capTimesDaily: 30,
         // The rate a new loan starts at. Each missed payment doubles it,
         // up to maxRate.
         startRate: 0.1,
         maxRate: 3.2,
         // Each day's minimum payment, as a share of the total borrowed.
-        minimumPayment: 0.05,
+        // (Was 0.05; 20% more.)
+        minimumPayment: 0.06,
         // From collectorRate on, Kaveri takes collectorTake of their daily
         // PP every day at 12:00 until it's paid, and missed payments still
         // double the rate up to maxRate. Members are never told
@@ -34,8 +35,8 @@ const LOAN_SHARK = {
         // How many a new loan comes with, at most.
         perLoan: 4,
         // Each done takes this share of the total borrowed (at the time
-        // it's done) off the debt.
-        reduction: 0.2,
+        // it's done) off the debt. (Was 0.2; 40% less.)
+        reduction: 0.12,
         // "Convince X to dislike Y's review": the dislike comes off again
         // this long after it was made.
         dislikeHours: 48,

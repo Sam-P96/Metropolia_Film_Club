@@ -35,8 +35,9 @@ function JobText({ job }) {
 }
 
 // The jobs that came with this shark loan (backend/utils/loanShark/jobs.js),
-// only while there's shark debt. No time limit: each one done takes 20% of
-// what's borrowed (then) off the debt.
+// only while there's shark debt. No time limit: each one done takes
+// rules.jobReduction % (config/loanShark.js) of what's borrowed (then) off
+// the debt.
 export default function SharkJobs({ shark, rules }) {
   const jobs = shark.jobs.filter((job) => job.status !== 'closed')
   if (jobs.length === 0) return null

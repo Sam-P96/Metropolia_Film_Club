@@ -37,8 +37,8 @@ const sharkTotal = (shark) => ceilDiv(shark.borrowed * (100 + shark.rate), 100);
 // off. Never below 0.
 const sharkOwed = (shark) => (shark.borrowed > 0 ? Math.max(0, sharkTotal(shark) - shark.paid - shark.jobReduction) : 0);
 
-// Each day's minimum payment: 5% of the total borrowed, rounded up, or
-// what's left if that's less.
+// Each day's minimum payment: minimumPayment (config/loanShark.js) of the
+// total borrowed, rounded up, or what's left if that's less.
 const sharkMinimum = (shark) => Math.min(ceilShare(shark.borrowed, LOAN_SHARK.shark.minimumPayment), sharkOwed(shark));
 
 // A missed payment doubles the rate, up to the top.
