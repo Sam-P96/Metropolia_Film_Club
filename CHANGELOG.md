@@ -466,7 +466,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `backend/config/loanShark.js` (`collectorRate`) and, like before, never
   shown on the page: members find out when he arrives. While he collects
   below the top, missed payments still double the rate, and the page still
-  warns when a payment is due.
+  warns when a payment is due. Each job done takes 12% of what was borrowed
+  off the debt (was 20%).
 - Profile Stats: Average rating shows how many films the member has rated
   at each star (rounded up, so 3.5 counts as 4), and Expand splits it into
   half stars. Most watched genre shows their top 5 genres with a bar each,

@@ -369,7 +369,7 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.match(nothing.body.error, /don't owe King Loan Shark/);
     });
 
-    test("jobs: each done takes 20% of the borrowed (then) off, when it happens, and a job's dislike comes off after 48 hours", async () => {
+    test("jobs: each done takes 12% of the borrowed (then) off, when it happens, and a job's dislike comes off after 48 hours", async () => {
         const borrowed = await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 100 });
         const loan = (await LoanAccount.findById(people.borrower._id).lean()).shark.loan;
         assert.equal(borrowed.body.view.shark.jobs.length, 4, "a new loan, four new jobs");
@@ -388,9 +388,9 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         await Review.create({ user: people.quietNoPvp._id, tmdbId: 777, filmTitle: "Jaws", text: "Big fish." });
         await jobs.onReviewPosted(people.quietNoPvp._id);
         let shark = (await view(people.borrower)).shark;
-        assert.deepEqual([shark.owed, shark.jobReduction], [90, 20]);
+        assert.deepEqual([shark.owed, shark.jobReduction], [98, 12]);
         const done = await notes(people.borrower, "loanJob");
-        assert.deepEqual([done.length, done[0].amount, done[0].loan.left, String(done[0].actors[0])], [1, 20, 90, String(people.quietNoPvp._id)]);
+        assert.deepEqual([done.length, done[0].amount, done[0].loan.left, String(done[0].actors[0])], [1, 12, 98, String(people.quietNoPvp._id)]);
 
         // The dislike, through the real vote route.
         const vote = await call(people.quietPvp, "PUT", `/reviews/${target._id}/vote`, { vote: "dislike" });
@@ -404,16 +404,16 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.equal((await Review.findById(target._id).lean()).dislikeCount, 0);
         assert.equal(await Notification.countDocuments({ type: "dislike", review: target._id }), 0);
 
-        // Borrowing more later: the next job is worth 20% of the new total,
+        // Borrowing more later: the next job is worth 12% of the new total,
         // and the ones done before stay as they were.
         await call(people.borrower, "POST", "/loan-shark/shark/borrow", { amount: 50 });
         await jobs.onStealSuccess(people.busyPvp._id, people.quietPvp._id);
         assert.equal((await LoanJob.findById(stealJob._id).lean()).status, "open", "the wrong way round");
         await jobs.onStealSuccess(people.quietPvp._id, people.busyPvp._id);
         shark = (await view(people.borrower)).shark;
-        // 150 at 10% = 165, less 20 + 20 + 30.
-        assert.deepEqual([shark.owed, shark.jobReduction], [95, 70]);
-        assert.deepEqual((await LoanJob.find({ borrower: people.borrower._id, loan }).sort({ createdAt: 1, _id: 1 }).lean()).map((job) => job.reduction), [20, 20, 30]);
+        // 150 at 10% = 165, less 12 + 12 + 18.
+        assert.deepEqual([shark.owed, shark.jobReduction], [123, 42]);
+        assert.deepEqual((await LoanJob.find({ borrower: people.borrower._id, loan }).sort({ createdAt: 1, _id: 1 }).lean()).map((job) => job.reduction), [12, 12, 18]);
     });
 
     test("player offers: lent from PP, at most 3 up, and taking one down gives back what nobody borrowed", async () => {
