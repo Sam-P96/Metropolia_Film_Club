@@ -444,6 +444,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the event's own title, date, time and place, the start of its description
   and its image (`backend/utils/linkPreview.js` puts them in the page the
   server sends, since preview bots don't run the site's JavaScript).
+- Two wheels on the Club Events page. Wheel Local (the one it opens on) is
+  your own, kept on this device. The Club Wheel is the same for everyone:
+  moderators and admins add films, set each film's weight, take films off one
+  at a time and clear it. An admin can open it so every member can add films
+  too, and set how much weight each member can add in all (1 by default, up
+  to no limit), over one film or several; adding a film that's already on
+  it adds to its weight. A film's slice, and its chance, is as big as its
+  weight (1 by default) on both wheels. Under the Club Wheel, a public
+  activity box shows who added, removed or reweighed what and who cleared
+  it, 3 lines at a time with "Show more" (`GET`/`POST`/`DELETE /api/wheel`,
+  `PATCH`/`DELETE /api/wheel/:id`, `PUT /api/wheel/settings`; new
+  `wheelsettings` and `wheelactivities` collections, and `weight`,
+  `addedBy` and `backers` on wheel entries, which films from before count
+  as weight 1).
 
 ### Changed
 - Profile Stats: Average rating shows how many films the member has rated
@@ -556,5 +570,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   being cropped at the sides.
 
 ### Removed
+- The old Movie Wheel page (`/wheel`, `Wheel.jsx`); its wheel lives on the
+  Club Events page.
 - Unused duplicate component `frontend/src/components/about/AboutIntro copy.jsx`.
 - Unused images in `frontend/src/assets/` (about 75 MB of GIFs and images).

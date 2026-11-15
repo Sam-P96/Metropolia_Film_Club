@@ -33,7 +33,6 @@ const TITLES = [
   ['/banned', 'Banned List'],
   ['/cuts/:cutId', 'Cut'],
   ['/feed', 'Notifications'],
-  ['/wheel', 'Movie Wheel'],
   ['/daily-quiz', 'Daily Quiz'],
   ['/daily-quiz/questions', 'Quiz Questions'],
   ['/games', 'Games'],

@@ -3,7 +3,7 @@ import NextEvent from '../components/events/NextEvent'
 import PlanToWatchLeaderboard from '../components/films/PlanToWatchLeaderboard'
 import MovieWheel from '../components/wheel/MovieWheel'
 
-function ClubEvents() {
+function ClubEvents({ isAuthenticated }) {
   return (
     <>
       <div className="mx-auto max-w-6xl px-5 pt-14 pb-2 sm:px-8 sm:pt-20">
@@ -27,6 +27,7 @@ function ClubEvents() {
       <section className="text-white">
         <MovieWheel
           title="The Wheel"
+          isAuthenticated={isAuthenticated}
           description="Can't agree on anything? Add the films you'd like to watch, then spin. Wherever it lands is what we watch."
         />
       </section>

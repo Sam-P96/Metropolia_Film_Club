@@ -22,7 +22,6 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ClubEvents = lazy(() => import("./pages/ClubEvents"));
 const Profile = lazy(() => import("./pages/Profile"));
-const Wheel = lazy(() => import("./pages/Wheel"));
 const UserFilmList = lazy(() => import("./pages/UserFilmList"));
 const ReviewDetail = lazy(() => import("./pages/ReviewDetail"));
 const FilmDetail = lazy(() => import("./pages/FilmDetail"));
@@ -182,7 +181,6 @@ function App() {
               isAuthenticated ? (<Feed />) : (<Navigate to="/login" state={{ from: '/feed' }} />)
             } />
 
-            <Route path="/wheel" element={<Wheel />} />
             {/* The Daily Quiz (also on the home page's first slide), and the
                 queue of questions for moderators and admins (the server checks). */}
             <Route path="/daily-quiz" element={
