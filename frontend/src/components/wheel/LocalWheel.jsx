@@ -2,7 +2,7 @@ import { useState } from "react";
 import WheelBoard from "./WheelBoard";
 import { LOCAL_MAX_ENTRIES, LOCAL_MAX_WEIGHT, loadLocalWheel, newItemId, saveLocalWheel } from "./localWheelStore";
 
-// Wheel Local: a wheel of your own, kept on this device. Nobody else sees it.
+// Local Wheel: a wheel of your own, kept on this device. Nobody else sees it.
 export default function LocalWheel() {
   const [items, setItems] = useState(loadLocalWheel);
   const [error, setError] = useState("");

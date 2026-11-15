@@ -444,7 +444,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the event's own title, date, time and place, the start of its description
   and its image (`backend/utils/linkPreview.js` puts them in the page the
   server sends, since preview bots don't run the site's JavaScript).
-- Two wheels on the Club Events page. Wheel Local (the one it opens on) is
+- Two wheels on the Club Events page. Local Wheel (the one it opens on) is
   your own, kept on this device. The Club Wheel is the same for everyone:
   moderators and admins add films, set each film's weight, take films off one
   at a time and clear it. An admin can open it so every member can add films

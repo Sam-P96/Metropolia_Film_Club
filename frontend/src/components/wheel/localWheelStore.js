@@ -1,4 +1,4 @@
-// Wheel Local's films, kept in this browser only: [{ id, title, weight }].
+// Local Wheel's films, kept in this browser only: [{ id, title, weight }].
 const KEY = 'localWheel'
 
 export const LOCAL_MAX_ENTRIES = 60

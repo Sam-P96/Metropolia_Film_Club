@@ -3,11 +3,11 @@ import ClubWheel from "./ClubWheel";
 import LocalWheel from "./LocalWheel";
 
 const WHEELS = [
-  { id: "local", label: "Wheel Local", about: "Your own wheel, kept on this device. Nobody else sees it." },
+  { id: "local", label: "Local Wheel", about: "Your own wheel, kept on this device. Nobody else sees it." },
   { id: "club", label: "Club Wheel", about: "The club's wheel: everyone sees the same films. Moderators and admins look after it." },
 ];
 
-// The Club Events page's wheels: Wheel Local (the one it opens on) and the
+// The Club Events page's wheels: Local Wheel (the one it opens on) and the
 // Club Wheel.
 export default function MovieWheel({ title, description, isAuthenticated }) {
   const [shown, setShown] = useState("local");

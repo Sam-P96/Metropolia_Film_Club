@@ -8,7 +8,7 @@ import { chanceOf, pickSlice, weightOf, wheelSlices } from "./wheelSlices";
 const SPIN_MS = 5500;
 
 // One wheel: the wheel and its spin button, the add form and the list of
-// films. Wheel Local and the Club Wheel (MovieWheel.jsx) both use it, and
+// films. Local Wheel and the Club Wheel (MovieWheel.jsx) both use it, and
 // say what this person may do.
 //
 // onAdd(title, weight), onWeight(item, weight), onRemove(item) and onClear()
