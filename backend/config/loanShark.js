@@ -10,15 +10,19 @@ const LOAN_SHARK = {
     // King Loan Shark: borrowing P-PP from the house.
     shark: {
         // The most a member can have borrowed at once, times their daily PP.
-        capTimesDaily: 5,
+        capTimesDaily: 25,
         // The rate a new loan starts at. Each missed payment doubles it,
         // up to maxRate.
         startRate: 0.1,
-        maxRate: 1.6,
+        maxRate: 3.2,
         // Each day's minimum payment, as a share of the total borrowed.
         minimumPayment: 0.05,
-        // At maxRate, Kaveri takes this share of their daily PP
-        // every day at 12:00 until it's paid.
+        // From collectorRate on, Kaveri takes collectorTake of their daily
+        // PP every day at 12:00 until it's paid, and missed payments still
+        // double the rate up to maxRate. Members are never told
+        // collectorRate: they find out when he arrives. It isn't sent to
+        // the page (utils/loanShark/view.js rules()).
+        collectorRate: 0.8,
         collectorTake: 0.4,
         // The first payment is due at the first 12:00 check at least this
         // long after the loan was taken.

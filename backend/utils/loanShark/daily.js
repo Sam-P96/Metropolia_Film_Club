@@ -5,7 +5,7 @@ const { LOAN_SHARK } = require("../../config/loanShark");
 const { COLLECTOR_LINES, pickLine } = require("../../../shared/loanShark/lines.js");
 const { noteLoanCollector, noteLoanMissed } = require("../notify");
 const { changeAccount, emptyShark, logTx } = require("./account");
-const { MAX_RATE, ceilShare, checkState, doubled, sharkOwed, sharkSplit } = require("./math");
+const { MAX_RATE, ceilShare, checkState, collecting, doubled, sharkOwed, sharkSplit } = require("./math");
 const { repayDebt, settleRepayment } = require("./player");
 const { closeLoan } = require("./shark");
 
@@ -13,8 +13,10 @@ const { closeLoan } = require("./shark");
 // their payout (utils/wallet.js payMember), in the same transaction:
 //   1. their daily PP, as usual (the payout works it out and passes it in)
 //   2. each member they owe gets 10% of it (rounded up), or what's left
-//   3. the shark check: a payment due and not covered doubles the rate
-//   4. at the top rate, Kaveri takes up to 40% of it
+//   3. the shark check: a payment due and not covered doubles the rate,
+//      up to the top
+//   4. from the collector rate on (config/loanShark.js), Kaveri takes up
+//      to 40% of it
 //   5. the payout puts what's left of it in their wallet as normal
 // Each part only ever happens once a day: the debts remember the day of
 // their last repayment, and the account the day of its last check.
@@ -68,8 +70,9 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
             const owedBefore = sharkOwed(loan);
             if (loan.borrowed === 0 || owedBefore === 0) return { set, result: null };
 
-            // At the top rate there's nothing left to double: Kaveri's
-            // collecting, and that's what they hear about instead.
+            // A missed payment doubles the rate until the top. Kaveri's
+            // takings don't count as a payment: once he's collecting, the
+            // rate keeps doubling for each one they miss themselves.
             const { due, covered } = checkState(loan, day);
             const missed = due && !covered && loan.rate < MAX_RATE;
             const rate = missed ? doubled(loan.rate) : loan.rate;
@@ -77,7 +80,7 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
             const result = { loan: loan.loan, missed, rateFrom: loan.rate, rate, take: 0, left: owed, cleared: false, line: null, split: null };
             if (missed) Object.assign(set, { "shark.rate": rate, "shark.missed": loan.missed + 1 });
 
-            if (rate >= MAX_RATE) {
+            if (collecting(rate)) {
                 const take = Math.min(ceilShare(daily, LOAN_SHARK.shark.collectorTake), owed, left);
                 if (take > 0) {
                     const visit = collect(current, { ...loan, rate }, take);
@@ -111,7 +114,7 @@ async function dailyLoans(userId, daily, day, { session = null, after = (job) =>
 }
 
 // Kaveri takes `take` (no more than is owed) from a loan already
-// at the top rate: what changes on the account, and what happened. The
+// at the collector rate: what changes on the account, and what happened. The
 // last of it ends the loan. Otherwise he picks a line for his notification,
 // never the one he used last time.
 function collect(account, loan, take) {
