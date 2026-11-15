@@ -8,6 +8,7 @@ const { changeAccount, emptyShark, logTx } = require("./account");
 const { MAX_RATE, ceilShare, checkState, collecting, doubled, sharkOwed, sharkSplit } = require("./math");
 const { repayDebt, settleRepayment } = require("./player");
 const { closeLoan } = require("./shark");
+const { feedFromLoanShark } = require("../jackpotFeed");
 
 // Loan Shark at the 12:00 payout (spec §6), for one member, as part of
 // their payout (utils/wallet.js payMember), in the same transaction:
@@ -125,7 +126,8 @@ function collect(account, loan, take) {
     return { set: { lastCollectorLine: result.line, "shark.paid": loan.paid + take }, result };
 }
 
-// After a visit: the log, his notification, and closing the loan if that
+// After a visit: the log, his notification, half of what he took to the
+// scratch jackpots (config/jackpotFeed.js), and closing the loan if that
 // was the last of it. `visit` is collect()'s result, with the loan's id.
 async function recordCollector(userId, visit, { day = null, session = null, after }) {
     await logTx(
@@ -141,6 +143,7 @@ async function recordCollector(userId, visit, { day = null, session = null, afte
         session,
     );
     after(() => noteLoanCollector(userId, visit.take, visit.left, visit.line, visit.cleared));
+    after(() => feedFromLoanShark(visit.take));
     if (visit.cleared) await closeLoan(userId, visit.loan, session);
 }
 

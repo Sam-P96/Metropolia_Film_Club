@@ -6,6 +6,7 @@ const { noteFarkleAnswer, noteFarkleOver, noteFarkleResult, forgetFarkleMatch } 
 const { GAME_FIELDS, applyMove, forfeit } = require("../games/farkle/engine");
 const { announceMatch, playersAt } = require("../games/farkle/live");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
+const { feedFromClanker } = require("./jackpotFeed");
 const { BOT_NAME } = require("../../shared/farkle/rules.js");
 
 // Farkle matches in the database: saving a move, paying the winner, and
@@ -94,9 +95,14 @@ async function settleMatch(matchId) {
     ).lean();
     if (!match) return;
 
-    // The bot won: the stake was spent when the game started, so that's it.
+    // Clanker won: the stake was spent when the game started, and a share
+    // of it goes to the scratch jackpots (config/jackpotFeed.js). Claiming
+    // the game above makes sure that only ever happens once.
     const winner = match.players[match.winner];
-    if (!winner?.user) return;
+    if (!winner?.user) {
+        if (match.mode === "bot") await feedFromClanker(match.stake);
+        return;
+    }
 
     try {
         await credit(winner.user, match.prize, { reason: "win", match: match._id });
