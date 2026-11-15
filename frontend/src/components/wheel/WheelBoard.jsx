@@ -94,7 +94,9 @@ export default function WheelBoard({
   }
 
   return (
-    <div className="mt-8 grid gap-10 md:grid-cols-2">
+    // grid-cols-1: one column on phones that a long (cut short) title
+    // can't stretch past the screen.
+    <div className="mt-8 grid grid-cols-1 gap-10 md:grid-cols-2">
       <Confetti fire={confettiKey} />
       <section>
         {shown.length === 0 ? (
