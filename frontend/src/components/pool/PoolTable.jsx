@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MIN_POWER, STEP, Shot, TABLE, isFreeSpot } from '../../../../shared/pool/physics.js'
 import { ballSprite, newSpin, rollSpin } from './spin'
 import { cueLook } from '../../../../shared/pool/cues.js'
+import { ignitionLook } from '../../../../shared/pool/ignitions.js'
 import { addSparks, dirToView, drawAimLine, drawBall, drawCue, drawSparks, drawTable, sparkColor, toTable, toView, viewSize } from './draw'
 
 const { R } = TABLE
@@ -54,8 +55,10 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
 // takes the player's aim.
 //
 //   balls       the table at rest: [{ id, x, y, on }]
-//   shot        a shot to play out: { key, before, dx, dy, speed }. A new
-//               key plays it; onShotDone(key) once every ball is still.
+//   shot        a shot to play out: { key, before, dx, dy, speed, ignition }.
+//               A new key plays it; onShotDone(key) once every ball is
+//               still. `ignition`: the shooter's (shared/pool/ignitions.js
+//               id), what flies off when balls collide.
 //   canAim      it's this player's turn, and nothing is moving
 //   hand        null, 'kitchen' or 'table': the cue ball can be dragged
 //               to where it goes (behind the head string, or anywhere)
@@ -111,7 +114,7 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
       props.current.onShotDone?.(shot.key)
       return
     }
-    state.current.playing = { key: shot.key, shot: played, debt: 0, hits: 0 }
+    state.current.playing = { key: shot.key, shot: played, debt: 0, hits: 0, ignition: ignitionLook(shot.ignition) }
     state.current.aim = null
     state.current.press = null
   }, [shot])
@@ -205,11 +208,11 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
             if (cueHit || s.playing.hits <= SPARK_FIRST_HITS) {
               const at = toView(vertical, event.x, event.y)
               const strength = Math.min(1, 0.12 + event.speed / SPARK_FULL)
-              if (cueHit) addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), strength, now)
+              if (cueHit) addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), strength, now, s.playing.ignition)
               else {
                 // Two coloured balls: sparks in both their colours.
-                addSparks(s.sparks, at.x, at.y, sparkColor(event.a), strength * 0.75, now)
-                addSparks(s.sparks, at.x, at.y, sparkColor(event.b), strength * 0.75, now)
+                addSparks(s.sparks, at.x, at.y, sparkColor(event.a), strength * 0.75, now, s.playing.ignition)
+                addSparks(s.sparks, at.x, at.y, sparkColor(event.b), strength * 0.75, now, s.playing.ignition)
               }
             }
           } else if (event.type === 'pocket') {

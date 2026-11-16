@@ -393,12 +393,200 @@ function drawInlay(ctx, look, joint, butt, nx, ny, width) {
   }
 }
 
+// A blade of light from its tip (ax, ay) back to (bx, by), `width` across:
+// a wide glow in `colour`, then the colour, then a thick white-hot core.
+// Rounded at the tip, or `sharp`: coming to a point. `hum` (about 1)
+// makes it flicker.
+function drawBlade(ctx, ax, ay, bx, by, colour, width, hum, sharp = false) {
+  const length = Math.hypot(ax - bx, ay - by) || 1
+  const ux = (ax - bx) / length
+  const uy = (ay - by) / length
+  const nx = -uy
+  const ny = ux
+  // One layer, `w` across: a line with round ends, or a point at the tip.
+  const layer = (w, fill) => {
+    if (!sharp) {
+      ctx.strokeStyle = fill
+      ctx.lineCap = 'round'
+      ctx.lineWidth = w
+      ctx.beginPath()
+      ctx.moveTo(ax, ay)
+      ctx.lineTo(bx, by)
+      ctx.stroke()
+      return
+    }
+    const point = w * 1.6
+    ctx.fillStyle = fill
+    ctx.beginPath()
+    ctx.moveTo(ax + ux * point * 0.35, ay + uy * point * 0.35)
+    ctx.lineTo(ax - ux * point + nx * (w / 2), ay - uy * point + ny * (w / 2))
+    ctx.lineTo(bx + nx * (w / 2), by + ny * (w / 2))
+    ctx.lineTo(bx - nx * (w / 2), by - ny * (w / 2))
+    ctx.lineTo(ax - ux * point - nx * (w / 2), ay - uy * point - ny * (w / 2))
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.shadowColor = colour
+  ctx.shadowBlur = 26 * hum
+  ctx.globalAlpha *= 0.45 * hum
+  layer(width * 3.2, colour)
+  ctx.restore()
+
+  ctx.save()
+  ctx.shadowColor = colour
+  ctx.shadowBlur = 14 * hum
+  layer(width * 2, colour)
+  ctx.shadowBlur = 4
+  ctx.shadowColor = '#ffffff'
+  layer(width * 1.25, '#ffffff')
+  ctx.restore()
+}
+
+// A Saber (shared/pool/cues.js), nothing like a cue: a long, even blade
+// of light ending in a round tip just behind the cue ball, lighting the
+// cloth round it, then a short, chunky metal hilt: an emitter shroud, a
+// ribbed grip, a glowing switch and a pommel. A Crossguard Saber has two
+// short blades out of the sides of the emitter, crackling and never quite
+// steady, and all three of its blades come to sharp points. (cx, cy) is the cue ball; (dx, dy) the way the shot goes.
+const BLADE = 250
+const HILT = 92
+function drawSaber(ctx, cue, cx, cy, dx, dy, pull, alpha, now) {
+  const colour = cue.saber
+  const hum = 0.88 + 0.08 * Math.sin(now / 33) + 0.04 * Math.sin(now / 71)
+  const nx = -dy
+  const ny = dx
+  const gap = R + 6 + pull * 70
+  const tipX = cx - dx * gap
+  const tipY = cy - dy * gap
+  const emitX = tipX - dx * BLADE
+  const emitY = tipY - dy * BLADE
+  const endX = emitX - dx * HILT
+  const endY = emitY - dy * HILT
+
+  ctx.save()
+  ctx.globalAlpha = alpha
+
+  // Its light on the cloth, all along the blade.
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.globalAlpha = alpha * 0.22 * hum
+  ctx.strokeStyle = colour
+  ctx.lineCap = 'round'
+  ctx.shadowColor = colour
+  ctx.shadowBlur = 40
+  ctx.lineWidth = 30
+  ctx.beginPath()
+  ctx.moveTo(tipX, tipY)
+  ctx.lineTo(emitX, emitY)
+  ctx.stroke()
+  ctx.restore()
+
+  // The hilt's shadow (the blade casts none: it's light).
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)'
+  ctx.lineWidth = 12
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(emitX + 5, emitY + 7)
+  ctx.lineTo(endX + 5, endY + 7)
+  ctx.stroke()
+
+  // The blade.
+  drawBlade(ctx, tipX, tipY, emitX - dx * 4, emitY - dy * 4, colour, 5, hum, cue.crossguard)
+
+  // The crossguard's side blades, out of vents at the emitter.
+  if (cue.crossguard) {
+    const vx = emitX - dx * 12
+    const vy = emitY - dy * 12
+    for (const side of [1, -1]) {
+      const crackle = 0.82 + 0.14 * Math.sin(now / 19 + side * 2) + (Math.random() - 0.5) * 0.14
+      const length = 26 * crackle
+      drawBlade(ctx, vx + nx * side * (8 + length), vy + ny * side * (8 + length), vx + nx * side * 8, vy + ny * side * 8, colour, 3, hum, true)
+    }
+    // The unstable blade spitting sparks along its edges.
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.fillStyle = '#ffd2c2'
+    for (let i = 0; i < 4; i++) {
+      if (Math.random() < 0.5) continue
+      const k = Math.random()
+      const side = Math.random() < 0.5 ? 1 : -1
+      const off = 5 + Math.random() * 6
+      ctx.globalAlpha = alpha * 0.85
+      ctx.fillRect(tipX - dx * BLADE * k + nx * side * off - 0.9, tipY - dy * BLADE * k + ny * side * off - 0.9, 1.8, 1.8)
+    }
+    ctx.restore()
+  }
+
+  // The hilt: a metal tube, lit from one side.
+  const half = 5.6
+  const along = (k) => ({ x: emitX + (endX - emitX) * k, y: emitY + (endY - emitY) * k })
+  const band = (from, to, width, fill) => {
+    const p = along(from)
+    const q = along(to)
+    ctx.fillStyle = fill
+    ctx.beginPath()
+    ctx.moveTo(p.x + nx * width, p.y + ny * width)
+    ctx.lineTo(q.x + nx * width, q.y + ny * width)
+    ctx.lineTo(q.x - nx * width, q.y - ny * width)
+    ctx.lineTo(p.x - nx * width, p.y - ny * width)
+    ctx.closePath()
+    ctx.fill()
+  }
+  const metal = ctx.createLinearGradient(emitX + nx * half, emitY + ny * half, emitX - nx * half, emitY - ny * half)
+  metal.addColorStop(0, '#f6f8fb')
+  metal.addColorStop(0.3, '#b9c0ca')
+  metal.addColorStop(0.7, '#5d636d')
+  metal.addColorStop(1, '#2b2f36')
+  const dark = ctx.createLinearGradient(emitX + nx * half, emitY + ny * half, emitX - nx * half, emitY - ny * half)
+  dark.addColorStop(0, '#5a5f68')
+  dark.addColorStop(0.4, cue.butt[0])
+  dark.addColorStop(1, '#050506')
+
+  band(0, 1, half, metal)
+  // The emitter shroud, wider, with its dark mouth.
+  band(0, 0.2, half + 1.6, metal)
+  band(0, 0.03, half + 0.6, '#16181c')
+  // The grip: black, ribbed.
+  band(0.36, 0.86, half + 0.3, dark)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)'
+  ctx.lineWidth = 1
+  for (let i = 0; i < 8; i++) {
+    const p = along(0.4 + i * 0.058)
+    ctx.beginPath()
+    ctx.moveTo(p.x + nx * (half + 0.3), p.y + ny * (half + 0.3))
+    ctx.lineTo(p.x - nx * (half + 0.3), p.y - ny * (half + 0.3))
+    ctx.stroke()
+  }
+  // The pommel.
+  band(0.9, 1, half + 1.2, metal)
+  // The switch, glowing the blade's colour.
+  const button = along(0.27)
+  ctx.save()
+  ctx.fillStyle = colour
+  ctx.shadowColor = colour
+  ctx.shadowBlur = 8
+  ctx.beginPath()
+  ctx.arc(button.x + nx * half * 0.45, button.y + ny * half * 0.45, 1.8, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  ctx.restore()
+}
+
 // The cue, behind the cue ball at view (cx, cy), pointing along view
 // direction (dx, dy), pulled back by `pull` (0 to 1). `alpha` for the other
 // player's, shown fainter. `look` is the cue's (shared/pool/cues.js
 // cueLook); a Glowing one glows, moving with `now`.
 export function drawCue(ctx, cx, cy, dx, dy, pull, alpha = 1, look = null, now = 0) {
   const cue = look ?? CLASSIC_CUE
+  // A Saber: a blade of light and a hilt, not a cue at all.
+  if (cue.saber) {
+    drawSaber(ctx, cue, cx, cy, dx, dy, pull, alpha, now)
+    return
+  }
   const gap = R + 6 + pull * 70
   const length = 380
   const tipX = cx - dx * gap
@@ -552,29 +740,189 @@ export function drawCue(ctx, cx, cy, dx, dy, pull, alpha = 1, look = null, now =
 
 // ---------- sparks ----------
 
-// A burst of sparks at view (x, y) in `color`, as hard as `strength` (0 to
-// 1): little streaks flying out and fading. Pushed onto `sparks`.
-export function addSparks(sparks, x, y, color, strength, now) {
-  const count = Math.round(6 + strength * 14)
+// How big each Ignition's particles are, in view units, before they're
+// doubled (Ignitions throw theirs twice the size, to be easy to see).
+const SHAPE_SIZE = { ember: 1.6, bubble: 2.2, flake: 2.6, petal: 2.2, pixel: 1.8, star: 2.6, heart: 2.4, confetti: 2.2, bolt: 5, coin: 2.2, nebula: 1.8 }
+const IGNITION_SCALE = 2
+
+const pickFrom = (list) => list[Math.floor(Math.random() * list.length)]
+
+// A burst at view (x, y) when balls collide, as hard as `strength` (0 to
+// 1). Classic Sparks (`ignition` null, or shape 'spark'): little streaks
+// in `color`, flying out and fading. Any other Ignition
+// (shared/pool/ignitions.js look): its own particles, in its colours or
+// `color`, twice the size. Pushed onto `sparks`.
+export function addSparks(sparks, x, y, color, strength, now, ignition = null) {
+  if (!ignition || ignition.shape === 'spark') {
+    const count = Math.round(6 + strength * 14)
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const speed = (80 + Math.random() * 260) * (0.5 + strength)
+      sparks.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, born: now, life: 220 + Math.random() * 260, color })
+    }
+    // And a flash where they touched.
+    sparks.push({ x, y, vx: 0, vy: 0, born: now, life: 160, color, flash: 10 + strength * 14 })
+    return
+  }
+
+  const colours = ignition.colors ?? [color]
+  const count = Math.round(5 + strength * 9)
+  const size = SHAPE_SIZE[ignition.shape] * IGNITION_SCALE
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2
-    const speed = (80 + Math.random() * 260) * (0.5 + strength)
-    sparks.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, born: now, life: 220 + Math.random() * 260, color })
+    const speed = (60 + Math.random() * 200) * (0.5 + strength)
+    sparks.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      born: now,
+      life: 420 + Math.random() * 380,
+      color: pickFrom(colours),
+      shape: ignition.shape,
+      size: size * (0.75 + Math.random() * 0.5),
+      rot: Math.random() * Math.PI * 2,
+      spin: ignition.spin * (Math.random() < 0.5 ? -1 : 1) * Math.PI * 2,
+      fall: ignition.fall,
+      glow: ignition.glow,
+      seed: Math.random(),
+    })
   }
-  // And a flash where they touched.
-  sparks.push({ x, y, vx: 0, vy: 0, born: now, life: 160, color, flash: 10 + strength * 14 })
+  sparks.push({ x, y, vx: 0, vy: 0, born: now, life: 180, color: colours[0], flash: 12 + strength * 16 })
+}
+
+function starPath(ctx, size, points = 5) {
+  ctx.beginPath()
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 ? size * 0.45 : size
+    const angle = (i * Math.PI) / points - Math.PI / 2
+    ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius)
+  }
+  ctx.closePath()
+}
+
+// One Ignition particle, at the origin, already turned.
+function drawShape(ctx, p, age) {
+  const s = p.size
+  ctx.fillStyle = p.color
+  ctx.strokeStyle = p.color
+  switch (p.shape) {
+    case 'ember': {
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 1.8)
+      glow.addColorStop(0, '#fff4c2')
+      glow.addColorStop(0.35, p.color)
+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = glow
+      ctx.beginPath()
+      ctx.arc(0, 0, s * 1.8, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    }
+    case 'bubble':
+      ctx.lineWidth = Math.max(0.8, s * 0.22)
+      ctx.beginPath()
+      ctx.arc(0, 0, s, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'
+      ctx.beginPath()
+      ctx.arc(-s * 0.35, -s * 0.35, s * 0.22, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    case 'flake':
+      ctx.lineWidth = Math.max(0.8, s * 0.2)
+      ctx.lineCap = 'round'
+      for (let i = 0; i < 3; i++) {
+        const angle = (i * Math.PI) / 3
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(angle) * s, Math.sin(angle) * s)
+        ctx.lineTo(-Math.cos(angle) * s, -Math.sin(angle) * s)
+        ctx.stroke()
+      }
+      break
+    case 'petal':
+      ctx.scale(1, 0.5 + 0.5 * Math.abs(Math.sin(p.rot * 1.3)))
+      ctx.beginPath()
+      ctx.ellipse(0, 0, s, s * 0.55, 0, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    case 'pixel':
+      ctx.fillRect(-s * 0.6, -s * 0.6, s * 1.2, s * 1.2)
+      break
+    case 'star':
+      starPath(ctx, s)
+      ctx.fill()
+      break
+    case 'heart':
+      ctx.beginPath()
+      ctx.moveTo(0, s * 0.35)
+      ctx.bezierCurveTo(-s * 1.1, -s * 0.35, -s * 0.45, -s * 1.05, 0, -s * 0.45)
+      ctx.bezierCurveTo(s * 0.45, -s * 1.05, s * 1.1, -s * 0.35, 0, s * 0.35)
+      ctx.fill()
+      break
+    case 'confetti':
+      ctx.scale(1, Math.cos(p.rot * 2))
+      ctx.fillRect(-s * 0.7, -s * 0.35, s * 1.4, s * 0.7)
+      break
+    case 'bolt': {
+      // A jagged flash along the way it's flying, flickering.
+      ctx.lineWidth = Math.max(1, s * 0.22)
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      const flick = Math.floor(age / 40)
+      const jag = (i) => (Math.sin((p.seed * 10 + i) * 12.9898 + flick) * 43758.5453) % 1
+      ctx.beginPath()
+      ctx.moveTo(-s, 0)
+      for (let i = 1; i < 4; i++) ctx.lineTo(-s + (i * 2 * s) / 4, jag(i) * s * 0.6)
+      ctx.lineTo(s, 0)
+      ctx.stroke()
+      break
+    }
+    case 'coin': {
+      const face = Math.cos(p.rot * 2)
+      ctx.scale(Math.max(0.15, Math.abs(face)), 1)
+      ctx.beginPath()
+      ctx.arc(0, 0, s, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#8a5f12'
+      ctx.lineWidth = Math.max(0.6, s * 0.18)
+      ctx.stroke()
+      ctx.fillStyle = 'rgba(255, 250, 220, 0.8)'
+      ctx.beginPath()
+      ctx.arc(-s * 0.3, -s * 0.3, s * 0.25, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    }
+    case 'nebula': {
+      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 3)
+      halo.addColorStop(0, '#ffffff')
+      halo.addColorStop(0.25, p.color)
+      halo.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = halo
+      ctx.beginPath()
+      ctx.arc(0, 0, s * 3, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      starPath(ctx, s * 1.1, 4)
+      ctx.fill()
+      break
+    }
+    default:
+      ctx.beginPath()
+      ctx.arc(0, 0, s, 0, Math.PI * 2)
+      ctx.fill()
+  }
 }
 
 // Moves and draws the sparks still alive at `now`; returns those left.
 export function drawSparks(ctx, sparks, now, dt) {
   const alive = []
   ctx.save()
-  ctx.globalCompositeOperation = 'lighter'
   for (const spark of sparks) {
     const age = now - spark.born
     if (age >= spark.life) continue
     const fade = 1 - age / spark.life
     if (spark.flash) {
+      ctx.globalCompositeOperation = 'lighter'
       const glow = ctx.createRadialGradient(spark.x, spark.y, 0, spark.x, spark.y, spark.flash)
       glow.addColorStop(0, spark.color)
       glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
@@ -583,7 +931,23 @@ export function drawSparks(ctx, sparks, now, dt) {
       ctx.beginPath()
       ctx.arc(spark.x, spark.y, spark.flash, 0, Math.PI * 2)
       ctx.fill()
+    } else if (spark.shape) {
+      // An Ignition's particle: it slows, drifts, turns and fades.
+      spark.vx *= 0.92
+      spark.vy *= 0.92
+      spark.vy += spark.fall * dt
+      spark.x += spark.vx * dt
+      spark.y += spark.vy * dt
+      spark.rot += spark.spin * dt
+      ctx.globalCompositeOperation = spark.glow ? 'lighter' : 'source-over'
+      ctx.globalAlpha = Math.min(1, fade * 1.6)
+      ctx.save()
+      ctx.translate(spark.x, spark.y)
+      ctx.rotate(spark.shape === 'bolt' ? Math.atan2(spark.vy, spark.vx) : spark.rot)
+      drawShape(ctx, spark, age)
+      ctx.restore()
     } else {
+      ctx.globalCompositeOperation = 'lighter'
       spark.vx *= 0.9
       spark.vy *= 0.9
       spark.x += spark.vx * dt

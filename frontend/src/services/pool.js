@@ -8,18 +8,20 @@ import { api } from './api'
 // counters, expiresAt, myAnswer, acceptStake, counterMax }. Seat 0 breaks.
 // vs Clanker never comes here: it's played in the browser.
 
-// The shop: cues. { pp, ppp, points, owned, cue }, `cue` the one they use.
+// The shop: cues and Ignitions. { pp, ppp, points, owned, cue, ignition },
+// `cue` and `ignition` what they use.
 export function getPoolShop() {
   return api('/pool/shop')
 }
 
 // Each resolves to { view }, the shop as it now is (buying: { done, view }).
-export function buyPoolCue(itemId) {
+export function buyPoolItem(itemId) {
   return api('/pool/shop/buy', { method: 'POST', body: { itemId } })
 }
 
-export function equipPoolCue(itemId) {
-  return api('/pool/shop/equip', { method: 'PUT', body: { itemId } })
+// `kind`: 'cue' or 'ignition'. `itemId` null: back to the free one.
+export function equipPoolItem(kind, itemId) {
+  return api('/pool/shop/equip', { method: 'PUT', body: { kind, itemId } })
 }
 
 // The game's page: { incoming, outgoing, games, recent, watch }.

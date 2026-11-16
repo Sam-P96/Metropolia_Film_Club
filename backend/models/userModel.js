@@ -217,11 +217,13 @@ const userSchema = new Schema(
             grid: { type: String, default: null },
         },
 
-        // The cue they use at 8 Ball Pool (utils/poolShop.js), by its id in
-        // shared/pool/cues.js, or null for Classic. What they own is in
-        // models/poolCueOwnedModel.js.
+        // What they use at 8 Ball Pool (utils/poolShop.js): a cue (an id in
+        // shared/pool/cues.js, or null for Classic) and an Ignition (an id
+        // in shared/pool/ignitions.js, or null for Classic Sparks). What
+        // they own is in models/poolOwnedModel.js.
         pool: {
             cue: { type: String, default: null },
+            ignition: { type: String, default: null },
         },
 
         // Their First Place name effect's settings, for when they're #1 on

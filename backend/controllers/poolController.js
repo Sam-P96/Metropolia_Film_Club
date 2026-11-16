@@ -445,7 +445,7 @@ const withdrawBet = (req, res) =>
         await betsAnswer(res, bet.match, req.user._id);
     });
 
-// ---- The shop: cues ----
+// ---- The shop: cues and Ignitions ----
 
 async function handleShop(res, work) {
     try {
@@ -456,27 +456,28 @@ async function handleShop(res, work) {
     }
 }
 
-// { pp, ppp, points, owned, cue }.
+// { pp, ppp, points, owned, cue, ignition }.
 const getShop = (req, res) => handleShop(res, async () => res.json(await shop.shopView(req.user._id)));
 
-// { itemId }: buys a cue. Answers { done, view }.
-const buyCue = (req, res) =>
+// { itemId }: buys a cue or an Ignition. Answers { done, view }.
+const buyItem = (req, res) =>
     handleShop(res, async () => {
-        const done = await shop.buyCue(req.user._id, req.body?.itemId);
+        const done = await shop.buyItem(req.user._id, req.body?.itemId);
         res.status(201).json({ done, view: await shop.shopView(req.user._id) });
     });
 
-// { itemId }: the cue to use (null: Classic). Answers { view }.
-const equipCue = (req, res) =>
+// { kind, itemId }: the cue or Ignition to use (null: the free one).
+// Answers { view }.
+const equipItem = (req, res) =>
     handleShop(res, async () => {
-        await shop.equipCue(req.user._id, req.body?.itemId ?? null);
+        await shop.equipItem(req.user._id, req.body?.kind, req.body?.itemId ?? null);
         res.json({ view: await shop.shopView(req.user._id) });
     });
 
 module.exports = {
     getShop,
-    buyCue,
-    equipCue,
+    buyItem,
+    equipItem,
     getLobby,
     getStakeLimit,
     getFriends,

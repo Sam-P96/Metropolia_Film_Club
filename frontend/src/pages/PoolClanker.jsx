@@ -12,6 +12,7 @@ import { getCurrentUser } from '../utils/currentUser'
 import { ShotError, newGame, playShot, resign } from '../../../shared/pool/rules.js'
 import { clankerShot } from '../../../shared/pool/clanker.js'
 import { ALL_CUES } from '../../../shared/pool/cues.js'
+import { ALL_IGNITIONS } from '../../../shared/pool/ignitions.js'
 import { getPoolShop } from '../services/pool'
 import { CLANKER_NAME } from '../../../shared/gomoku/clanker.js'
 
@@ -32,10 +33,12 @@ const LEVELS = {
 }
 
 // One shot of the game, ready for the table to play out.
-// Clanker's cue for a game: any in the shop, at random.
-const clankerCue = () => ALL_CUES[Math.floor(Math.random() * ALL_CUES.length)].id
+// Clanker's cue and Ignition for a game: any in the shop, at random.
+const anyOf = (list) => list[Math.floor(Math.random() * list.length)].id
+const clankerLook = () => ({ cue: anyOf(ALL_CUES), ignition: anyOf(ALL_IGNITIONS) })
 
-const shotOf = (game) => ({ key: game.shots, before: game.lastShot.before, dx: game.lastShot.dx, dy: game.lastShot.dy, speed: game.lastShot.speed })
+// `ignition`: the shooter's, for what flies off when the balls collide.
+const shotOf = (game, ignition) => ({ key: game.shots, before: game.lastShot.before, dx: game.lastShot.dx, dy: game.lastShot.dy, speed: game.lastShot.speed, ignition })
 
 // Picking how hard Clanker plays.
 function LevelPicker({ onPick }) {
@@ -69,13 +72,13 @@ export default function PoolClanker() {
   const [ghost, setGhost] = useState(null)
   const [error, setError] = useState('')
   const timers = useRef([])
-  // The cues: yours (from the shop), and Clanker's.
-  const [cues, setCues] = useState({ mine: null, clanker: null })
+  // What each of you uses: yours (from the shop), and Clanker's.
+  const [looks, setLooks] = useState({ mine: { cue: null, ignition: null }, clanker: { cue: null, ignition: null } })
 
   useEffect(() => {
     let stopped = false
     getPoolShop()
-      .then((shop) => !stopped && setCues((now) => ({ ...now, mine: shop.cue })))
+      .then((shop) => !stopped && setLooks((now) => ({ ...now, mine: { cue: shop.cue, ignition: shop.ignition } })))
       .catch(() => {})
     return () => {
       stopped = true
@@ -92,7 +95,7 @@ export default function PoolClanker() {
     clear()
     setLevel(picked)
     setGame(newGame())
-    setCues((now) => ({ ...now, clanker: clankerCue() }))
+    setLooks((now) => ({ ...now, clanker: clankerLook() }))
     setShot(null)
     setGhost(null)
     setError('')
@@ -101,7 +104,7 @@ export default function PoolClanker() {
   const play = (seat, move) => {
     const next = playShot(game, seat, move)
     setGame(next)
-    setShot(shotOf(next))
+    setShot(shotOf(next, seat === YOU ? looks.mine.ignition : looks.clanker.ignition))
     setGhost(null)
   }
 
@@ -149,13 +152,13 @@ export default function PoolClanker() {
       later(start + DRAW_MS + 120, () => {
         const next = playShot(game, CLANKER, move)
         setGame(next)
-        setShot(shotOf(next))
+        setShot(shotOf(next, looks.clanker.ignition))
         setGhost(null)
       })
     }, LOOK_MS)
     timers.current.push(looked)
     return clear
-  }, [clankerTurn, game, level])
+  }, [clankerTurn, game, level, looks.clanker.ignition])
 
   if (!level || !game) {
     return (
@@ -196,7 +199,7 @@ export default function PoolClanker() {
         </div>
       )}
 
-      <PoolPlay balls={game.balls} hand={shot ? null : game.hand} shot={shot} onShotDone={shotDone} ghost={ghost} canAim={canAim} busy={false} onShoot={shoot} myCue={cues.mine} ghostCue={cues.clanker} />
+      <PoolPlay balls={game.balls} hand={shot ? null : game.hand} shot={shot} onShotDone={shotDone} ghost={ghost} canAim={canAim} busy={false} onShoot={shoot} myCue={looks.mine.cue} ghostCue={looks.clanker.cue} />
 
       <div className="-mt-1 flex min-h-12 flex-col items-center gap-1 text-center" aria-live="polite">
         {said && <p className="text-sm text-white/70">{said}</p>}

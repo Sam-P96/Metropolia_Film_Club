@@ -1,8 +1,8 @@
 // 8 Ball Pool's cues: the shop (8 Ball Pool's page → Shop,
 // backend/utils/poolShop.js), and how each one is drawn
 // (frontend/src/components/pool/draw.js drawCue). Bought with points, PP
-// first, then P-PP; kept for good. Classic is everyone's. The Glowing ones,
-// the dearest at 1,000, glow on the table.
+// first, then P-PP; kept for good. Classic is everyone's. The Glowing ones
+// (1,000) glow on the table, and the Sabers (2,000) are blades of light.
 //
 // Ids never change once members own them.
 //
@@ -16,8 +16,12 @@
 //            colour, going round
 //   pulse    how it glows: 'breathe' (swells and eases), 'flicker' (like
 //            a flame) or 'flow' (light running down it)
+//   saber    a Saber: the front is a blade of light in this colour, the
+//            back a metal hilt (`shaft` and `butt` are only used if a
+//            saber can't be drawn). `crossguard`: two short blades out of
+//            the sides at the hilt, crackling.
 
-export const CUE_PRICES = { standard: 100, fine: 250, luxury: 500, glowing: 1000 }
+export const CUE_PRICES = { standard: 100, fine: 250, luxury: 500, glowing: 1000, saber: 2000 }
 
 const CUES = [
   { key: 'classic', name: 'Classic', tier: 'free', shaft: ['#f1dfb5', '#d8b37a'], butt: ['#1a0d06', '#3b1b0a'], joint: '#c9982f' },
@@ -42,13 +46,19 @@ const CUES = [
   { key: 'void', name: 'Void', tier: 'glowing', shaft: ['#efe2ff', '#b48cff'], butt: ['#0b0216', '#2a0a52'], joint: '#c79bff', inlay: 'diamonds', inlayColor: '#8a3dff', glow: '#9b4dff', pulse: 'breathe' },
   { key: 'toxic', name: 'Toxic', tier: 'glowing', shaft: ['#f2ffe0', '#b6ff6b'], butt: ['#0a1f02', '#1f4d06'], joint: '#c6ff3d', inlay: 'stripes', inlayColor: '#7dff2f', glow: '#6dff2a', pulse: 'flow' },
   { key: 'prism', name: 'Prism', tier: 'glowing', shaft: ['#ffffff', '#e8e8ff'], butt: ['#120a1f', '#2a1a40'], joint: '#ffffff', inlay: 'diamonds', inlayColor: '#ffffff', glow: 'rainbow', pulse: 'flow' },
+
+  { key: 'saber-red', name: 'Red Saber', tier: 'saber', shaft: ['#ffffff', '#ffd6d6'], butt: ['#2a2d33', '#8a9099'], joint: '#c0c6cf', glow: '#ff2a2a', pulse: 'saber', saber: '#ff2a2a' },
+  { key: 'saber-blue', name: 'Blue Saber', tier: 'saber', shaft: ['#ffffff', '#d6e8ff'], butt: ['#2a2d33', '#8a9099'], joint: '#c0c6cf', glow: '#2f8bff', pulse: 'saber', saber: '#2f8bff' },
+  { key: 'saber-green', name: 'Green Saber', tier: 'saber', shaft: ['#ffffff', '#d6ffdc'], butt: ['#2a2d33', '#8a9099'], joint: '#c0c6cf', glow: '#3dff5a', pulse: 'saber', saber: '#3dff5a' },
+  { key: 'saber-crossguard', name: 'Crossguard Saber', tier: 'saber', shaft: ['#ffffff', '#ffd6d6'], butt: ['#1b1b1e', '#4a4d55'], joint: '#8a9099', glow: '#ff1e1e', pulse: 'saber', saber: '#ff1e1e', crossguard: true },
 ]
 
-const TIER_NAMES = { free: 'Free', standard: 'Standard', fine: 'Fine', luxury: 'Luxury', glowing: 'Glowing' }
-export const CUE_TIERS = ['free', 'standard', 'fine', 'luxury', 'glowing']
+const TIER_NAMES = { free: 'Free', standard: 'Standard', fine: 'Fine', luxury: 'Luxury', glowing: 'Glowing', saber: 'Sabers' }
+export const CUE_TIERS = ['free', 'standard', 'fine', 'luxury', 'glowing', 'saber']
 
 export const ALL_CUES = CUES.map((cue) => ({
   id: `cue.${cue.key}`,
+  kind: 'cue',
   name: cue.name,
   tier: cue.tier,
   category: TIER_NAMES[cue.tier],
@@ -61,6 +71,8 @@ export const ALL_CUES = CUES.map((cue) => ({
     inlayColor: cue.inlayColor ?? null,
     glow: cue.glow ?? null,
     pulse: cue.pulse ?? null,
+    saber: cue.saber ?? null,
+    crossguard: Boolean(cue.crossguard),
   },
 }))
 

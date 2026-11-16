@@ -23,12 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three hits between any two balls in a shot, harder hits throwing more. Shots are worked
   out on the server and played back identically on every screen
   (`shared/pool/physics.js`, `rules.js`).
-- 8 Ball Pool's Shop (the Shop button on its page): 18 cues for points, PP
-  first, then P-PP, kept for good. Classic is free; Standard ones are 100,
-  Fine 250, Luxury 500, and the six Glowing ones 1,000: they glow on the
-  table (breathing, flickering like a flame, light running down them, or
-  every colour going round). Everyone at your table sees the cue you use;
-  Clanker picks one at random each game.
+- 8 Ball Pool's Shop (the Shop button on its page), for points, PP first,
+  then P-PP, kept for good:
+  - 22 cues. Classic is free; Standard 100, Fine 250, Luxury 500; six
+    Glowing ones at 1,000 glow on the table (breathing, flickering like a
+    flame, light running down them, or every colour going round); and four
+    Sabers at 2,000 (Red, Blue, Green and Crossguard) that aren't cues at
+    all: a humming blade of light with a thick white core, lighting the
+    cloth, on a metal hilt. The Crossguard Saber has two crackling side
+    blades, and all three of its blades come to sharp points.
+  - 12 Ignitions: what flies off when balls collide on your shots. Classic
+    Sparks are free; the others (Embers, Bubbles, Snowfall, Petals, Pixels,
+    Stars, Hearts, Confetti, Lightning, Coin Burst, Nebula; 100 to 1,000)
+    throw their own particles, twice the size.
+  - Test, at the top, opens a table to shoot on with what you use, or
+    with anything you Try from the shop.
+  Everyone at your table sees your cue and your Ignition; Clanker picks
+  both at random each game.
 - Live pool: both players and anyone watching see each shot as it's
   played, and the other player's cue as they line up. Members who follow
   either player get a notification when a game starts, can watch it, and

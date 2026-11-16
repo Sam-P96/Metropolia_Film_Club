@@ -1,17 +1,19 @@
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
-const PoolCueOwned = require("../models/poolCueOwnedModel");
+const PoolOwned = require("../models/poolOwnedModel");
 const { WalletError, spend } = require("./wallet");
 const { inSession } = require("./steal/tx");
 const { DEFAULT_CUE, cueItem } = require("../../shared/pool/cues.js");
+const { DEFAULT_IGNITION, ignitionItem } = require("../../shared/pool/ignitions.js");
 
-// 8 Ball Pool's shop (the game page's Shop button): cues, from
-// shared/pool/cues.js, the dearest (the Glowing ones) 1,000 points.
+// 8 Ball Pool's shop (the game page's Shop button): cues (shared/pool/
+// cues.js; the Sabers the dearest, 2,000 points) and Ignitions, what flies
+// off when balls collide (shared/pool/ignitions.js; up to 1,000).
 //   - Paid in points, PP first and then P-PP, like a stake. The points are
 //     gone: no refunds, no selling back, no trading.
-//   - Classic is everyone's.
-//   - What's bought is kept for good. One is used at a time, and everyone
-//     at the table sees it.
+//   - Classic (the cue) and Classic Sparks are everyone's.
+//   - What's bought is kept for good. One of each kind is used at a time,
+//     and everyone at the table sees them.
 
 class PoolShopError extends Error {
     constructor(message, status = 400) {
@@ -20,19 +22,30 @@ class PoolShopError extends Error {
     }
 }
 
+const KINDS = {
+    cue: { find: cueItem, fallback: DEFAULT_CUE, label: "cue" },
+    ignition: { find: ignitionItem, fallback: DEFAULT_IGNITION, label: "Ignition" },
+};
+
 const format = (points) => points.toLocaleString("en-US");
 
-// The cue a member uses: their choice if it's still a cue, else Classic.
-function cueOf(user) {
-    return cueItem(user?.pool?.cue)?.id ?? DEFAULT_CUE;
+// A shop item of any kind, or null.
+const itemOf = (id) => cueItem(id) ?? ignitionItem(id);
+
+// What a member uses: { cue, ignition }, each their choice if it's still in
+// the shop, else the free one.
+function lookOf(user) {
+    return {
+        cue: cueItem(user?.pool?.cue)?.id ?? DEFAULT_CUE,
+        ignition: ignitionItem(user?.pool?.ignition)?.id ?? DEFAULT_IGNITION,
+    };
 }
 
-// What the shop page needs: their points, the cues they own, and the one
-// they use.
+// What the shop page needs: their points, what they own, and what they use.
 async function shopView(userId) {
     const [user, owned] = await Promise.all([
         User.findById(userId).select("wallet pool").lean(),
-        PoolCueOwned.find({ user: userId }).sort({ boughtAt: 1 }).select("item").lean(),
+        PoolOwned.find({ user: userId }).sort({ boughtAt: 1 }).select("item").lean(),
     ]);
     if (!user) throw new PoolShopError("That member doesn't exist any more.", 404);
     const pp = user.wallet?.pp ?? 0;
@@ -41,21 +54,21 @@ async function shopView(userId) {
         pp,
         ppp,
         points: pp + ppp,
-        owned: owned.map((entry) => entry.item).filter((id) => cueItem(id)),
-        cue: cueOf(user),
+        owned: owned.map((entry) => entry.item).filter((id) => itemOf(id)),
+        ...lookOf(user),
     };
 }
 
 // Buys `itemId` for its price in points. Resolves to { item, price }.
-async function buyCue(userId, itemId) {
-    const item = cueItem(itemId);
+async function buyItem(userId, itemId) {
+    const item = itemOf(itemId);
     if (!item) throw new PoolShopError("That isn't for sale.", 404);
     if (item.price === 0) throw new PoolShopError(`${item.name} is free, and already yours.`);
 
     return inSession(async (session) => {
         // Claimed first, so two clicks can't both pay for it.
         try {
-            await PoolCueOwned.create([{ user: userId, item: item.id, price: item.price }], { session });
+            await PoolOwned.create([{ user: userId, item: item.id, price: item.price }], { session });
         } catch (error) {
             if (error.code === 11000) throw new PoolShopError(`You already own ${item.name}.`, 409);
             throw error;
@@ -66,7 +79,7 @@ async function buyCue(userId, itemId) {
         } catch (error) {
             // Not paid for: it isn't theirs. (A transaction undoes this by
             // itself; without one, it's undone here.)
-            if (!session) await PoolCueOwned.deleteOne({ user: userId, item: item.id });
+            if (!session) await PoolOwned.deleteOne({ user: userId, item: item.id });
             if (error instanceof WalletError && error.status === 400) {
                 throw new PoolShopError(`${item.name} costs ${format(item.price)} points. ${error.message}`);
             }
@@ -76,30 +89,33 @@ async function buyCue(userId, itemId) {
     });
 }
 
-// Uses `itemId` from now on (null: back to Classic). Only a cue they own,
-// or Classic.
-async function equipCue(userId, itemId) {
-    const item = itemId === null || itemId === undefined ? null : cueItem(itemId);
+// Uses `itemId` as their `kind` ("cue" or "ignition") from now on (null:
+// back to the free one). Only one they own, or a free one.
+async function equipItem(userId, kind, itemId) {
+    const shelf = KINDS[kind];
+    if (!shelf) throw new PoolShopError("Pick a cue or an Ignition.");
+    const item = itemId === null || itemId === undefined ? null : itemOf(itemId);
     if (itemId && !item) throw new PoolShopError("That isn't in the shop.", 404);
-    if (item && item.price !== 0 && !(await PoolCueOwned.exists({ user: userId, item: item.id }))) {
+    if (item && item.kind !== kind) throw new PoolShopError(`${item.name} isn't a ${shelf.label}.`);
+    if (item && item.price !== 0 && !(await PoolOwned.exists({ user: userId, item: item.id }))) {
         throw new PoolShopError(`You don't own ${item.name}. Buy it first.`, 403);
     }
-    const done = await User.updateOne({ _id: userId }, { $set: { "pool.cue": item ? item.id : null } }, { timestamps: false });
+    const done = await User.updateOne({ _id: userId }, { $set: { [`pool.${kind}`]: item ? item.id : null } }, { timestamps: false });
     if (done.matchedCount === 0) throw new PoolShopError("That member doesn't exist any more.", 404);
 }
 
-// Their data (Download my data): the cues they bought and the one they use.
+// Their data (Download my data): what they bought and what they use.
 async function poolShopDataOf(userId) {
     const [owned, user] = await Promise.all([
-        PoolCueOwned.find({ user: userId }).sort({ boughtAt: 1 }).select("item price boughtAt -_id").lean(),
+        PoolOwned.find({ user: userId }).sort({ boughtAt: 1 }).select("item price boughtAt -_id").lean(),
         mongoose.isValidObjectId(userId) ? User.findById(userId).select("pool").lean() : null,
     ]);
-    return { owned, cue: user ? cueOf(user) : null };
+    return { owned, using: user ? lookOf(user) : null };
 }
 
 // An account is being deleted: what they bought goes with it.
 function forgetPoolShop(userId) {
-    return PoolCueOwned.deleteMany({ user: userId });
+    return PoolOwned.deleteMany({ user: userId });
 }
 
-module.exports = { PoolShopError, cueOf, shopView, buyCue, equipCue, poolShopDataOf, forgetPoolShop };
+module.exports = { PoolShopError, lookOf, shopView, buyItem, equipItem, poolShopDataOf, forgetPoolShop };

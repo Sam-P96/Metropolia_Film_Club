@@ -180,7 +180,7 @@ describe("the routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
     let Notification;
     let WalletTx;
     let pool;
-    let PoolCueOwned;
+    let PoolOwned;
     const tokens = new Map();
 
     before(async () => {
@@ -193,8 +193,8 @@ describe("the routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         Notification = require("../models/notificationModel");
         WalletTx = require("../models/walletTxModel");
         pool = require("../utils/pool");
-        PoolCueOwned = require("../models/poolCueOwnedModel");
-        await Promise.all([User, Follow, PoolMatch, PoolBet, Notification, WalletTx, PoolCueOwned].map((model) => model.syncIndexes()));
+        PoolOwned = require("../models/poolOwnedModel");
+        await Promise.all([User, Follow, PoolMatch, PoolBet, Notification, WalletTx, PoolOwned].map((model) => model.syncIndexes()));
 
         const app = express();
         app.use(express.json());
@@ -259,15 +259,15 @@ describe("the routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         assert.equal(accepted.body.prize, 100);
     });
 
-    test("the shop: cues bought with points (PP first), once each; only owned ones used; both players see each other's", async () => {
+    test("the shop: cues and Ignitions bought with points (PP first), once each; only owned ones used; both players see each other's", async () => {
         const a = await member(600, 1000);
         const b = await member();
 
         const fresh = await call(a, "GET", "/shop");
         assert.equal(fresh.status, 200);
-        assert.deepEqual([fresh.body.cue, fresh.body.owned, fresh.body.points], ["cue.classic", [], 1600]);
+        assert.deepEqual([fresh.body.cue, fresh.body.ignition, fresh.body.owned, fresh.body.points], ["cue.classic", "ignition.sparks", [], 1600]);
 
-        assert.equal((await call(a, "PUT", "/shop/equip", { itemId: "cue.neon" })).status, 403, "not bought");
+        assert.equal((await call(a, "PUT", "/shop/equip", { kind: "cue", itemId: "cue.neon" })).status, 403, "not bought");
         assert.equal((await call(a, "POST", "/shop/buy", { itemId: "cue.classic" })).status, 400, "free already");
         assert.equal((await call(a, "POST", "/shop/buy", { itemId: "cue.nope" })).status, 404);
 
@@ -277,18 +277,23 @@ describe("the routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         assert.deepEqual(await walletOf(a), { pp: 0, ppp: 600 }, "PP first, then P-PP");
         assert.equal(await WalletTx.countDocuments({ user: a._id, reason: "poolShop" }), 1);
         assert.equal((await call(a, "POST", "/shop/buy", { itemId: "cue.neon" })).status, 409, "once each");
-        assert.equal((await call(a, "POST", "/shop/buy", { itemId: "cue.prism" })).status, 400, "not enough points");
-        assert.equal(await PoolCueOwned.countDocuments({ user: a._id }), 1, "nothing kept that wasn't paid for");
+        assert.equal((await call(a, "POST", "/shop/buy", { itemId: "cue.saber-red" })).status, 400, "not enough points: a Saber is 2,000");
+        const sparks = await call(a, "POST", "/shop/buy", { itemId: "ignition.stars" });
+        assert.equal(sparks.status, 201, JSON.stringify(sparks.body));
+        assert.deepEqual(await walletOf(a), { pp: 0, ppp: 100 });
+        assert.equal((await call(a, "PUT", "/shop/equip", { kind: "ignition", itemId: "ignition.stars" })).status, 200);
+        assert.equal(await PoolOwned.countDocuments({ user: a._id }), 2, "nothing kept that wasn't paid for");
 
-        const used = await call(a, "PUT", "/shop/equip", { itemId: "cue.neon" });
+        assert.equal((await call(a, "PUT", "/shop/equip", { kind: "ignition", itemId: "cue.neon" })).status, 400, "a cue isn't an Ignition");
+        const used = await call(a, "PUT", "/shop/equip", { kind: "cue", itemId: "cue.neon" });
         assert.equal(used.status, 200);
         assert.equal(used.body.view.cue, "cue.neon");
 
         const game = await started(a, b);
         const seen = await call(b, "GET", `/matches/${game._id}`);
-        assert.deepEqual(seen.body.players.map((player) => player.look.cue), ["cue.classic", "cue.neon"], "b accepted, so b is seat 0");
+        assert.deepEqual(seen.body.players.map((player) => player.look), [{ cue: "cue.classic", ignition: "ignition.sparks" }, { cue: "cue.neon", ignition: "ignition.stars" }], "b accepted, so b is seat 0");
 
-        const back = await call(a, "PUT", "/shop/equip", { itemId: null });
+        const back = await call(a, "PUT", "/shop/equip", { kind: "cue", itemId: null });
         assert.equal(back.body.view.cue, "cue.classic");
     });
 

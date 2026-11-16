@@ -7,7 +7,7 @@ const { notePoolAnswer, notePoolOver, notePoolResult, forgetPoolMatch } = requir
 const { GAME_FIELDS, forfeit, resign } = require("../games/pool/engine");
 const { announcePool, poolPlayersAt } = require("../games/pool/live");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
-const { cueOf } = require("./poolShop");
+const { lookOf } = require("./poolShop");
 const { SOLIDS, STRIPES, ballsLeft } = require("../../shared/pool/rules.js");
 
 // 8 Ball Pool games in the database: saving a shot, paying the winner, and
@@ -255,10 +255,11 @@ async function matchViews(matches, viewerId, { full = false } = {}) {
 
     const playerView = (id) => {
         const user = id && userById.get(String(id));
-        if (!user) return { _id: null, username: "A former member", avatarUrl: null, reviewCardBanner: null, look: { cue: cueOf(null) } };
+        if (!user) return { _id: null, username: "A former member", avatarUrl: null, reviewCardBanner: null, look: lookOf(null) };
         const { username, avatarUrl, reviewCardBanner, cosmetics } = userSummary(user);
-        // The cue they shoot with, for everyone at the table to see.
-        return { _id: id, username, avatarUrl, reviewCardBanner, cosmetics, look: { cue: cueOf(user) } };
+        // The cue they shoot with and their Ignition, for everyone at the
+        // table to see.
+        return { _id: id, username, avatarUrl, reviewCardBanner, cosmetics, look: lookOf(user) };
     };
     const pointsOfUser = (id) => {
         const wallet = userById.get(String(id))?.wallet;
