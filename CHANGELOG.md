@@ -460,6 +460,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Double or Nothing: at the Monday reset, everything left in the pot goes
+  to the bonus pot (was half), and the bonus pot holds up to 95,000 (was
+  3,000); whatever doesn't fit is burned.
 - The Box Office Scratch jackpots also grow from what's lost elsewhere:
   75% of a stake lost to Clanker at Kino Farkle (beaten, resigned, left or
   timed out) and 50% of everything King Loan Shark takes (repayments and
