@@ -179,8 +179,8 @@ function Online({ forFun, reloads, onSent }) {
 }
 
 // 8 Ball Pool's page, from the Games page: Play For Fun (then vs Clanker,
-// Easy or Hard, or vs Player) or Play For PP (vs Player only), how to
-// play, every challenge and game, and
+// Easy or Hard, or vs Player) or Play For PP (vs Player only), the Shop
+// (cues), how to play, every challenge and game, and
 // the games members they follow are playing, to watch and bet on. App.jsx
 // sends logged-out visitors to log in first.
 export default function PoolLobby() {
@@ -224,6 +224,9 @@ export default function PoolLobby() {
         <button type="button" onClick={() => choose('pp')} aria-expanded={mode === 'pp'} className={`${mode === 'pp' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
           Play For PP
         </button>
+        <Link to="/games/pool/shop" className={`${QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
+          Shop
+        </Link>
       </div>
       <button
         type="button"

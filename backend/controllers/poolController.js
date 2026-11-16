@@ -22,6 +22,7 @@ const {
     seatOf,
 } = require("../utils/pool");
 const bets = require("../utils/poolBets");
+const shop = require("../utils/poolShop");
 const { FUN, prizeFor, stakeProblem } = require("../../shared/pool/rules.js");
 
 // 8 Ball Pool between members (routes/poolRouter.js), played like Infinite
@@ -444,7 +445,38 @@ const withdrawBet = (req, res) =>
         await betsAnswer(res, bet.match, req.user._id);
     });
 
+// ---- The shop: cues ----
+
+async function handleShop(res, work) {
+    try {
+        await work();
+    } catch (error) {
+        if (!(error instanceof shop.PoolShopError)) throw error;
+        res.status(error.status).json({ error: error.message });
+    }
+}
+
+// { pp, ppp, points, owned, cue }.
+const getShop = (req, res) => handleShop(res, async () => res.json(await shop.shopView(req.user._id)));
+
+// { itemId }: buys a cue. Answers { done, view }.
+const buyCue = (req, res) =>
+    handleShop(res, async () => {
+        const done = await shop.buyCue(req.user._id, req.body?.itemId);
+        res.status(201).json({ done, view: await shop.shopView(req.user._id) });
+    });
+
+// { itemId }: the cue to use (null: Classic). Answers { view }.
+const equipCue = (req, res) =>
+    handleShop(res, async () => {
+        await shop.equipCue(req.user._id, req.body?.itemId ?? null);
+        res.json({ view: await shop.shopView(req.user._id) });
+    });
+
 module.exports = {
+    getShop,
+    buyCue,
+    equipCue,
     getLobby,
     getStakeLimit,
     getFriends,

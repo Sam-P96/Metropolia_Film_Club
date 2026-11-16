@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three hits between any two balls in a shot, harder hits throwing more. Shots are worked
   out on the server and played back identically on every screen
   (`shared/pool/physics.js`, `rules.js`).
+- 8 Ball Pool's Shop (the Shop button on its page): 18 cues for points, PP
+  first, then P-PP, kept for good. Classic is free; Standard ones are 100,
+  Fine 250, Luxury 500, and the six Glowing ones 1,000: they glow on the
+  table (breathing, flickering like a flame, light running down them, or
+  every colour going round). Everyone at your table sees the cue you use;
+  Clanker picks one at random each game.
 - Live pool: both players and anyone watching see each shot as it's
   played, and the other player's cue as they line up. Members who follow
   either player get a notification when a game starts, can watch it, and

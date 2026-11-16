@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MIN_POWER, STEP, Shot, TABLE, isFreeSpot } from '../../../../shared/pool/physics.js'
 import { ballSprite, newSpin, rollSpin } from './spin'
+import { cueLook } from '../../../../shared/pool/cues.js'
 import { addSparks, dirToView, drawAimLine, drawBall, drawCue, drawSparks, drawTable, sparkColor, toTable, toView, viewSize } from './draw'
 
 const { R } = TABLE
@@ -61,12 +62,14 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
 //   onShoot({ angle, power, cue })   a shot let go
 //   onAim({ angle, power, on, cue })  the aim as it moves, for others to see
 //   ghost       the other player's aim, shown faint: { angle, power, cue }
+//   myCue, ghostCue   the cues (shared/pool/cues.js ids) yours and theirs
+//               are drawn with
 //
 // To shoot, press and hold towards where the shot goes: the power builds
 // the longer you hold (it never drops), turning keeps it, and letting go
 // shoots. A line shows where the cue ball goes, up to the first ball it
 // hits (marked, with the way that ball will go) or the cushion.
-export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onShoot, onAim, ghost }) {
+export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onShoot, onAim, ghost, myCue = null, ghostCue: theirCue = null }) {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
   const [layout, setLayout] = useState({ vertical: false, scale: 1 })
@@ -87,7 +90,7 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
   })
   const props = useRef({})
   useLayoutEffect(() => {
-    props.current = { canAim, hand, onShoot, onAim, ghost, onShotDone }
+    props.current = { canAim, hand, onShoot, onAim, ghost, onShotDone, myCue: cueLook(myCue), theirCue: cueLook(theirCue) }
   })
 
   // The table at rest, unless a shot is still playing out.
@@ -279,10 +282,12 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
         const at = toView(vertical, from.x, from.y)
         let aim = null
         let alpha = 1
+        let look = p.myCue
         if (p.canAim && s.aim) aim = s.aim
         else if (!p.canAim && p.ghost && Number.isFinite(p.ghost.angle)) {
           aim = { dx: Math.cos(p.ghost.angle), dy: Math.sin(p.ghost.angle), power: p.ghost.power ?? 0 }
           alpha = 0.55
+          look = p.theirCue
         }
         if (aim) {
           const dir = dirToView(vertical, aim.dx, aim.dy)
@@ -291,7 +296,7 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
           const contact = toView(vertical, end.x, end.y)
           const target = end.ball && toView(vertical, end.ball.x, end.ball.y)
           drawAimLine(ctx, at, contact, target, end.ball?.id ?? null, alpha, now)
-          drawCue(ctx, at.x, at.y, dir.x, dir.y, aim.power, alpha)
+          drawCue(ctx, at.x, at.y, dir.x, dir.y, aim.power, alpha, look, now)
           // Holding: a ring round the cue ball fills, red into purple, as
           // the power builds, and pulses once it's full.
           if (p.canAim && s.press && aim.power > 0) {

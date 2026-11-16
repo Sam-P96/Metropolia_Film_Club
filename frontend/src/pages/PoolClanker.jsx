@@ -11,6 +11,8 @@ import { CLANKER_PICTURE } from '../components/clankerPicture'
 import { getCurrentUser } from '../utils/currentUser'
 import { ShotError, newGame, playShot, resign } from '../../../shared/pool/rules.js'
 import { clankerShot } from '../../../shared/pool/clanker.js'
+import { ALL_CUES } from '../../../shared/pool/cues.js'
+import { getPoolShop } from '../services/pool'
 import { CLANKER_NAME } from '../../../shared/gomoku/clanker.js'
 
 const BACK = { to: '/games/pool', label: '8 Ball Pool' }
@@ -30,6 +32,9 @@ const LEVELS = {
 }
 
 // One shot of the game, ready for the table to play out.
+// Clanker's cue for a game: any in the shop, at random.
+const clankerCue = () => ALL_CUES[Math.floor(Math.random() * ALL_CUES.length)].id
+
 const shotOf = (game) => ({ key: game.shots, before: game.lastShot.before, dx: game.lastShot.dx, dy: game.lastShot.dy, speed: game.lastShot.speed })
 
 // Picking how hard Clanker plays.
@@ -64,6 +69,18 @@ export default function PoolClanker() {
   const [ghost, setGhost] = useState(null)
   const [error, setError] = useState('')
   const timers = useRef([])
+  // The cues: yours (from the shop), and Clanker's.
+  const [cues, setCues] = useState({ mine: null, clanker: null })
+
+  useEffect(() => {
+    let stopped = false
+    getPoolShop()
+      .then((shop) => !stopped && setCues((now) => ({ ...now, mine: shop.cue })))
+      .catch(() => {})
+    return () => {
+      stopped = true
+    }
+  }, [])
 
   const clear = () => {
     for (const timer of timers.current) clearTimeout(timer)
@@ -75,6 +92,7 @@ export default function PoolClanker() {
     clear()
     setLevel(picked)
     setGame(newGame())
+    setCues((now) => ({ ...now, clanker: clankerCue() }))
     setShot(null)
     setGhost(null)
     setError('')
@@ -178,7 +196,7 @@ export default function PoolClanker() {
         </div>
       )}
 
-      <PoolPlay balls={game.balls} hand={shot ? null : game.hand} shot={shot} onShotDone={shotDone} ghost={ghost} canAim={canAim} busy={false} onShoot={shoot} />
+      <PoolPlay balls={game.balls} hand={shot ? null : game.hand} shot={shot} onShotDone={shotDone} ghost={ghost} canAim={canAim} busy={false} onShoot={shoot} myCue={cues.mine} ghostCue={cues.clanker} />
 
       <div className="-mt-1 flex min-h-12 flex-col items-center gap-1 text-center" aria-live="polite">
         {said && <p className="text-sm text-white/70">{said}</p>}

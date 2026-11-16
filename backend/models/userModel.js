@@ -217,6 +217,13 @@ const userSchema = new Schema(
             grid: { type: String, default: null },
         },
 
+        // The cue they use at 8 Ball Pool (utils/poolShop.js), by its id in
+        // shared/pool/cues.js, or null for Classic. What they own is in
+        // models/poolCueOwnedModel.js.
+        pool: {
+            cue: { type: String, default: null },
+        },
+
         // Their First Place name effect's settings, for when they're #1 on
         // a ranking: the PP Leaderboard, the Critics Leaderboard (Top or
         // Controversial) or by level (utils/firstPlace.js). None until they first save some; then

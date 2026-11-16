@@ -4,6 +4,10 @@
 // where the table stands upright with the break end at the bottom.
 
 import { POCKETS, TABLE } from '../../../../shared/pool/physics.js'
+import { cueLook } from '../../../../shared/pool/cues.js'
+
+// The cue everyone has: plain maple and dark wood.
+const CLASSIC_CUE = cueLook('cue.classic')
 
 const { W, H, R } = TABLE
 
@@ -323,10 +327,78 @@ export function drawAimLine(ctx, from, contact, target, targetId, alpha, now) {
 
 // ---------- the cue ----------
 
+// A glowing cue's colour at `now`: its own, or going round every colour.
+function glowColour(look, now) {
+  if (look.glow !== 'rainbow') return look.glow
+  return `hsl(${Math.round((now / 12) % 360)}, 100%, 62%)`
+}
+
+// How bright a glowing cue is at `now`, about 1: breathing, flickering
+// like a flame, or steady (its light runs down it instead).
+function glowStrength(look, now) {
+  if (look.pulse === 'breathe') return 0.75 + 0.25 * Math.sin(now / 420)
+  if (look.pulse === 'flicker') return 0.8 + 0.12 * Math.sin(now / 47) + 0.08 * Math.sin(now / 113)
+  return 0.95
+}
+
+// The pattern on the butt, between `from` and `to` along it (0 to 1 from
+// the joint to the end), as a path the butt is clipped to already.
+function drawInlay(ctx, look, joint, butt, nx, ny, width) {
+  const at = (k) => ({ x: joint.x + (butt.x - joint.x) * k, y: joint.y + (butt.y - joint.y) * k })
+  ctx.fillStyle = look.inlayColor
+  ctx.strokeStyle = look.inlayColor
+  if (look.inlay === 'stripes') {
+    ctx.lineWidth = 2.4
+    for (const k of [0.12, 0.2, 0.28, 0.72, 0.8, 0.88]) {
+      const p = at(k)
+      const w = width(k) + 1
+      ctx.beginPath()
+      ctx.moveTo(p.x + nx * w, p.y + ny * w)
+      ctx.lineTo(p.x - nx * w, p.y - ny * w)
+      ctx.stroke()
+    }
+  } else if (look.inlay === 'diamonds') {
+    for (const k of [0.16, 0.34, 0.52, 0.7, 0.86]) {
+      const p = at(k)
+      const ux = (butt.x - joint.x) / 300
+      const uy = (butt.y - joint.y) / 300
+      ctx.beginPath()
+      ctx.moveTo(p.x + ux * 14, p.y + uy * 14)
+      ctx.lineTo(p.x + nx * 2.6, p.y + ny * 2.6)
+      ctx.lineTo(p.x - ux * 14, p.y - uy * 14)
+      ctx.lineTo(p.x - nx * 2.6, p.y - ny * 2.6)
+      ctx.closePath()
+      ctx.fill()
+    }
+  } else if (look.inlay === 'flames') {
+    // Points of flame licking from the end towards the joint, both sides.
+    for (const side of [1, -1]) {
+      ctx.beginPath()
+      const base = at(1)
+      ctx.moveTo(base.x + nx * width(1) * side, base.y + ny * width(1) * side)
+      for (let i = 0; i < 5; i++) {
+        const tipK = 0.32 + i * 0.1
+        const valleyK = 0.5 + i * 0.1
+        const tip = at(tipK)
+        const valley = at(Math.min(1, valleyK))
+        ctx.lineTo(tip.x + nx * width(tipK) * side * 0.1, tip.y + ny * width(tipK) * side * 0.1)
+        ctx.lineTo(valley.x + nx * width(valleyK) * side * 0.85, valley.y + ny * width(valleyK) * side * 0.85)
+      }
+      ctx.lineTo(base.x + nx * width(1) * side, base.y + ny * width(1) * side)
+      ctx.closePath()
+      ctx.globalAlpha *= 0.85
+      ctx.fill()
+      ctx.globalAlpha /= 0.85
+    }
+  }
+}
+
 // The cue, behind the cue ball at view (cx, cy), pointing along view
 // direction (dx, dy), pulled back by `pull` (0 to 1). `alpha` for the other
-// player's, shown fainter.
-export function drawCue(ctx, cx, cy, dx, dy, pull, alpha = 1) {
+// player's, shown fainter. `look` is the cue's (shared/pool/cues.js
+// cueLook); a Glowing one glows, moving with `now`.
+export function drawCue(ctx, cx, cy, dx, dy, pull, alpha = 1, look = null, now = 0) {
+  const cue = look ?? CLASSIC_CUE
   const gap = R + 6 + pull * 70
   const length = 380
   const tipX = cx - dx * gap
@@ -335,6 +407,24 @@ export function drawCue(ctx, cx, cy, dx, dy, pull, alpha = 1) {
   const buttY = tipY - dy * length
   const nx = -dy
   const ny = dx
+  // Half its thickness, `k` of the way from the tip (0) to the butt (1).
+  const halfAt = (k) => 2.2 + (5.5 - 2.2) * k
+  const JOINT = 0.6
+  const jointX = tipX - dx * length * JOINT
+  const jointY = tipY - dy * length * JOINT
+
+  const outline = (from, to) => {
+    const ax = tipX - dx * length * from
+    const ay = tipY - dy * length * from
+    const bx = tipX - dx * length * to
+    const by = tipY - dy * length * to
+    ctx.beginPath()
+    ctx.moveTo(ax + nx * halfAt(from), ay + ny * halfAt(from))
+    ctx.lineTo(bx + nx * halfAt(to), by + ny * halfAt(to))
+    ctx.lineTo(bx - nx * halfAt(to), by - ny * halfAt(to))
+    ctx.lineTo(ax - nx * halfAt(from), ay - ny * halfAt(from))
+    ctx.closePath()
+  }
 
   ctx.save()
   ctx.globalAlpha = alpha
@@ -347,21 +437,103 @@ export function drawCue(ctx, cx, cy, dx, dy, pull, alpha = 1) {
   ctx.lineTo(buttX + 5, buttY + 7)
   ctx.stroke()
 
-  // The shaft, tapering from the butt to the tip.
-  const shaft = ctx.createLinearGradient(tipX, tipY, buttX, buttY)
-  shaft.addColorStop(0, '#f1dfb5')
-  shaft.addColorStop(0.55, '#d8b37a')
-  shaft.addColorStop(0.62, '#c9982f')
-  shaft.addColorStop(0.64, '#1a0d06')
-  shaft.addColorStop(1, '#3b1b0a')
+  // A Glowing cue's light, round the whole of it.
+  const glow = cue.glow ? glowColour(cue, now) : null
+  const strength = glow ? glowStrength(cue, now) : 0
+  if (glow) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.shadowColor = glow
+    ctx.shadowBlur = 22 * strength
+    ctx.strokeStyle = glow
+    ctx.globalAlpha = alpha * 0.55 * strength
+    ctx.lineWidth = 7
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(tipX, tipY)
+    ctx.lineTo(buttX, buttY)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  // The shaft, light wood, from the tip to the joint.
+  const shaft = ctx.createLinearGradient(tipX, tipY, jointX, jointY)
+  shaft.addColorStop(0, cue.shaft[0])
+  shaft.addColorStop(1, cue.shaft[1])
   ctx.fillStyle = shaft
-  ctx.beginPath()
-  ctx.moveTo(tipX + nx * 2.2, tipY + ny * 2.2)
-  ctx.lineTo(buttX + nx * 5.5, buttY + ny * 5.5)
-  ctx.lineTo(buttX - nx * 5.5, buttY - ny * 5.5)
-  ctx.lineTo(tipX - nx * 2.2, tipY - ny * 2.2)
-  ctx.closePath()
+  outline(0, JOINT)
   ctx.fill()
+
+  // The butt, from the joint to the end, with its pattern.
+  const butt = ctx.createLinearGradient(jointX, jointY, buttX, buttY)
+  butt.addColorStop(0, cue.butt[0])
+  butt.addColorStop(1, cue.butt[1])
+  ctx.fillStyle = butt
+  outline(JOINT, 1)
+  ctx.fill()
+  if (cue.inlay) {
+    ctx.save()
+    outline(JOINT, 1)
+    ctx.clip()
+    drawInlay(ctx, cue, { x: jointX, y: jointY }, { x: buttX, y: buttY }, nx, ny, (k) => halfAt(JOINT + (1 - JOINT) * k))
+    ctx.restore()
+  }
+  // Light along its length, so it's round.
+  const sheen = ctx.createLinearGradient(tipX + nx * 5, tipY + ny * 5, tipX - nx * 5, tipY - ny * 5)
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)')
+  sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
+  sheen.addColorStop(1, 'rgba(0, 0, 0, 0.25)')
+  ctx.fillStyle = sheen
+  outline(0, 1)
+  ctx.fill()
+
+  // The joint ring, and the butt cap.
+  ctx.strokeStyle = cue.joint
+  ctx.lineCap = 'butt'
+  ctx.lineWidth = 3.5
+  ctx.beginPath()
+  ctx.moveTo(jointX + nx * (halfAt(JOINT) + 0.4), jointY + ny * (halfAt(JOINT) + 0.4))
+  ctx.lineTo(jointX - nx * (halfAt(JOINT) + 0.4), jointY - ny * (halfAt(JOINT) + 0.4))
+  ctx.stroke()
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.moveTo(buttX + dx * 2 + nx * 5.5, buttY + dy * 2 + ny * 5.5)
+  ctx.lineTo(buttX + dx * 2 - nx * 5.5, buttY + dy * 2 - ny * 5.5)
+  ctx.stroke()
+
+  // A Glowing cue: light running down it ('flow'), and a bright core.
+  if (glow) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.lineCap = 'round'
+    if (cue.pulse === 'flow') {
+      const k = (now / 900) % 1
+      const runner = ctx.createLinearGradient(tipX, tipY, buttX, buttY)
+      const a = Math.max(0, k - 0.12)
+      const b = Math.min(1, k + 0.12)
+      runner.addColorStop(0, 'rgba(255,255,255,0)')
+      runner.addColorStop(a, 'rgba(255,255,255,0)')
+      runner.addColorStop(k, glow)
+      runner.addColorStop(b, 'rgba(255,255,255,0)')
+      runner.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.strokeStyle = runner
+      ctx.lineWidth = 3
+      ctx.globalAlpha = alpha * 0.9
+      ctx.beginPath()
+      ctx.moveTo(tipX, tipY)
+      ctx.lineTo(buttX, buttY)
+      ctx.stroke()
+    }
+    ctx.strokeStyle = glow
+    ctx.globalAlpha = alpha * 0.35 * strength
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.moveTo(jointX, jointY)
+    ctx.lineTo(buttX, buttY)
+    ctx.stroke()
+    ctx.restore()
+  }
+
   // The ferrule and the blue chalked tip.
   ctx.strokeStyle = '#fbf7ee'
   ctx.lineWidth = 4.4

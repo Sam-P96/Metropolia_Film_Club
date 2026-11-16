@@ -57,6 +57,8 @@ const Schema = mongoose.Schema;
 //                    up when it's offered or taken (PP first, then P-PP)
 //   poolSideWin      that bet won: both amounts, in P-PP
 //   poolSideRefund   that bet handed back: taken back, or nobody took it
+//   poolShop         a cue bought in 8 Ball Pool's shop (PP first, then P-PP;
+//                    utils/poolShop.js)
 //   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
 //   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   adminGrant       P-PP sent by an admin from the admin panel (`other`: which
@@ -79,7 +81,7 @@ const walletTxSchema = new Schema({
             "pokerBuyIn", "pokerCashOut",
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
-            "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund",
+            "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,

@@ -47,6 +47,7 @@ const TITLES = [
   ['/games/gomoku/:matchId', 'Infinite Gomoku'],
   ['/games/pool', '8 Ball Pool'],
   ['/games/pool/clanker', '8 Ball Pool vs Clanker'],
+  ['/games/pool/shop', '8 Ball Pool Shop'],
   ['/games/pool/:matchId', '8 Ball Pool'],
   ['/games/scratch', 'Box Office Scratch'],
   ['/games/slots', SLOTS.name],

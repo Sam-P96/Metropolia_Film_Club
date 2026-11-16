@@ -1,5 +1,8 @@
 const express = require("express");
 const {
+    getShop,
+    buyCue,
+    equipCue,
     getLobby,
     getStakeLimit,
     getFriends,
@@ -25,6 +28,11 @@ router.use(requireAuth);
 // Everything on the game's page: challenges, games, games to watch,
 // finished ones.
 router.get("/lobby", getLobby);
+
+// The shop: cues, bought with points, and the one they use.
+router.get("/shop", getShop);
+router.post("/shop/buy", buyCue);
+router.put("/shop/equip", equipCue);
 
 // Against a member: the most they can play each other for, their friends
 // (the most points first), and a new challenge. The answers are on the

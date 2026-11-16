@@ -184,6 +184,8 @@ function MatchGame({ matchId }) {
         busy={game.busy}
         onShoot={game.shoot}
         onAim={(aim) => game.live.sendAim(aim, !aim.on)}
+        myCue={watching ? null : match.players[me]?.look?.cue}
+        ghostCue={match.players[watching ? match.current : 1 - me]?.look?.cue}
       />
 
       <div className="-mt-1 flex min-h-12 flex-col items-center gap-1 text-center" aria-live="polite">

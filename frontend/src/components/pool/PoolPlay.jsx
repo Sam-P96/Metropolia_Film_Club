@@ -10,7 +10,8 @@ import PoolTable from './PoolTable'
 //   busy       your shot is on its way
 //   onShoot({ angle, power, cue })
 //   onAim({ angle, power, on, cue })   your aim as it moves (Play Live)
-export default function PoolPlay({ balls, hand, shot, onShotDone, ghost, canAim, busy, onShoot, onAim }) {
+//   myCue, ghostCue   the cues yours and the other player's are drawn with
+export default function PoolPlay({ balls, hand, shot, onShotDone, ghost, canAim, busy, onShoot, onAim, myCue, ghostCue }) {
   return (
     <div className="flex flex-col gap-3">
       <PoolTable
@@ -22,6 +23,8 @@ export default function PoolPlay({ balls, hand, shot, onShotDone, ghost, canAim,
         onShoot={onShoot}
         onAim={onAim}
         ghost={ghost}
+        myCue={myCue}
+        ghostCue={ghostCue}
       />
       {canAim && (
         <p className="text-center text-sm text-white/60">
