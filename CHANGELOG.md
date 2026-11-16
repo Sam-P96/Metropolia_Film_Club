@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 8 Ball Pool (Games → 8 Ball Pool, `/games/pool`): vs Clanker on Easy or
+  Hard, played on the device for fun, and vs Player, for fun or for PP and
+  P-PP, with challenges, counters and three days a shot (or the game goes
+  to the other player), like Infinite Gomoku. Shoot by pressing on the
+  table and dragging back (the cue points away from the pointer; the
+  further you pull, the harder the shot), or switch to "Angle, then power"
+  to set each on a panel under the table. No line shows where the balls
+  will go. On a phone the table stands upright. The emerald table has a
+  mahogany and gold frame under two lamps; balls the cue ball hits hard
+  throw sparks in their colour (purple for the 8 ball). Shots are worked
+  out on the server and played back identically on every screen
+  (`shared/pool/physics.js`, `rules.js`).
+- Live pool: both players and anyone watching see each shot as it's
+  played, and the other player's cue as they line up. Members who follow
+  either player get a notification when a game starts, can watch it, and
+  can bet on who wins: a bet shows on the game's page for everyone, goes
+  through when someone backs the other player for the same amount (the
+  winner's backer takes both, in P-PP), and can be taken back until then;
+  bets nobody took are handed back when the game ends.
 - Infinite Gomoku: a Classic stones toggle beside the sound toggle on the
   game pages (Play Local, vs Clanker, online games). On, every piece on the
   board and in the players bar shows as a plain black stone (whoever moved

@@ -5,6 +5,7 @@ import CutComposer from '../components/feed/CutComposer'
 import FeedItem, { PasswordResetNotice, ReportNotice } from '../components/feed/FeedItem'
 import { OngoingGame } from '../components/farkle/FarkleNotice'
 import { OngoingGomoku } from '../components/gomoku/GomokuNotice'
+import { OngoingPool } from '../components/pool/PoolNotice'
 import { PokerLive } from '../components/poker/PokerNotice'
 import GifBackground from '../components/GifBackground'
 import PillToggle from '../components/PillToggle'
@@ -54,7 +55,7 @@ const FILTERS = [
     value: 'all',
     label: 'All',
     about:
-      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events (promoted ones at the very top until you've seen them), what's trending or viral, your daily PP, your Farkle and Infinite Gomoku games (games you're playing stay at the top, and challenges stay pinned until you answer), the Kino Poker table while anyone's playing (up top, with a way in), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, and every jackpot, Double or Nothing win, Kino Poker win, Kino Kasino tripling and Steal and Defend Critical Hit (new jackpots up top until you've seen them). Your last 100, kept for three months.",
+      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events (promoted ones at the very top until you've seen them), what's trending or viral, your daily PP, your Farkle, Infinite Gomoku and 8 Ball Pool games (games you're playing stay at the top, and challenges stay pinned until you answer), the Kino Poker table while anyone's playing (up top, with a way in), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, and every jackpot, Double or Nothing win, Kino Poker win, Kino Kasino tripling and Steal and Defend Critical Hit (new jackpots up top until you've seen them). Your last 100, kept for three months.",
     empty: 'Nothing here yet. Follow some members, write a review, or join in the comments.',
   },
   {
@@ -81,7 +82,7 @@ const FILTERS = [
     value: 'games',
     label: 'Games',
     about:
-      'Your Farkle and Infinite Gomoku games and challenges, the Kino Poker table while anyone is playing, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, jackpots, wins (Kino Poker ones too), Kino Kasino triplings and Critical Hits, your daily PP and gifts. Events and the big news show here too.',
+      'Your Farkle, Infinite Gomoku and 8 Ball Pool games and challenges, pool games the members you follow are playing and your bets on them, the Kino Poker table while anyone is playing, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, jackpots, wins (Kino Poker ones too), Kino Kasino triplings and Critical Hits, your daily PP and gifts. Events and the big news show here too.',
     empty: 'No games yet. Find one on the Games page.',
   },
 ]
@@ -135,6 +136,8 @@ function Feed() {
   const games = feed.data?.games ?? []
   // And the Infinite Gomoku games they're playing, with them.
   const gomoku = feed.data?.gomoku ?? []
+  // And their 8 Ball Pool games.
+  const pool = feed.data?.pool ?? []
   // The Kino Poker table while members are playing at it, with the games.
   const poker = feed.data?.poker ?? null
   // Jackpots they hadn't seen when the page opened, under the games. The
@@ -240,6 +243,16 @@ function Feed() {
             {gomoku.map((match) => (
               <li key={match._id}>
                 <OngoingGomoku match={match} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {pool.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Your 8 Ball Pool games">
+            {pool.map((match) => (
+              <li key={match._id}>
+                <OngoingPool match={match} />
               </li>
             ))}
           </ul>

@@ -70,6 +70,9 @@ const GomokuMatch = lazy(() => import("./pages/GomokuMatch"));
 const GomokuLocal = lazy(() => import("./pages/GomokuLocal"));
 const GomokuShop = lazy(() => import("./pages/GomokuShop"));
 const GomokuClanker = lazy(() => import("./pages/GomokuClanker"));
+const PoolLobby = lazy(() => import("./pages/PoolLobby"));
+const PoolClanker = lazy(() => import("./pages/PoolClanker"));
+const PoolMatch = lazy(() => import("./pages/PoolMatch"));
 const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
 const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
@@ -224,6 +227,17 @@ function App() {
             )}
             <Route path="/games/gomoku/:matchId" element={
               isAuthenticated ? (<GomokuMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* 8 Ball Pool: its page, vs Clanker, and a game between members
+                (theirs, or one they're watching). */}
+            <Route path="/games/pool" element={
+              isAuthenticated ? (<PoolLobby />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/pool/clanker" element={
+              isAuthenticated ? (<PoolClanker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            <Route path="/games/pool/:matchId" element={
+              isAuthenticated ? (<PoolMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
             } />
             <Route path="/games/scratch" element={
               isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)

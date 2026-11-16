@@ -762,3 +762,73 @@ img.slot-symbol {
     filter: drop-shadow(0 0 4px #3dc8ff) drop-shadow(0 0 10px rgb(139 91 255 / 0.7));
   }
 }
+
+/* 8 Ball Pool's background (components/pool/PoolChrome.jsx): the club's
+   dark ink with a red glow rising from the bottom left and a purple one
+   from the top right, both breathing slowly, out of step. Only the glows'
+   opacity moves, which the browser does without repainting. */
+.pool-glow {
+  background:
+    radial-gradient(90% 70% at 50% 50%, rgb(70 12 52 / 0.55), transparent 80%),
+    linear-gradient(160deg, #0b0710 0%, #160a18 50%, #12081c 100%);
+}
+.pool-glow::before,
+.pool-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  animation: pool-glow-breathe 7s ease-in-out infinite;
+}
+.pool-glow::before {
+  background:
+    radial-gradient(65% 55% at 0% 100%, rgb(230 25 60 / 0.55), transparent 70%),
+    radial-gradient(35% 30% at 10% 70%, rgb(255 60 90 / 0.18), transparent 70%);
+}
+.pool-glow::after {
+  background:
+    radial-gradient(65% 60% at 100% 0%, rgb(140 55 255 / 0.5), transparent 70%),
+    radial-gradient(35% 30% at 88% 30%, rgb(190 110 255 / 0.18), transparent 70%);
+  animation-delay: -3.5s;
+}
+@keyframes pool-glow-breathe {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* The power slider on "Angle, then power" (components/pool/AimPanel.jsx):
+   a track filling red into purple up to the power. */
+.pool-power {
+  appearance: none;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e6193c, #8c37ff) 0 0 / var(--power, 50%) 100% no-repeat, rgb(255 255 255 / 0.1);
+  cursor: pointer;
+}
+.pool-power:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.pool-power::-webkit-slider-thumb {
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #e9e2d0 55%, #b7ad96);
+  box-shadow: 0 0 0 2px #c9982f, 0 2px 8px rgb(0 0 0 / 0.6);
+}
+.pool-power::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #e9e2d0 55%, #b7ad96);
+  box-shadow: 0 0 0 2px #c9982f, 0 2px 8px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pool-glow::before,
+  .pool-glow::after {
+    animation: none;
+    opacity: 0.9;
+  }
+}
