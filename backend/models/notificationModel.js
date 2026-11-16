@@ -111,6 +111,24 @@ const STEAL_TYPES = ["stealAttacked", "stealResult", "stealCrit", "stealFlag"];
 //   loanBorrowed   `actors[0]` borrowed `amount` PP from their offer
 const LOAN_TYPES = ["loanCollector", "loanMissed", "loanJob", "loanRepay", "loanRepaid", "loanBorrowed"];
 
+// 8 Ball Pool against `actors[0]`, about `pool` (utils/notify.js), the
+// same as Infinite Gomoku's, and the crowd's bets on a game. No review.
+//   poolChallenge  their challenge or counter, waiting on an answer. Pinned.
+//   poolAccepted   they accepted your challenge: the game's on
+//   poolDeclined   they turned your challenge down
+//   poolExpired    your challenge to them went unanswered for three days
+//   poolOver       the game ended: `pool` says who won and how
+//   poolResult     a game for points ended for a member you follow
+//                  (`actors`: the one you follow, or both)
+//   poolLive       a member you follow (`actors`: them, or both players)
+//                  started a game: you can watch it and bet on it
+//   poolBetTaken   `actors[0]` took the other side of your bet of `amount`
+//   poolBetWon     your bet won: `amount` P-PP, from `actors[0]`
+//   poolBetLost    your bet of `amount` lost, to `actors[0]`
+//   poolBetBack    nobody took your bet of `amount` before the game ended:
+//                  it's back in your wallet
+const POOL_TYPES = ["poolChallenge", "poolAccepted", "poolDeclined", "poolExpired", "poolOver", "poolResult", "poolLive", "poolBetTaken", "poolBetWon", "poolBetLost", "poolBetBack"];
+
 // The game ones: unread, they make the bell blink red rather than just
 // glow purple (controllers/feedController.js). farkleTurn isn't shown any
 // more, so it never counts as unread at all.
@@ -134,6 +152,7 @@ const GAME_TYPES = [
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
     ...GOMOKU_TYPES,
+    ...POOL_TYPES,
     "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin",
     "stealAttacked", "stealResult", "stealCrit",
     "loanCollector", "loanMissed",
@@ -143,7 +162,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES],
         required: true,
     },
     review: {
@@ -151,12 +170,14 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
     // Infinite Gomoku: the game it's about.
     gomoku: {type: Schema.Types.ObjectId, ref: "GomokuMatch", default: null},
+    // 8 Ball Pool: the game it's about.
+    pool: {type: Schema.Types.ObjectId, ref: "PoolMatch", default: null},
     // Double or Nothing: the game it's about.
     doubleGame: {type: Schema.Types.ObjectId, ref: "DoubleGame", default: null},
     // Steal and Defend: the attack it's about, or the admin flag.
@@ -211,6 +232,7 @@ notificationSchema.index({event: 1});
 notificationSchema.index({cut: 1});
 notificationSchema.index({match: 1});
 notificationSchema.index({gomoku: 1});
+notificationSchema.index({pool: 1});
 notificationSchema.index({doubleGame: 1});
 notificationSchema.index({stealAttack: 1});
 // The Notifications page: pinned first, then newest first.
@@ -219,6 +241,7 @@ notificationSchema.index({recipient: 1, pinned: -1, at: -1});
 const Notification = mongoose.model("Notification", notificationSchema);
 Notification.FARKLE_TYPES = FARKLE_TYPES;
 Notification.GOMOKU_TYPES = GOMOKU_TYPES;
+Notification.POOL_TYPES = POOL_TYPES;
 Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;

@@ -22,6 +22,7 @@ import { getStealStatus } from '../services/steal'
 import PokerLogo from '../components/poker/PokerLogo'
 import SharkBadge from '../components/loanShark/SharkBadge'
 import { GomokuLogo, GomokuTitle } from '../components/gomoku/GomokuChrome'
+import { PoolLogo, PoolTitle } from '../components/pool/PoolChrome'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -100,6 +101,21 @@ export default function Games() {
                 Five in a row wins. Play a friend on this device or any member online, for fun or for PP, and land every piece with a shockwave.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Infinite Gomoku →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/pool" className={CARD}>
+              <div className="self-start">
+                <PoolLogo size={30} />
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                <PoolTitle />
+              </h2>
+              <p className="text-white/70">
+                Pot your group, then the 8. Play Clanker on Easy or Hard, or any member online for fun or for PP, and watch and bet on games the
+                members you follow are playing.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play 8 Ball Pool →</span>
             </Link>
           </li>
           <li>

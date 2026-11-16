@@ -6,11 +6,19 @@ import TermsPicker from './TermsPicker'
 import { getGomokuStakeLimit, sendGomokuChallenge } from '../../services/gomoku'
 import { termsHint } from '../../utils/gomoku'
 
+// Infinite Gomoku's, the default `game`. 8 Ball Pool passes its own
+// (components/pool/PoolChallenge.js).
+const GOMOKU_FORM = {
+  limit: getGomokuStakeLimit,
+  send: sendGomokuChallenge,
+  order: "whoever accepts moves first, so you'll move second",
+}
+
 // Challenging another member to Infinite Gomoku: find them by name (or
 // pick a friend: `initialOpponent`), then, For PP, the stake.
 // `forFun` is which button brought them here. `onSent(match)` gets the new
 // challenge.
-export default function ChallengeForm({ forFun, initialOpponent = null, onSent }) {
+export default function ChallengeForm({ forFun, initialOpponent = null, onSent, game = GOMOKU_FORM }) {
   const [opponent, setOpponent] = useState(initialOpponent)
   const [max, setMax] = useState(null)
   const [stakeText, setStakeText] = useState('10')
@@ -28,7 +36,7 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
     setMax(null)
     setError('')
     if (!forFun) {
-      getGomokuStakeLimit(member._id)
+      game.limit(member._id)
         .then(showLimit)
         .catch((limitError) => setError(limitError.message))
     }
@@ -38,7 +46,7 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
   useEffect(() => {
     if (!initialOpponent || forFun) return
     let stopped = false
-    getGomokuStakeLimit(initialOpponent._id)
+    game.limit(initialOpponent._id)
       .then((limit) => {
         if (stopped) return
         setMax(limit.max)
@@ -48,13 +56,13 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
     return () => {
       stopped = true
     }
-  }, [initialOpponent, forFun])
+  }, [initialOpponent, forFun, game])
 
   const send = async () => {
     setSending(true)
     setError('')
     try {
-      const match = await sendGomokuChallenge({ opponent: opponent._id, stake: forFun ? 0 : Number(stakeText) })
+      const match = await game.send({ opponent: opponent._id, stake: forFun ? 0 : Number(stakeText) })
       setOpponent(null)
       onSent?.(match)
     } catch (sendError) {
@@ -92,8 +100,7 @@ export default function ChallengeForm({ forFun, initialOpponent = null, onSent }
             {sending ? 'Sending…' : `Challenge ${opponent.username}${forFun ? ' for fun' : ''}`}
           </button>
           <p className="text-sm text-white/50">
-            {forFun ? '' : 'Nothing is taken until they accept. '}They have three days to accept, decline or send new terms back, and whoever accepts
-            moves first, so you&apos;ll move second.
+            {forFun ? '' : 'Nothing is taken until they accept. '}They have three days to accept, decline or send new terms back, and {game.order}.
           </p>
         </>
       )}

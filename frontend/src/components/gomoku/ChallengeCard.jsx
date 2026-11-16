@@ -31,12 +31,22 @@ export function Terms({ match }) {
   )
 }
 
+// Infinite Gomoku's challenges, the default `game`. 8 Ball Pool passes its own
+// (components/pool/PoolChallenge.js).
+const GOMOKU_CHALLENGES = {
+  name: GAME_NAME,
+  path: (id) => `/games/gomoku/${id}`,
+  answer: answerGomokuChallenge,
+  get: getGomokuMatch,
+  first: 'Whoever accepts moves first.',
+}
+
 // An Infinite Gomoku challenge (status "challenge"), from the viewer's
 // side, like Kino Farkle's. Waiting on them: the terms, then Accept,
 // Counter (new terms back: For Fun or For PP, and the stake) and Decline.
 // Waiting on the other player: the terms and Withdraw. Accepting goes to
 // the game. `onChange(match)` gets the game after any answer.
-export default function ChallengeCard({ match, onChange }) {
+export default function ChallengeCard({ match, onChange, game = GOMOKU_CHALLENGES }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const msLeft = useCountdown(match.expiresAt)
@@ -57,13 +67,13 @@ export default function ChallengeCard({ match, onChange }) {
   )
   const countered = match.counters > 0
   const lowered = match.myAnswer && !match.forFun && match.acceptStake < match.stake
-  const gamePath = `/games/gomoku/${match._id}`
+  const gamePath = game.path(match._id)
 
   const answer = async (kind, terms = {}) => {
     setBusy(kind)
     setError('')
     try {
-      const after = await answerGomokuChallenge(match._id, kind, { version: match.version, ...terms })
+      const after = await game.answer(match._id, kind, { version: match.version, ...terms })
       if (kind === 'accept') {
         if (!after.forFun) walletChanged()
         onChange?.(after)
@@ -74,7 +84,7 @@ export default function ChallengeCard({ match, onChange }) {
       onChange?.(after)
     } catch (answerError) {
       setError(answerError.message)
-      if (answerError.status === 409) getGomokuMatch(match._id).then((now) => onChange?.(now)).catch(() => {})
+      if (answerError.status === 409) game.get(match._id).then((now) => onChange?.(now)).catch(() => {})
     } finally {
       setBusy('')
     }
@@ -91,7 +101,7 @@ export default function ChallengeCard({ match, onChange }) {
         <p className="text-lg text-white/90">
           {match.myAnswer ? (
             <>
-              {name} {countered ? 'came back with new terms' : `challenges you to ${GAME_NAME}`}
+              {name} {countered ? 'came back with new terms' : `challenges you to ${game.name}`}
             </>
           ) : (
             <>
@@ -128,7 +138,7 @@ export default function ChallengeCard({ match, onChange }) {
               {busy === 'decline' ? 'Declining…' : 'Decline'}
             </button>
           </div>
-          <span className="text-sm text-white/50">Whoever accepts moves first.</span>
+          <span className="text-sm text-white/50">{game.first}</span>
         </div>
       ) : (
         <button type="button" onClick={() => answer('withdraw')} disabled={Boolean(busy)} className={QUIET}>

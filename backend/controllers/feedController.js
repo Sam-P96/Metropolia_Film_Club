@@ -15,6 +15,8 @@ const StealFlag = require("../models/stealFlagModel");
 const { hasRole, canApproveReset } = require("../middleware/auth");
 const { catchUp, matchViews } = require("../utils/farkle");
 const gomoku = require("../utils/gomoku");
+const PoolMatch = require("../models/poolMatchModel");
+const pool = require("../utils/pool");
 const { AUTHOR_FIELDS, MEMBER_FIELDS, userSummary, reviewWithUser } = require("../utils/serialize");
 const { withAuthorStanding } = require("../utils/level");
 const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
@@ -42,7 +44,7 @@ const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
@@ -160,6 +162,8 @@ async function hydrate(rows, viewer) {
     const matchById = new Map((await matchViews(matches, viewer._id)).map((match) => [String(match._id), match]));
     const gomokuGames = await GomokuMatch.find({ _id: { $in: idsOf((row) => row.gomoku) } }).lean();
     const gomokuById = new Map((await gomoku.matchViews(gomokuGames, viewer._id)).map((game) => [String(game._id), game]));
+    const poolGames = await PoolMatch.find({ _id: { $in: idsOf((row) => row.pool) } }).select("-balls -lastShot").lean();
+    const poolById = new Map((await pool.matchViews(poolGames, viewer._id)).map((game) => [String(game._id), game]));
 
     const [reviewById, actors, comments, followedBack, events, cuts] = await Promise.all([
         reviewCards(idsOf((row) => row.review), viewer),
@@ -243,6 +247,17 @@ async function hydrate(rows, viewer) {
             const game = gomokuById.get(String(row.gomoku));
             if (!game || (row.type === "gomokuResult" && members.length === 0)) return [];
             return [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, gomoku: game }];
+        }
+
+        // 8 Ball Pool, the same way: the game as it is now. A bet's notice
+        // keeps its amount; one about a game that's gone is dropped.
+        if (row.type.startsWith("pool")) {
+            const game = poolById.get(String(row.pool));
+            if (!game) return [];
+            if ((row.type === "poolResult" || row.type === "poolLive") && members.length === 0) return [];
+            // A "watch it" notice is no use once the game is over.
+            if (row.type === "poolLive" && game.status !== "active") return [];
+            return [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, amount: row.amount, pool: game }];
         }
 
         if (members.length === 0) return [];
@@ -390,6 +405,19 @@ async function ongoingGames(viewer) {
     return (await matchViews(going, viewer._id)).sort(yourTurnFirst);
 }
 
+// The same for the 8 Ball Pool games they're playing.
+async function ongoingPool(viewer) {
+    const found = await PoolMatch.find({ status: "active", "players.user": viewer._id }).select("-balls -lastShot").lean();
+    const going = [];
+    for (const game of found) {
+        const now = await pool.catchUp(game);
+        if (now.status === "active") going.push(now);
+    }
+    const yourTurnFirst = (a, b) => Number(b.current === b.mySeat) - Number(a.current === a.mySeat)
+        || new Date(b.lastMoveAt) - new Date(a.lastMoveAt);
+    return (await pool.matchViews(going, viewer._id)).sort(yourTurnFirst);
+}
+
 // The same for the Infinite Gomoku games they're playing.
 async function ongoingGomoku(viewer) {
     const found = await GomokuMatch.find({ status: "active", "players.user": viewer._id }).lean();
@@ -476,6 +504,7 @@ async function getFeed(req, res) {
             promoted: await unseenPromotions(req.user, seenSince(req.user)),
             games: filter === "all" || filter === "games" ? await ongoingGames(req.user) : [],
             gomoku: filter === "all" || filter === "games" ? await ongoingGomoku(req.user) : [],
+            pool: filter === "all" || filter === "games" ? await ongoingPool(req.user) : [],
             poker: filter === "all" || filter === "games" ? (getPokerTable()?.liveFor(req.user._id) ?? null) : null,
             jackpots: await unreadJackpots(req.user, seenSince(req.user)),
             seenAt: req.user.notificationsSeenAt ?? null,
@@ -500,7 +529,7 @@ async function getUnread(req, res) {
     const since = seenSince(viewer);
     const newer = { recipient: viewer._id, at: { $gt: since } };
 
-    const [gameNotice, yourTurn, yourGomokuTurn] = await Promise.all([
+    const [gameNotice, yourTurn, yourGomokuTurn, yourPoolTurn] = await Promise.all([
         Notification.exists({ ...newer, type: { $in: Notification.GAME_TYPES } }),
         FarkleMatch.exists({
             mode: "pvp",
@@ -515,8 +544,14 @@ async function getUnread(req, res) {
             lastMoveAt: { $gt: since },
             $expr: { $eq: [{ $arrayElemAt: ["$players.user", "$current"] }, viewer._id] },
         }),
+        PoolMatch.exists({
+            status: "active",
+            "players.user": viewer._id,
+            lastMoveAt: { $gt: since },
+            $expr: { $eq: [{ $arrayElemAt: ["$players.user", "$current"] }, viewer._id] },
+        }),
     ]);
-    const games = Boolean(gameNotice || yourTurn || yourGomokuTurn);
+    const games = Boolean(gameNotice || yourTurn || yourGomokuTurn || yourPoolTurn);
 
     let unread = games || Boolean(await Notification.exists({ ...newer, type: { $ne: "farkleTurn" } }));
     if (!unread && hasRole(viewer, "moderator")) {

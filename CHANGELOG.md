@@ -8,6 +8,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 8 Ball Pool (Games → 8 Ball Pool, `/games/pool`): Play For Fun (vs
+  Clanker on Easy or Hard, played on the device, or vs Player) or Play For
+  PP (vs Player, betting PP and P-PP), with challenges, counters and three days a shot (or the game goes
+  to the other player), like Infinite Gomoku. To shoot, press and hold
+  towards where the shot goes: the power builds the longer you hold and
+  never drops, and letting go shoots. A line shows where the cue ball goes,
+  up to the first ball it hits, which is ringed in its colour with a short
+  line the way it will be knocked. On a computer the table takes 90% of
+  the page width; on a phone it stands upright, keeping its shape. The emerald table has a
+  mahogany and gold frame under two lamps, and the balls roll, their
+  stripes and numbers turning as they go; every ball the cue ball hits
+  throws sparks in its colour (purple for the 8 ball), and so do the first
+  three hits between any two balls in a shot, harder hits throwing more. Shots are worked
+  out on the server and played back identically on every screen
+  (`shared/pool/physics.js`, `rules.js`).
+- 8 Ball Pool's Shop (the Shop button on its page), for points, PP first,
+  then P-PP, kept for good:
+  - 22 cues. Classic is free; Standard 100, Fine 250, Luxury 500; six
+    Glowing ones at 1,000 glow on the table (breathing, flickering like a
+    flame, light running down them, or every colour going round); and four
+    Sabers (Red, Blue and Green at 2,000, Crossguard at 3,000) that aren't cues at
+    all: a humming blade of light with a thick white core, lighting the
+    cloth, on a metal hilt. The Crossguard Saber has two crackling side
+    blades, and all three of its blades come to sharp points.
+  - 12 Ignitions: what flies off when balls collide on your shots. Classic
+    Sparks are free; the others (Embers, Bubbles, Snowfall, Petals, Pixels,
+    Stars, Hearts, Confetti, Lightning, Coin Burst, Nebula; 100 to 1,000)
+    throw their own particles, twice the size.
+  - The shop's previews are still pictures, so the page stays calm.
+  - Test, at the top, opens a table to shoot on with what you use, or
+    with anything you Try from the shop.
+  Everyone at your table sees your cue and your Ignition; Clanker picks
+  both at random each game.
+- A Particles on / off toggle on 8 Ball Pool's game pages (and the shop's
+  Test table): off, no sparks or Ignitions fly when balls collide.
+  Remembered on the device.
+- Live pool: both players and anyone watching see each shot as it's
+  played, and the other player's cue as they line up. Members who follow
+  either player get a notification when a game starts, can watch it, and
+  can bet on who wins: a bet shows on the game's page for everyone, goes
+  through when someone backs the other player for the same amount (the
+  winner's backer takes both, in P-PP), and can be taken back until then;
+  bets nobody took are handed back when the game ends.
 - Infinite Gomoku: a Classic stones toggle beside the sound toggle on the
   game pages (Play Local, vs Clanker, online games). On, every piece on the
   board and in the players bar shows as a plain black stone (whoever moved

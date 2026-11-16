@@ -17,7 +17,7 @@ const VIRAL_LIKES = 5;
 const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
-    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.STEAL_TYPES,
+    "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
     "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner",
 ];
 
@@ -571,6 +571,92 @@ function forgetGomokuMatch(gameId) {
     return Notification.deleteMany({ gomoku: gameId });
 }
 
+// 8 Ball Pool between members (utils/pool.js), the same way as Infinite
+// Gomoku: a challenge waiting on someone is pinned until they answer, and
+// each new one for a game takes the place of the last. Games being played
+// aren't notifications: the Notifications page lists them at the top.
+function unpinPool(gameId) {
+    return Notification.deleteMany({ pool: gameId, type: "poolChallenge" });
+}
+
+// The terms on the table (game.offer) are waiting on `offer.to`.
+async function notePoolChallenge(game) {
+    await unpinPool(game._id);
+    await Notification.create({ recipient: game.offer.to, type: "poolChallenge", pool: game._id, actors: [game.offer.by], pinned: true });
+}
+
+// The challenge was answered, or wasn't: its pinned notice goes, and with
+// a `type` ("poolAccepted", "poolDeclined", "poolExpired"), `to` hears
+// about it from `from`.
+async function notePoolAnswer(game, type = null, to = null, from = null) {
+    await unpinPool(game._id);
+    if (type) await Notification.create({ recipient: to, type, pool: game._id, actors: [from] });
+}
+
+// Everyone who follows a player of `game` and isn't playing in it, once
+// each, with the players they follow: [{ recipient, actors }]. Nothing
+// about `skip` (a member who has just left the club).
+async function poolFollowers(game, skip = null) {
+    const players = game.players.map((player) => player.user).filter(Boolean);
+    const followed = players.filter((id) => String(id) !== String(skip));
+    if (followed.length === 0) return [];
+
+    const isPlayer = new Set(players.map(String));
+    const follows = await Follow.find({ following: { $in: followed } }).select("follower following").lean();
+    const notes = new Map();
+    for (const follow of follows) {
+        if (isPlayer.has(String(follow.follower))) continue;
+        const note = notes.get(String(follow.follower)) ?? { recipient: follow.follower, actors: [] };
+        note.actors.push(follow.following);
+        notes.set(String(follow.follower), note);
+    }
+    return [...notes.values()];
+}
+
+// A game has started: everyone who follows either player hears they can
+// watch it, and bet on it.
+async function notePoolLive(game) {
+    const notes = await poolFollowers(game);
+    if (notes.length === 0) return;
+    await Notification.insertMany(notes.map((note) => ({ ...note, type: "poolLive", pool: game._id })));
+}
+
+// The game is over: each player hears how it ended, except `skip`, and
+// the "watch it" notices about it go.
+async function notePoolOver(game, skip = null) {
+    await unpinPool(game._id);
+    await Notification.deleteMany({ pool: game._id, type: "poolLive" });
+    const [first, second] = game.players.map((player) => player.user);
+    const notes = [
+        { recipient: first, actors: [second] },
+        { recipient: second, actors: [first] },
+    ].filter((note) => note.recipient && String(note.recipient) !== String(skip));
+
+    if (notes.length === 0) return;
+    await Notification.insertMany(notes.map((note) => ({ ...note, type: "poolOver", pool: game._id })));
+}
+
+// A game played for points is over: everyone who follows either player
+// hears who won how much from whom. Games For Fun stay between the two.
+async function notePoolResult(game, skip = null) {
+    if (!(game.stake > 0) || game.winner === null || game.winner === undefined) return;
+    const notes = await poolFollowers(game, skip);
+    if (notes.length === 0) return;
+    await Notification.insertMany(notes.map((note) => ({ ...note, type: "poolResult", pool: game._id })));
+}
+
+// A bet on someone else's game (utils/poolBets.js): `type` is
+// "poolBetTaken", "poolBetWon", "poolBetLost" or "poolBetBack"; `to` hears
+// about `amount`, and `from` is the member on the other side, if any.
+function notePoolBet(type, to, gameId, amount, from = null) {
+    return Notification.create({ recipient: to, type, pool: gameId, amount, actors: from ? [from] : [] });
+}
+
+// A game that never got going was deleted.
+function forgetPoolMatch(gameId) {
+    return Notification.deleteMany({ pool: gameId });
+}
+
 // An account was deleted: their own Feed, everything about their reviews
 // and cuts, the notifications they set off, and their name in vote groups.
 async function forgetMember(userId, reviewIds, cutIds = []) {
@@ -628,6 +714,13 @@ module.exports = {
     noteFarkleOver,
     noteFarkleResult,
     forgetFarkleMatch,
+    notePoolChallenge,
+    notePoolAnswer,
+    notePoolLive,
+    notePoolOver,
+    notePoolResult,
+    notePoolBet,
+    forgetPoolMatch,
     noteGomokuChallenge,
     noteGomokuAnswer,
     noteGomokuOver,

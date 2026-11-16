@@ -49,6 +49,16 @@ const Schema = mongoose.Schema;
 //   gomokuWin        a win: both stakes, in P-PP
 //   gomokuRefund     a stake handed back: a draw, or a game that never got going
 //   gomokuShop       a piece, shockwave, board or grid bought (PP first, then P-PP)
+// 8 Ball Pool (utils/pool.js, utils/poolBets.js), with the game in `pool`:
+//   poolBet          a stake put up (PP first, then P-PP)
+//   poolWin          a win: both stakes, in P-PP
+//   poolRefund       a stake handed back: a game that never got going
+//   poolSideBet      a bet on someone else's game (`poolBet`: the bet), put
+//                    up when it's offered or taken (PP first, then P-PP)
+//   poolSideWin      that bet won: both amounts, in P-PP
+//   poolSideRefund   that bet handed back: taken back, or nobody took it
+//   poolShop         a cue bought in 8 Ball Pool's shop (PP first, then P-PP;
+//                    utils/poolShop.js)
 //   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
 //   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   adminGrant       P-PP sent by an admin from the admin panel (`other`: which
@@ -71,6 +81,7 @@ const walletTxSchema = new Schema({
             "pokerBuyIn", "pokerCashOut",
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
+            "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,
@@ -93,6 +104,10 @@ const walletTxSchema = new Schema({
     steal: {type: Schema.Types.ObjectId, default: null},
     // The Infinite Gomoku game a bet, win or refund belongs to.
     gomoku: {type: Schema.Types.ObjectId, ref: "GomokuMatch", default: null},
+    // The 8 Ball Pool game a bet, win or refund belongs to, and for a bet on
+    // someone else's game, the bet.
+    pool: {type: Schema.Types.ObjectId, ref: "PoolMatch", default: null},
+    poolBet: {type: Schema.Types.ObjectId, ref: "PoolBet", default: null},
     // An admin's note with P-PP they sent (adminGrant), if they wrote one.
     note: {type: String},
     at: {type: Date, default: Date.now},
