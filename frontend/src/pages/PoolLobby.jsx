@@ -7,7 +7,6 @@ import ChallengeCard, { Terms } from '../components/gomoku/ChallengeCard'
 import ChallengeForm from '../components/gomoku/ChallengeForm'
 import PoolPage, { BallIcon, CARD, HEADING } from '../components/pool/PoolChrome'
 import { POOL_CHALLENGES, POOL_FORM, poolPath } from '../components/pool/PoolChallenge'
-import ShockwavePicker from '../components/pool/ShockwavePicker'
 import { endingOf } from '../components/pool/words'
 import { GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
@@ -180,8 +179,8 @@ function Online({ forFun, reloads, onSent }) {
 }
 
 // 8 Ball Pool's page, from the Games page: Play For Fun (then vs Clanker,
-// Easy or Hard, or vs Player) or Play For PP (vs Player only), your
-// shockwave, how to play, every challenge and game, and
+// Easy or Hard, or vs Player) or Play For PP (vs Player only), how to
+// play, every challenge and game, and
 // the games members they follow are playing, to watch and bet on. App.jsx
 // sends logged-out visitors to log in first.
 export default function PoolLobby() {
@@ -190,7 +189,6 @@ export default function PoolLobby() {
   const [reloads, setReloads] = useState(0)
   const [mode, setMode] = useState(null)
   const [online, setOnline] = useState(false)
-  const [waves, setWaves] = useState(false)
   const [rules, setRules] = useState(false)
 
   useEffect(() => {
@@ -227,31 +225,17 @@ export default function PoolLobby() {
           Play For PP
         </button>
       </div>
-      <div className="-mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1">
-        <button
-          type="button"
-          onClick={() => setRules(!rules)}
-          aria-expanded={rules}
-          className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white"
-        >
-          How to play
-        </button>
-        <button
-          type="button"
-          onClick={() => setWaves(!waves)}
-          aria-expanded={waves}
-          className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white"
-        >
-          Your shockwave
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setRules(!rules)}
+        aria-expanded={rules}
+        className="-mt-2 cursor-pointer self-center text-sm text-white/60 underline underline-offset-4 hover:text-white"
+      >
+        How to play
+      </button>
 
       <Reveal show={rules} id="rules">
         <HowToPlay />
-      </Reveal>
-
-      <Reveal show={waves} id="waves">
-        <ShockwavePicker />
       </Reveal>
 
       <Reveal show={mode !== null} id="mode">

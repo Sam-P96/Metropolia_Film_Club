@@ -23,10 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three hits between any two balls in a shot, harder hits throwing more. Shots are worked
   out on the server and played back identically on every screen
   (`shared/pool/physics.js`, `rules.js`).
-- Pool shockwaves: pick any Infinite Gomoku shockwave you own (or None,
-  the default) under "Your shockwave" on 8 Ball Pool's page. Its ring
-  goes off where your cue ball first hits a ball, on every screen
-  watching; Clanker picks one at random each game.
 - Live pool: both players and anyone watching see each shot as it's
   played, and the other player's cue as they line up. Members who follow
   either player get a notification when a game starts, can watch it, and

@@ -8,18 +8,6 @@ import { api } from './api'
 // counters, expiresAt, myAnswer, acceptStake, counterMax }. Seat 0 breaks.
 // vs Clanker never comes here: it's played in the browser.
 
-// Their shockwave at 8 Ball Pool: { shockwave, owned }, `shockwave` an
-// Infinite Gomoku shockwave's id or null (none), `owned` every one they
-// can pick.
-export function getPoolLook() {
-  return api('/pool/look')
-}
-
-// Resolves to { shockwave, owned } as they now are.
-export function setPoolShockwave(shockwave) {
-  return api('/pool/look', { method: 'PUT', body: { shockwave } })
-}
-
 // The game's page: { incoming, outgoing, games, recent, watch }.
 export function getPoolLobby() {
   return api('/pool/lobby')

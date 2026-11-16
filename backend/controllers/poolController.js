@@ -22,7 +22,6 @@ const {
     seatOf,
 } = require("../utils/pool");
 const bets = require("../utils/poolBets");
-const look = require("../utils/poolLook");
 const { FUN, prizeFor, stakeProblem } = require("../../shared/pool/rules.js");
 
 // 8 Ball Pool between members (routes/poolRouter.js), played like Infinite
@@ -445,26 +444,7 @@ const withdrawBet = (req, res) =>
         await betsAnswer(res, bet.match, req.user._id);
     });
 
-// ---- Their shockwave ----
-
-async function handleLook(res, work) {
-    try {
-        res.json(await work());
-    } catch (error) {
-        if (!(error instanceof look.PoolLookError)) throw error;
-        res.status(error.status).json({ error: error.message });
-    }
-}
-
-// { shockwave, owned }: what they have on, and what they can pick.
-const getLook = (req, res) => handleLook(res, () => look.poolLookView(req.user._id));
-
-// { shockwave }: an Infinite Gomoku shockwave they own, or null for none.
-const setLook = (req, res) => handleLook(res, () => look.equipPoolShockwave(req.user._id, req.body?.shockwave ?? null));
-
 module.exports = {
-    getLook,
-    setLook,
     getLobby,
     getStakeLimit,
     getFriends,

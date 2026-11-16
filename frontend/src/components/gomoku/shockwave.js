@@ -8,7 +8,6 @@
 //
 //   const layer = new ShockwaveLayer(canvas)
 //   layer.play({ x, y, cell, look })   // x, y and cell in CSS pixels
-//   layer.play({ ..., ringOnly: true }) // the ring, no particles (8 Ball Pool)
 //   layer.stop()
 
 import { DELUXE_KINDS, RECIPES, drawDeluxe, drawImplosion } from './deluxeShockwave'
@@ -291,11 +290,11 @@ export class ShockwaveLayer {
 
   // A shockwave at (x, y), `cell` being one point's width, all in CSS
   // pixels. `look` is the shockwave's look from the catalogue.
-  play({ x, y, cell, look, ringOnly = false }) {
+  play({ x, y, cell, look }) {
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     this.fit()
     const recipe = RECIPES[look.particles] ?? null
-    const particles = reduced || ringOnly
+    const particles = reduced
       ? []
       : recipe
         ? recipe.layers.flatMap((layer) => makeParticles(layer.kind, cell, look.colors, layer))

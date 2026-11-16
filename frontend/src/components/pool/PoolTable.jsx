@@ -1,8 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MIN_POWER, STEP, Shot, TABLE, isFreeSpot } from '../../../../shared/pool/physics.js'
 import { ballSprite, newSpin, rollSpin } from './spin'
-import { ShockwaveLayer } from '../gomoku/shockwave'
-import { DEFAULTS, gomokuItem } from '../../../../shared/gomoku/catalogue.js'
 import { addSparks, dirToView, drawAimLine, drawBall, drawCue, drawSparks, drawTable, sparkColor, toTable, toView, viewSize } from './draw'
 
 const { R } = TABLE
@@ -14,12 +12,6 @@ const HOLD_MS = 2000
 // of the hit, from a little to SPARK_FULL and up.
 const SPARK_FIRST_HITS = 3
 const SPARK_FULL = 2200
-// The shooter's shockwave (an Infinite Gomoku one), its ring only, where
-// the cue ball first hits a ball: its size (a Gomoku point, in balls: the
-// ring reaches 5 or so of those), and how far past the table's edge its
-// canvas runs so it isn't cut off there. The page's edge clips it.
-const WAVE_BALLS = 0.8
-const WAVE_PAD = 130
 // A ball that moved further than this in a frame was put somewhere (back
 // on a spot, a new rack), not rolled.
 const JUMP = 170
@@ -61,10 +53,8 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
 // takes the player's aim.
 //
 //   balls       the table at rest: [{ id, x, y, on }]
-//   shot        a shot to play out: { key, before, dx, dy, speed, wave }. A
-//               new key plays it; onShotDone(key) once every ball is still.
-//               `wave`: the shooter's shockwave (an Infinite Gomoku item
-//               id), set off where the cue ball first hits a ball.
+//   shot        a shot to play out: { key, before, dx, dy, speed }. A new
+//               key plays it; onShotDone(key) once every ball is still.
 //   canAim      it's this player's turn, and nothing is moving
 //   hand        null, 'kitchen' or 'table': the cue ball can be dragged
 //               to where it goes (behind the head string, or anywhere)
@@ -79,14 +69,6 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
 export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onShoot, onAim, ghost }) {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
-  const waveRef = useRef(null)
-  const waveLayer = useRef(null)
-
-  useEffect(() => {
-    const layer = new ShockwaveLayer(waveRef.current)
-    waveLayer.current = layer
-    return () => layer.stop()
-  }, [])
   const [layout, setLayout] = useState({ vertical: false, scale: 1 })
 
   // Everything the drawing loop reads, kept in one place so it never has to
@@ -126,7 +108,7 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
       props.current.onShotDone?.(shot.key)
       return
     }
-    state.current.playing = { key: shot.key, shot: played, debt: 0, hits: 0, wave: shot.wave ?? null, waved: false }
+    state.current.playing = { key: shot.key, shot: played, debt: 0, hits: 0 }
     state.current.aim = null
     state.current.press = null
   }, [shot])
@@ -220,16 +202,8 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
             if (cueHit || s.playing.hits <= SPARK_FIRST_HITS) {
               const at = toView(vertical, event.x, event.y)
               const strength = Math.min(1, 0.12 + event.speed / SPARK_FULL)
-              if (cueHit) {
-                addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), strength, now)
-                // The cue ball's first hit: the shooter's shockwave.
-                if (s.playing.wave && !s.playing.waved) {
-                  s.playing.waved = true
-                  const item = gomokuItem(s.playing.wave)
-                  const look = (item?.kind === 'shockwave' ? item : gomokuItem(DEFAULTS.shockwave)).look
-                  waveLayer.current?.play({ x: at.x * scale + WAVE_PAD, y: at.y * scale + WAVE_PAD, cell: 2 * R * scale * WAVE_BALLS, look, ringOnly: true })
-                }
-              } else {
+              if (cueHit) addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), strength, now)
+              else {
                 // Two coloured balls: sparks in both their colours.
                 addSparks(s.sparks, at.x, at.y, sparkColor(event.a), strength * 0.75, now)
                 addSparks(s.sparks, at.x, at.y, sparkColor(event.b), strength * 0.75, now)
@@ -456,26 +430,17 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
     : 'The pool table.'
 
   return (
-    <div ref={wrapRef} className="flex w-full justify-center overflow-x-clip">
-      <div className="relative">
-        <canvas
-          ref={canvasRef}
-          role="img"
-          aria-label={label}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          className={`touch-none select-none rounded-[22px] shadow-[0_30px_80px_rgba(0,0,0,0.6),0_0_60px_rgba(180,40,90,0.25)] ${canAim ? 'cursor-crosshair' : ''}`}
-        />
-        {/* The shooter's shockwave, over the table and a little past it. */}
-        <canvas
-          ref={waveRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute"
-          style={{ inset: -WAVE_PAD, width: `calc(100% + ${2 * WAVE_PAD}px)`, height: `calc(100% + ${2 * WAVE_PAD}px)` }}
-        />
-      </div>
+    <div ref={wrapRef} className="flex w-full justify-center">
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={label}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className={`touch-none select-none rounded-[22px] shadow-[0_30px_80px_rgba(0,0,0,0.6),0_0_60px_rgba(180,40,90,0.25)] ${canAim ? 'cursor-crosshair' : ''}`}
+      />
     </div>
   )
 }
