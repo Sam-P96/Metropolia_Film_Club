@@ -7,8 +7,11 @@ const { R } = TABLE
 
 // How long you hold (ms) for a full-power shot.
 const HOLD_MS = 2000
-// The cue ball has to hit a ball at least this fast for it to spark.
-const SPARK_SPEED = 650
+// Sparks: every time the cue ball hits a ball, and the first few hits
+// between any two balls in a shot. How hard they spark goes with the speed
+// of the hit, from a little to SPARK_FULL and up.
+const SPARK_FIRST_HITS = 3
+const SPARK_FULL = 2200
 // A ball that moved further than this in a frame was put somewhere (back
 // on a spot, a new rack), not rolled.
 const JUMP = 170
@@ -105,7 +108,7 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
       props.current.onShotDone?.(shot.key)
       return
     }
-    state.current.playing = { key: shot.key, shot: played, debt: 0 }
+    state.current.playing = { key: shot.key, shot: played, debt: 0, hits: 0 }
     state.current.aim = null
     state.current.press = null
   }, [shot])
@@ -190,9 +193,19 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
           s.playing.debt -= 1
         }
         for (const event of events) {
-          if (event.type === 'hit' && (event.a === 0 || event.b === 0) && event.speed >= SPARK_SPEED) {
-            const at = toView(vertical, event.x, event.y)
-            addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), Math.min(1, (event.speed - SPARK_SPEED) / 2000), now)
+          if (event.type === 'hit') {
+            s.playing.hits += 1
+            const cueHit = event.a === 0 || event.b === 0
+            if (cueHit || s.playing.hits <= SPARK_FIRST_HITS) {
+              const at = toView(vertical, event.x, event.y)
+              const strength = Math.min(1, 0.12 + event.speed / SPARK_FULL)
+              if (cueHit) addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), strength, now)
+              else {
+                // Two coloured balls: sparks in both their colours.
+                addSparks(s.sparks, at.x, at.y, sparkColor(event.a), strength * 0.75, now)
+                addSparks(s.sparks, at.x, at.y, sparkColor(event.b), strength * 0.75, now)
+              }
+            }
           } else if (event.type === 'pocket') {
             s.sinking.push({ id: event.ball, x: event.x, y: event.y, born: now })
           }
@@ -228,7 +241,9 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
       }
 
       // The balls. The cue ball, while it's in hand, where it's held.
-      const holding = !s.playing && p.hand && s.cue
+      // Yours, while it's your shot. Someone else's (the other player,
+      // Clanker): where they've put it, so their shot starts from there.
+      const holding = !s.playing && p.canAim && p.hand && s.cue
       const ghostCue = !s.playing && p.ghost?.cue && !p.canAim ? p.ghost.cue : null
       for (const ball of shown) {
         if (!ball.on) {

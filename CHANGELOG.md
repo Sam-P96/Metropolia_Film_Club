@@ -17,8 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   up to the first ball it hits, which is ringed in its colour with an arrow
   the way it will be knocked. On a phone the table stands upright. The emerald table has a
   mahogany and gold frame under two lamps, and the balls roll, their
-  stripes and numbers turning as they go; balls the cue ball hits hard
-  throw sparks in their colour (purple for the 8 ball). Shots are worked
+  stripes and numbers turning as they go; every ball the cue ball hits
+  throws sparks in its colour (purple for the 8 ball), and so do the first
+  three hits between any two balls in a shot, harder hits throwing more. Shots are worked
   out on the server and played back identically on every screen
   (`shared/pool/physics.js`, `rules.js`).
 - Live pool: both players and anyone watching see each shot as it's

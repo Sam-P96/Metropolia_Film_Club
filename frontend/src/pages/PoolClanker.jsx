@@ -21,6 +21,8 @@ const CLANKER = 1
 // takes over drawing the cue back.
 const LOOK_MS = 700
 const DRAW_MS = 900
+// How long it takes to slide the cue ball into place, when it's in hand.
+const PLACE_MS = 550
 
 const LEVELS = {
   easy: { name: 'Easy', line: 'Clanker aims roughly and misses plenty.' },
@@ -105,19 +107,33 @@ export default function PoolClanker() {
     const looked = setTimeout(() => {
       const move = clankerShot(game, CLANKER, level)
       const angle = Math.atan2(move.dy, move.dx)
-      setGhost({ angle, power: 0, cue: move.cue })
-      const steps = 12
-      for (let i = 1; i <= steps; i += 1) {
-        timers.current.push(setTimeout(() => setGhost({ angle, power: (move.power * i) / steps, cue: move.cue }), (DRAW_MS * i) / steps))
+      const later = (ms, then) => timers.current.push(setTimeout(then, ms))
+
+      // With the cue ball in hand, it slides it to where it wants it first.
+      let start = 0
+      if (move.cue) {
+        const from = game.balls.find((ball) => ball.id === 0)
+        const steps = 14
+        for (let i = 0; i <= steps; i += 1) {
+          const k = i / steps
+          const ease = k * k * (3 - 2 * k)
+          const cue = { x: from.x + (move.cue.x - from.x) * ease, y: from.y + (move.cue.y - from.y) * ease }
+          later((PLACE_MS * i) / steps, () => setGhost({ angle: Number.NaN, power: 0, cue }))
+        }
+        start = PLACE_MS + 150
       }
-      timers.current.push(
-        setTimeout(() => {
-          const next = playShot(game, CLANKER, move)
-          setGame(next)
-          setShot(shotOf(next))
-          setGhost(null)
-        }, DRAW_MS + 120)
-      )
+
+      // Then lines up, and draws the cue back.
+      const steps = 12
+      for (let i = 0; i <= steps; i += 1) {
+        later(start + (DRAW_MS * i) / steps, () => setGhost({ angle, power: (move.power * i) / steps, cue: move.cue }))
+      }
+      later(start + DRAW_MS + 120, () => {
+        const next = playShot(game, CLANKER, move)
+        setGame(next)
+        setShot(shotOf(next))
+        setGhost(null)
+      })
     }, LOOK_MS)
     timers.current.push(looked)
     return clear
