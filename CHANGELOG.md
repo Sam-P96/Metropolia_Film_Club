@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 22 cues. Classic is free; Standard 100, Fine 250, Luxury 500; six
     Glowing ones at 1,000 glow on the table (breathing, flickering like a
     flame, light running down them, or every colour going round); and four
-    Sabers at 2,000 (Red, Blue, Green and Crossguard) that aren't cues at
+    Sabers (Red, Blue and Green at 2,000, Crossguard at 3,000) that aren't cues at
     all: a humming blade of light with a thick white core, lighting the
     cloth, on a metal hilt. The Crossguard Saber has two crackling side
     blades, and all three of its blades come to sharp points.
@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Sparks are free; the others (Embers, Bubbles, Snowfall, Petals, Pixels,
     Stars, Hearts, Confetti, Lightning, Coin Burst, Nebula; 100 to 1,000)
     throw their own particles, twice the size.
+  - The shop's previews are still pictures, so the page stays calm.
   - Test, at the top, opens a table to shoot on with what you use, or
     with anything you Try from the shop.
   Everyone at your table sees your cue and your Ignition; Clanker picks

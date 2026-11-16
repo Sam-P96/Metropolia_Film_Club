@@ -7,7 +7,8 @@ const { DEFAULT_CUE, cueItem } = require("../../shared/pool/cues.js");
 const { DEFAULT_IGNITION, ignitionItem } = require("../../shared/pool/ignitions.js");
 
 // 8 Ball Pool's shop (the game page's Shop button): cues (shared/pool/
-// cues.js; the Sabers the dearest, 2,000 points) and Ignitions, what flies
+// cues.js; the Sabers the dearest, 2,000 points, and the Crossguard Saber
+// 3,000) and Ignitions, what flies
 // off when balls collide (shared/pool/ignitions.js; up to 1,000).
 //   - Paid in points, PP first and then P-PP, like a stake. The points are
 //     gone: no refunds, no selling back, no trading.

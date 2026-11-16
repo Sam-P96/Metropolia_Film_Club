@@ -2,7 +2,8 @@
 // backend/utils/poolShop.js), and how each one is drawn
 // (frontend/src/components/pool/draw.js drawCue). Bought with points, PP
 // first, then P-PP; kept for good. Classic is everyone's. The Glowing ones
-// (1,000) glow on the table, and the Sabers (2,000) are blades of light.
+// (1,000) glow on the table, and the Sabers (2,000; the Crossguard Saber
+// 3,000) are blades of light.
 //
 // Ids never change once members own them.
 //
@@ -50,7 +51,8 @@ const CUES = [
   { key: 'saber-red', name: 'Red Saber', tier: 'saber', shaft: ['#ffffff', '#ffd6d6'], butt: ['#2a2d33', '#8a9099'], joint: '#c0c6cf', glow: '#ff2a2a', pulse: 'saber', saber: '#ff2a2a' },
   { key: 'saber-blue', name: 'Blue Saber', tier: 'saber', shaft: ['#ffffff', '#d6e8ff'], butt: ['#2a2d33', '#8a9099'], joint: '#c0c6cf', glow: '#2f8bff', pulse: 'saber', saber: '#2f8bff' },
   { key: 'saber-green', name: 'Green Saber', tier: 'saber', shaft: ['#ffffff', '#d6ffdc'], butt: ['#2a2d33', '#8a9099'], joint: '#c0c6cf', glow: '#3dff5a', pulse: 'saber', saber: '#3dff5a' },
-  { key: 'saber-crossguard', name: 'Crossguard Saber', tier: 'saber', shaft: ['#ffffff', '#ffd6d6'], butt: ['#1b1b1e', '#4a4d55'], joint: '#8a9099', glow: '#ff1e1e', pulse: 'saber', saber: '#ff1e1e', crossguard: true },
+  // The one Saber dearer than the rest.
+  { key: 'saber-crossguard', name: 'Crossguard Saber', tier: 'saber', price: 3000, shaft: ['#ffffff', '#ffd6d6'], butt: ['#1b1b1e', '#4a4d55'], joint: '#8a9099', glow: '#ff1e1e', pulse: 'saber', saber: '#ff1e1e', crossguard: true },
 ]
 
 const TIER_NAMES = { free: 'Free', standard: 'Standard', fine: 'Fine', luxury: 'Luxury', glowing: 'Glowing', saber: 'Sabers' }
@@ -62,7 +64,7 @@ export const ALL_CUES = CUES.map((cue) => ({
   name: cue.name,
   tier: cue.tier,
   category: TIER_NAMES[cue.tier],
-  price: cue.tier === 'free' ? 0 : CUE_PRICES[cue.tier],
+  price: cue.price ?? (cue.tier === 'free' ? 0 : CUE_PRICES[cue.tier]),
   look: {
     shaft: cue.shaft,
     butt: cue.butt,
