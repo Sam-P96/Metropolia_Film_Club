@@ -87,7 +87,7 @@ const fairFlip = () => (crypto.randomInt(2) === 0 ? MAP : RING);
 //   Maps beside the Gauntlets: it pays as Maps of that length (fireworks).
 //   Only Rings: as Rings (lightning). Both: `flip()` decides, "map" (as
 //   Maps, fireworks) or "ring" (as Rings, lightning and a CRITICAL HIT!).
-// The link never takes in the logo or a Common or Uncommon symbol, so the
+// The link never takes in the logo or a Common symbol, so the
 // jackpot is still only 5 logos. The higher reading pays (the first, on a
 // tie), and the effect and text are that reading's. Returns { symbol,
 // count, multiplier, effect, text, jackpot }: `symbol` is what it paid as.

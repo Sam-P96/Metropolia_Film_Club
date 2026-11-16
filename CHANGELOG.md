@@ -486,6 +486,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Kino Kasino has six symbols: the Clapperboard is gone. With fewer symbols
+  lines match more often, so every prize is lower (3 Tickets now pay 0.6x
+  the bet and 3 Popcorns 0.7x, softening a losing spin; the jackpot is
+  still 2,000x), and the odds are retuned so it still pays back what it
+  did: 99% to 115%, and 95% / 110% to 120% in its happy hour (new tables
+  from `scripts/tune-slots.js`). Old spins with a Clapperboard still show
+  it. The machine also has a new hidden rule (`games/slots/luck.js`).
 - Kino Casino (the Slot Machine) pays back more: from 99% for the richest
   active player to 115% for the poorest (was 98.5% to 105%). In its happy
   hour, the richest gets 95% and everyone else 110% to 120%. New weight

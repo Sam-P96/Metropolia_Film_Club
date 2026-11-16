@@ -8,7 +8,9 @@ const Schema = mongoose.Schema;
 //
 // `rtpBucket` is the player's luck (the weight table used, as a whole
 // percentage: games/slots/luck.js). It's for checking the RTP only and is
-// never sent to the page.
+// never sent to the page. Neither are `lastChanceDay` (the Slot Machine
+// day of a spin that got the last chance: an empty wallet and a MAX bet,
+// luck.js LAST_CHANCE) and `lastChanceWon` (whether it was made to win).
 const slotSpinSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     spinId: {type: String, required: true},
@@ -44,10 +46,15 @@ const slotSpinSchema = new Schema({
         ppp: {type: Number, required: true},
     },
     rtpBucket: {type: Number, required: true},
+    lastChanceDay: {type: String, default: undefined},
+    lastChanceWon: {type: Boolean, default: undefined},
     at: {type: Date, default: Date.now},
 });
 
 slotSpinSchema.index({user: 1, spinId: 1}, {unique: true});
 slotSpinSchema.index({at: -1});
+
+// Counting a player's last chances today.
+slotSpinSchema.index({user: 1, lastChanceDay: 1}, {partialFilterExpression: {lastChanceDay: {$type: "string"}}});
 
 module.exports = mongoose.model("SlotSpin", slotSpinSchema);

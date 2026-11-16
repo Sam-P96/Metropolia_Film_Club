@@ -9,7 +9,7 @@ const WalletTx = require("../models/walletTxModel");
 const { changeWallet, spend, leaderboardStages, helsinkiDay, helsinkiHour } = require("./wallet");
 const { noteSlotTriple, noteSlotJackpot } = require("./notify");
 const { CENTS, toPp, SlotError, drawGrid, evaluate, splitBet, checkBet } = require("../games/slots/engine");
-const { LUCK, targetRtp, tableFor } = require("../games/slots/luck");
+const { LUCK, LAST_CHANCE, targetRtp, tableFor } = require("../games/slots/luck");
 const { SLOTS } = require("../../shared/slots/config.js");
 const { slotLuck } = require("../games/happyHours");
 
@@ -251,13 +251,28 @@ async function addCredits(userId, amount, now = new Date()) {
 // need.
 let randomInt = crypto.randomInt;
 let coinInt = crypto.randomInt;
-function useRandomSource(source, coin = null) {
+// And for the last chance's roll (luck.js LAST_CHANCE).
+let chanceInt = crypto.randomInt;
+function useRandomSource(source, coin = null, chance = null) {
     randomInt = source ?? crypto.randomInt;
     coinInt = coin ?? crypto.randomInt;
+    chanceInt = chance ?? crypto.randomInt;
 }
 const flipCoin = () => (coinInt(2) === 0 ? SLOTS.link.links[0] : SLOTS.link.links[1]);
 
 const SPIN_ID = /^[A-Za-z0-9-]{8,64}$/;
+
+// Whether the member's wallet has nothing in it (PP and P-PP together), for
+// the last chance.
+async function walletIsEmpty(userId, session) {
+    const user = await User.findById(userId).select("wallet").session(session).lean();
+    return (user?.wallet?.pp ?? 0) + (user?.wallet?.ppp ?? 0) <= 0;
+}
+
+// How many last chances they've had on Slot Machine day `day`.
+function lastChancesToday(userId, day, session) {
+    return SlotSpin.countDocuments({ user: userId, lastChanceDay: day }).session(session);
+}
 
 async function findSpin(userId, spinId) {
     return SlotSpin.findOne({ user: userId, spinId }).select("-rtpBucket").lean();
@@ -280,6 +295,7 @@ async function spin(userId, { spinId, bet } = {}, now = new Date()) {
     if (done) return spinView(done);
 
     const { bucket, weights } = tableFor(await targetRtpFor(userId, now));
+    const day = slotDay(now);
 
     try {
         return await inTransaction(async (session) => {
@@ -287,8 +303,19 @@ async function spin(userId, { spinId, bet } = {}, now = new Date()) {
             const held = machine.pp + machine.ppp;
             const betCents = checkBet(bet, held);
 
-            const grid = drawGrid(weights, randomInt);
-            const result = evaluate(grid, betCents, flipCoin);
+            // The last chance (luck.js LAST_CHANCE, never told to players):
+            // everything in the machine bet, nothing left in the wallet, and
+            // not yet used up today. Then most of the time the reels are
+            // drawn again until something wins.
+            const lastChance = betCents === held && (await walletIsEmpty(userId, session)) && (await lastChancesToday(userId, day, session)) < LAST_CHANCE.perDay;
+            const helped = lastChance && chanceInt(100) < LAST_CHANCE.winChance * 100;
+
+            let grid = drawGrid(weights, randomInt);
+            let result = evaluate(grid, betCents, flipCoin);
+            for (let tries = 1; helped && result.win === 0 && tries < LAST_CHANCE.tries; tries++) {
+                grid = drawGrid(weights, randomInt);
+                result = evaluate(grid, betCents, flipCoin);
+            }
             const fromBet = splitBet(machine, betCents);
             const after = { pp: machine.pp - fromBet.pp, ppp: machine.ppp - fromBet.ppp + result.win };
             const total = after.pp + after.ppp;
@@ -320,6 +347,7 @@ async function spin(userId, { spinId, bet } = {}, now = new Date()) {
                     jackpot: result.jackpot,
                     balance: after,
                     rtpBucket: bucket,
+                    ...(lastChance && { lastChanceDay: day, lastChanceWon: helped }),
                     at: now,
                 }],
                 { session }
