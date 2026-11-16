@@ -101,6 +101,8 @@ function Resonance() {
 
   return (
     <section className="text-white">
+      {/* A blue underglow behind the whole page (index.css). */}
+      <div aria-hidden="true" className="resonance-underglow" />
       <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
         <h1 className="flex items-center gap-3 text-4xl font-bold sm:text-5xl">
           <span>

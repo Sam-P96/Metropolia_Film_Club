@@ -460,6 +460,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- The Resonance page has a blue underglow: the Soul Resonance blue rising
+  from the bottom of the screen, breathing slowly (still with Reduce Motion).
 - Double or Nothing: at the Monday reset, everything left in the pot goes
   to the bonus pot (was half), and the bonus pot holds up to 95,000 (was
   3,000); whatever doesn't fit is burned.
