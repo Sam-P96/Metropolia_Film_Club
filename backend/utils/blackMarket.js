@@ -4,6 +4,7 @@ const Review = require("../models/reviewModel");
 const CosmeticOwned = require("../models/cosmeticOwnedModel");
 const CosmeticWish = require("../models/cosmeticWishModel");
 const { cosmeticById } = require("../../shared/cosmetics/catalogue.js");
+const { BLACK_FRIDAY, blackFridaySale, salePrice } = require("../../shared/events.js");
 const { WalletError, changeWallet } = require("./wallet");
 const { inSession } = require("./steal/tx");
 const { cosmeticsOf } = require("./serialize");
@@ -51,7 +52,15 @@ async function shopView(userId) {
         wishlist: wished.map((entry) => entry.item).filter((id) => cosmeticById(id)),
         wearing: cosmeticsOf(user),
         hearts,
+        // The Black Friday Sale (shared/events.js), as the server sees it:
+        // the page shows the prices from this, not its own clock.
+        sale: saleView(),
     };
+}
+
+function saleView(now = new Date()) {
+    const { on, lastDay } = blackFridaySale(now);
+    return { on, discount: Math.round(BLACK_FRIDAY.discount * 100), excluded: BLACK_FRIDAY.excluded, lastDay };
 }
 
 // Hearts `itemId` (`on` true) or takes the heart off (false): their
@@ -74,9 +83,10 @@ async function wishCosmetic(userId, itemId, on) {
     return { item: item.id, on };
 }
 
-// Buys `itemId` for its price in P-PP. Resolves to { item, price, ppp }
-// (their P-PP after).
-async function buyCosmetic(userId, itemId) {
+// Buys `itemId` for its price in P-PP (half price, mostly, in the Black
+// Friday Sale: shared/events.js). Resolves to { item, price, ppp } (what it
+// cost, and their P-PP after).
+async function buyCosmetic(userId, itemId, now = new Date()) {
     const item = cosmeticById(typeof itemId === "string" ? itemId : null);
     if (!item) throw new ShopError("That isn't for sale.", 404);
     if (isDefault(item)) throw new ShopError("Default is free, and already yours.");
@@ -86,10 +96,11 @@ async function buyCosmetic(userId, itemId) {
         throw new ShopError(`${item.name} needs ${item.reviews} reviews, and you have ${reviews}. Write ${item.reviews - reviews} more first.`, 403);
     }
 
+    const price = salePrice(item, now);
     return inSession(async (session) => {
         // Claimed first, so two clicks can't both pay for it.
         try {
-            await CosmeticOwned.create([{ user: userId, item: item.id, price: item.price }], { session });
+            await CosmeticOwned.create([{ user: userId, item: item.id, price }], { session });
         } catch (error) {
             if (error.code === 11000) throw new ShopError(`You already own ${item.name}.`, 409);
             throw error;
@@ -100,10 +111,10 @@ async function buyCosmetic(userId, itemId) {
             paid = await changeWallet(
                 userId,
                 (wallet) => {
-                    if (wallet.ppp < item.price) {
-                        throw new ShopError(`${item.name} costs ${item.price.toLocaleString("en-US")} P-PP, and you have ${Math.max(0, wallet.ppp).toLocaleString("en-US")}. The Black Market only takes P-PP.`);
+                    if (wallet.ppp < price) {
+                        throw new ShopError(`${item.name} costs ${price.toLocaleString("en-US")} P-PP, and you have ${Math.max(0, wallet.ppp).toLocaleString("en-US")}. The Black Market only takes P-PP.`);
                     }
-                    return { ppp: 0 - item.price };
+                    return { ppp: 0 - price };
                 },
                 { reason: "blackMarket", session },
             );
@@ -114,7 +125,7 @@ async function buyCosmetic(userId, itemId) {
             throw error;
         }
 
-        return { item: item.id, price: item.price, ppp: paid.balance.ppp };
+        return { item: item.id, price, ppp: paid.balance.ppp };
     });
 }
 

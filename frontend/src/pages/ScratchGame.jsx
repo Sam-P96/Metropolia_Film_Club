@@ -20,6 +20,9 @@ import { askTiltPermission } from '../utils/tilt'
 import { timeAgo } from '../utils/timeAgo'
 import { SCRATCH } from '../../../shared/scratch/config.js'
 import { DEFAULT_TICKET_TYPE, TICKET_TYPES, describeHours, ticketType, ticketTypeOf } from '../../../shared/scratch/tickets.js'
+import { doublePrizeWeekend } from '../../../shared/events.js'
+import DoublePrizeBanner from '../components/scratch/DoublePrizeBanner'
+import useSiteEvent from '../hooks/useSiteEvent'
 
 const GLASS = 'rounded-2xl border border-white/10 bg-black/40 shadow-xl shadow-black/40 backdrop-blur-md'
 const EASE = [0.22, 1, 0.36, 1]
@@ -291,6 +294,9 @@ export default function ScratchGame() {
   const game = useScratchCard()
   const { card, loading, buying, error, buy, clearError, uncovered } = game
   const [looking, setLooking] = useState(null)
+  // Double Prize Weekend (shared/events.js): the banner and the doubled
+  // prize table. What a card actually pays comes from the server.
+  const doubled = useSiteEvent(doublePrizeWeekend)
 
   const viewType = looking ?? (card ? ticketTypeOf(card) : DEFAULT_TICKET_TYPE)
 
@@ -334,6 +340,8 @@ export default function ScratchGame() {
           </h1>
           <p className="mt-1 text-white/60">Scratch for stars. The sooner the third one shows, the bigger the hit.</p>
         </header>
+
+        {doubled && <DoublePrizeBanner />}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <BalancePanel wallet={wallet} />
@@ -381,7 +389,7 @@ export default function ScratchGame() {
             </AnimatePresence>
           </div>
 
-          <HowToPlay jackpots={jackpot?.amounts ?? null} viewType={viewType} hours={hours} />
+          <HowToPlay jackpots={jackpot?.amounts ?? null} viewType={viewType} hours={hours} doublePrizes={doubled} />
         </div>
       </motion.div>
     </MotionConfig>

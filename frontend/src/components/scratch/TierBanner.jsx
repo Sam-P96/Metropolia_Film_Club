@@ -49,6 +49,12 @@ export default function TierBanner({ kind, tier, amount }) {
             <GoldenTicketIcon className="w-6" />
             <span className="text-brand-gold">+{format(amount)} P-PP</span>
           </>
+        ) : tier.refund && tier.bonus > 0 ? (
+          <>
+            <span className="text-emerald-300">Your ticket price is back, plus</span>
+            <CoinIcon kind="ppp" size={16} />
+            <span className="text-brand-gold">+{format(tier.bonus)} P-PP</span>
+          </>
         ) : tier.refund ? (
           <span className="text-emerald-300">Your ticket price is back in your wallet</span>
         ) : (

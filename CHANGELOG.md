@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- The Black Friday Sale: from Black Friday (the day after the fourth
+  Thursday of November) to the end of that Sunday, Helsinki time, every
+  Black Market name style and border is half price (rounded up), except the
+  Jackpot name style and border. The page shows the sale prices and a
+  banner, and everyone gets a white notification when it starts.
+- Box Office Scratch's Double Prize Weekend: every Saturday and Sunday,
+  Helsinki time, cards bought then pay double prizes (Straight to DVD pays
+  the price back and once more in P-PP); the jackpots stay as they are.
+  The game page shows a rainbow banner and the doubled prize table, its
+  Games page card gets a rainbow edge and glow with its logo breathing a
+  rainbow glow, and everyone gets a rainbow notification when it starts.
+  Both events come from `shared/events.js`; their notifications are sent
+  once each (`utils/siteEvents.js`, `jobs/siteEvents.js`, new `siteevents`
+  collection, `doublePrizes` on scratch cards).
 - README with setup instructions, API overview, and project layout.
 - CONTRIBUTING with branch, commit, and pull request conventions.
 - CHANGELOG.

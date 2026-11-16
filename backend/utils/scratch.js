@@ -10,6 +10,7 @@ const { ScratchError, TILE_COUNT, newLayout, scratchTile, sealLayout, tierByKey 
 const { SCRATCH } = require("../../shared/scratch/config.js");
 const { goldenTicketOneIn } = require("../games/happyHours");
 const { JACKPOT_FEED } = require("../config/jackpotFeed");
+const { DOUBLE_PRIZES, doublePrizeWeekend } = require("../../shared/events.js");
 const {
     DEFAULT_TICKET_TYPE,
     TICKET_TYPES,
@@ -217,6 +218,7 @@ function cardView(card) {
 
     const type = ticketTypeOf(card);
     const tier = card.tier ? tierByKey(card.tier, type) : null;
+    const pays = tier && prizeOf(card, tier);
     return {
         _id: card._id,
         ticketType: type,
@@ -228,7 +230,8 @@ function cardView(card) {
         scratched: card.scratched,
         scratchesLeft: SCRATCH.scratches - card.scratched.length,
         starsFound: card.starsFound,
-        tier: tier && { key: tier.key, name: tier.name, scratch: tier.scratch, ppp: tier.ppp ?? null, refund: Boolean(tier.refund) },
+        tier: tier && { key: tier.key, name: tier.name, scratch: tier.scratch, ppp: pays.ppp, refund: Boolean(tier.refund), bonus: pays.bonus },
+        doublePrizes: Boolean(card.doublePrizes),
         goldenFound: card.goldenFound,
         jackpotAmount: card.jackpotAmount,
         createdAt: card.createdAt,
@@ -288,7 +291,16 @@ async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
 
     let card;
     try {
-        card = await ScratchCard.create({ user: userId, ticketType: type, layout, salt, hash, price: kind.price, activeFor: userId });
+        card = await ScratchCard.create({
+            user: userId,
+            ticketType: type,
+            layout,
+            salt,
+            hash,
+            price: kind.price,
+            activeFor: userId,
+            doublePrizes: doublePrizeWeekend(now).on,
+        });
     } catch (error) {
         if (error.code === 11000) {
             throw new ScratchError("You already have a card going. Finish it first.", 409);
@@ -390,6 +402,18 @@ async function revealCard(userId, cardId) {
 // fails, for the sweep to try later. A win pays P-PP, as much as the card's
 // ticket type pays for that tier; the refund tier hands back exactly what
 // the ticket took, PP as PP and P-PP as P-PP. Their followers hear about it.
+// What `card` pays for `tier`: `ppp` for a win (null for a refund), and
+// for a refund, `bonus` P-PP on top of the price back (only in a Double
+// Prize Weekend). `total` is all of it, for the notification.
+function prizeOf(card, tier) {
+    const times = card.doublePrizes ? DOUBLE_PRIZES.times : 1;
+    if (tier.refund) {
+        const bonus = card.price * (times - 1);
+        return { ppp: null, bonus, total: card.price + bonus };
+    }
+    return { ppp: tier.ppp * times, bonus: 0, total: tier.ppp * times };
+}
+
 async function payPrize(cardId) {
     const card = await ScratchCard.findOneAndUpdate(
         { _id: cardId, tier: { $ne: null }, prizePaid: false },
@@ -400,13 +424,15 @@ async function payPrize(cardId) {
 
     const type = ticketTypeOf(card);
     const tier = tierByKey(card.tier, type);
-    const amount = tier.refund ? card.price : tier.ppp;
+    const pays = prizeOf(card, tier);
+    const amount = pays.total;
 
     try {
         if (tier.refund) {
-            await changeWallet(card.user, () => ({ pp: card.spent.pp, ppp: card.spent.ppp }), { reason: "scratchRefund", card: card._id });
+            // The price back as it was paid; a weekend's bonus in P-PP.
+            await changeWallet(card.user, () => ({ pp: card.spent.pp, ppp: card.spent.ppp + pays.bonus }), { reason: "scratchRefund", card: card._id });
         } else {
-            await credit(card.user, tier.ppp, { reason: "scratchWin", card: card._id });
+            await credit(card.user, pays.ppp, { reason: "scratchWin", card: card._id });
         }
     } catch (error) {
         // An account that's been deleted can't be paid. Anything else is

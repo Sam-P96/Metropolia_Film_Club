@@ -2,6 +2,7 @@ import { useState } from 'react'
 import CoinIcon from '../wallet/CoinIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import StyledUsername from '../cosmetics/StyledUsername'
+import { priceInSale } from '../../../../shared/events.js'
 
 const BUTTON = 'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40'
 const GOLD = `${BUTTON} bg-brand-gold text-ink hover:bg-white`
@@ -52,6 +53,9 @@ function HeartButton({ item, hearted, hearts, busy, onClick }) {
 // (backend/utils/blackMarket.js shopView); `onBuy`, `onWear`, `onTakeOff`
 // and `onHeart` resolve to an error message, or null.
 export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff, onHeart }) {
+  // What it costs now: less in the Black Friday Sale (the server says when).
+  const price = priceInSale(item, shop.sale?.on)
+  const onSale = price < item.price
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hearting, setHearting] = useState(false)
@@ -61,7 +65,7 @@ export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff, onH
   const owned = free || shop.owned.includes(item.id)
   const worn = (shop.wearing[item.type] ?? `${item.type}.default`) === item.id
   const fewReviews = shop.reviews < item.reviews
-  const short = shop.ppp < item.price
+  const short = shop.ppp < price
   const hearted = shop.wishlist.includes(item.id)
 
   async function heart() {
@@ -130,7 +134,9 @@ export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff, onH
           ) : (
             <>
               <CoinIcon kind="ppp" size={15} />
-              {item.price.toLocaleString('en-US')} P-PP
+              {onSale && <s className="font-normal text-white/40">{item.price.toLocaleString('en-US')}</s>}
+              <span className={onSale ? 'text-white' : undefined}>{price.toLocaleString('en-US')} P-PP</span>
+              {onSale && <span className="rounded-full bg-white px-1.5 py-0.5 text-[0.65rem] font-bold tracking-wide text-black uppercase">Sale</span>}
             </>
           )}
         </span>
@@ -145,7 +151,7 @@ export default function ItemCard({ item, me, shop, onBuy, onWear, onTakeOff, onH
       {asking && !owned && (
         <div className="flex flex-col gap-2 rounded-xl border border-brand-gold/40 bg-brand-gold/10 p-3 text-sm text-white/80">
           <p>
-            Buy <strong className="text-white">{item.name}</strong> for {item.price.toLocaleString('en-US')} P-PP? It&apos;s yours for good, but the P-PP is
+            Buy <strong className="text-white">{item.name}</strong> for {price.toLocaleString('en-US')} P-PP{onSale ? ' (Black Friday Sale)' : ''}? It&apos;s yours for good, but the P-PP is
             gone: no refunds, no selling back, no trading.
           </p>
           <div className="flex gap-2">

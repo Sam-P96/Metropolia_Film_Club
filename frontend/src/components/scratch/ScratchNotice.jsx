@@ -121,7 +121,7 @@ export default function ScratchNotice({ item }) {
             {tier?.refund ? (
               <>
                 {name} scratched <span className="font-semibold text-(--tk-value)">{tier.name}</span> on a {typeTag} ticket and got
-                the ticket price back.
+                the ticket price back{item.amount > ticketType(type).price ? ', twice over in a Double Prize Weekend' : ''}.
               </>
             ) : (
               <>

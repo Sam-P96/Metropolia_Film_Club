@@ -7,6 +7,8 @@ import StatusBadge from '../components/double/StatusBadge'
 import useApi from '../hooks/useApi'
 import { getDoubleStatus } from '../services/double'
 import { getCurrentUser } from '../utils/currentUser'
+import useSiteEvent from '../hooks/useSiteEvent'
+import { doublePrizeWeekend } from '../../../shared/events.js'
 import PpLeaderboard from '../components/wallet/PpLeaderboard'
 import { GoldenTicketIcon, StarIcon } from '../components/scratch/TileFace'
 import { BOT_MODE } from '../../../shared/farkle/rules.js'
@@ -42,6 +44,8 @@ const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 // visitors always see as AVAILABLE.
 export default function Games() {
   const [loggedIn] = useState(() => Boolean(getCurrentUser()))
+  // Box Office Scratch's Double Prize Weekend (shared/events.js).
+  const doubled = useSiteEvent(doublePrizeWeekend)
   const double = useApi(() => getDoubleStatus(), [loggedIn], { enabled: loggedIn })
   const doubleStatus = loggedIn ? (double.data?.status ?? (double.error ? 'AVAILABLE' : null)) : 'AVAILABLE'
   // Steal and Defend's card shows its logo only to members with its PvP on.
@@ -99,8 +103,10 @@ export default function Games() {
             </Link>
           </li>
           <li>
-            <Link to="/games/scratch" className={CARD}>
-              <div className="flex items-center gap-2 rounded-lg bg-ticket/80 px-2 py-1.5 self-start" aria-hidden="true">
+            {/* Double Prize Weekend: a rainbow edge and glow, and the logo
+                breathing a rainbow glow (index.css). */}
+            <Link to="/games/scratch" className={`${CARD} ${doubled ? 'rainbow-card' : ''}`}>
+              <div className={`flex items-center gap-2 self-start rounded-lg bg-ticket/80 px-2 py-1.5 ${doubled ? 'rainbow-breathe' : ''}`} aria-hidden="true">
                 {[0, 1, 2].map((i) => (
                   <StarIcon key={i} className="size-7" />
                 ))}
@@ -109,6 +115,7 @@ export default function Games() {
               <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
                 Box Office <span className="text-brand-gold">Scratch</span>
               </h2>
+              {doubled && <p className="rainbow-text -mt-2 text-sm font-bold">Double Prize Weekend: every prize doubled</p>}
               <p className="text-white/70">
                 {listed(SCRATCH_TICKETS.map((type) => type.name))} scratch cards, from {Math.min(...SCRATCH_PRICES)} to{' '}
                 {Math.max(...SCRATCH_PRICES)} points. Find {SCRATCH.starsToWin} stars in {SCRATCH.scratches} scratches to win P-PP, and hunt
