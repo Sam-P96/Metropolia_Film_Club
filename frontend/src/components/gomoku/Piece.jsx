@@ -156,11 +156,31 @@ function Eclipse() {
   )
 }
 
+// The ember's cracks: branching out from near the middle, kinked, never
+// reaching the edge.
+const EMBER_CRACKS =
+  'M48 52 L40 41 L41 33 L31 21 M40 41 L27 44 L19 41 M48 52 L60 46 L68 47 L79 35 M68 47 L76 60 M48 52 L47 63 L38 72 L33 82 M47 63 L57 74 L63 84 M60 46 L58 37 M26 58 L33 62'
+
 function Ember() {
+  const id = useId()
   return (
     <span className="gmk-ember" aria-hidden="true">
       <span className="gmk-ember-glow" />
-      <span className="gmk-ember-body" />
+      <svg viewBox="0 0 100 100" className="gmk-ember-body">
+        <defs>
+          <radialGradient id={`${id}-coal`} cx="38%" cy="32%" r="75%">
+            <stop offset="0%" stopColor="#5a2a14" />
+            <stop offset="55%" stopColor="#241008" />
+            <stop offset="100%" stopColor="#0d0503" />
+          </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="48" fill={`url(#${id}-coal)`} />
+        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d={EMBER_CRACKS} stroke="#ff5a00" strokeWidth="8" opacity="0.4" />
+          <path d={EMBER_CRACKS} stroke="#ff8a1f" strokeWidth="3.6" />
+          <path d={EMBER_CRACKS} stroke="#ffe2a0" strokeWidth="1.4" className="gmk-ember-hot" />
+        </g>
+      </svg>
     </span>
   )
 }

@@ -595,8 +595,10 @@
 
 /* ---------- more Deluxe pieces (Piece.jsx) ---------- */
 
-/* Coloured glass: see-through (the board shows through it), lit from the
-   top left, glowing in its colour, with a glint sweeping across. */
+/* Coloured glass: deep, nearly solid colour so it stands out on any board
+   (only a hint of the board shows through), lit from the top left, a dark
+   edge and a bright rim round it, glowing in its colour, with a glint
+   sweeping across. */
 .gmk-glass {
   position: relative;
   width: 100%;
@@ -604,13 +606,15 @@
   overflow: hidden;
   border-radius: 9999px;
   background:
-    radial-gradient(circle at 32% 27%, rgba(255, 255, 255, 0.9) 0 7%, transparent 19%),
-    radial-gradient(circle at 68% 74%, color-mix(in srgb, var(--glass-light) 55%, transparent), transparent 42%),
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--glass) 30%, transparent) 0%, color-mix(in srgb, var(--glass) 68%, transparent) 62%, color-mix(in srgb, var(--glass-dark) 92%, transparent) 100%);
+    radial-gradient(circle at 32% 27%, rgba(255, 255, 255, 0.95) 0 8%, transparent 20%),
+    radial-gradient(circle at 68% 74%, color-mix(in srgb, var(--glass-light) 70%, transparent), transparent 40%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--glass) 82%, transparent) 0%, color-mix(in srgb, var(--glass) 94%, var(--glass-dark)) 58%, var(--glass-dark) 100%);
   box-shadow:
-    inset 0 0 0 1.5px color-mix(in srgb, var(--glass-light) 70%, transparent),
-    inset 0 -3px 6px color-mix(in srgb, var(--glass-dark) 60%, transparent),
-    0 0 calc(var(--cell) * 0.35) color-mix(in srgb, var(--glass) 75%, transparent);
+    inset 0 0 0 2px color-mix(in srgb, var(--glass-light) 85%, transparent),
+    inset 0 -4px 7px color-mix(in srgb, var(--glass-dark) 80%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--glass-dark) 90%, black),
+    0 0 calc(var(--cell) * 0.4) var(--glass),
+    0 2px 4px rgba(0, 0, 0, 0.5);
 }
 .gmk-glass::after {
   content: '';
@@ -684,15 +688,25 @@
 }
 .gmk-ember-body {
   position: relative;
-  border-radius: 9999px;
-  background:
-    linear-gradient(35deg, transparent 45%, #ff7b00 47.5%, #ffe2a0 50%, #ff7b00 52.5%, transparent 55%),
-    linear-gradient(-55deg, transparent 30%, #ff5a00 32%, #ffb347 33.5%, #ff5a00 35%, transparent 37%),
-    linear-gradient(80deg, transparent 62%, #ff5a00 64%, #ffcf7a 65.5%, #ff5a00 67%, transparent 69%),
-    radial-gradient(circle at 36% 30%, #5a2a14 0%, #241008 55%, #0d0503 100%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+}
+/* The hottest line along the cracks brightens and dims with the glow. */
+.gmk-ember-hot {
+  animation: gmk-ember-hot 1.7s ease-in-out infinite;
 }
 
+@keyframes gmk-ember-hot {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  40% {
+    opacity: 1;
+  }
+}
 @keyframes gmk-glass-shine {
   0%,
   62% {
@@ -739,6 +753,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gmk-glass::after,
+  .gmk-ember-hot,
   .gmk-neon,
   .gmk-eclipse-corona,
   .gmk-ember-glow {
