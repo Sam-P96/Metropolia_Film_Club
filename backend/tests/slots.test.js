@@ -30,8 +30,8 @@ function gridWith(base, cells) {
     return grid;
 }
 // Every cell different along its reel's neighbours: no line has 3 in a row,
-// and every line starts on a Common or Uncommon symbol, so none links.
-const LOSING = [["ticket", "popcorn", "clapper"], ["logo", "map", "ring"], ["gauntlet", "ticket", "popcorn"], ["clapper", "logo", "map"], ["ring", "gauntlet", "ticket"]];
+// and every line starts on a Common symbol or the logo, so none links.
+const LOSING = [["ticket", "popcorn", "logo"], ["logo", "map", "ring"], ["gauntlet", "ticket", "popcorn"], ["popcorn", "logo", "map"], ["ring", "gauntlet", "ticket"]];
 
 // The winning line on payline `key`, if there is one.
 const lineNamed = (result, key) => result.lines.find((won) => SLOTS.paylines[won.line].key === key);
@@ -64,30 +64,30 @@ describe("paylines and pays", () => {
     });
 
     test("two in a row pays nothing", () => {
-        assert.equal(engine.readLine(["popcorn", "popcorn", "ticket", "clapper", "map"]), null);
+        assert.equal(engine.readLine(["popcorn", "popcorn", "ticket", "logo", "map"]), null);
     });
 
     test("one symbol everywhere: every line pays its 5 in a row, added together", () => {
-        const result = engine.evaluate(fill("clapper"), 1000);
+        const result = engine.evaluate(fill("map"), 1000);
         assert.equal(result.lines.length, 11);
-        assert.ok(result.lines.every((line) => line.count === 5 && line.multiplier === 4));
-        assert.equal(result.win, 11 * 4 * 1000);
+        assert.ok(result.lines.every((line) => line.count === 5 && line.multiplier === 3));
+        assert.equal(result.win, 11 * 3 * 1000);
     });
 
     test("several lines winning at once are each paid", () => {
         const grid = [
             ["ticket", "logo", "popcorn"],
-            ["ticket", "clapper", "popcorn"],
+            ["ticket", "logo", "popcorn"],
             ["ticket", "ticket", "popcorn"],
-            ["map", "clapper", "popcorn"],
-            ["ring", "clapper", "logo"],
+            ["map", "logo", "popcorn"],
+            ["ring", "logo", "logo"],
         ];
         const result = engine.evaluate(grid, 1000);
         assert.deepEqual(result.lines.map((won) => SLOTS.paylines[won.line].key).sort(), ["bottom", "slideDown", "top"]);
-        assert.deepEqual([lineNamed(result, "top").symbol, lineNamed(result, "top").count, lineNamed(result, "top").multiplier], ["ticket", 3, 1.2]);
-        assert.deepEqual([lineNamed(result, "bottom").symbol, lineNamed(result, "bottom").count, lineNamed(result, "bottom").multiplier], ["popcorn", 4, 1.8]);
+        assert.deepEqual([lineNamed(result, "top").symbol, lineNamed(result, "top").count, lineNamed(result, "top").multiplier], ["ticket", 3, 0.6]);
+        assert.deepEqual([lineNamed(result, "bottom").symbol, lineNamed(result, "bottom").count, lineNamed(result, "bottom").multiplier], ["popcorn", 4, 1.1]);
         assert.deepEqual(lineNamed(result, "slideDown").cells, [[0, 0], [1, 0], [2, 1]]);
-        assert.equal(result.win, 4200); // (1.2 + 1.8 + 1.2) x 1000
+        assert.equal(result.win, 2300); // (0.6 + 1.1 + 0.6) x 1000
         assert.equal(result.win, sumOfLines(result, 1000));
     });
 
@@ -97,7 +97,7 @@ describe("paylines and pays", () => {
             payline.rows.forEach((row, reel) => (grid[reel][row] = "ring"));
             const won = lineNamed(engine.evaluate(grid, 100), payline.key);
             assert.deepEqual(won.cells, payline.rows.map((row, reel) => [reel, row]));
-            assert.deepEqual([won.symbol, won.count, won.multiplier, won.effect, won.text], ["ring", 5, 6, null, null]);
+            assert.deepEqual([won.symbol, won.count, won.multiplier, won.effect, won.text], ["ring", 5, 3.6, null, null]);
         });
     }
 
@@ -107,14 +107,18 @@ describe("paylines and pays", () => {
         });
         assert.equal(SLOTS.jackpotMultiplier, 2000);
         const four = engine.readLine(["logo", "logo", "logo", "logo", "ticket"]);
-        assert.deepEqual([four.multiplier, four.jackpot], [5, false]);
+        assert.deepEqual([four.multiplier, four.jackpot], [3, false]);
         const middle = gridWith("ticket", [0, 1, 2, 3, 4].map((reel) => [reel, 1, "logo"]));
         assert.equal(engine.evaluate(middle, 100).jackpot, true);
     });
 
-    test("no win pays less than the bet", () => {
+    test("only 3 Tickets or 3 Popcorns pay back less than the bet", () => {
         for (const symbol of SLOTS.symbols) {
-            for (const pay of symbol.pays.filter((p) => p !== null)) assert.ok(pay >= 1, `${symbol.key} ${pay}`);
+            symbol.pays.forEach((pay, i) => {
+                if (pay === null) return;
+                const softener = i === 0 && (symbol.key === "ticket" || symbol.key === "popcorn");
+                assert.ok(softener ? pay > 0 && pay < 1 : pay >= 0.9, `${symbol.key} ${pay}`);
+            });
         }
     });
 
@@ -122,7 +126,7 @@ describe("paylines and pays", () => {
     // tickets) to stop them.
     const threeOf = (key) => gridWith(key === "ticket" ? "popcorn" : "ticket", [0, 1, 2].flatMap((reel) => [0, 1, 2].map((row) => [reel, row, key])));
 
-    for (const [key, pay] of [["ticket", 1.2], ["popcorn", 1.3], ["clapper", 1.4], ["map", 1.5], ["ring", 1.6], ["logo", 2.5]]) {
+    for (const [key, pay] of [["ticket", 0.6], ["popcorn", 0.7], ["map", 0.9], ["ring", 1], ["logo", 1.5]]) {
         test(`pays are exact to the cent: 11 lines of ${pay}x`, () => {
             const result = engine.evaluate(threeOf(key), 100);
             assert.equal(result.lines.length, 11);
@@ -133,10 +137,10 @@ describe("paylines and pays", () => {
     }
 
     test("a bet with cents drops only the fraction of a cent", () => {
-        // 11 x 1.2 = 13.2, which floating point would make 13.199999...
-        assert.equal(engine.evaluate(threeOf("ticket"), 101).win, 1333); // 13.2 x 101 = 1333.2
-        assert.equal(engine.evaluate(threeOf("clapper"), 101).win, 1555); // 15.4 x 101 = 1555.4
-        assert.equal(engine.evaluate(threeOf("ring"), 33).win, 580); // 17.6 x 33 = 580.8
+        // 11 x 0.7 = 7.7, which floating point would make 7.6999999...
+        assert.equal(engine.evaluate(threeOf("popcorn"), 101).win, 777); // 7.7 x 101 = 777.7
+        assert.equal(engine.evaluate(threeOf("ticket"), 101).win, 666); // 6.6 x 101 = 666.6
+        assert.equal(engine.evaluate(threeOf("map"), 33).win, 326); // 9.9 x 33 = 326.7
     });
 
     test("drawing follows the weights: the bottom of the range is the first symbol, the top the last", () => {
@@ -155,18 +159,18 @@ describe("the Gauntlet link", () => {
     const summary = (reading) => reading && [reading.symbol, reading.count, reading.multiplier, reading.effect, reading.text];
 
     test("Maps and Gauntlets pay as Maps of that length, with fireworks", () => {
-        assert.deepEqual(summary(read(["map", "gauntlet", "map", "ticket", "ticket"])), ["map", 3, 1.5, "fireworks", null]);
-        assert.deepEqual(summary(read(["gauntlet", "map", "gauntlet", "map", "popcorn"])), ["map", 4, 2.5, "fireworks", null]);
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "map", "map", "map"])), ["map", 5, 5, "fireworks", null]);
+        assert.deepEqual(summary(read(["map", "gauntlet", "map", "ticket", "ticket"])), ["map", 3, 0.9, "fireworks", null]);
+        assert.deepEqual(summary(read(["gauntlet", "map", "gauntlet", "map", "popcorn"])), ["map", 4, 1.5, "fireworks", null]);
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "map", "map", "map"])), ["map", 5, 3, "fireworks", null]);
     });
 
     test("Rings and Gauntlets pay as Rings of that length, with lightning", () => {
-        assert.deepEqual(summary(read(["ring", "ring", "gauntlet", "ring", "popcorn"])), ["ring", 4, 3, "lightning", null]);
-        assert.deepEqual(summary(read(["gauntlet", "ring", "gauntlet", "logo", "ring"])), ["ring", 3, 1.6, "lightning", null]);
+        assert.deepEqual(summary(read(["ring", "ring", "gauntlet", "ring", "popcorn"])), ["ring", 4, 1.8, "lightning", null]);
+        assert.deepEqual(summary(read(["gauntlet", "ring", "gauntlet", "logo", "ring"])), ["ring", 3, 1, "lightning", null]);
     });
 
     test("Maps without a Gauntlet are just Maps: no link, no effect", () => {
-        assert.deepEqual(summary(read(["map", "map", "map", "ticket", "ticket"])), ["map", 3, 1.5, null, null]);
+        assert.deepEqual(summary(read(["map", "map", "map", "ticket", "ticket"])), ["map", 3, 0.9, null, null]);
         assert.equal(read(["map", "ring", "map", "ticket", "ticket"]), null);
     });
 
@@ -177,17 +181,17 @@ describe("the Gauntlet link", () => {
             flips += 1;
             return "map";
         });
-        assert.deepEqual(summary(asMap), ["map", 3, 1.5, "fireworks", null]);
+        assert.deepEqual(summary(asMap), ["map", 3, 0.9, "fireworks", null]);
         assert.equal(flips, 1);
-        assert.deepEqual(summary(read(mixed, () => "ring")), ["ring", 3, 1.6, "lightning", "CRITICAL HIT!"]);
-        assert.deepEqual(summary(read(["ring", "map", "gauntlet", "ring", "map"], () => "ring")), ["ring", 5, 6, "lightning", "CRITICAL HIT!"]);
-        assert.deepEqual(summary(read(["ring", "map", "gauntlet", "ring", "map"], () => "map")), ["map", 5, 5, "fireworks", null]);
+        assert.deepEqual(summary(read(mixed, () => "ring")), ["ring", 3, 1, "lightning", "CRITICAL HIT!"]);
+        assert.deepEqual(summary(read(["ring", "map", "gauntlet", "ring", "map"], () => "ring")), ["ring", 5, 3.6, "lightning", "CRITICAL HIT!"]);
+        assert.deepEqual(summary(read(["ring", "map", "gauntlet", "ring", "map"], () => "map")), ["map", 5, 3, "fireworks", null]);
     });
 
     test("Gauntlets on their own are INFINITY: their own pays, with lightning", () => {
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "ticket", "map"])), ["gauntlet", 3, 2, "lightning", "INFINITY"]);
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "gauntlet", "logo"])), ["gauntlet", 4, 4, "lightning", "INFINITY"]);
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "gauntlet", "gauntlet"])), ["gauntlet", 5, 12, "lightning", "INFINITY"]);
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "ticket", "map"])), ["gauntlet", 3, 1.2, "lightning", "INFINITY"]);
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "gauntlet", "logo"])), ["gauntlet", 4, 2.4, "lightning", "INFINITY"]);
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "gauntlet", "gauntlet"])), ["gauntlet", 5, 7.2, "lightning", "INFINITY"]);
         assert.equal(read(["gauntlet", "gauntlet", "ticket", "ticket", "ticket"]), null);
     });
 
@@ -195,11 +199,11 @@ describe("the Gauntlet link", () => {
         assert.equal(read(["gauntlet", "logo", "logo", "logo", "logo"]), null);
         assert.equal(read(["logo", "gauntlet", "logo", "ticket", "ticket"]), null);
         assert.equal(read(["map", "gauntlet", "logo", "map", "map"]), null);
-        assert.deepEqual(summary(read(["logo", "logo", "logo", "gauntlet", "map"])), ["logo", 3, 2.5, null, null]);
+        assert.deepEqual(summary(read(["logo", "logo", "logo", "gauntlet", "map"])), ["logo", 3, 1.5, null, null]);
         assert.equal(read(["logo", "logo", "logo", "logo", "gauntlet"]).jackpot, false);
     });
 
-    for (const common of ["ticket", "popcorn", "clapper"]) {
+    for (const common of ["ticket", "popcorn"]) {
         test(`the Gauntlet never links ${SYMBOL_BY_KEY[common].name}`, () => {
             assert.equal(read([common, "gauntlet", common, common, common]), null);
             assert.equal(read(["gauntlet", common, common, common, common]), null);
@@ -209,22 +213,22 @@ describe("the Gauntlet link", () => {
     }
 
     test("a line with more than one reading pays the highest, with that reading's effect", () => {
-        // 3 Gauntlets are INFINITY (2x), but followed by Maps the link reads Maps.
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "map", "map"])), ["map", 5, 5, "fireworks", null]);
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "map", "ticket"])), ["map", 4, 2.5, "fireworks", null]);
-        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "gauntlet", "map"])), ["map", 5, 5, "fireworks", null]);
-        // 3 Rings pay 1.6x on their own; the mixed link beats it whichever side the coin lands.
-        assert.deepEqual(summary(read(["ring", "ring", "ring", "gauntlet", "map"], () => "map")), ["map", 5, 5, "fireworks", null]);
-        assert.deepEqual(summary(read(["ring", "ring", "ring", "gauntlet", "map"], () => "ring")), ["ring", 5, 6, "lightning", "CRITICAL HIT!"]);
+        // 3 Gauntlets are INFINITY (1.2x), but followed by Maps the link reads Maps.
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "map", "map"])), ["map", 5, 3, "fireworks", null]);
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "map", "ticket"])), ["map", 4, 1.5, "fireworks", null]);
+        assert.deepEqual(summary(read(["gauntlet", "gauntlet", "gauntlet", "gauntlet", "map"])), ["map", 5, 3, "fireworks", null]);
+        // 3 Rings pay 1x on their own; the mixed link beats it whichever side the coin lands.
+        assert.deepEqual(summary(read(["ring", "ring", "ring", "gauntlet", "map"], () => "map")), ["map", 5, 3, "fireworks", null]);
+        assert.deepEqual(summary(read(["ring", "ring", "ring", "gauntlet", "map"], () => "ring")), ["ring", 5, 3.6, "lightning", "CRITICAL HIT!"]);
     });
 
     test("a winning line says where its Gauntlets are, and each mixed line flips its own coin", () => {
         // The top and bottom rows are mixed links; nothing else wins.
         const grid = [
             ["map", "ticket", "ring"],
-            ["gauntlet", "clapper", "gauntlet"],
+            ["gauntlet", "logo", "gauntlet"],
             ["ring", "popcorn", "map"],
-            ["ticket", "clapper", "ticket"],
+            ["ticket", "logo", "ticket"],
             ["logo", "ticket", "popcorn"],
         ];
         const sides = ["map", "ring"];
@@ -232,12 +236,12 @@ describe("the Gauntlet link", () => {
         assert.equal(sides.length, 0);
         assert.deepEqual(result.lines.map((won) => SLOTS.paylines[won.line].key), ["top", "bottom"]);
         assert.deepEqual(lineNamed(result, "top"), {
-            line: 0, symbol: "map", count: 3, multiplier: 1.5, cells: [[0, 0], [1, 0], [2, 0]], effect: "fireworks", text: null, gauntlets: [[1, 0]],
+            line: 0, symbol: "map", count: 3, multiplier: 0.9, cells: [[0, 0], [1, 0], [2, 0]], effect: "fireworks", text: null, gauntlets: [[1, 0]],
         });
         assert.deepEqual(lineNamed(result, "bottom"), {
-            line: 2, symbol: "ring", count: 3, multiplier: 1.6, cells: [[0, 2], [1, 2], [2, 2]], effect: "lightning", text: "CRITICAL HIT!", gauntlets: [[1, 2]],
+            line: 2, symbol: "ring", count: 3, multiplier: 1, cells: [[0, 2], [1, 2], [2, 2]], effect: "lightning", text: "CRITICAL HIT!", gauntlets: [[1, 2]],
         });
-        assert.equal(result.win, 310);
+        assert.equal(result.win, 190);
     });
 
     test("a plain win has no effect, no text and no Gauntlets", () => {
@@ -274,8 +278,10 @@ describe("the exact RTP", () => {
         assert.ok(Math.abs(rtpOf(BASE_WEIGHTS) - SLOTS.paylines.length * line) < 1e-12);
     });
 
-    test("the base table is about 101.0%", () => {
-        assert.ok(Math.abs(rtpOf(BASE_WEIGHTS) - 1.01) < 0.002, `${rtpOf(BASE_WEIGHTS)}`);
+    // Without the Clapperboard, the base table is where the tuning path
+    // (scripts/tune-slots.js) starts: the bottom of its dip.
+    test("the base table is about 90.7%", () => {
+        assert.ok(Math.abs(rtpOf(BASE_WEIGHTS) - 0.907) < 0.002, `${rtpOf(BASE_WEIGHTS)}`);
     });
 });
 
@@ -305,7 +311,7 @@ describe("bets", () => {
 
 describe("weight tables and luck", () => {
     test("the logo is the rarest symbol", () => {
-        assert.deepEqual(rarityOrder(BASE_WEIGHTS), ["ticket", "popcorn", "clapper", "map", "ring", "gauntlet", "logo"]);
+        assert.deepEqual(rarityOrder(BASE_WEIGHTS), ["ticket", "popcorn", "map", "ring", "gauntlet", "logo"]);
     });
 
     test("there's a table for every 1% from 93% to 120%, covering every RTP the luck gives", () => {
@@ -555,7 +561,8 @@ describe("the slot routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !
         assert.ok(body.lines.every((won) => won.effect === null && won.text === null && won.gauntlets.length === 0));
         assert.equal(body.win, 15 * ALL_TICKETS);
         assert.equal(body.balance, 20 - 15 + 15 * ALL_TICKETS);
-        assert.equal(body.bigWin, true);
+        // 5 Tickets on every line is a big win only if it reaches the big win's multiple.
+        assert.equal(body.bigWin, ALL_TICKETS >= SLOTS.bigWinMultiple);
         assert.doesNotMatch(JSON.stringify(body), /rtp|bucket|weight|luck/i);
 
         const machine = await machineOf(user);
@@ -565,15 +572,92 @@ describe("the slot routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !
         assert.equal((await call(user, "GET", "/")).body.machine.lastWin, 15 * ALL_TICKETS);
     });
 
+    // The last chance (luck.js LAST_CHANCE): grids drawn in turn, the last one
+    // over and over, so a first losing draw can be followed by a win.
+    function inTurn(grids) {
+        const cells = grids.flat(2);
+        const last = grids.at(-1).flat();
+        let i = 0;
+        return (max) => {
+            const key = i < cells.length ? cells[i] : last[(i - cells.length) % last.length];
+            i += 1;
+            return Math.floor(max * INSIDE[key]);
+        };
+    }
+    // Everything in the wallet into the machine, so the wallet's empty, and
+    // a spin betting everything the machine holds (MAX).
+    async function allIn(user, amount) {
+        await User.updateOne({ _id: user._id }, { $set: { "wallet.pp": amount, "wallet.ppp": 0 } });
+        assert.equal((await call(user, "POST", "/credits", { amount })).status, 200);
+        assert.deepEqual(await walletOf(user), { pp: 0, ppp: 0 });
+        const { balance } = (await call(user, "GET", "/")).body.machine;
+        return spinOf(user, balance);
+    }
+    const lastChanceOf = (spinId) => SlotSpin.findOne({ spinId }).select("lastChanceDay lastChanceWon").lean();
+
+    routeTest("the last chance: an empty wallet and a MAX bet win something on 3 in 4 of the first 3 a day, and the page never knows", async () => {
+        const user = await member();
+        const day = slots.slotDay();
+
+        // The roll lands (under 75): the losing first draw is drawn again until it wins.
+        slots.useRandomSource(inTurn([LOSING, fill("ticket")]), null, () => 0);
+        const helped = await allIn(user, 10);
+        assert.equal(helped.status, 200);
+        assert.deepEqual(helped.body.grid, fill("ticket"));
+        assert.ok(helped.body.win > 0);
+        assert.doesNotMatch(JSON.stringify(helped.body), /chance|rtp|bucket|weight|luck/i);
+        const marked = await lastChanceOf(helped.body.spinId);
+        assert.deepEqual([marked.lastChanceDay, marked.lastChanceWon], [day, true]);
+
+        // Cash the win out so the next one starts from an empty machine.
+        assert.equal((await call(user, "POST", "/cash-out")).status, 200);
+
+        // The roll misses (75 and over): an ordinary spin, still one of the 3.
+        slots.useRandomSource(inTurn([LOSING, fill("ticket")]), null, () => 75);
+        const missed = await allIn(user, 10);
+        assert.deepEqual([missed.body.grid, missed.body.win], [LOSING, 0]);
+        assert.deepEqual([(await lastChanceOf(missed.body.spinId)).lastChanceDay, (await lastChanceOf(missed.body.spinId)).lastChanceWon], [day, false]);
+
+        slots.useRandomSource(inTurn([LOSING, fill("ticket")]), null, () => 0);
+        const third = await allIn(user, 10);
+        assert.ok(third.body.win > 0);
+        assert.equal((await lastChanceOf(third.body.spinId)).lastChanceWon, true);
+        assert.equal((await call(user, "POST", "/cash-out")).status, 200);
+
+        // The fourth today: no last chance, whatever the roll.
+        slots.useRandomSource(inTurn([LOSING, fill("ticket")]), null, () => 0);
+        const fourth = await allIn(user, 10);
+        assert.deepEqual([fourth.body.grid, fourth.body.win], [LOSING, 0]);
+        assert.equal((await lastChanceOf(fourth.body.spinId)).lastChanceDay, undefined);
+        assert.equal(await SlotSpin.countDocuments({ user: user._id, lastChanceDay: day }), 3);
+    });
+
+    routeTest("no last chance with anything left in the wallet, or a bet short of everything in the machine", async () => {
+        const user = await member(11, 0);
+        await call(user, "POST", "/credits", { amount: 10 });
+        slots.useRandomSource(inTurn([LOSING, fill("ticket")]), null, () => 0);
+        const walletLeft = await spinOf(user, 10);
+        assert.deepEqual([walletLeft.body.grid, walletLeft.body.win], [LOSING, 0], "1 PP still in the wallet");
+        assert.equal((await lastChanceOf(walletLeft.body.spinId)).lastChanceDay, undefined);
+
+        await User.updateOne({ _id: user._id }, { $set: { "wallet.pp": 10 } });
+        await call(user, "POST", "/credits", { amount: 10 });
+        assert.deepEqual(await walletOf(user), { pp: 0, ppp: 0 });
+        slots.useRandomSource(inTurn([LOSING, fill("ticket")]), null, () => 0);
+        const short = await spinOf(user, 5);
+        assert.deepEqual([short.body.grid, short.body.win], [LOSING, 0], "5 of the 10 in the machine");
+        assert.equal((await lastChanceOf(short.body.spinId)).lastChanceDay, undefined);
+    });
+
     routeTest("a mixed link line flips the server's coin, and the spin says what it paid as and why", async () => {
         const user = await member(10);
         await call(user, "POST", "/credits", { amount: 10 });
         // The top and bottom rows are mixed links; the coin always lands Rings.
         const grid = [
             ["map", "ticket", "ring"],
-            ["gauntlet", "clapper", "gauntlet"],
+            ["gauntlet", "logo", "gauntlet"],
             ["ring", "popcorn", "map"],
-            ["ticket", "clapper", "ticket"],
+            ["ticket", "logo", "ticket"],
             ["logo", "ticket", "popcorn"],
         ];
         slots.useRandomSource(landing(grid), () => 1);
@@ -584,7 +668,7 @@ describe("the slot routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !
             ["ring", "lightning", "CRITICAL HIT!", [[1, 0]]],
             ["ring", "lightning", "CRITICAL HIT!", [[1, 2]]],
         ]);
-        assert.equal(body.win, 3.2);
+        assert.equal(body.win, 2);
         assert.doesNotMatch(JSON.stringify(body), /rtp|bucket|weight|luck/i);
         const logged = await SlotSpin.findOne({ user: user._id }).lean();
         assert.deepEqual(logged.lines.map((won) => won.text), ["CRITICAL HIT!", "CRITICAL HIT!"]);
@@ -642,7 +726,8 @@ describe("the slot routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !
         await call(player, "POST", "/credits", { amount: 10 });
         slots.useRandomSource(everywhere("ticket"));
 
-        await spinOf(player, 1);
+        // 2 on 5 Tickets everywhere: 9 left of the 10 and 26.4 won, past 30.
+        await spinOf(player, 2);
         const members = await User.countDocuments();
         const notes = await Notification.find({ type: "slotTriple", actors: player._id }).lean();
         assert.equal(notes.length, members);

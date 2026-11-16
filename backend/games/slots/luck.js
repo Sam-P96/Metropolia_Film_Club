@@ -24,6 +24,14 @@ const LUCK = {
     inactiveRtp: 0.95,
 };
 
+// The last chance: a player whose wallet is empty and who bets everything
+// in the machine (MAX) wins something on `winChance` of those spins, for
+// their first `perDay` such spins each Slot Machine day (12:00 to 12:00,
+// utils/slots.js slotDay). "Something" is any win at all, drawn from their
+// own table (`tries` draws at most; it never takes more than a few). Like
+// the rest of this file, never told to players.
+const LAST_CHANCE = { perDay: 3, winChance: 0.75, tries: 500 };
+
 // The tables there are, as whole percentages ("93" to "120").
 const BUCKETS = Object.keys(TABLES).map(Number).sort((a, b) => a - b);
 
@@ -56,4 +64,4 @@ function tableFor(target) {
     return { bucket, weights: TABLES[bucket] };
 }
 
-module.exports = { LUCK, BUCKETS, TABLES, targetRtp, tableFor };
+module.exports = { LUCK, LAST_CHANCE, BUCKETS, TABLES, targetRtp, tableFor };

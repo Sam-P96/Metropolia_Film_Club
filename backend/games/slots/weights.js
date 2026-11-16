@@ -1,14 +1,14 @@
 const { SLOTS } = require("../../../shared/slots/config.js");
 
-// How often each of the Slot Machine's 7 symbols lands at the base RTP
-// (about 101%), as shares of 1. Server only, like everything about the odds
-// (luck.js). The tuning script (scripts/tune-slots.js) makes every other
-// table from these by shifting weight between the four higher symbols and
-// the three lower ones, keeping their order: the logo is the rarest.
+// How often each of the Slot Machine's 6 symbols lands at the base table,
+// as shares of 1. Server only, like everything about the odds (luck.js).
+// The tuning script (scripts/tune-slots.js) makes every table from these by
+// shifting weight between the four higher symbols and the two lower ones,
+// keeping their order: the logo is the rarest. (The Clapperboard was
+// taken out; its share went to the Ticket and the Popcorn, in proportion.)
 const BASE_WEIGHTS = {
-    ticket: 0.259,
-    popcorn: 0.2175,
-    clapper: 0.1657,
+    ticket: 0.3491,
+    popcorn: 0.2931,
     map: 0.1239,
     ring: 0.0963,
     gauntlet: 0.0826,

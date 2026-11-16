@@ -13,10 +13,14 @@ const IMAGES = Object.fromEntries(
 // than a crash.
 const UNKNOWN = { emoji: '▫️' }
 
+// Symbols the machine used to have, still shown as they were on spins saved
+// before they were taken out.
+const RETIRED = { clapper: { emoji: '🎬' } }
+
 // What a symbol looks like: { emoji } or { src } (a path from the site's
 // root, like /favicon.svg, is used as it is).
 export function artOf(key) {
-  const art = SYMBOL_BY_KEY[key]?.art
+  const art = SYMBOL_BY_KEY[key]?.art ?? RETIRED[key]
   if (!art) return UNKNOWN
   if (art.emoji) return { emoji: art.emoji }
   return { src: art.image.startsWith('/') ? art.image : IMAGES[art.image] }

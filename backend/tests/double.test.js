@@ -497,7 +497,7 @@ describe("the Double or Nothing routes", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.equal((await pot()).bonusPot, 900);
     });
 
-    routeTest("the Monday reset happens on the next request: half the pot to the bonus, half burned, a new seed, lists cleared", async () => {
+    routeTest("the Monday reset happens on the next request: everything left in the pot to the bonus, a new seed, lists cleared", async () => {
         const [banned, waiting] = [await member(), await member()];
         const lastWeek = new Date(engine.lastResetAt(new Date()).getTime() - 7 * 86400000);
         await DoubleReset.deleteMany({});
@@ -505,16 +505,16 @@ describe("the Double or Nothing routes", { skip: !uri ? "set MONGO_TEST_URI to r
 
         const { body } = await status(banned);
         const reset = await DoubleReset.findOne().lean();
-        assert.deepEqual([reset.lost, reset.toBonus, reset.burned], [1120, 560, 560]);
+        assert.deepEqual([reset.lost, reset.toBonus, reset.burned], [1120, 1120, 0]);
         const after = await pot();
-        assert.equal(after.bonusPot, 1520);
+        assert.equal(after.bonusPot, 2080);
         assert.equal(after.totalLost, 0);
         assert.equal(after.seed, 140); // from the members with reviews, as in the first test
         assert.equal(after.currentBet, 140);
         assert.deepEqual([after.banList.length, after.waitingUserId], [0, null]);
         assert.equal(after.weekStart.toISOString(), engine.lastResetAt(new Date()).toISOString());
         assert.equal(body.status, "AVAILABLE");
-        assert.deepEqual(body.recent[0], { type: "reset", _id: String(reset._id), at: reset.at.toISOString(), lost: 1120, toBonus: 560, burned: 560, seed: 140 });
+        assert.deepEqual(body.recent[0], { type: "reset", _id: String(reset._id), at: reset.at.toISOString(), lost: 1120, toBonus: 1120, burned: 0, seed: 140 });
 
         // Only once.
         await status(banned);

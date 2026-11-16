@@ -30,18 +30,18 @@ export const SLOTS = {
   ],
 
   // The symbols. `pays` is what 3, 4 and 5 in a row pay, as multiples of
-  // the whole bet (never less than the bet itself). `art` is what the reels show: an emoji, or an
+  // the whole bet (3 Tickets or Popcorns pay back less than the bet: they
+  // soften a losing spin). `art` is what the reels show: an emoji, or an
   // image (a file in frontend/src/assets/Slot_Machine_Icons/reel/, or a
   // path from the site's root like /favicon.svg), to swap freely.
   symbols: [
-    { key: 'ticket', name: 'Movie Ticket', rarity: 'Common', art: { emoji: '🎟️' }, pays: [1.2, 1.5, 2] },
-    { key: 'popcorn', name: 'Popcorn', rarity: 'Common', art: { emoji: '🍿' }, pays: [1.3, 1.8, 3] },
-    { key: 'clapper', name: 'Clapperboard', rarity: 'Uncommon', art: { emoji: '🎬' }, pays: [1.4, 2, 4] },
-    { key: 'map', name: "The Marauder's Map", rarity: 'Rare', art: { image: 'map.webp' }, pays: [1.5, 2.5, 5] },
-    { key: 'ring', name: 'The One Ring', rarity: 'Rare', art: { image: 'ring.webp' }, pays: [1.6, 3, 6] },
-    { key: 'gauntlet', name: 'Infinity Gauntlet', rarity: 'Epic', art: { image: 'gauntlet.webp' }, pays: [2, 4, 12] },
+    { key: 'ticket', name: 'Movie Ticket', rarity: 'Common', art: { emoji: '🎟️' }, pays: [0.6, 0.9, 1.2] },
+    { key: 'popcorn', name: 'Popcorn', rarity: 'Common', art: { emoji: '🍿' }, pays: [0.7, 1.1, 1.8] },
+    { key: 'map', name: "The Marauder's Map", rarity: 'Rare', art: { image: 'map.webp' }, pays: [0.9, 1.5, 3] },
+    { key: 'ring', name: 'The One Ring', rarity: 'Rare', art: { image: 'ring.webp' }, pays: [1, 1.8, 3.6] },
+    { key: 'gauntlet', name: 'Infinity Gauntlet', rarity: 'Epic', art: { image: 'gauntlet.webp' }, pays: [1.2, 2.4, 7.2] },
     // 5 in a row on any line is the jackpot instead of a 5-in-a-row pay.
-    { key: 'logo', name: 'Kino Kaveri', rarity: 'Legendary', art: { image: '/favicon.svg' }, pays: [2.5, 5, null], jackpot: true },
+    { key: 'logo', name: 'Kino Kaveri', rarity: 'Legendary', art: { image: '/favicon.svg' }, pays: [1.5, 3, null], jackpot: true },
   ],
 
   // The Infinity Gauntlet links Maps and Rings (backend/games/slots/engine.js):

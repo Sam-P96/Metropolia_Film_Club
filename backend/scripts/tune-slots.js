@@ -7,11 +7,11 @@
 // Payouts stay as the paytable says; only how often symbols land changes,
 // along one path from the base weights (games/slots/weights.js), steered by
 // one number, `r`: the Map, Ring, Gauntlet and logo land r times as often
-// as in the base table, and the Ticket, Popcorn and Clapperboard share
-// what's left in their base proportions. With only three lower symbols,
-// the RTP along r first dips (to about 92.8% at r = 0.816) and only rises
-// after that, so the path starts past the dip; from there it rises steadily
-// with r, so each target is found by halving. Every table keeps the base
+// as in the base table, and the Ticket and Popcorn share what's left in
+// their base proportions. With only two lower symbols, the RTP along r
+// first dips (to about 90.6% at r = 0.99) and only rises after that, so the
+// path starts past the dip; from there it rises steadily with r, so each
+// target is found by halving. Every table keeps the base
 // table's order of rarity, which is checked here and in
 // tests/slots.test.js.
 const fs = require("fs");
@@ -20,11 +20,11 @@ const { SLOTS } = require("../../shared/slots/config.js");
 const { BASE_WEIGHTS, WEIGHT_TOTAL, keepsRarityOrder } = require("../games/slots/weights");
 const { rtpOf } = require("../games/slots/rtp");
 
-// The path: r from LOW to HIGH, about 93% to 121%. FROM to TO is every
+// The path: r from LOW to HIGH, about 90.7% to 122%. FROM to TO is every
 // whole percent on it, covering all the RTPs games/slots/luck.js uses (up
-// to 120% in happy hour). Past about r = 1.19 the order of rarity breaks.
-const LOW = 0.83;
-const HIGH = 1.15;
+// to 120% in happy hour).
+const LOW = 1.0;
+const HIGH = 1.35;
 const FROM = 93;
 const TO = 120;
 const TOLERANCE = 0.003;
