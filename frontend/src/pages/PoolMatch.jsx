@@ -5,6 +5,7 @@ import ChallengeCard, { Terms } from '../components/gomoku/ChallengeCard'
 import BetsPanel from '../components/pool/BetsPanel'
 import PoolPage, { CARD } from '../components/pool/PoolChrome'
 import { POOL_CHALLENGES } from '../components/pool/PoolChallenge'
+import ParticlesToggle from '../components/pool/ParticlesToggle'
 import PoolPlay from '../components/pool/PoolPlay'
 import ScoreBar from '../components/pool/ScoreBar'
 import { endingOf, lastShotText, turnText } from '../components/pool/words'
@@ -151,9 +152,12 @@ function MatchGame({ matchId }) {
       wide
       subtitle={watching ? `${match.players[0].username} vs. ${match.players[1].username}.` : `You vs. ${opponent}.`}
       aside={
-        <span className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-center text-sm text-white/80">
-          <Terms match={match} />
-        </span>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-center text-sm text-white/80">
+            <Terms match={match} />
+          </span>
+          <ParticlesToggle />
+        </div>
       }
     >
       {match.status === 'active' && <LiveLine live={game.live} match={match} names={names} />}

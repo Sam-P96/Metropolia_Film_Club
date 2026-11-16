@@ -3,6 +3,7 @@ import { MIN_POWER, STEP, Shot, TABLE, isFreeSpot } from '../../../../shared/poo
 import { ballSprite, newSpin, rollSpin } from './spin'
 import { cueLook } from '../../../../shared/pool/cues.js'
 import { ignitionLook } from '../../../../shared/pool/ignitions.js'
+import { particlesOn } from './particles'
 import { addSparks, dirToView, drawAimLine, drawBall, drawCue, drawSparks, drawTable, sparkColor, toTable, toView, viewSize } from './draw'
 
 const { R } = TABLE
@@ -205,7 +206,8 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
           if (event.type === 'hit') {
             s.playing.hits += 1
             const cueHit = event.a === 0 || event.b === 0
-            if (cueHit || s.playing.hits <= SPARK_FIRST_HITS) {
+            // Unless particle effects are off (particles.js).
+            if (particlesOn() && (cueHit || s.playing.hits <= SPARK_FIRST_HITS)) {
               const at = toView(vertical, event.x, event.y)
               const strength = Math.min(1, 0.12 + event.speed / SPARK_FULL)
               if (cueHit) addSparks(s.sparks, at.x, at.y, sparkColor(event.a === 0 ? event.b : event.a), strength, now, s.playing.ignition)
@@ -324,7 +326,7 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
         }
       }
 
-      s.sparks = drawSparks(ctx, s.sparks, now, dt)
+      s.sparks = particlesOn() ? drawSparks(ctx, s.sparks, now, dt) : []
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)

@@ -5,6 +5,7 @@ import CuePreview from '../components/pool/CuePreview'
 import IgnitionPreview from '../components/pool/IgnitionPreview'
 import PoolPage, { CARD, HEADING } from '../components/pool/PoolChrome'
 import PracticeTable from '../components/pool/PracticeTable'
+import ParticlesToggle from '../components/pool/ParticlesToggle'
 import PillToggle from '../components/PillToggle'
 import { GOLD_BUTTON, QUIET_BUTTON, SMALL_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
@@ -247,6 +248,7 @@ export default function PoolShop() {
                 <div className={`${CARD} flex flex-col gap-4`}>
                   <div className="flex flex-col items-center gap-1">
                     <h2 className={HEADING}>Test table</h2>
+                    <ParticlesToggle />
                     <p className="text-sm text-white/70">
                       {cueItem(look.cue)?.name} · {ignitionItem(look.ignition)?.name}
                       {(trying.cue || trying.ignition) && <span className="text-brand-gold"> (trying)</span>}

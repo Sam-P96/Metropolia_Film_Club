@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import PoolPage, { CARD, HEADING } from '../components/pool/PoolChrome'
+import ParticlesToggle from '../components/pool/ParticlesToggle'
 import PoolPlay from '../components/pool/PoolPlay'
 import ScoreBar from '../components/pool/ScoreBar'
 import { endingOf, lastShotText, turnText } from '../components/pool/words'
@@ -185,9 +186,12 @@ export default function PoolClanker() {
       wide
       subtitle={`You vs. Clanker, on ${LEVELS[level].name}. For fun.`}
       aside={
-        <button type="button" onClick={() => start(level === 'easy' ? 'hard' : 'easy')} className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white">
-          Start again on {level === 'easy' ? 'Hard' : 'Easy'}
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          <ParticlesToggle />
+          <button type="button" onClick={() => start(level === 'easy' ? 'hard' : 'easy')} className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white">
+            Start again on {level === 'easy' ? 'Hard' : 'Easy'}
+          </button>
+        </div>
       }
     >
       <ScoreBar players={players} game={shown} />
