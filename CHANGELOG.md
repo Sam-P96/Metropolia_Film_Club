@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- 8 Ball Pool (Games → 8 Ball Pool, `/games/pool`): vs Clanker on Easy or
-  Hard, played on the device for fun, and vs Player, for fun or for PP and
-  P-PP, with challenges, counters and three days a shot (or the game goes
+- 8 Ball Pool (Games → 8 Ball Pool, `/games/pool`): Play For Fun (vs
+  Clanker on Easy or Hard, played on the device, or vs Player) or Play For
+  PP (vs Player, betting PP and P-PP), with challenges, counters and three days a shot (or the game goes
   to the other player), like Infinite Gomoku. To shoot, press and hold
   towards where the shot goes: the power builds the longer you hold and
   never drops, and letting go shoots. A line shows where the cue ball goes,
@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three hits between any two balls in a shot, harder hits throwing more. Shots are worked
   out on the server and played back identically on every screen
   (`shared/pool/physics.js`, `rules.js`).
+- Pool shockwaves: pick any Infinite Gomoku shockwave you own (or None,
+  the default) under "Your shockwave" on 8 Ball Pool's page. Its ring
+  goes off where your cue ball first hits a ball, on every screen
+  watching; Clanker picks one at random each game.
 - Live pool: both players and anyone watching see each shot as it's
   played, and the other player's cue as they line up. Members who follow
   either player get a notification when a game starts, can watch it, and

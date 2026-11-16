@@ -217,6 +217,12 @@ const userSchema = new Schema(
             grid: { type: String, default: null },
         },
 
+        // What they have on at 8 Ball Pool (utils/poolLook.js): one of
+        // Infinite Gomoku's shockwaves, by item id, or null for none.
+        pool: {
+            shockwave: { type: String, default: null },
+        },
+
         // Their First Place name effect's settings, for when they're #1 on
         // a ranking: the PP Leaderboard, the Critics Leaderboard (Top or
         // Controversial) or by level (utils/firstPlace.js). None until they first save some; then

@@ -7,6 +7,7 @@ const { notePoolAnswer, notePoolOver, notePoolResult, forgetPoolMatch } = requir
 const { GAME_FIELDS, forfeit, resign } = require("../games/pool/engine");
 const { announcePool, poolPlayersAt } = require("../games/pool/live");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
+const { shockwaveOf } = require("./poolLook");
 const { SOLIDS, STRIPES, ballsLeft } = require("../../shared/pool/rules.js");
 
 // 8 Ball Pool games in the database: saving a shot, paying the winner, and
@@ -249,14 +250,15 @@ async function matchViews(matches, viewerId, { full = false } = {}) {
     if (matches.length === 0) return [];
     const ids = [...new Set(matches.flatMap((match) => match.players.map((player) => player.user)).filter(Boolean).map(String))];
     if (!ids.includes(String(viewerId))) ids.push(String(viewerId));
-    const users = await User.find({ _id: { $in: ids } }).select(`${MEMBER_FIELDS} wallet`).lean();
+    const users = await User.find({ _id: { $in: ids } }).select(`${MEMBER_FIELDS} wallet pool`).lean();
     const userById = new Map(users.map((user) => [String(user._id), user]));
 
     const playerView = (id) => {
         const user = id && userById.get(String(id));
-        if (!user) return { _id: null, username: "A former member", avatarUrl: null, reviewCardBanner: null };
+        if (!user) return { _id: null, username: "A former member", avatarUrl: null, reviewCardBanner: null, look: { shockwave: null } };
         const { username, avatarUrl, reviewCardBanner, cosmetics } = userSummary(user);
-        return { _id: id, username, avatarUrl, reviewCardBanner, cosmetics };
+        // Their shockwave, set off where their cue ball first hits a ball.
+        return { _id: id, username, avatarUrl, reviewCardBanner, cosmetics, look: { shockwave: shockwaveOf(user) } };
     };
     const pointsOfUser = (id) => {
         const wallet = userById.get(String(id))?.wallet;

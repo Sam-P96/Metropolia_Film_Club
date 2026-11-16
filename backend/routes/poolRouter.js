@@ -1,5 +1,7 @@
 const express = require("express");
 const {
+    getLook,
+    setLook,
     getLobby,
     getStakeLimit,
     getFriends,
@@ -25,6 +27,10 @@ router.use(requireAuth);
 // Everything on the game's page: challenges, games, games to watch,
 // finished ones.
 router.get("/lobby", getLobby);
+
+// Their shockwave at 8 Ball Pool: one of Infinite Gomoku's they own.
+router.get("/look", getLook);
+router.put("/look", setLook);
 
 // Against a member: the most they can play each other for, their friends
 // (the most points first), and a new challenge. The answers are on the

@@ -57,7 +57,14 @@ export default function usePoolGame(matchId) {
     // A shot nobody's shown this page yet: play it.
     if (shownRef.current === null) shownRef.current = view.mySeat >= 0 ? (view.seen ?? view.shots) : view.shots
     if (view.lastShot && view.shots > shownRef.current) {
-      setShot({ key: view.shots, before: view.lastShot.before, dx: view.lastShot.dx, dy: view.lastShot.dy, speed: view.lastShot.speed })
+      setShot({
+        key: view.shots,
+        before: view.lastShot.before,
+        dx: view.lastShot.dx,
+        dy: view.lastShot.dy,
+        speed: view.lastShot.speed,
+        wave: view.players[view.lastShot.seat]?.look?.shockwave ?? null,
+      })
       setGhost(null)
       if (view.mySeat >= 0 && view.lastShot.seat !== view.mySeat) markPoolSeen(view._id, view.shots).catch(() => {})
     }

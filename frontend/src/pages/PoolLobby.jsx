@@ -7,6 +7,7 @@ import ChallengeCard, { Terms } from '../components/gomoku/ChallengeCard'
 import ChallengeForm from '../components/gomoku/ChallengeForm'
 import PoolPage, { BallIcon, CARD, HEADING } from '../components/pool/PoolChrome'
 import { POOL_CHALLENGES, POOL_FORM, poolPath } from '../components/pool/PoolChallenge'
+import ShockwavePicker from '../components/pool/ShockwavePicker'
 import { endingOf } from '../components/pool/words'
 import { GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
@@ -178,8 +179,9 @@ function Online({ forFun, reloads, onSent }) {
   )
 }
 
-// 8 Ball Pool's page, from the Games page: vs Clanker (Easy or Hard), vs a
-// member (For Fun or For PP), how to play, every challenge and game, and
+// 8 Ball Pool's page, from the Games page: Play For Fun (then vs Clanker,
+// Easy or Hard, or vs Player) or Play For PP (vs Player only), your
+// shockwave, how to play, every challenge and game, and
 // the games members they follow are playing, to watch and bet on. App.jsx
 // sends logged-out visitors to log in first.
 export default function PoolLobby() {
@@ -187,6 +189,8 @@ export default function PoolLobby() {
   const [error, setError] = useState('')
   const [reloads, setReloads] = useState(0)
   const [mode, setMode] = useState(null)
+  const [online, setOnline] = useState(false)
+  const [waves, setWaves] = useState(false)
   const [rules, setRules] = useState(false)
 
   useEffect(() => {
@@ -200,50 +204,81 @@ export default function PoolLobby() {
   }, [reloads])
 
   const reload = () => setReloads((count) => count + 1)
-  const choose = (next) => setMode(mode === next ? null : next)
+  const choose = (next) => {
+    setMode(mode === next ? null : next)
+    setOnline(false)
+  }
+  const option = 'min-h-14 py-2 text-center text-lg'
+  const label = (title, line) => (
+    <span className="flex flex-col items-center leading-tight">
+      <span>{title}</span>
+      <small className="text-sm leading-tight font-medium opacity-80">{line}</small>
+    </span>
+  )
   const empty = lobby && !lobby.incoming.length && !lobby.games.length && !lobby.outgoing.length && !lobby.recent.length && !lobby.watch.length
 
   return (
     <PoolPage subtitle="Pot your group, then the 8. Play Clanker, or any member online, for fun or for PP.">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Link to="/games/pool/clanker" className={`${QUIET_BUTTON} min-h-14 py-2 text-center text-lg`}>
-          <span className="flex flex-col items-center leading-tight">
-            <span>vs Clanker</span>
-            <small className="text-sm leading-tight font-medium opacity-80">Easy or Hard</small>
-          </span>
-        </Link>
-        <button type="button" onClick={() => choose('fun')} aria-expanded={mode === 'fun'} className={`${mode === 'fun' ? GOLD_BUTTON : QUIET_BUTTON} min-h-14 py-2 text-center text-lg`}>
-          <span className="flex flex-col items-center leading-tight">
-            <span>vs Player</span>
-            <small className="text-sm leading-tight font-medium opacity-80">For fun</small>
-          </span>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <button type="button" onClick={() => choose('fun')} aria-expanded={mode === 'fun'} className={`${mode === 'fun' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
+          Play For Fun
         </button>
-        <button type="button" onClick={() => choose('pp')} aria-expanded={mode === 'pp'} className={`${mode === 'pp' ? GOLD_BUTTON : QUIET_BUTTON} min-h-14 py-2 text-center text-lg`}>
-          <span className="flex flex-col items-center leading-tight">
-            <span>vs Player</span>
-            <small className="text-sm leading-tight font-medium opacity-80">For PP and P-PP</small>
-          </span>
+        <button type="button" onClick={() => choose('pp')} aria-expanded={mode === 'pp'} className={`${mode === 'pp' ? GOLD_BUTTON : QUIET_BUTTON} min-h-13 flex-1 text-center text-lg`}>
+          Play For PP
         </button>
       </div>
-      <button
-        type="button"
-        onClick={() => setRules(!rules)}
-        aria-expanded={rules}
-        className="-mt-2 cursor-pointer self-center text-sm text-white/60 underline underline-offset-4 hover:text-white"
-      >
-        How to play
-      </button>
+      <div className="-mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1">
+        <button
+          type="button"
+          onClick={() => setRules(!rules)}
+          aria-expanded={rules}
+          className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white"
+        >
+          How to play
+        </button>
+        <button
+          type="button"
+          onClick={() => setWaves(!waves)}
+          aria-expanded={waves}
+          className="cursor-pointer text-sm text-white/60 underline underline-offset-4 hover:text-white"
+        >
+          Your shockwave
+        </button>
+      </div>
 
       <Reveal show={rules} id="rules">
         <HowToPlay />
       </Reveal>
 
-      <Reveal show={mode === 'fun'} id="fun">
-        <Online forFun reloads={reloads} onSent={reload} />
+      <Reveal show={waves} id="waves">
+        <ShockwavePicker />
       </Reveal>
 
-      <Reveal show={mode === 'pp'} id="pp">
-        <Online forFun={false} reloads={reloads} onSent={reload} />
+      <Reveal show={mode !== null} id="mode">
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {mode === 'fun' ? (
+              <Link to="/games/pool/clanker" className={`${QUIET_BUTTON} ${option}`}>
+                {label('vs Clanker', 'Easy or Hard, on this device')}
+              </Link>
+            ) : (
+              <button type="button" disabled className={`${QUIET_BUTTON} ${option}`}>
+                {label('vs Clanker', 'For fun only')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setOnline(!online)}
+              aria-expanded={online || mode === 'pp'}
+              className={`${online || mode === 'pp' ? GOLD_BUTTON : QUIET_BUTTON} ${option}`}
+            >
+              {label('vs Player', mode === 'pp' ? 'Bet PP and P-PP on it' : 'Challenge a member')}
+            </button>
+          </div>
+          <Reveal show={online || mode === 'pp'} id={`online-${mode}`}>
+            <Online forFun={mode === 'fun'} reloads={reloads} onSent={reload} />
+          </Reveal>
+        </div>
       </Reveal>
 
       {error && <p className="text-red-300">Couldn&apos;t load your games: {error}</p>}

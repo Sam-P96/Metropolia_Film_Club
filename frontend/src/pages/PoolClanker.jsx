@@ -11,6 +11,8 @@ import { CLANKER_PICTURE } from '../components/clankerPicture'
 import { getCurrentUser } from '../utils/currentUser'
 import { ShotError, newGame, playShot, resign } from '../../../shared/pool/rules.js'
 import { clankerShot } from '../../../shared/pool/clanker.js'
+import { itemsOfKind } from '../../../shared/gomoku/catalogue.js'
+import { getPoolLook } from '../services/pool'
 import { CLANKER_NAME } from '../../../shared/gomoku/clanker.js'
 
 const BACK = { to: '/games/pool', label: '8 Ball Pool' }
@@ -30,7 +32,14 @@ const LEVELS = {
 }
 
 // One shot of the game, ready for the table to play out.
-const shotOf = (game) => ({ key: game.shots, before: game.lastShot.before, dx: game.lastShot.dx, dy: game.lastShot.dy, speed: game.lastShot.speed })
+// `wave`: the shooter's shockwave, set off where the cue ball first hits a ball.
+const shotOf = (game, wave) => ({ key: game.shots, before: game.lastShot.before, dx: game.lastShot.dx, dy: game.lastShot.dy, speed: game.lastShot.speed, wave })
+
+// Clanker's shockwave for a game: any of Infinite Gomoku's, at random.
+const clankerWave = () => {
+  const waves = itemsOfKind('shockwave')
+  return waves[Math.floor(Math.random() * waves.length)].id
+}
 
 // Picking how hard Clanker plays.
 function LevelPicker({ onPick }) {
@@ -64,6 +73,18 @@ export default function PoolClanker() {
   const [ghost, setGhost] = useState(null)
   const [error, setError] = useState('')
   const timers = useRef([])
+  // The shockwaves: yours (picked on 8 Ball Pool's page), and Clanker's.
+  const [waves, setWaves] = useState({ mine: null, clanker: null })
+
+  useEffect(() => {
+    let stopped = false
+    getPoolLook()
+      .then((look) => !stopped && setWaves((now) => ({ ...now, mine: look.shockwave })))
+      .catch(() => {})
+    return () => {
+      stopped = true
+    }
+  }, [])
 
   const clear = () => {
     for (const timer of timers.current) clearTimeout(timer)
@@ -75,6 +96,7 @@ export default function PoolClanker() {
     clear()
     setLevel(picked)
     setGame(newGame())
+    setWaves((now) => ({ ...now, clanker: clankerWave() }))
     setShot(null)
     setGhost(null)
     setError('')
@@ -83,7 +105,7 @@ export default function PoolClanker() {
   const play = (seat, move) => {
     const next = playShot(game, seat, move)
     setGame(next)
-    setShot(shotOf(next))
+    setShot(shotOf(next, seat === YOU ? waves.mine : waves.clanker))
     setGhost(null)
   }
 
@@ -131,13 +153,13 @@ export default function PoolClanker() {
       later(start + DRAW_MS + 120, () => {
         const next = playShot(game, CLANKER, move)
         setGame(next)
-        setShot(shotOf(next))
+        setShot(shotOf(next, waves.clanker))
         setGhost(null)
       })
     }, LOOK_MS)
     timers.current.push(looked)
     return clear
-  }, [clankerTurn, game, level])
+  }, [clankerTurn, game, level, waves.clanker])
 
   if (!level || !game) {
     return (

@@ -257,6 +257,35 @@ describe("the routes", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         assert.equal(accepted.body.prize, 100);
     });
 
+    test("a shockwave: only one of Infinite Gomoku's they own (or a free one), and both players see each other's", async () => {
+        const a = await member();
+        const b = await member();
+        const GomokuOwned = require("../models/gomokuOwnedModel");
+
+        const fresh = await call(a, "GET", "/look");
+        assert.equal(fresh.status, 200);
+        assert.equal(fresh.body.shockwave, null, "none to start with");
+        assert.deepEqual(fresh.body.owned, ["wave.ripple"], "only the free one");
+
+        assert.equal((await call(a, "PUT", "/look", { shockwave: "wave.fire" })).status, 403, "not bought");
+        assert.equal((await call(a, "PUT", "/look", { shockwave: "piece.black" })).status, 400, "not a shockwave");
+        assert.equal((await call(a, "PUT", "/look", { shockwave: "wave.nope" })).status, 404);
+
+        await GomokuOwned.create({ user: a._id, item: "wave.fire", price: 100 });
+        const worn = await call(a, "PUT", "/look", { shockwave: "wave.fire" });
+        assert.equal(worn.status, 200, JSON.stringify(worn.body));
+        assert.equal(worn.body.shockwave, "wave.fire");
+        assert.deepEqual(worn.body.owned, ["wave.ripple", "wave.fire"]);
+        assert.equal((await call(b, "PUT", "/look", { shockwave: "wave.ripple" })).status, 200);
+
+        const game = await started(a, b);
+        const seen = await call(b, "GET", `/matches/${game._id}`);
+        assert.deepEqual(seen.body.players.map((player) => player.look.shockwave), ["wave.ripple", "wave.fire"], "b accepted, so b is seat 0");
+
+        const off = await call(a, "PUT", "/look", { shockwave: null });
+        assert.equal(off.body.shockwave, null);
+    });
+
     test("shots: the player whose turn it is, on the version they saw; the other player is refused", async () => {
         const a = await member();
         const b = await member();
