@@ -20,12 +20,13 @@ const { SLOTS } = require("../../shared/slots/config.js");
 const { BASE_WEIGHTS, WEIGHT_TOTAL, keepsRarityOrder } = require("../games/slots/weights");
 const { rtpOf } = require("../games/slots/rtp");
 
-// The path: r from LOW to HIGH, about 93% to 110%. FROM to TO is every
-// whole percent on it, covering all the RTPs games/slots/luck.js uses.
+// The path: r from LOW to HIGH, about 93% to 121%. FROM to TO is every
+// whole percent on it, covering all the RTPs games/slots/luck.js uses (up
+// to 120% in happy hour). Past about r = 1.19 the order of rarity breaks.
 const LOW = 0.83;
-const HIGH = 1.085;
+const HIGH = 1.15;
 const FROM = 93;
-const TO = 110;
+const TO = 120;
 const TOLERANCE = 0.003;
 
 const HIGHER = ["map", "ring", "gauntlet", "logo"];

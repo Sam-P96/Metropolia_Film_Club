@@ -308,8 +308,8 @@ describe("weight tables and luck", () => {
         assert.deepEqual(rarityOrder(BASE_WEIGHTS), ["ticket", "popcorn", "clapper", "map", "ring", "gauntlet", "logo"]);
     });
 
-    test("there's a table for every 1% from 93% to 110%, covering every RTP the luck gives", () => {
-        assert.deepEqual(BUCKETS, Array.from({ length: 18 }, (_, i) => 93 + i));
+    test("there's a table for every 1% from 93% to 120%, covering every RTP the luck gives", () => {
+        assert.deepEqual(BUCKETS, Array.from({ length: 28 }, (_, i) => 93 + i));
         for (const rtp of [LUCK.richestRtp, LUCK.poorestRtp, LUCK.soloRtp, LUCK.inactiveRtp]) {
             assert.equal(tableFor(rtp).bucket, Math.round(rtp * 100));
         }
@@ -326,6 +326,7 @@ describe("weight tables and luck", () => {
 
     test("rank to RTP: richest active gets LUCK.richestRtp, poorest LUCK.poorestRtp, a straight line between", () => {
         const { richestRtp, poorestRtp } = LUCK;
+        assert.deepEqual([richestRtp, poorestRtp], [0.99, 1.15]);
         assert.ok(richestRtp < poorestRtp, "the richer you are, the less comes back");
         assert.equal(targetRtp({ active: true, rank: 1, count: 5 }), richestRtp);
         assert.equal(targetRtp({ active: true, rank: 5, count: 5 }), poorestRtp);
@@ -344,7 +345,7 @@ describe("weight tables and luck", () => {
         assert.equal(tableFor(0.956).bucket, 96);
         assert.equal(tableFor(1.0349).bucket, 103);
         assert.equal(tableFor(0.5).bucket, 93);
-        assert.equal(tableFor(2).bucket, 110);
+        assert.equal(tableFor(2).bucket, 120);
         assert.equal(tableFor(1.03).weights, TABLES[103]);
     });
 });

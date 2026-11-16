@@ -16,15 +16,15 @@ const LUCK = {
     activeDays: 30,
     // Active players, from the richest active player to the poorest, in a
     // straight line by rank between them.
-    richestRtp: 0.985,
-    poorestRtp: 1.05,
+    richestRtp: 0.99,
+    poorestRtp: 1.15,
     // The only active player.
     soloRtp: 1.03,
     // Players with no review in activeDays.
     inactiveRtp: 0.95,
 };
 
-// The tables there are, as whole percentages ("93" to "110").
+// The tables there are, as whole percentages ("93" to "120").
 const BUCKETS = Object.keys(TABLES).map(Number).sort((a, b) => a - b);
 
 // The RTP a player gets. `active`: they've reviewed lately. `rank`: their
@@ -32,9 +32,18 @@ const BUCKETS = Object.keys(TABLES).map(Number).sort((a, b) => a - b);
 // richest). `count`: how many active players there are. `luck`: the
 // numbers to use, LUCK unless it's happy hour (games/happyHours.js).
 //   p = (count - rank) / (count - 1): 1 for the richest, 0 for the poorest.
+// With a `topRtp` (happy hour), the richest gets that instead, and the line
+// from richestRtp to poorestRtp runs over everyone else: the second richest
+// to the poorest.
 function targetRtp({ active, rank, count }, luck = LUCK) {
     if (!active) return luck.inactiveRtp;
     if (count <= 1) return luck.soloRtp;
+    if (luck.topRtp !== undefined) {
+        if (rank === 1) return luck.topRtp;
+        if (count === 2) return luck.poorestRtp;
+        const p = (count - rank) / (count - 2);
+        return luck.poorestRtp + (luck.richestRtp - luck.poorestRtp) * p;
+    }
     const p = (count - rank) / (count - 1);
     return luck.poorestRtp + (luck.richestRtp - luck.poorestRtp) * p;
 }

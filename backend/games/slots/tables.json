@@ -160,5 +160,95 @@
     "ring": 103698,
     "gauntlet": 88945,
     "logo": 59225
+  },
+  "111": {
+    "ticket": 246906,
+    "popcorn": 207343,
+    "clapper": 157962,
+    "map": 134285,
+    "ring": 104371,
+    "gauntlet": 89523,
+    "logo": 59610
+  },
+  "112": {
+    "ticket": 245927,
+    "popcorn": 206521,
+    "clapper": 157336,
+    "map": 135125,
+    "ring": 105025,
+    "gauntlet": 90083,
+    "logo": 59983
+  },
+  "113": {
+    "ticket": 244976,
+    "popcorn": 205723,
+    "clapper": 156728,
+    "map": 135941,
+    "ring": 105659,
+    "gauntlet": 90628,
+    "logo": 60345
+  },
+  "114": {
+    "ticket": 244052,
+    "popcorn": 204947,
+    "clapper": 156137,
+    "map": 136735,
+    "ring": 106276,
+    "gauntlet": 91156,
+    "logo": 60697
+  },
+  "115": {
+    "ticket": 243153,
+    "popcorn": 204192,
+    "clapper": 155561,
+    "map": 137507,
+    "ring": 106876,
+    "gauntlet": 91671,
+    "logo": 61040
+  },
+  "116": {
+    "ticket": 242276,
+    "popcorn": 203455,
+    "clapper": 155000,
+    "map": 138260,
+    "ring": 107461,
+    "gauntlet": 92173,
+    "logo": 61375
+  },
+  "117": {
+    "ticket": 241419,
+    "popcorn": 202737,
+    "clapper": 154453,
+    "map": 138995,
+    "ring": 108032,
+    "gauntlet": 92663,
+    "logo": 61701
+  },
+  "118": {
+    "ticket": 240585,
+    "popcorn": 202035,
+    "clapper": 153918,
+    "map": 139712,
+    "ring": 108590,
+    "gauntlet": 93141,
+    "logo": 62019
+  },
+  "119": {
+    "ticket": 239768,
+    "popcorn": 201349,
+    "clapper": 153396,
+    "map": 140413,
+    "ring": 109135,
+    "gauntlet": 93609,
+    "logo": 62330
+  },
+  "120": {
+    "ticket": 238970,
+    "popcorn": 200678,
+    "clapper": 152884,
+    "map": 141099,
+    "ring": 109668,
+    "gauntlet": 94066,
+    "logo": 62635
   }
 }

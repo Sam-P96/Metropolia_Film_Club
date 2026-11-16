@@ -460,6 +460,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Kino Casino (the Slot Machine) pays back more: from 99% for the richest
+  active player to 115% for the poorest (was 98.5% to 105%). In its happy
+  hour, the richest gets 95% and everyone else 110% to 120%. New weight
+  tables for 111% to 120% (`scripts/tune-slots.js`).
 - Loan Shark: a borrower who hasn't paid King Loan Shark for a week gets a
   new set of jobs. The ones not done yet close (jobs done keep what they
   took off), and the week starts again from each payment or new set
