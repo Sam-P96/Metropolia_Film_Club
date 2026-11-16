@@ -1,13 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MIN_POWER, STEP, Shot, TABLE, isFreeSpot } from '../../../../shared/pool/physics.js'
+import { ballSprite, newSpin, rollSpin } from './spin'
 import { addSparks, dirToView, drawBall, drawCue, drawSparks, drawTable, sparkColor, toTable, toView, viewSize } from './draw'
 
 const { R } = TABLE
 
 // How far back you drag (in table units) for a full-power shot.
 const FULL_PULL = 260
+// How long you hold (ms) for a full-power shot, in 'hold' mode.
+const HOLD_MS = 2000
 // The cue ball has to hit a ball at least this fast for it to spark.
 const SPARK_SPEED = 650
+// A ball that moved further than this in a frame was put somewhere (back
+// on a spot, a new rack), not rolled.
+const JUMP = 170
 // Steps of the shot played per second: real time.
 const STEPS_PER_SECOND = 1 / STEP
 
@@ -23,15 +29,18 @@ const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce
 //   canAim      it's this player's turn, and nothing is moving
 //   hand        null, 'kitchen' or 'table': the cue ball can be dragged
 //               to where it goes (behind the head string, or anywhere)
-//   mode        'drag': press and drag back to shoot, the cue pointing
-//               away from the pointer. 'dial': the angle and power come
-//               from `dial` ({ angle, power }), set outside the table.
-//   onShoot({ angle, power, cue })   a shot let go (drag mode)
+//   mode        'hold': press and hold towards where the shot goes; the
+//               power builds the longer you hold (it never drops), and
+//               letting go shoots. 'drag': press and drag back to shoot,
+//               the cue pointing away from the pointer. 'dial': the angle
+//               and power come from `dial` ({ angle, power }), set outside
+//               the table.
+//   onShoot({ angle, power, cue })   a shot let go (hold and drag modes)
 //   onAim({ angle, power, on, cue })  the aim as it moves, for others to see
 //   onCue({ x, y })   the cue ball moved, while it's in hand
 //   ghost       the other player's aim, shown faint: { angle, power, cue }
 //   onLayout(vertical)   whether it's standing upright, for the dial
-export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode = 'drag', dial, onShoot, onAim, onCue, ghost, onLayout }) {
+export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode = 'hold', dial, onShoot, onAim, onCue, ghost, onLayout }) {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
   const [layout, setLayout] = useState({ vertical: false, scale: 1 })
@@ -47,6 +56,8 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
     press: null,
     dragging: null,
     cue: null,
+    // Which way up each ball is, as it rolls (spin.js), by id.
+    spins: new Map(),
   })
   const props = useRef({})
   useLayoutEffect(() => {
@@ -122,6 +133,26 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
     drawTable(backCtx, vertical)
 
     let frame
+    // A new size or way round: the balls start rolling from where they are.
+    for (const spin of state.current.spins.values()) spin.last = null
+    const px = scale * dpr
+    const spinOf = (id) => {
+      const spins = state.current.spins
+      if (!spins.has(id)) spins.set(id, newSpin(id))
+      return spins.get(id)
+    }
+    // Rolls a ball to where it's drawn now, and its picture.
+    const rolled = (id, at) => {
+      const spin = spinOf(id)
+      if (spin.last) {
+        const dx = at.x - spin.last.x
+        const dy = at.y - spin.last.y
+        if (dx * dx + dy * dy < JUMP * JUMP) rollSpin(spin, dx, dy)
+      }
+      spin.last = at
+      return ballSprite(spin, id, px)
+    }
+
     let last = performance.now()
     const tick = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000)
@@ -155,6 +186,15 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
         }
       }
 
+      // Holding to shoot: the power only ever builds.
+      if (p.mode === 'hold' && s.press && s.aim && p.canAim && !s.playing) {
+        const power = Math.min(1, (now - s.press.start) / HOLD_MS)
+        if (power > s.aim.power) {
+          s.aim = { ...s.aim, power }
+          p.onAim?.({ angle: Math.atan2(s.aim.dy, s.aim.dx), power, on: true, cue: p.hand ? s.cue : null })
+        }
+      }
+
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(back, 0, 0)
@@ -165,19 +205,22 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
       for (const ball of s.sinking) {
         const k = (now - ball.born) / 260
         const at = toView(vertical, ball.x, ball.y)
-        drawBall(ctx, ball.id, at.x, at.y, 1 - k * 0.6, 1 - k)
+        drawBall(ctx, ball.id, at.x, at.y, 1 - k * 0.6, 1 - k, ballSprite(spinOf(ball.id), ball.id, px))
       }
 
       // The balls. The cue ball, while it's in hand, where it's held.
       const holding = !s.playing && p.hand && s.cue
       const ghostCue = !s.playing && p.ghost?.cue && !p.canAim ? p.ghost.cue : null
       for (const ball of shown) {
-        if (!ball.on) continue
+        if (!ball.on) {
+          if (state.current.spins.has(ball.id) && !s.sinking.some((sinking) => sinking.id === ball.id)) spinOf(ball.id).last = null
+          continue
+        }
         let { x, y } = ball
         if (ball.id === 0 && holding) ({ x, y } = s.cue)
         else if (ball.id === 0 && ghostCue) ({ x, y } = ghostCue)
         const at = toView(vertical, x, y)
-        drawBall(ctx, ball.id, at.x, at.y)
+        drawBall(ctx, ball.id, at.x, at.y, 1, 1, rolled(ball.id, at))
       }
 
       // The cue ball can be picked up: a ring round it.
@@ -208,6 +251,27 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
         if (aim) {
           const dir = dirToView(vertical, aim.dx, aim.dy)
           drawCue(ctx, at.x, at.y, dir.x, dir.y, aim.power, alpha)
+          // Holding: a ring round the cue ball fills, red into purple, as
+          // the power builds, and pulses once it's full.
+          if (p.canAim && p.mode === 'hold' && s.press && aim.power > 0) {
+            ctx.save()
+            ctx.lineCap = 'round'
+            ctx.lineWidth = 4
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)'
+            ctx.beginPath()
+            ctx.arc(at.x, at.y, R + 9, 0, Math.PI * 2)
+            ctx.stroke()
+            const ring = ctx.createLinearGradient(at.x - R - 9, at.y, at.x + R + 9, at.y)
+            ring.addColorStop(0, '#ff3c5f')
+            ring.addColorStop(1, '#a35bff')
+            ctx.strokeStyle = ring
+            ctx.shadowColor = aim.power >= 1 ? '#ff4d8d' : 'rgba(163, 91, 255, 0.8)'
+            ctx.shadowBlur = aim.power >= 1 ? 14 + Math.sin(now / 80) * 4 : 8
+            ctx.beginPath()
+            ctx.arc(at.x, at.y, R + 9, -Math.PI / 2, -Math.PI / 2 + aim.power * Math.PI * 2)
+            ctx.stroke()
+            ctx.restore()
+          }
         }
       }
 
@@ -250,6 +314,17 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
     return { dx: dx / d, dy: dy / d, power }
   }
 
+  // The shot points at the pointer, from the cue ball ('hold' mode).
+  const aimToward = (point, power) => {
+    const cue = cueSpot()
+    if (!cue) return null
+    const dx = point.x - cue.x
+    const dy = point.y - cue.y
+    const d = Math.sqrt(dx * dx + dy * dy)
+    if (d < 1) return state.current.aim
+    return { dx: dx / d, dy: dy / d, power }
+  }
+
   const onPointerDown = (event) => {
     if (!canAim || state.current.playing) return
     const point = pointAt(event)
@@ -260,6 +335,12 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
     // Picking up the cue ball.
     if (hand && cue && (point.x - cue.x) ** 2 + (point.y - cue.y) ** 2 <= (R * 2.4) ** 2) {
       s.dragging = true
+      return
+    }
+    if (mode === 'hold') {
+      s.press = { start: performance.now() }
+      s.aim = aimToward(point, 0)
+      report(true)
       return
     }
     if (mode !== 'drag') return
@@ -280,6 +361,15 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
         s.cue = { x, y }
         props.current.onCue?.(s.cue)
         report(false)
+      }
+      return
+    }
+    if (mode === 'hold') {
+      // Turning while you hold keeps the power you've built.
+      const power = s.press ? (s.aim?.power ?? 0) : 0
+      if (s.press || event.pointerType === 'mouse') {
+        s.aim = aimToward(point, power)
+        report(Boolean(s.press))
       }
       return
     }
@@ -326,9 +416,11 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, mode 
   }, [])
 
   const label = canAim
-    ? mode === 'drag'
-      ? 'The pool table. Press and drag back from the cue ball to shoot: the further you pull, the harder the shot.'
-      : 'The pool table. Set the angle and power below the table.'
+    ? mode === 'hold'
+      ? 'The pool table. Press and hold towards where you want to shoot: the longer you hold, the harder the shot. Let go to shoot.'
+      : mode === 'drag'
+        ? 'The pool table. Press and drag back from the cue ball to shoot: the further you pull, the harder the shot.'
+        : 'The pool table. Set the angle and power below the table.'
     : 'The pool table.'
 
   return (

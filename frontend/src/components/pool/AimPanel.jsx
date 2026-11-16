@@ -1,24 +1,24 @@
 import { useRef } from 'react'
-import { setControls, usePoolControls } from './controls'
+import { MODES, setControls, usePoolControls } from './controls'
 import { tableAngle, viewAngle } from './draw'
 import { MIN_POWER } from '../../../../shared/pool/physics.js'
 
 const TAU = Math.PI * 2
 const DEG = Math.PI / 180
 
-// The two ways to shoot (controls.js), as a switch.
+// The three ways to shoot (controls.js), as a switch.
 export function ControlsToggle() {
   const mode = usePoolControls()
   const choice = (on) =>
     `cursor-pointer rounded-full px-3 py-1 text-sm font-semibold transition-colors ${on ? 'bg-brand-gold text-ink' : 'text-white/70 hover:text-white'}`
+  const names = { hold: 'Hold to power', drag: 'Drag back', dial: 'Angle, then power' }
   return (
-    <div role="group" aria-label="How to shoot" className="inline-flex rounded-full border border-white/15 bg-white/5 p-1">
-      <button type="button" aria-pressed={mode === 'drag'} onClick={() => setControls('drag')} className={choice(mode === 'drag')}>
-        Drag back
-      </button>
-      <button type="button" aria-pressed={mode === 'dial'} onClick={() => setControls('dial')} className={choice(mode === 'dial')}>
-        Angle, then power
-      </button>
+    <div role="group" aria-label="How to shoot" className="inline-flex flex-wrap justify-center rounded-3xl border border-white/15 bg-white/5 p-1">
+      {MODES.map((id) => (
+        <button key={id} type="button" aria-pressed={mode === id} onClick={() => setControls(id)} className={choice(mode === id)}>
+          {names[id]}
+        </button>
+      ))}
     </div>
   )
 }

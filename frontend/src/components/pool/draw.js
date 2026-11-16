@@ -208,7 +208,7 @@ export function drawTable(ctx, vertical) {
 
 // One ball at view (x, y), `scale` 1 normally (smaller while it drops into
 // a pocket), `alpha` its opacity.
-export function drawBall(ctx, id, x, y, scale = 1, alpha = 1) {
+export function drawBall(ctx, id, x, y, scale = 1, alpha = 1, sprite = null) {
   const r = R * scale
   ctx.save()
   ctx.globalAlpha = alpha
@@ -218,6 +218,13 @@ export function drawBall(ctx, id, x, y, scale = 1, alpha = 1) {
   ctx.beginPath()
   ctx.ellipse(x + r * 0.25, y + r * 0.35, r * 0.95, r * 0.8, 0, 0, Math.PI * 2)
   ctx.fill()
+
+  // The ball as it's rolled (spin.js).
+  if (sprite) {
+    ctx.drawImage(sprite, x - r, y - r, 2 * r, 2 * r)
+    ctx.restore()
+    return
+  }
 
   ctx.beginPath()
   ctx.arc(x, y, r, 0, Math.PI * 2)

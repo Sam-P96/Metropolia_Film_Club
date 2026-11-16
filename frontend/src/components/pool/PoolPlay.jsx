@@ -4,7 +4,8 @@ import PoolTable from './PoolTable'
 import { usePoolControls } from './controls'
 
 // The table and the way to shoot, for every 8 Ball Pool game (PoolMatch.jsx,
-// PoolClanker.jsx). With "Drag back" the shot is taken on the table; with
+// PoolClanker.jsx). With "Hold to power" (the default) or "Drag back" the
+// shot is taken on the table; with
 // "Angle, then power", on the panel under it, the table showing the cue
 // where it's set. The switch between the two is under the table, and the
 // device remembers it (controls.js). There's no line showing where a
@@ -73,6 +74,16 @@ export default function PoolPlay({ balls, hand, shot, onShotDone, ghost, canAim,
       />
       <div className="flex flex-col items-center gap-2">
         <ControlsToggle />
+        {mode === 'hold' && canAim && (
+          <p className="text-center text-sm text-white/60">
+            Press and hold towards where you want the cue ball to go: the longer you hold, the harder you hit, and it won&apos;t go back down. Let
+            go to shoot.
+            {hand ? ' Drag the cue ball first to put it where you want it.' : ''}
+          </p>
+        )}
+        {mode === 'dial' && canAim && hand && (
+          <p className="text-center text-sm text-white/60">Drag the cue ball on the table to put it where you want it.</p>
+        )}
         {mode === 'drag' && canAim && (
           <p className="text-center text-sm text-white/60">
             Press anywhere on the table and drag back: the cue points the other way, and the further you pull, the harder you hit.

@@ -11,12 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 8 Ball Pool (Games → 8 Ball Pool, `/games/pool`): vs Clanker on Easy or
   Hard, played on the device for fun, and vs Player, for fun or for PP and
   P-PP, with challenges, counters and three days a shot (or the game goes
-  to the other player), like Infinite Gomoku. Shoot by pressing on the
-  table and dragging back (the cue points away from the pointer; the
-  further you pull, the harder the shot), or switch to "Angle, then power"
-  to set each on a panel under the table. No line shows where the balls
+  to the other player), like Infinite Gomoku. Three ways to shoot,
+  remembered on the device: Hold to power (the default: press and hold
+  towards where the shot goes; the power builds the longer you hold and
+  never drops, and letting go shoots), Drag back (the cue points away from
+  the pointer; the further you pull, the harder the shot), and Angle, then
+  power, set on a panel under the table. No line shows where the balls
   will go. On a phone the table stands upright. The emerald table has a
-  mahogany and gold frame under two lamps; balls the cue ball hits hard
+  mahogany and gold frame under two lamps, and the balls roll, their
+  stripes and numbers turning as they go; balls the cue ball hits hard
   throw sparks in their colour (purple for the 8 ball). Shots are worked
   out on the server and played back identically on every screen
   (`shared/pool/physics.js`, `rules.js`).
