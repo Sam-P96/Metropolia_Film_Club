@@ -22,6 +22,8 @@ export function beforeShot(match) {
     endedBy: null,
     solids: shot.assigned ? null : match.solids,
     hand: null,
+    // What the shot did isn't told until it's done.
+    lastShot: null,
   }
 }
 

@@ -267,8 +267,8 @@ export function drawBall(ctx, id, x, y, scale = 1, alpha = 1, sprite = null) {
 // Where the shot goes (PoolTable.jsx traceAim), in view units: a dotted
 // line from the cue ball (`from`) to where it first touches something
 // (`contact`), a faint cue ball there, and the ball it hits (`target`, id
-// `targetId`) ringed in its spark colour, with a short line the way it'll
-// be knocked. No ball: the line ends at the cushion.
+// `targetId`) ringed in its spark colour, with a short line (a third of a
+// ball) the way it'll be knocked. No ball: the line ends at the cushion.
 export function drawAimLine(ctx, from, contact, target, targetId, alpha, now) {
   ctx.save()
   ctx.globalAlpha = alpha
@@ -303,30 +303,20 @@ export function drawAimLine(ctx, from, contact, target, targetId, alpha, now) {
     ctx.arc(target.x, target.y, R + 4, 0, Math.PI * 2)
     ctx.stroke()
     ctx.shadowBlur = 0
-    // The way it'll go: along the line between the two centres.
+    // The way it'll go, along the line between the two centres: a short
+    // line from its ring, a third of a ball long.
     const ux = target.x - contact.x
     const uy = target.y - contact.y
     const d = Math.sqrt(ux * ux + uy * uy) || 1
     const sx = target.x + (ux / d) * (R + 4)
     const sy = target.y + (uy / d) * (R + 4)
-    const ex = target.x + (ux / d) * (R + 70)
-    const ey = target.y + (uy / d) * (R + 70)
+    const length = (2 * R) / 3
     ctx.strokeStyle = colour
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2.5
     ctx.beginPath()
     ctx.moveTo(sx, sy)
-    ctx.lineTo(ex, ey)
+    ctx.lineTo(sx + (ux / d) * length, sy + (uy / d) * length)
     ctx.stroke()
-    // An arrowhead.
-    const ax = ux / d
-    const ay = uy / d
-    ctx.fillStyle = colour
-    ctx.beginPath()
-    ctx.moveTo(ex + ax * 7, ey + ay * 7)
-    ctx.lineTo(ex - ay * 5, ey + ax * 5)
-    ctx.lineTo(ex + ay * 5, ey - ax * 5)
-    ctx.closePath()
-    ctx.fill()
   }
   ctx.restore()
 }

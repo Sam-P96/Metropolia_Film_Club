@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the other player), like Infinite Gomoku. To shoot, press and hold
   towards where the shot goes: the power builds the longer you hold and
   never drops, and letting go shoots. A line shows where the cue ball goes,
-  up to the first ball it hits, which is ringed in its colour with an arrow
-  the way it will be knocked. On a phone the table stands upright. The emerald table has a
+  up to the first ball it hits, which is ringed in its colour with a short
+  line the way it will be knocked. On a phone the table stands upright. The emerald table has a
   mahogany and gold frame under two lamps, and the balls roll, their
   stripes and numbers turning as they go; every ball the cue ball hits
   throws sparks in its colour (purple for the 8 ball), and so do the first
