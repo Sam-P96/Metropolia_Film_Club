@@ -29,6 +29,7 @@ const loanSharkRouter = require("./routes/loanSharkRouter");
 const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
+const poolRouter = require("./routes/poolRouter");
 const quizRouter = require("./routes/quizRouter");
 const adminRouter = require("./routes/adminRouter");
 const firstPlaceRouter = require("./routes/firstPlaceRouter");
@@ -43,6 +44,7 @@ const { startStealSweep } = require("./jobs/stealSweep");
 const { startLoanSweep } = require("./jobs/loanSweep");
 const { startSlotSweep } = require("./jobs/slotSweep");
 const { startGomokuSweep } = require("./jobs/gomokuSweep");
+const { startPoolSweep } = require("./jobs/poolSweep");
 const { startQuizDraw } = require("./jobs/quizDraw");
 const { startSiteEvents } = require("./jobs/siteEvents");
 const { sendPage } = require("./utils/linkPreview");
@@ -152,6 +154,12 @@ connected
     .then(() => startGomokuSweep())
     .catch((error) => console.error("Couldn't start the Gomoku sweep:", error.message));
 
+// 8 Ball Pool: forfeits games quiet for three days, settles the crowd's
+// bets and tidies up (jobs/poolSweep.js).
+connected
+    .then(() => startPoolSweep())
+    .catch((error) => console.error("Couldn't start the pool sweep:", error.message));
+
 // The Daily Quiz: Monday 12:00's weekly draw (jobs/quizDraw.js).
 connected
     .then(() => startQuizDraw())
@@ -215,6 +223,7 @@ app.use("/api/wallet", walletRouter);
 // An admin's "All games" ban stops anything being played (middleware/gameBans.js).
 app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
+app.use("/api/pool", refuseGameBans, poolRouter);
 app.use("/api/quiz", quizRouter);
 // The admin panel: admins only (routes/adminRouter.js).
 app.use("/api/admin", adminRouter);

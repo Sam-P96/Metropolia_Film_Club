@@ -19,6 +19,8 @@ const { forgetLoanMember, loanDataOf } = require("../utils/loanShark");
 const { forgetCosmetics, cosmeticsDataOf } = require("../utils/blackMarket");
 const { forgetGomokuPlayer, gomokuGamesOf } = require("../utils/gomoku");
 const { forgetGomokuShop, gomokuShopDataOf } = require("../utils/gomokuShop");
+const { forgetPoolPlayer, poolGamesOf } = require("../utils/pool");
+const { poolBetsOf } = require("../utils/poolBets");
 const { forgetQuizMember, quizDataOf } = require("../utils/quiz");
 const PokerSeat = require("../models/pokerSeatModel");
 const { siteBanOf, banMessage, recordSighting } = require("../utils/steal/moderation");
@@ -513,7 +515,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket, gomokuGames, gomokuShop, dailyQuiz] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket, gomokuGames, gomokuShop, dailyQuiz, poolGames, poolBets] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -539,6 +541,9 @@ const exportMe = async (req, res) => {
         gomokuShopDataOf(userId),
         // The Daily Quiz: their quizzes, and the questions they wrote.
         quizDataOf(userId),
+        // 8 Ball Pool: their games, and their bets on others'.
+        poolGamesOf(userId),
+        poolBetsOf(userId),
     ]);
 
     if (!account) {
@@ -563,6 +568,7 @@ const exportMe = async (req, res) => {
         blackMarket,
         infiniteGomoku: { games: gomokuGames, shop: gomokuShop },
         dailyQuiz,
+        eightBallPool: { games: poolGames, bets: poolBets },
     });
 }
 
@@ -612,6 +618,7 @@ async function deleteAccount(user) {
     await forgetCosmetics(userId);
     await forgetGomokuPlayer(userId);
     await forgetGomokuShop(userId);
+    await forgetPoolPlayer(userId);
     await forgetQuizMember(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });
