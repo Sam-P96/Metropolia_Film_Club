@@ -460,6 +460,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Loan Shark: a borrower who hasn't paid King Loan Shark for a week gets a
+  new set of jobs. The ones not done yet close (jobs done keep what they
+  took off), and the week starts again from each payment or new set
+  (`refreshStaleJobs` in `utils/loanShark/jobs.js`, run by the loan sweep
+  every 10 minutes; new `round` on jobs and `jobsDealtAt` on loans).
 - The Resonance page has a blue underglow: the Soul Resonance blue rising
   from the bottom of the screen, breathing slowly (still with Reduce Motion).
 - Double or Nothing: at the Monday reset, everything left in the pot goes

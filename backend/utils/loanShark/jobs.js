@@ -1,6 +1,8 @@
 const User = require("../../models/userModel");
 const Review = require("../../models/reviewModel");
 const LoanJob = require("../../models/loanJobModel");
+const LoanAccount = require("../../models/loanAccountModel");
+const LoanTx = require("../../models/loanTxModel");
 const { LOAN_SHARK } = require("../../config/loanShark");
 const { inSession } = require("../steal/tx");
 const { noteLoanJob, forgetDislike } = require("../notify");
@@ -30,8 +32,12 @@ const { jobLists } = require("./jobLists");
 //
 // Done is noticed on the server, as it happens: hooks in saving a review
 // (controllers/filmController.js), disliking one (the same), and a steal
-// succeeding (utils/steal/attacks.js). Each job done takes 20% of the total
-// borrowed, as it is then, off the debt, stored as that fixed amount.
+// succeeding (utils/steal/attacks.js). Each job done takes jobs.reduction
+// (config/loanShark.js) of the total borrowed, as it is then, off the debt,
+// stored as that fixed amount.
+//
+// No payment for jobs.refreshDays: the jobs not done close and a new set
+// (the next round) is dealt (refreshStaleJobs, from jobs/loanSweep.js).
 
 const RULES = LOAN_SHARK.jobs;
 const TYPES = ["review", "dislike", "steal"];
@@ -94,10 +100,12 @@ async function pickJob(type, pools, random) {
     return null;
 }
 
-// A new loan's jobs: up to 4, each of a random kind (another kind if
-// nobody fits that one). Only ever once per loan. `random` is for tests.
-async function generateJobs(borrowerId, loanId, { random = Math.random, now = new Date() } = {}) {
-    if (await LoanJob.exists({ borrower: borrowerId, loan: loanId })) return [];
+// A loan's jobs: up to 4, each of a random kind (another kind if nobody
+// fits that one). Only ever once per loan and `round` (0 for a new loan's,
+// one more for each new set dealt). `random` is for tests.
+async function generateJobs(borrowerId, loanId, { random = Math.random, now = new Date(), round = 0 } = {}) {
+    // Jobs from before there were rounds have none: they're round 0.
+    if (await LoanJob.exists({ borrower: borrowerId, loan: loanId, round: round === 0 ? { $in: [0, null] } : round })) return [];
 
     const pools = await candidates(borrowerId, now);
     const jobs = [];
@@ -105,7 +113,7 @@ async function generateJobs(borrowerId, loanId, { random = Math.random, now = ne
         for (const type of shuffled(TYPES, random)) {
             const job = await pickJob(type, pools, random);
             if (job) {
-                jobs.push({ ...job, borrower: borrowerId, loan: loanId, createdAt: now });
+                jobs.push({ ...job, borrower: borrowerId, loan: loanId, createdAt: now, round });
                 break;
             }
         }
@@ -219,4 +227,48 @@ async function undoJobDislikes(now = new Date()) {
     return due.length;
 }
 
-module.exports = { candidates, pickJob, generateJobs, completeJob, onReviewPosted, beforeDislike, onStealSuccess, undoJobDislikes };
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Borrowers who haven't paid King Loan Shark for jobs.refreshDays (counting
+// from their last payment, the loan starting, or the last new set, whichever
+// is latest): the jobs not done yet close, and a new set is dealt. Jobs done
+// stay done, with what they took off. Each loan is claimed first
+// (jobsDealtAt), so it's only ever dealt once, even if dealing finds nobody
+// to pick. `userIds` limits it to those members (for tests). Returns how
+// many got a new set.
+async function refreshStaleJobs(now = new Date(), { userIds = null, random = Math.random } = {}) {
+    const cutoff = now.getTime() - RULES.refreshDays * DAY_MS;
+    const accounts = await LoanAccount.find({
+        "shark.borrowed": { $gt: 0 },
+        "shark.startedAt": { $lte: new Date(cutoff) },
+        ...(userIds && { _id: { $in: userIds } }),
+    }).lean();
+
+    let dealt = 0;
+    for (const account of accounts) {
+        const { loan, startedAt, jobsDealtAt } = account.shark;
+        if (sharkOwed(account.shark) === 0) continue;
+        const lastPaid = await LoanTx.findOne({ user: account._id, kind: "sharkRepay", loan }).sort({ at: -1 }).select("at").lean();
+        const since = Math.max(startedAt?.getTime() ?? 0, jobsDealtAt?.getTime() ?? 0, lastPaid?.at?.getTime() ?? 0);
+        if (since > cutoff) continue;
+
+        // Claim it: the same loan, and nobody dealt a set in between.
+        const { result: claimed } = await changeAccount(account._id, (current) => {
+            const shark = current.shark;
+            if (String(shark.loan) !== String(loan) || shark.borrowed === 0) return null;
+            if ((shark.jobsDealtAt?.getTime() ?? 0) !== (jobsDealtAt?.getTime() ?? 0)) return null;
+            return { set: { "shark.jobsDealtAt": now }, result: true };
+        });
+        if (!claimed) continue;
+
+        const latest = await LoanJob.findOne({ borrower: account._id, loan }).sort({ round: -1, createdAt: -1 }).select("round").lean();
+        const round = (latest?.round ?? 0) + 1;
+        await LoanJob.updateMany({ borrower: account._id, loan, status: "open" }, { $set: { status: "closed" } });
+        await logTx({ user: account._id, kind: "sharkJobsDealt", loan });
+        await generateJobs(account._id, loan, { random, now, round }).catch((error) => console.error("Loan Shark couldn't deal new jobs:", error.message));
+        dealt += 1;
+    }
+    return dealt;
+}
+
+module.exports = { candidates, pickJob, generateJobs, completeJob, onReviewPosted, beforeDislike, onStealSuccess, undoJobDislikes, refreshStaleJobs };

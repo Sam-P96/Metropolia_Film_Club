@@ -32,6 +32,7 @@ const loanTxSchema = new Schema({
         enum: [
             "sharkBorrow", "sharkRepay", "sharkCollector", "sharkMissed", "sharkJob", "sharkCleared",
             "offerPosted", "offerTakenDown", "playerBorrow", "playerRepay", "playerForgiven", "devRate",
+            "sharkJobsDealt",
         ],
         required: true,
     },

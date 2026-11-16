@@ -423,6 +423,45 @@ describe("Loan Shark against the database", { skip: !uri ? "set MONGO_TEST_URI t
         assert.deepEqual((await LoanJob.find({ borrower: people.borrower._id, loan }).sort({ createdAt: 1, _id: 1 }).lean()).map((job) => job.reduction), [16, 16, 24]);
     });
 
+    test("a week without paying: the jobs not done close and a new set is dealt; paying, or a new set, starts the week again", async () => {
+        const slow = await member("slowPayer", { reviews: 10 });
+        await call(slow, "POST", "/loan-shark/shark/borrow", { amount: 50 });
+        const account = await LoanAccount.findById(slow._id).lean();
+        const loan = account.shark.loan;
+        const first = await LoanJob.find({ borrower: slow._id, loan }).lean();
+        assert.ok(first.length > 1, "a new loan's jobs");
+        // One done in the first week: it stays done, with what it took off.
+        await LoanJob.updateOne({ _id: first[0]._id }, { $set: { status: "done", reduction: 8 } });
+
+        const DAY = 24 * 60 * 60 * 1000;
+        const started = new Date(account.shark.startedAt).getTime();
+        const only = { userIds: [slow._id] };
+        assert.equal(await jobs.refreshStaleJobs(new Date(started + 6 * DAY), only), 0, "six days: not yet");
+
+        const week = started + 7 * DAY + 1000;
+        assert.equal(await jobs.refreshStaleJobs(new Date(week), only), 1, "seven days without paying");
+        const after = await LoanJob.find({ borrower: slow._id, loan }).lean();
+        const before = after.filter((job) => (job.round ?? 0) === 0);
+        assert.deepEqual(before.map((job) => job.status).sort(), [...Array(first.length - 1).fill("closed"), "done"]);
+        assert.equal(before.find((job) => job.status === "done").reduction, 8);
+        const fresh = after.filter((job) => job.round === 1);
+        assert.ok(fresh.length > 0 && fresh.every((job) => job.status === "open"), "a new set, all open");
+        assert.equal(await LoanTx.countDocuments({ user: slow._id, kind: "sharkJobsDealt", loan }), 1);
+
+        // The page shows only the new set.
+        const shown = (await view(slow)).shark.jobs.map((job) => String(job._id)).sort();
+        assert.deepEqual(shown, fresh.map((job) => String(job._id)).sort());
+
+        // A day later: the week starts again from the new set.
+        assert.equal(await jobs.refreshStaleJobs(new Date(week + DAY), only), 0);
+        // A payment five days after the new set: the week counts from it.
+        await LoanTx.create({ user: slow._id, kind: "sharkRepay", amount: 5, loan, at: new Date(week + 5 * DAY) });
+        assert.equal(await jobs.refreshStaleJobs(new Date(week + 8 * DAY), only), 0, "paid three days ago");
+        assert.equal(await jobs.refreshStaleJobs(new Date(week + 12 * DAY + 1000), only), 1, "a week after paying");
+        assert.ok(await LoanJob.exists({ borrower: slow._id, loan, round: 2, status: "open" }));
+        assert.equal(await LoanJob.countDocuments({ borrower: slow._id, loan, round: 1, status: "open" }), 0);
+    });
+
     test("player offers: lent from PP, at most 3 up, and taking one down gives back what nobody borrowed", async () => {
         const posted = [];
         for (const [style, amount, rate] of [["fixed", 30, 25], ["flexible", 40, 10], ["fixed", 20, 0]]) {

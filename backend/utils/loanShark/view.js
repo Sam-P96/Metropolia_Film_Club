@@ -86,7 +86,10 @@ async function sharkView(account, reviews, now) {
     const state = collector ? "collector" : shark.rate > START_RATE ? "missed" : dueNext ? "due" : "covered";
     const minimum = sharkMinimum(shark);
 
-    const jobs = await LoanJob.find({ borrower: account._id, loan: shark.loan }).sort({ createdAt: 1 }).lean();
+    // The latest set of jobs (a new one is dealt after a week without paying).
+    const allJobs = await LoanJob.find({ borrower: account._id, loan: shark.loan }).sort({ createdAt: 1 }).lean();
+    const round = Math.max(0, ...allJobs.map((job) => job.round ?? 0));
+    const jobs = allJobs.filter((job) => (job.round ?? 0) === round);
     const people = await membersById(jobs.flatMap((job) => [job.x, job.y]));
 
     return {
