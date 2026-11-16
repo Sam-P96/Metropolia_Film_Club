@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Infinite Gomoku's Deluxe items, 1,000 points each: 17 pieces (six
+  energy orbs, six coloured glass stones, three neon rings, Eclipse and
+  Ember Stone, all glowing), four shockwaves made of layered particle
+  effects (Supernova, Black Hole, Fireworks, Prism:
+  `frontend/src/components/gomoku/deluxeShockwave.js`), three moving boards
+  (Starfield, Synthwave, Aurora) and two moving grids (Neon Pulse, Laser).
 - The Black Friday Sale: from Black Friday (the day after the fourth
   Thursday of November) to the end of that Sunday, Helsinki time, every
   Black Market name style and border is half price (rounded up), except the

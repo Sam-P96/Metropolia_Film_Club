@@ -113,6 +113,58 @@ function Emoji({ emoji, outline }) {
   )
 }
 
+// A Deluxe energy orb (gomoku.css .gmk-orb): a glow that pulses round a
+// sphere in its colours (`colors`: light, own, shadow), with light
+// swirling round inside it and a glint on top. Only transforms and
+// opacity move, so a board full of them stays smooth.
+function Orb({ colors }) {
+  const [light, mid, dark] = colors
+  return (
+    <span className="gmk-orb" style={{ '--orb-light': light, '--orb-mid': mid, '--orb-dark': dark }} aria-hidden="true">
+      <span className="gmk-orb-glow" />
+      <span className="gmk-orb-body">
+        <span className="gmk-orb-swirl" />
+      </span>
+    </span>
+  )
+}
+
+// Deluxe coloured glass (gomoku.css .gmk-glass): see-through, glowing in
+// its colour, with a glint sweeping across now and then.
+function Glass({ colors }) {
+  const [light, mid, dark] = colors
+  return <span className="gmk-glass" style={{ '--glass-light': light, '--glass': mid, '--glass-dark': dark }} aria-hidden="true" />
+}
+
+// A Deluxe ring of neon tube (gomoku.css .gmk-neon), flickering now and then.
+function Neon({ color }) {
+  return (
+    <span className="gmk-neon" style={{ '--neon': color }} aria-hidden="true">
+      <span className="gmk-neon-tube" />
+    </span>
+  )
+}
+
+// Deluxe: a dark disc with a corona breathing round it (gomoku.css
+// .gmk-eclipse), and a charcoal stone with glowing cracks (.gmk-ember).
+function Eclipse() {
+  return (
+    <span className="gmk-eclipse" aria-hidden="true">
+      <span className="gmk-eclipse-corona" />
+      <span className="gmk-eclipse-disc" />
+    </span>
+  )
+}
+
+function Ember() {
+  return (
+    <span className="gmk-ember" aria-hidden="true">
+      <span className="gmk-ember-glow" />
+      <span className="gmk-ember-body" />
+    </span>
+  )
+}
+
 // What a piece is made of, without anything round it.
 export function PieceFace({ id }) {
   const item = gomokuItem(id) ?? gomokuItem(DEFAULTS.piece)
@@ -120,6 +172,11 @@ export function PieceFace({ id }) {
 
   if (look.type === 'stone') return <span className={`gmk-stone gmk-stone-${look.color}`} />
   if (look.type === 'gem') return <Gem colors={look.colors} />
+  if (look.type === 'orb') return <Orb colors={look.colors} />
+  if (look.type === 'glass') return <Glass colors={look.colors} />
+  if (look.type === 'neon') return <Neon color={look.color} />
+  if (look.type === 'eclipse') return <Eclipse />
+  if (look.type === 'ember') return <Ember />
   if (look.type === 'emoji') return <Emoji emoji={look.emoji} outline={look.outline} />
   return <img src={IMAGES[look.image]} alt="" className="gmk-image" draggable="false" />
 }

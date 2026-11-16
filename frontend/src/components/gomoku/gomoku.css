@@ -382,3 +382,366 @@
     filter: drop-shadow(0 0 3px var(--gmk-glow));
   }
 }
+
+/* ---------- Deluxe (shared/gomoku/catalogue.js) ---------- */
+/* Boards that move: only opacity and transforms animate, so the board
+   isn't painted again every frame. */
+
+.gmk-board-starfield {
+  --gmk-line: rgba(190, 205, 255, 0.4);
+  background:
+    radial-gradient(80% 60% at 70% 20%, rgba(90, 70, 200, 0.35), transparent 60%),
+    radial-gradient(60% 50% at 20% 85%, rgba(40, 120, 220, 0.25), transparent 65%),
+    linear-gradient(160deg, #0b0d24 0%, #05060f 60%, #020208 100%);
+}
+/* Two layers of stars: one steady, one twinkling. */
+.gmk-board-starfield::before,
+.gmk-board-starfield::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, #fff 0 1px, transparent 1.6px),
+    radial-gradient(circle, #cfe0ff 0 0.8px, transparent 1.4px);
+  background-size: 53px 59px, 31px 37px;
+  background-position: 7px 13px, 19px 3px;
+}
+.gmk-board-starfield::after {
+  background-image:
+    radial-gradient(circle, #fff 0 1.4px, transparent 2.4px),
+    radial-gradient(circle, #ffe9c4 0 1px, transparent 2px);
+  background-size: 97px 83px, 71px 101px;
+  background-position: 41px 29px, 13px 61px;
+  animation: gmk-twinkle 2.8s ease-in-out infinite;
+}
+
+/* A neon sunset: a setting sun on the horizon, its glow breathing. */
+.gmk-board-synthwave {
+  --gmk-line: rgba(120, 230, 255, 0.55);
+  background:
+    radial-gradient(42% 28% at 50% 62%, rgba(255, 176, 60, 0.8), rgba(255, 60, 150, 0.35) 55%, transparent 75%),
+    linear-gradient(180deg, #1a0533 0%, #3b0a5c 38%, #7a1466 61%, #1a0533 63%, #0d0221 100%);
+}
+.gmk-board-synthwave::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(75% 16% at 50% 62%, rgba(255, 80, 220, 0.6), transparent 70%);
+  animation: gmk-twinkle 3.6s ease-in-out infinite;
+}
+
+/* The northern lights drifting across a night sky. */
+.gmk-board-aurora {
+  --gmk-line: rgba(200, 255, 240, 0.42);
+  background: linear-gradient(170deg, #04141c 0%, #062a2e 45%, #03101a 100%);
+}
+.gmk-board-aurora::after {
+  content: '';
+  position: absolute;
+  inset: -10% -50%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 25% at 30% 30%, rgba(61, 255, 154, 0.45), transparent 70%),
+    radial-gradient(35% 22% at 60% 48%, rgba(34, 211, 197, 0.4), transparent 70%),
+    radial-gradient(30% 20% at 80% 25%, rgba(155, 107, 255, 0.4), transparent 70%);
+  filter: blur(6px);
+  animation: gmk-aurora 9s ease-in-out infinite alternate;
+}
+
+/* Grids that move. */
+.gmk-grid-pulse {
+  stroke: #ff3dd8;
+  fill: #ff3dd8;
+  animation: gmk-pulse 1.8s ease-in-out infinite;
+}
+/* A scan of brighter light sweeping across the lines, over and over. */
+.gmk-grid-laser {
+  stroke: #3dff8b;
+  fill: #3dff8b;
+  filter: drop-shadow(0 0 1.5px #3dff8b);
+  -webkit-mask-image: linear-gradient(110deg, rgba(0, 0, 0, 0.35) 42%, #000 50%, rgba(0, 0, 0, 0.35) 58%);
+  mask-image: linear-gradient(110deg, rgba(0, 0, 0, 0.35) 42%, #000 50%, rgba(0, 0, 0, 0.35) 58%);
+  -webkit-mask-size: 300% 100%;
+  mask-size: 300% 100%;
+  animation: gmk-laser 2.6s linear infinite;
+}
+
+/* The energy orbs (Piece.jsx Orb): a glow pulsing round a sphere, light
+   swirling round inside it, and a glint on top. */
+.gmk-orb {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+}
+.gmk-orb-glow {
+  position: absolute;
+  inset: -22%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--orb-mid) 0%, transparent 65%);
+  opacity: 0.55;
+  animation: gmk-orb-pulse 2.4s ease-in-out infinite;
+}
+.gmk-orb-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 36% 30%, var(--orb-light) 0%, var(--orb-mid) 42%, var(--orb-dark) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.gmk-orb-swirl {
+  position: absolute;
+  inset: -30%;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--orb-light) 40deg, transparent 95deg, transparent 180deg, var(--orb-light) 220deg, transparent 275deg);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  animation: gmk-orb-spin 2.6s linear infinite;
+}
+.gmk-orb-body::after {
+  content: '';
+  position: absolute;
+  top: 14%;
+  left: 22%;
+  width: 30%;
+  height: 22%;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+  filter: blur(1px);
+}
+
+@keyframes gmk-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes gmk-aurora {
+  from {
+    transform: translateX(-12%) skewX(-6deg);
+  }
+  to {
+    transform: translateX(12%) skewX(6deg);
+  }
+}
+@keyframes gmk-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 1px #ff3dd8);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 3px #ff3dd8) drop-shadow(0 0 7px rgba(255, 61, 216, 0.7));
+  }
+}
+@keyframes gmk-laser {
+  from {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+  to {
+    -webkit-mask-position: 0% 0;
+    mask-position: 0% 0;
+  }
+}
+@keyframes gmk-orb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes gmk-orb-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gmk-board-starfield::after,
+  .gmk-board-synthwave::after,
+  .gmk-board-aurora::after,
+  .gmk-grid-pulse,
+  .gmk-grid-laser,
+  .gmk-orb-glow,
+  .gmk-orb-swirl {
+    animation: none;
+  }
+  .gmk-grid-pulse {
+    filter: drop-shadow(0 0 2px #ff3dd8);
+  }
+  .gmk-grid-laser {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ---------- more Deluxe pieces (Piece.jsx) ---------- */
+
+/* Coloured glass: see-through (the board shows through it), lit from the
+   top left, glowing in its colour, with a glint sweeping across. */
+.gmk-glass {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 32% 27%, rgba(255, 255, 255, 0.9) 0 7%, transparent 19%),
+    radial-gradient(circle at 68% 74%, color-mix(in srgb, var(--glass-light) 55%, transparent), transparent 42%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--glass) 30%, transparent) 0%, color-mix(in srgb, var(--glass) 68%, transparent) 62%, color-mix(in srgb, var(--glass-dark) 92%, transparent) 100%);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--glass-light) 70%, transparent),
+    inset 0 -3px 6px color-mix(in srgb, var(--glass-dark) 60%, transparent),
+    0 0 calc(var(--cell) * 0.35) color-mix(in srgb, var(--glass) 75%, transparent);
+}
+.gmk-glass::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.5) 50%, transparent 60%);
+  transform: translateX(-70%);
+  animation: gmk-glass-shine 3.6s ease-in-out infinite;
+}
+
+/* A ring of neon tube: a dark middle so it still reads as a piece, a bright
+   white core along the tube, and its glow. */
+.gmk-neon {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  animation: gmk-neon-flicker 5s linear infinite;
+}
+.gmk-neon-tube {
+  position: relative;
+  border-radius: 9999px;
+  border: calc(var(--cell) * 0.085) solid var(--neon);
+  background: radial-gradient(circle, rgba(12, 2, 24, 0.55), rgba(12, 2, 24, 0.85));
+  box-shadow:
+    0 0 calc(var(--cell) * 0.12) var(--neon),
+    0 0 calc(var(--cell) * 0.38) var(--neon),
+    inset 0 0 calc(var(--cell) * 0.14) var(--neon);
+}
+.gmk-neon-tube::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--cell) * -0.055);
+  border-radius: 9999px;
+  border: max(1px, calc(var(--cell) * 0.025)) solid rgba(255, 255, 255, 0.85);
+}
+
+/* An eclipse: a black disc, its corona breathing round it. */
+.gmk-eclipse {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+}
+.gmk-eclipse-corona {
+  position: absolute;
+  inset: -20%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, transparent 50%, #fff6c8 55%, #ffb347 61%, rgba(255, 140, 40, 0.4) 71%, transparent 79%);
+  animation: gmk-corona 3s ease-in-out infinite;
+}
+.gmk-eclipse-disc {
+  position: relative;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 40% 35%, #1c1820 0%, #050407 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 220, 150, 0.55);
+}
+
+/* An ember: charcoal with glowing cracks, its glow flickering like a fire. */
+.gmk-ember {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+}
+.gmk-ember-glow {
+  position: absolute;
+  inset: -22%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 120, 20, 0.85) 0%, rgba(255, 60, 0, 0.35) 45%, transparent 68%);
+  animation: gmk-ember-flicker 1.7s steps(1, end) infinite;
+}
+.gmk-ember-body {
+  position: relative;
+  border-radius: 9999px;
+  background:
+    linear-gradient(35deg, transparent 45%, #ff7b00 47.5%, #ffe2a0 50%, #ff7b00 52.5%, transparent 55%),
+    linear-gradient(-55deg, transparent 30%, #ff5a00 32%, #ffb347 33.5%, #ff5a00 35%, transparent 37%),
+    linear-gradient(80deg, transparent 62%, #ff5a00 64%, #ffcf7a 65.5%, #ff5a00 67%, transparent 69%),
+    radial-gradient(circle at 36% 30%, #5a2a14 0%, #241008 55%, #0d0503 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes gmk-glass-shine {
+  0%,
+  62% {
+    transform: translateX(-70%);
+  }
+  100% {
+    transform: translateX(70%);
+  }
+}
+@keyframes gmk-neon-flicker {
+  0%,
+  89%,
+  91%,
+  95%,
+  100% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.45;
+  }
+  93% {
+    opacity: 0.7;
+  }
+}
+@keyframes gmk-corona {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes gmk-ember-flicker {
+  0% { opacity: 0.75; transform: scale(0.98); }
+  15% { opacity: 1; transform: scale(1.04); }
+  30% { opacity: 0.6; transform: scale(0.95); }
+  45% { opacity: 0.9; transform: scale(1.02); }
+  60% { opacity: 0.7; transform: scale(0.97); }
+  80% { opacity: 1; transform: scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gmk-glass::after,
+  .gmk-neon,
+  .gmk-eclipse-corona,
+  .gmk-ember-glow {
+    animation: none;
+  }
+}
