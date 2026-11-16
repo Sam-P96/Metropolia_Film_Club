@@ -200,6 +200,12 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, amount: row.amount, note: row.note ?? null }];
         }
 
+        // The Black Friday Sale and Double Prize Weekend starting: nobody's in
+        // them, just that.
+        if (Notification.SITE_EVENT_TYPES.includes(row.type)) {
+            return [{ _id: row._id, type: row.type, at: row.at, actors: [] }];
+        }
+
         // Loan Shark. Kaveri and missed payments have nobody else in them;
         // the rest are about another member, who may have left since.
         if (row.type.startsWith("loan")) {
@@ -340,10 +346,6 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, variant: row.variant ?? 0 }];
         }
 
-        // The Black Friday Sale and Double Prize Weekend starting: just that.
-        if (Notification.SITE_EVENT_TYPES.includes(row.type)) {
-            return [{ _id: row._id, type: row.type, at: row.at, actors: [] }];
-        }
 
         if (row.type === "follow") {
             return [{

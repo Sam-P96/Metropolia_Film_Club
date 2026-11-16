@@ -10,7 +10,10 @@
 const { test, describe, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 
+process.env.SECRET ??= "site-events-test-secret";
 const mongoose = require("mongoose");
+const express = require("express");
+const jwt = require("jsonwebtoken");
 const { blackFridayOf, blackFridaySale, doublePrizeWeekend, priceInSale, salePrice } = require("../../shared/events.js");
 const { NAME_ITEMS, cosmeticById } = require("../../shared/cosmetics/catalogue.js");
 
@@ -110,6 +113,22 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         for (const person of people) {
             const types = (await Notification.find({ recipient: person._id }).lean()).map((note) => note.type).sort();
             assert.deepEqual(types, ["blackFriday", "doublePrizes", "doublePrizes"]);
+        }
+
+        // And they show on the Notifications page, in every filter.
+        const app = express();
+        app.use(express.json());
+        app.use("/api/feed", require("../routes/feedRouter"));
+        const server = await new Promise((resolve) => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
+        try {
+            const token = jwt.sign({ _id: people[0]._id }, process.env.SECRET);
+            for (const filter of ["all", "games", "reviews"]) {
+                const response = await fetch(`http://127.0.0.1:${server.address().port}/api/feed?filter=${filter}`, { headers: { Authorization: `Bearer ${token}` } });
+                const body = await response.json();
+                assert.deepEqual(body.items.map((item) => item.type).sort(), ["blackFriday", "doublePrizes", "doublePrizes"], filter);
+            }
+        } finally {
+            server.close();
         }
     });
 
