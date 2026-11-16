@@ -14,6 +14,7 @@ import useGomokuGame from '../hooks/useGomokuGame'
 import { formatDeadline } from '../utils/farkle'
 import { endingOf } from '../utils/gomoku'
 import { REPLAY_DAYS, formatPoints, pointName } from '../../../shared/gomoku/rules.js'
+import ClassicToggle from '../components/gomoku/ClassicToggle'
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 
@@ -208,6 +209,7 @@ function MatchGame({ matchId }) {
           <span className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-center text-sm text-white/80">
             <Terms match={match} />
           </span>
+          <ClassicToggle />
           <SoundToggle />
         </div>
       }

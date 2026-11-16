@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Infinite Gomoku: a Classic stones toggle beside the sound toggle on the
+  game pages (Play Local, vs Clanker, online games). On, every piece on the
+  board and in the players bar shows as a plain black stone (whoever moved
+  first) or white stone, so the game stays easy to read; shockwaves, boards
+  and grids stay. Remembered on the device; the shop's preview board
+  always shows the real items.
 - Infinite Gomoku's Deluxe items, 1,000 points each: 17 pieces (six
   energy orbs, six coloured glass stones, three neon rings, Eclipse and
   Ember Stone, all glowing), four shockwaves made of layered particle

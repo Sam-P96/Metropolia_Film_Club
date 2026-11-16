@@ -165,6 +165,7 @@ function Preview({ look, impact, onReplay, trying, onStopTrying }) {
           canPlay={false}
           impact={impact}
           label="A preview board"
+          alwaysOwn
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">

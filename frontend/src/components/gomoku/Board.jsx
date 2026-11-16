@@ -4,6 +4,7 @@ import { ShockwaveLayer } from './shockwave'
 import { HAPTIC, haptic, playLand, wakeAudio } from './feedback'
 import { DEFAULTS, gomokuItem } from '../../../../shared/gomoku/catalogue.js'
 import { pointIndex, pointName } from '../../../../shared/gomoku/rules.js'
+import { classicStone, useClassicStones } from './classicPieces'
 
 // How far the shockwave jolts the stones around where one lands, in points.
 const JOLT_REACH = 3
@@ -134,12 +135,19 @@ function ResultBanner({ title, detail, tone = 'win' }) {
 //   result            { title, detail, tone }: once it's over, who won,
 //                     over the board (tone 'win', or 'draw')
 //   label             what the board is, for screen readers
-export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, selected, onSelect, canPlay, winLine = [], impact, result, markLast = true, label }) {
+//   alwaysOwn         show the pieces as they are even with Classic stones on
+//                     (the shop's preview, where the point is to see them)
+export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, selected, onSelect, canPlay, winLine = [], impact, result, markLast = true, label, alwaysOwn = false }) {
   const boardRef = useRef(null)
   const canvasRef = useRef(null)
   const layerRef = useRef(null)
   const gradientId = `gmk-rainbow-${useId().replace(/:/g, '')}`
   const [cell, setCell] = useState(24)
+  // Classic stones (classicPieces.js): seat 0 always moves first, so it's
+  // black; whoever's picking now moves next.
+  const classic = useClassicStones() && !alwaysOwn
+  const shown = (seat) => (classic ? classicStone(seat === 0) : pieceFor(seat))
+  const ghostShown = classic && ghost ? classicStone(moves.length % 2 === 0) : ghost
 
   // One point's width, for the pieces' size and the shockwave's reach.
   useLayoutEffect(() => {
@@ -195,7 +203,7 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
       let piece = null
 
       if (stone) {
-        const look = pieceFor(stone.seat)
+        const look = shown(stone.seat)
         const classes = []
         let key = `${x},${y}`
         let style
@@ -216,8 +224,8 @@ export default function Board({ size, moves, pieceFor, boardId, gridId, ghost, s
           }
         }
         piece = <Piece key={key} id={look.id} invert={look.invert} className={classes.join(' ')} style={style} />
-      } else if (picked && ghost) {
-        piece = <Piece id={ghost.id} invert={ghost.invert} className="gmk-ghost" />
+      } else if (picked && ghostShown) {
+        piece = <Piece id={ghostShown.id} invert={ghostShown.invert} className="gmk-ghost" />
       }
 
       const whose = stone ? (stone.seat === 0 ? 'first player' : 'second player') : picked ? 'picked' : 'empty'

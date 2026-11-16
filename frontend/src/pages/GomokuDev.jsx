@@ -112,6 +112,7 @@ function Lab() {
       />
       <div className="mx-auto w-full max-w-xl">
         <Board
+          alwaysOwn
           size={size}
           moves={moves}
           pieceFor={(seat) => pieces[seat]}

@@ -9,6 +9,7 @@ import useApi from '../hooks/useApi'
 import { getGomokuShop } from '../services/gomoku'
 import { DEFAULTS, pieceAgainst } from '../../../shared/gomoku/catalogue.js'
 import { DEFAULT_SIZE, boardOf, isFull, pointName, seatToMove, winningLine } from '../../../shared/gomoku/rules.js'
+import ClassicToggle from '../components/gomoku/ClassicToggle'
 
 const BACK = { to: '/games/gomoku', label: 'Infinite Gomoku' }
 const NAMES = ['Player 1', 'Player 2']
@@ -67,7 +68,7 @@ export default function GomokuLocal() {
       : null
 
   return (
-    <GomokuPage back={BACK} subtitle="Play Local: two players on this device, taking turns. Player 1 moves first." aside={<SoundToggle />}>
+    <GomokuPage back={BACK} subtitle="Play Local: two players on this device, taking turns. Player 1 moves first." aside={<div className="flex flex-wrap items-center justify-center gap-2"><ClassicToggle /><SoundToggle /></div>}>
       <PlayersBar
         players={NAMES.map((name, seat) => ({ name, user: null, piece: pieces[seat], first: seat === 0 }))}
         current={current}
