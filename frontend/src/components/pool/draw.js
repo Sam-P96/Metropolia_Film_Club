@@ -24,7 +24,6 @@ export function toTable(vertical, vx, vy) {
 }
 // A direction on the table, in view terms.
 export const dirToView = (vertical, dx, dy) => (vertical ? { x: dy, y: 0 - dx } : { x: dx, y: dy })
-export const dirToTable = (vertical, vx, vy) => (vertical ? { x: 0 - vy, y: vx } : { x: vx, y: vy })
 
 // The balls' colours: the usual set. 9 to 15 are 1 to 7 with a stripe.
 const COLORS = {
@@ -263,6 +262,75 @@ export function drawBall(ctx, id, x, y, scale = 1, alpha = 1, sprite = null) {
   ctx.restore()
 }
 
+// ---------- the aim ----------
+
+// Where the shot goes (PoolTable.jsx traceAim), in view units: a dotted
+// line from the cue ball (`from`) to where it first touches something
+// (`contact`), a faint cue ball there, and the ball it hits (`target`, id
+// `targetId`) ringed in its spark colour, with a short line the way it'll
+// be knocked. No ball: the line ends at the cushion.
+export function drawAimLine(ctx, from, contact, target, targetId, alpha, now) {
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.lineCap = 'round'
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)'
+  ctx.lineWidth = 1.6
+  ctx.setLineDash([2, 6])
+  ctx.lineDashOffset = -now / 40
+  ctx.beginPath()
+  ctx.moveTo(from.x, from.y)
+  ctx.lineTo(contact.x, contact.y)
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  // The cue ball where it touches.
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
+  ctx.lineWidth = 1.4
+  ctx.beginPath()
+  ctx.arc(contact.x, contact.y, R, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+
+  if (target) {
+    const colour = sparkColor(targetId)
+    // The ball it hits, ringed and glowing.
+    ctx.strokeStyle = colour
+    ctx.shadowColor = colour
+    ctx.shadowBlur = 10 + Math.sin(now / 160) * 3
+    ctx.lineWidth = 2.5
+    ctx.beginPath()
+    ctx.arc(target.x, target.y, R + 4, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.shadowBlur = 0
+    // The way it'll go: along the line between the two centres.
+    const ux = target.x - contact.x
+    const uy = target.y - contact.y
+    const d = Math.sqrt(ux * ux + uy * uy) || 1
+    const sx = target.x + (ux / d) * (R + 4)
+    const sy = target.y + (uy / d) * (R + 4)
+    const ex = target.x + (ux / d) * (R + 70)
+    const ey = target.y + (uy / d) * (R + 70)
+    ctx.strokeStyle = colour
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(sx, sy)
+    ctx.lineTo(ex, ey)
+    ctx.stroke()
+    // An arrowhead.
+    const ax = ux / d
+    const ay = uy / d
+    ctx.fillStyle = colour
+    ctx.beginPath()
+    ctx.moveTo(ex + ax * 7, ey + ay * 7)
+    ctx.lineTo(ex - ay * 5, ey + ax * 5)
+    ctx.lineTo(ex + ay * 5, ey - ax * 5)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
 // ---------- the cue ----------
 
 // The cue, behind the cue ball at view (cx, cy), pointing along view
@@ -376,13 +444,3 @@ export function drawSparks(ctx, sparks, now, dt) {
   return alive
 }
 
-// The direction of `angle` on the table, as the dial shows it on screen
-// (upright tables are turned a quarter round). For AimPanel.jsx.
-export function viewAngle(vertical, angle) {
-  const dir = dirToView(vertical, Math.cos(angle), Math.sin(angle))
-  return Math.atan2(dir.y, dir.x)
-}
-export function tableAngle(vertical, screenAngle) {
-  const dir = dirToTable(vertical, Math.cos(screenAngle), Math.sin(screenAngle))
-  return Math.atan2(dir.y, dir.x)
-}

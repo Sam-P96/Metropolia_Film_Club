@@ -53,8 +53,8 @@ function HowToPlay() {
         or the 8 before your group is cleared).
       </p>
       <p>
-        To shoot, press on the table and drag back: the cue points the other way, and the further you pull, the harder you hit. Or switch to
-        &ldquo;Angle, then power&rdquo; under the table to set each one on its own. There&apos;s no line showing where the balls will go.
+        To shoot, press and hold towards where you want the cue ball to go: the longer you hold, the harder you hit, and the power never
+        drops. Let go to shoot. A line shows where the cue ball goes, and the first ball it hits.
       </p>
       <p>Against a member, each of you has three days for every shot, or the game goes to the other player.</p>
     </div>
