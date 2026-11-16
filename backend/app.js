@@ -44,6 +44,7 @@ const { startLoanSweep } = require("./jobs/loanSweep");
 const { startSlotSweep } = require("./jobs/slotSweep");
 const { startGomokuSweep } = require("./jobs/gomokuSweep");
 const { startQuizDraw } = require("./jobs/quizDraw");
+const { startSiteEvents } = require("./jobs/siteEvents");
 const { sendPage } = require("./utils/linkPreview");
 const { PUBLIC_PATH, bannerMediaRoute, sweepBanners } = require("./utils/bannerMedia");
 
@@ -155,6 +156,12 @@ connected
 connected
     .then(() => startQuizDraw())
     .catch((error) => console.error("Couldn't start the quiz draw:", error.message));
+
+// The Black Friday Sale and Double Prize Weekend: everyone's notification
+// when one starts (jobs/siteEvents.js).
+connected
+    .then(() => startSiteEvents())
+    .catch((error) => console.error("Couldn't start the site events check:", error.message));
 
 // Banners: any picture banner without its small video or copy yet gets one,
 // one at a time in the background (utils/bannerMedia.js). Needs ffmpeg.

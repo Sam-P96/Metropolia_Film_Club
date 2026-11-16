@@ -294,6 +294,13 @@ function noteQuizStreak(userIds, amount) {
     return sendToEach(userIds, { type: "quizStreak", amount });
 }
 
+// A calendar event started (utils/siteEvents.js): every member hears about
+// it. `type` is "blackFriday" or "doublePrizes".
+async function noteSiteEvent(type) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, { type });
+}
+
 // The Slot Machine (utils/slots.js): `playerId` tripled what they put in
 // this session. Big news: every member hears about it, the player included.
 async function noteSlotTriple(playerId) {
@@ -609,6 +616,7 @@ module.exports = {
     noteSlotJackpot,
     noteQuizWinner,
     noteQuizStreak,
+    noteSiteEvent,
     noteDoubleResult,
     notePokerWin,
     noteStealAttacked,

@@ -25,6 +25,7 @@ function emptyShark() {
         startedAt: null,
         firstDueAt: null,
         missed: 0,
+        jobsDealtAt: null,
     };
 }
 

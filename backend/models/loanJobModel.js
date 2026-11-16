@@ -10,7 +10,11 @@ const Schema = mongoose.Schema;
 //            dislike comes off again at `undoDislikeAt`.
 //   steal    convince `x` to steal from `y` in Steal and Defend
 // Only counts if it happens after the job was made (createdAt).
-//   status  open; done; closed (the loan was paid off first)
+//   status  open; done; closed (the loan was paid off first, or a new set
+//           was dealt)
+//   round   which set of the loan's jobs it's in: 0 for the first, one more
+//           for each new set dealt for not paying. The page shows the
+//           latest. Jobs from before there were sets have none: round 0.
 const loanJobSchema = new Schema({
     borrower: {type: Schema.Types.ObjectId, ref: "User", required: true},
     loan: {type: Schema.Types.ObjectId, required: true},
@@ -25,6 +29,7 @@ const loanJobSchema = new Schema({
     reduction: {type: Number, default: 0},
     undoDislikeAt: {type: Date, default: null},
     dislikeUndone: {type: Boolean, default: false},
+    round: {type: Number, default: 0},
 });
 
 loanJobSchema.index({borrower: 1, loan: 1});

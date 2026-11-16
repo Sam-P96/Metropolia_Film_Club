@@ -1,6 +1,7 @@
 import BannerStrip from '../profile/BannerStrip'
 import MemberAvatar from '../profile/MemberAvatar'
 import { PieceSwatch } from './Piece'
+import { classicStone, useClassicStones } from './classicPieces'
 
 // The two players over the board, you first, like Kino Farkle's
 // scoreboard: each member's review card banner behind their card, their
@@ -10,6 +11,11 @@ import { PieceSwatch } from './Piece'
 // picture; Play Local has none), `current` and `winner` as indexes into it
 // (null for none).
 export default function PlayersBar({ players, current, winner, over }) {
+  // Classic stones (classicPieces.js): black for whoever moved first; before
+  // the first move, the first of the two.
+  const classic = useClassicStones()
+  const anyFirst = players.some((player) => player.first)
+  const pieceOf = (player, index) => (classic ? classicStone(anyFirst ? player.first : index === 0) : player.piece)
   return (
     <div className="grid grid-cols-2 gap-3">
       {players.map((player, i) => {
@@ -34,7 +40,7 @@ export default function PlayersBar({ players, current, winner, over }) {
             )}
             <div className="flex items-center justify-center gap-2">
               {player.user && <MemberAvatar user={player.user} size="sm" />}
-              <PieceSwatch id={player.piece.id} invert={player.piece.invert} size={34} label={`${player.name}'s piece`} />
+              <PieceSwatch id={pieceOf(player, i).id} invert={pieceOf(player, i).invert} size={34} label={`${player.name}'s piece`} />
             </div>
             <p className="w-full truncate text-center font-semibold text-white drop-shadow">
               {won && <span aria-label="Winner">👑 </span>}

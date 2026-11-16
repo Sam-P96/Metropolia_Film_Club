@@ -29,6 +29,8 @@ export const DEFAULTS = {
 
 const PRICES = {
   gem: 1000,
+  // The Deluxe ones, in every kind: cooler effects.
+  deluxe: 1000,
   emoji: 200,
   gauntlet: 10000,
   shockwave: 500,
@@ -38,7 +40,13 @@ const PRICES = {
 
 // ---------- pieces ----------
 // look.type: 'stone' (a plain round stone, `color` black or white), 'gem'
-// (an Infinity Stone: it glows and breathes in its colours), 'emoji' (with
+// (an Infinity Stone: it glows and breathes in its colours), 'orb' (an
+// energy orb in its colours, light, own and shadow: light swirling round
+// inside it and a glow that pulses), 'glass' (a see-through stone of
+// coloured glass, the same three colours, glowing, with a glint sweeping
+// across), 'neon' (a ring of neon tube in `color` that flickers now and
+// then), 'eclipse' (a dark disc with a breathing corona), 'ember' (a
+// charcoal stone with glowing cracks and a flickering glow), 'emoji' (with
 // `outline`, two colours: a gradient outline round it), or 'image' (a
 // picture from frontend/src/assets).
 
@@ -83,6 +91,35 @@ const EMOJI = [
   ['eye', 'Eye', '👁️'],
 ]
 
+// Deluxe: [key, name, colours (light, own, shadow)].
+const ORBS = [
+  ['plasma', 'Plasma Orb', ['#ffd6fb', '#ff3dd8', '#3a0a5e']],
+  ['solar', 'Solar Orb', ['#fff6c8', '#ff9a1f', '#8a1c00']],
+  ['abyss', 'Abyss Orb', ['#c9a6ff', '#5a1ab8', '#05010b']],
+  ['frost', 'Frost Orb', ['#ffffff', '#7fd6ff', '#0b3d6b']],
+  ['toxic', 'Toxic Orb', ['#efffc2', '#7dff2e', '#0f4a00']],
+  ['rose', 'Rose Orb', ['#fff0f6', '#ff6fa8', '#6b0a35']],
+]
+
+// Deluxe coloured glass: [key, name, colours (light, own, shadow)].
+const GLASS = [
+  ['ruby', 'Ruby Glass', ['#ffc2cc', '#ff2a4d', '#6b0014']],
+  ['sapphire', 'Sapphire Glass', ['#cfe4ff', '#2a7bff', '#0b2560']],
+  ['emerald', 'Emerald Glass', ['#c6ffd4', '#21c45a', '#064a1d']],
+  ['amber', 'Amber Glass', ['#fff1c2', '#ffb01f', '#6b3d00']],
+  ['amethyst', 'Amethyst Glass', ['#ead6ff', '#9b5bff', '#3a1170']],
+  ['rose', 'Rose Glass', ['#ffe0ee', '#ff7ab6', '#6b1240']],
+]
+
+// Deluxe neon rings: [key, name, colour].
+const NEON = [
+  ['pink', 'Neon Ring Pink', '#ff3dd8'],
+  ['cyan', 'Neon Ring Cyan', '#2ae0ff'],
+  ['lime', 'Neon Ring Lime', '#8cff2a'],
+]
+
+const deluxePiece = (id, name, look) => ({ id, kind: 'piece', name, category: 'Deluxe', price: PRICES.deluxe, look })
+
 const PIECES = [
   ...STONES.map((stone) => ({ ...stone, kind: 'piece', category: 'Stones', price: 0 })),
   ...GEMS.map((gem) => ({
@@ -101,6 +138,11 @@ const PIECES = [
     price: PRICES.emoji,
     look: { type: 'emoji', emoji, ...(outline && { outline }) },
   })),
+  ...ORBS.map(([key, name, colors]) => deluxePiece(`piece.orb.${key}`, name, { type: 'orb', colors })),
+  ...GLASS.map(([key, name, colors]) => deluxePiece(`piece.glass.${key}`, name, { type: 'glass', colors })),
+  ...NEON.map(([key, name, color]) => deluxePiece(`piece.neon.${key}`, name, { type: 'neon', color })),
+  deluxePiece('piece.eclipse', 'Eclipse', { type: 'eclipse' }),
+  deluxePiece('piece.ember', 'Ember Stone', { type: 'ember' }),
   {
     id: 'piece.gauntlet',
     kind: 'piece',
@@ -115,7 +157,9 @@ const PIECES = [
 // ---------- shockwaves ----------
 // What a stone sets off as it lands (about 0.3 seconds): a ring in `ring`'s
 // colours rushing out across the board, and `particles` of that kind in
-// `colors` (frontend/src/components/gomoku/shockwave.js draws them).
+// `colors` (frontend/src/components/gomoku/shockwave.js draws them). A Deluxe
+// one's `particles` names its recipe of layers instead
+// (frontend/src/components/gomoku/deluxeShockwave.js).
 
 const SHOCKWAVES = [
   { key: 'ripple', name: 'Ripple', price: 0, ring: ['#ffffff', '#d9d0ee'], particles: 'sparks', colors: ['#ffffff'] },
@@ -131,12 +175,17 @@ const SHOCKWAVES = [
   { key: 'glitch', name: 'Glitch', ring: ['#19e6ff', '#ff2fb3'], particles: 'pixels', colors: ['#19e6ff', '#ff2fb3', '#ffffff'] },
   { key: 'matrix', name: 'Matrix', ring: ['#d2ffde', '#1fd655'], particles: 'digits', colors: ['#3cff73', '#d2ffde'] },
   { key: 'coin-rain', name: 'Coin Rain', ring: ['#fff1b0', '#d9a531'], particles: 'coins', colors: ['#ffd65a', '#f0c040', '#a8791d'] },
+  // Deluxe.
+  { key: 'supernova', name: 'Supernova', deluxe: true, ring: ['#ffffff', '#ffd36b', '#ff4fd8'], particles: 'supernova', colors: ['#ffffff', '#ffe9a8', '#ff9de6'] },
+  { key: 'black-hole', name: 'Black Hole', deluxe: true, ring: ['#c9a6ff', '#4b1a99', '#05010b'], particles: 'black-hole', colors: ['#b98cff', '#e0ccff', '#7a3bff'] },
+  { key: 'fireworks', name: 'Fireworks', deluxe: true, ring: ['#ffffff', '#ff3d5a', '#3dc8ff'], particles: 'firework-show', colors: ['#ff3d5a', '#ffe83d', '#3dff8b', '#3dc8ff', '#ff3dd8', '#ffffff'] },
+  { key: 'prism', name: 'Prism', deluxe: true, ring: ['#ff3d5a', '#ffe83d', '#3dff8b', '#3dc8ff', '#8b5bff'], particles: 'prism-burst', colors: ['#ff3d5a', '#ffb13d', '#ffe83d', '#3dff8b', '#3dc8ff', '#8b5bff'] },
 ].map((wave) => ({
   id: `wave.${wave.key}`,
   kind: 'shockwave',
   name: wave.name,
-  category: wave.price === 0 ? 'Free' : 'Shockwaves',
-  price: wave.price ?? PRICES.shockwave,
+  category: wave.price === 0 ? 'Free' : wave.deluxe ? 'Deluxe' : 'Shockwaves',
+  price: wave.price ?? (wave.deluxe ? PRICES.deluxe : PRICES.shockwave),
   look: { ring: wave.ring, particles: wave.particles, colors: wave.colors },
 }))
 
@@ -151,12 +200,16 @@ const BOARDS = [
   { key: 'sparkly-gold', name: 'Sparkly Gold', ink: '#5a3c00' },
   { key: 'purple', name: 'Purple', ink: '#e8dcff' },
   { key: 'black-glass', name: 'Black Glass', ink: '#d6d6e6' },
+  // Deluxe: they move (gomoku.css).
+  { key: 'starfield', name: 'Starfield', deluxe: true, ink: '#cfd8ff' },
+  { key: 'synthwave', name: 'Synthwave', deluxe: true, ink: '#ffd6f5' },
+  { key: 'aurora', name: 'Aurora', deluxe: true, ink: '#d6fff3' },
 ].map((board) => ({
   id: `board.${board.key}`,
   kind: 'board',
   name: board.name,
-  category: board.price === 0 ? 'Free' : 'Boards',
-  price: board.price ?? PRICES.board,
+  category: board.price === 0 ? 'Free' : board.deluxe ? 'Deluxe' : 'Boards',
+  price: board.price ?? (board.deluxe ? PRICES.deluxe : PRICES.board),
   look: { cls: `gmk-board-${board.key}`, ink: board.ink },
 }))
 
@@ -167,12 +220,15 @@ const GRIDS = [
   { key: 'rainbow', name: 'Animated Rainbow' },
   { key: 'silver', name: 'Silver' },
   { key: 'neon', name: 'Neon Blue' },
+  // Deluxe: they move (gomoku.css).
+  { key: 'pulse', name: 'Neon Pulse', deluxe: true },
+  { key: 'laser', name: 'Laser', deluxe: true },
 ].map((grid) => ({
   id: `grid.${grid.key}`,
   kind: 'grid',
   name: grid.name,
-  category: grid.price === 0 ? 'Free' : 'Grids',
-  price: grid.price ?? PRICES.grid,
+  category: grid.price === 0 ? 'Free' : grid.deluxe ? 'Deluxe' : 'Grids',
+  price: grid.price ?? (grid.deluxe ? PRICES.deluxe : PRICES.grid),
   look: { cls: `gmk-grid-${grid.key}` },
 }))
 

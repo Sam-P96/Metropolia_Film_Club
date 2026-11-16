@@ -43,6 +43,10 @@ const scratchCardSchema = new Schema(
         // The tier locked in when the last needed star turned up (its key in
         // shared/scratch/config.js), and whether it's been paid.
         tier: {type: String, default: null},
+        // Bought in a Double Prize Weekend (shared/events.js): its prize is
+        // doubled (a refund pays the price back and once more in P-PP).
+        // The jackpot isn't.
+        doublePrizes: {type: Boolean, default: false},
         prizePaid: {type: Boolean, default: false},
 
         // The Golden Ticket: found, how much of the jackpot it won, and

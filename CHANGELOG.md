@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Infinite Gomoku: a Classic stones toggle beside the sound toggle on the
+  game pages (Play Local, vs Clanker, online games). On, every piece on the
+  board and in the players bar shows as a plain black stone (whoever moved
+  first) or white stone, so the game stays easy to read; shockwaves, boards
+  and grids stay. Remembered on the device; the shop's preview board
+  always shows the real items.
+- Infinite Gomoku's Deluxe items, 1,000 points each: 17 pieces (six
+  energy orbs, six coloured glass stones, three neon rings, Eclipse and
+  Ember Stone, all glowing), four shockwaves made of layered particle
+  effects (Supernova, Black Hole, Fireworks, Prism:
+  `frontend/src/components/gomoku/deluxeShockwave.js`), three moving boards
+  (Starfield, Synthwave, Aurora) and two moving grids (Neon Pulse, Laser).
+- The Black Friday Sale: from Black Friday (the day after the fourth
+  Thursday of November) to the end of that Sunday, Helsinki time, every
+  Black Market name style and border is half price (rounded up), except the
+  Jackpot name style and border. The page shows the sale prices and a
+  banner, and everyone gets a white notification when it starts.
+- Box Office Scratch's Double Prize Weekend: every Saturday and Sunday,
+  Helsinki time, cards bought then pay double prizes (Straight to DVD pays
+  the price back and once more in P-PP); the jackpots stay as they are.
+  The game page shows a rainbow banner and the doubled prize table, its
+  Games page card gets a rainbow edge and glow with its logo breathing a
+  rainbow glow, and everyone gets a rainbow notification when it starts.
+  Both events come from `shared/events.js`; their notifications are sent
+  once each (`utils/siteEvents.js`, `jobs/siteEvents.js`, new `siteevents`
+  collection, `doublePrizes` on scratch cards).
 - README with setup instructions, API overview, and project layout.
 - CONTRIBUTING with branch, commit, and pull request conventions.
 - CHANGELOG.
@@ -460,6 +486,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Kino Casino (the Slot Machine) pays back more: from 99% for the richest
+  active player to 115% for the poorest (was 98.5% to 105%). In its happy
+  hour, the richest gets 95% and everyone else 110% to 120%. New weight
+  tables for 111% to 120% (`scripts/tune-slots.js`).
+- Loan Shark: a borrower who hasn't paid King Loan Shark for a week gets a
+  new set of jobs. The ones not done yet close (jobs done keep what they
+  took off), and the week starts again from each payment or new set
+  (`refreshStaleJobs` in `utils/loanShark/jobs.js`, run by the loan sweep
+  every 10 minutes; new `round` on jobs and `jobsDealtAt` on loans).
+- The Resonance page has a blue underglow: the Soul Resonance blue rising
+  from the bottom of the screen, breathing slowly (still with Reduce Motion).
+- Double or Nothing: at the Monday reset, everything left in the pot goes
+  to the bonus pot (was half), and the bonus pot holds up to 95,000 (was
+  3,000); whatever doesn't fit is burned.
 - The Box Office Scratch jackpots also grow from what's lost elsewhere:
   75% of a stake lost to Clanker at Kino Farkle (beaten, resigned, left or
   timed out) and 50% of everything King Loan Shark takes (repayments and

@@ -2,11 +2,15 @@
 // board (Board.jsx): a ring rushing out across the board in the shockwave's
 // colours, and a burst of its particles. Any piece sets one off: it's the
 // placer's shockwave (shared/gomoku/catalogue.js), whatever their piece.
-// The whole thing is over in about 0.3 seconds.
+// The whole thing is over in about 0.3 seconds. A Deluxe shockwave
+// (deluxeShockwave.js) is a recipe of several layers of particles, some
+// starting a moment after others, and lasts up to about a second.
 //
 //   const layer = new ShockwaveLayer(canvas)
 //   layer.play({ x, y, cell, look })   // x, y and cell in CSS pixels
 //   layer.stop()
+
+import { DELUXE_KINDS, RECIPES, drawDeluxe, drawImplosion } from './deluxeShockwave'
 
 const RING_MS = 300
 const PARTICLE_MS = 340
@@ -16,7 +20,8 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)]
 const between = (low, high) => low + Math.random() * (high - low)
 
 // How many particles each kind throws out, and how each one starts.
-// `speed` is in cells per second; `spin` in turns per second.
+// `speed` is in cells per second; `spin` in turns per second; `swirl`
+// turns a particle's path, in radians per second (the Black Hole's spiral).
 const KINDS = {
   sparks: { count: 14, speed: [9, 15], size: [0.08, 0.14] },
   embers: { count: 18, speed: [4, 9], size: [0.07, 0.14], rise: 6 },
@@ -60,32 +65,48 @@ function boltPath(length, cell) {
   return path
 }
 
-function makeParticles(kind, cell, colors) {
-  const spec = KINDS[kind] ?? KINDS.sparks
-  return Array.from({ length: spec.count }, (_, i) => {
-    const angle = (i / spec.count) * Math.PI * 2 + between(-0.25, 0.25)
+// One layer of particles: a basic shockwave's only one, or one of a Deluxe
+// recipe's (deluxeShockwave.js), with what the layer changes. Each particle
+// starts `delay` ms in and lasts `life` ms.
+function makeParticles(kind, cell, colors, layer = {}) {
+  const spec = { ...(KINDS[kind] ?? DELUXE_KINDS[kind] ?? KINDS.sparks), ...layer.spec }
+  const count = layer.count ?? spec.count
+  const palette = layer.colors ?? colors
+  const delay = layer.delay ?? [0, 0]
+  const life = layer.life ?? [PARTICLE_MS, PARTICLE_MS]
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * Math.PI * 2 + (spec.center ? 0 : between(-0.25, 0.25))
     const speed = between(...spec.speed) * cell
     const size = between(...spec.size) * cell
-    const start = spec.inward ? cell * between(2.6, 3.6) : cell * 0.35
+    const start = spec.center ? 0 : spec.inward ? cell * between(2.6, 3.6) : spec.scatter ? cell * between(...spec.scatter) : cell * 0.35
     return {
+      kind,
       angle,
       x: Math.cos(angle) * start,
       y: Math.sin(angle) * start,
       vx: Math.cos(angle) * speed * (spec.inward ? -1 : 1),
       vy: Math.sin(angle) * speed * (spec.inward ? -1 : 1),
       size,
-      color: pick(colors),
+      color: pick(palette),
+      palette,
       rot: Math.random() * Math.PI * 2,
-      spin: (spec.spin ?? 0) * Math.PI * 2 * (Math.random() < 0.5 ? -1 : 1),
+      spin: (spec.spin ?? 0) * Math.PI * 2 * (spec.oneWay || Math.random() < 0.5 ? 1 : -1),
       rise: (spec.rise ?? 0) * cell,
       fall: (spec.fall ?? 0) * cell,
+      drag: spec.drag ?? 0.9,
+      swirl: spec.swirl ?? 0,
+      seed: Math.random() * 10,
+      delay: between(...delay),
+      life: between(...life),
       digit: Math.random() < 0.5 ? '0' : '1',
       bolt: kind === 'bolts' ? boltPath(size, cell) : null,
+      deluxe: !KINDS[kind] && Boolean(DELUXE_KINDS[kind]),
     }
   })
 }
 
-function drawParticle(ctx, kind, p, cell, fade) {
+function drawParticle(ctx, p, cell, fade) {
+  const { kind } = p
   ctx.save()
   ctx.translate(p.x, p.y)
   ctx.rotate(p.rot)
@@ -197,10 +218,16 @@ function drawParticle(ctx, kind, p, cell, fade) {
 
 // The ring: a glowing band in the shockwave's colours, rushing out and
 // thinning as it goes, and a fainter one just behind it. `t` from 0 to 1.
-function drawRing(ctx, colors, cell, t, reduced) {
+// `style` (a Deluxe recipe's): 'big' rushes further, in three bands;
+// 'implode' falls in instead (deluxeShockwave.js).
+function drawRing(ctx, colors, cell, t, reduced, style = null) {
+  if (style === 'implode' && !reduced) {
+    drawImplosion(ctx, colors, cell, t)
+    return
+  }
   const grow = easeOut(t)
-  const reach = reduced ? cell * 1.2 : cell * 5
-  const bands = reduced ? [0] : [0, 0.22]
+  const reach = reduced ? cell * 1.2 : cell * (style === 'big' ? 6.5 : 5)
+  const bands = reduced ? [0] : style === 'big' ? [0, 0.16, 0.32] : [0, 0.22]
 
   for (const lag of bands) {
     const local = Math.max(0, (t - lag) / (1 - lag))
@@ -266,13 +293,23 @@ export class ShockwaveLayer {
   play({ x, y, cell, look }) {
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     this.fit()
+    const recipe = RECIPES[look.particles] ?? null
+    const particles = reduced
+      ? []
+      : recipe
+        ? recipe.layers.flatMap((layer) => makeParticles(layer.kind, cell, look.colors, layer))
+        : makeParticles(look.particles, cell, look.colors)
+    const ringMs = recipe?.ringMs ?? RING_MS
     this.effects.push({
       x,
       y,
       cell,
       ring: look.ring,
-      kind: look.particles,
-      particles: reduced ? [] : makeParticles(look.particles, cell, look.colors),
+      ringStyle: recipe?.ring ?? null,
+      ringMs,
+      particles,
+      // When it's all over: the ring, and the last particle to go.
+      end: Math.max(ringMs, PARTICLE_MS, ...particles.map((p) => p.delay + p.life)),
       start: performance.now(),
       last: performance.now(),
       reduced,
@@ -285,23 +322,31 @@ export class ShockwaveLayer {
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    this.effects = this.effects.filter((effect) => now - effect.start < Math.max(RING_MS, PARTICLE_MS))
+    this.effects = this.effects.filter((effect) => now - effect.start < effect.end)
     for (const effect of this.effects) {
       const elapsed = now - effect.start
       const dt = Math.min(0.05, (now - effect.last) / 1000)
       effect.last = now
 
       ctx.setTransform(this.ratio, 0, 0, this.ratio, effect.x * this.ratio, effect.y * this.ratio)
-      if (elapsed < RING_MS) drawRing(ctx, effect.ring, effect.cell, elapsed / RING_MS, effect.reduced)
+      if (elapsed < effect.ringMs) drawRing(ctx, effect.ring, effect.cell, elapsed / effect.ringMs, effect.reduced, effect.ringStyle)
 
-      const fade = Math.max(0, 1 - elapsed / PARTICLE_MS)
       for (const p of effect.particles) {
-        p.vx *= 0.9
-        p.vy = p.vy * 0.9 - p.rise * dt + p.fall * dt
+        const age = elapsed - p.delay
+        if (age < 0 || age >= p.life) continue
+        if (p.swirl) {
+          const turn = p.swirl * dt
+          const vx = p.vx * Math.cos(turn) - p.vy * Math.sin(turn)
+          p.vy = p.vx * Math.sin(turn) + p.vy * Math.cos(turn)
+          p.vx = vx
+        }
+        p.vx *= p.drag
+        p.vy = p.vy * p.drag - p.rise * dt + p.fall * dt
         p.x += p.vx * dt
         p.y += p.vy * dt
         p.rot += p.spin * dt
-        drawParticle(ctx, effect.kind, p, effect.cell, fade)
+        if (p.deluxe) drawDeluxe(ctx, p, effect.cell, age / p.life, age)
+        else drawParticle(ctx, p, effect.cell, 1 - age / p.life)
       }
     }
 

@@ -41,6 +41,10 @@ const LOAN_SHARK = {
         // "Convince X to dislike Y's review": the dislike comes off again
         // this long after it was made.
         dislikeHours: 48,
+        // No payment to King Loan Shark for this many days: the jobs not
+        // done yet close, and a new set is dealt. The days count again from
+        // each payment, from the loan starting, and from each new set.
+        refreshDays: 7,
         // Who counts as a quiet member, to be convinced: fewer reviews than
         // this, or nothing (a review, a comment, a like) for this many days.
         fewReviews: 20,

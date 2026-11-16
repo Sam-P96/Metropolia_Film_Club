@@ -15,6 +15,7 @@ import { buyCosmetic, getBlackMarket, wearCosmetic, wishCosmetic } from '../serv
 import { getUser } from '../services/users'
 import { getCurrentUser, getCurrentUserId } from '../utils/currentUser'
 import { BORDER_ITEMS, CATEGORIES, NAME_ITEMS, cosmeticById } from '../../../shared/cosmetics/catalogue.js'
+import BlackFridayBanner from '../components/blackMarket/BlackFridayBanner'
 
 const EASE = [0.22, 1, 0.36, 1]
 const GLASS = 'rounded-2xl border border-white/10 bg-ink/60 shadow-xl shadow-black/40 backdrop-blur-xl'
@@ -148,6 +149,8 @@ export default function BlackMarket() {
         </header>
 
         <Chameleon />
+
+        {shop.data?.sale?.on && <BlackFridayBanner sale={shop.data.sale} />}
 
         {!shop.data || !me ? (
           shop.error ? (

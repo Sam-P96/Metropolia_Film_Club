@@ -89,15 +89,14 @@ describe("the game logic", () => {
         assert.equal(engine.seedFrom([137.4]), 137);
     });
 
-    test("the reset: bets of 160 + 320 + 640 with 960 in the bonus pot: 560 in (1 520), 560 burned", () => {
-        assert.deepEqual(engine.resetSplit(160 + 320 + 640, 960), { toBonus: 560, burned: 560, bonusPot: 1520 });
+    test("the reset: bets of 160 + 320 + 640 with 960 in the bonus pot: all 1 120 in (2 080), nothing burned", () => {
+        assert.deepEqual(engine.resetSplit(160 + 320 + 640, 960), { toBonus: 1120, burned: 0, bonusPot: 2080 });
+        assert.deepEqual(engine.resetSplit(225, 0), { toBonus: 225, burned: 0, bonusPot: 225 });
     });
 
-    test("the reset: the bonus pot never goes past 3 000, the overflow is burned", () => {
-        assert.deepEqual(engine.resetSplit(1120, 2800), { toBonus: 200, burned: 920, bonusPot: 3000 });
-        assert.deepEqual(engine.resetSplit(1120, 3000), { toBonus: 0, burned: 1120, bonusPot: 3000 });
-        // An odd point burns rather than being split.
-        assert.deepEqual(engine.resetSplit(225, 0), { toBonus: 112, burned: 113, bonusPot: 112 });
+    test("the reset: the bonus pot never goes past 95 000, the overflow is burned", () => {
+        assert.deepEqual(engine.resetSplit(1120, 94800), { toBonus: 200, burned: 920, bonusPot: 95000 });
+        assert.deepEqual(engine.resetSplit(1120, 95000), { toBonus: 0, burned: 1120, bonusPot: 95000 });
     });
 
     test("the bonus pot comes with a win when the bet is at least 4x the seed", () => {
@@ -256,7 +255,7 @@ describe("the Double or Nothing routes", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.equal(body.possibleWin, 280);
         assert.equal(body.bonusUnlocksAt, 560);
         assert.equal(body.bonusEligible, false);
-        assert.equal(body.bonusCap, 3000);
+        assert.equal(body.bonusCap, 95000);
     });
 
     routeTest("status: where they stand, their wallet, whether they can afford it, and when the next reset is", async () => {

@@ -18,6 +18,7 @@ import { CLANKER_NAME } from '../../../shared/gomoku/clanker.js'
 import { CLANKER_PICTURE } from '../components/clankerPicture'
 import { CLANKER_STARTS_UP_TO, clankerStarts } from '../../../shared/farkle/rules.js'
 import { DEFAULT_SIZE, boardOf, isFull, pointName, seatToMove, winningLine } from '../../../shared/gomoku/rules.js'
+import ClassicToggle from '../components/gomoku/ClassicToggle'
 
 // Clanker in the players bar: its picture, and no banner.
 const CLANKER_USER = { _id: null, username: CLANKER_NAME, avatarUrl: CLANKER_PICTURE, reviewCardBanner: null }
@@ -177,7 +178,7 @@ export default function GomokuClanker() {
   ]
 
   return (
-    <GomokuPage back={BACK} subtitle="vs Clanker, for fun. A die decides who starts, and Clanker doesn't go easy." aside={<SoundToggle />}>
+    <GomokuPage back={BACK} subtitle="vs Clanker, for fun. A die decides who starts, and Clanker doesn't go easy." aside={<div className="flex flex-wrap items-center justify-center gap-2"><ClassicToggle /><SoundToggle /></div>}>
       <PlayersBar players={players} current={started ? side(current) : null} winner={side(game.winner)} over={over} />
 
       {!started && (

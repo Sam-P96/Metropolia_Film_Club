@@ -62,15 +62,20 @@ describe("scratch cards: the Golden Ticket 4 times as often, 12:30 to 14:30", ()
     });
 });
 
-describe("the slot machine: RTP 99% to 106%, 12:30 to 13:00", () => {
-    test("richest active 99%, poorest 106%, everyone else in between or at 99%", () => {
+describe("the slot machine: the top place 95%, everyone else 110% to 120%, 12:30 to 13:00", () => {
+    test("richest active 95%, second richest 110%, poorest 120%, a straight line between; inactive 99%", () => {
         const luck = slotLuck(LUCK, winter("12:45"));
-        assert.equal(targetRtp({ active: true, rank: 1, count: 10 }, luck), 0.99);
-        assert.ok(Math.abs(targetRtp({ active: true, rank: 10, count: 10 }, luck) - 1.06) < 1e-9);
+        const rtp = (rank, count = 10) => targetRtp({ active: true, rank, count }, luck);
+        assert.equal(rtp(1), 0.95);
+        assert.ok(Math.abs(rtp(2) - 1.1) < 1e-9);
+        assert.ok(Math.abs(rtp(6) - 1.15) < 1e-9, "halfway from the second richest to the poorest");
+        assert.ok(Math.abs(rtp(10) - 1.2) < 1e-9);
+        // Two active players: the top place, and the poorest.
+        assert.deepEqual([rtp(1, 2), rtp(2, 2)], [0.95, 1.2]);
         assert.equal(targetRtp({ active: false }, luck), 0.99);
         const solo = targetRtp({ active: true, rank: 1, count: 1 }, luck);
-        assert.ok(solo >= 0.99 && solo <= 1.06);
-        for (const rtp of [0.99, 1.06, solo]) assert.equal(tableFor(rtp).bucket, Math.round(rtp * 100));
+        assert.equal(solo, 1.04);
+        for (const value of [0.95, 1.1, 1.15, 1.2, 0.99, solo]) assert.equal(tableFor(value).bucket, Math.round(value * 100));
     });
 
     test("outside it, the usual numbers", () => {

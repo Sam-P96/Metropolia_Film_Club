@@ -81,15 +81,15 @@ function seedFrom(totals) {
     return Math.min(max, Math.max(min, Math.round(middle)));
 }
 
-// The Monday reset's sums. `lost` (every bet left in the pot) splits in
-// half: one half to the bonus pot, but never past its cap (whatever doesn't
-// fit is burned), the other half burned. An odd point burns too, so nothing
-// is ever made up. 1 120 lost with 960 in the bonus pot: 560 in (1 520) and
-// 560 burned.
+// The Monday reset's sums. `lost` (every bet left in the pot): its share
+// (DOUBLE.bonus.share, all of it) to the bonus pot, but never past its cap,
+// and the rest burned. A share that isn't a whole point rounds down, so
+// nothing is ever made up. 1 120 lost with 960 in the bonus pot: 1 120 in
+// (2 080).
 function resetSplit(lost, bonusPot) {
-    const half = Math.floor(lost / 2);
+    const share = Math.floor(lost * DOUBLE.bonus.share);
     const room = Math.max(0, DOUBLE.bonus.cap - bonusPot);
-    const toBonus = Math.min(half, room);
+    const toBonus = Math.min(share, room);
     return { toBonus, burned: lost - toBonus, bonusPot: bonusPot + toBonus };
 }
 

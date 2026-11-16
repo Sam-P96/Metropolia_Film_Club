@@ -124,6 +124,12 @@ const QUIZ_TYPES = ["quizWinner", "quizStreak"];
 //   adminGrant  an admin (`actors[0]`) sent them `amount` P-PP, with `note`
 const ADMIN_TYPES = ["adminGrant"];
 
+// The calendar events (utils/siteEvents.js, shared/events.js), sent to every
+// member once when one starts:
+//   blackFriday   the Black Market's Black Friday Sale
+//   doublePrizes  Box Office Scratch's Double Prize Weekend
+const SITE_EVENT_TYPES = ["blackFriday", "doublePrizes"];
+
 const GAME_TYPES = [
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
@@ -137,7 +143,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES],
         required: true,
     },
     review: {
@@ -145,7 +151,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -217,5 +223,6 @@ Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;
+Notification.SITE_EVENT_TYPES = SITE_EVENT_TYPES;
 
 module.exports = Notification;

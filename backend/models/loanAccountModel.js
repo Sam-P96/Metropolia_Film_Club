@@ -26,6 +26,8 @@ const Schema = mongoose.Schema;
 //     firstDueAt    the first 12:00 check a payment is due at: the first
 //                   one at least 24 hours after startedAt
 //     missed        missed payments so far on this loan
+//     jobsDealtAt   when the last new set of jobs was dealt for not paying
+//                   (utils/loanShark/jobs.js refreshStaleJobs), or null
 //   lastCheckDay      the Helsinki day of the last 12:00 check that went
 //                     through their loans ("2026-11-06")
 //   lastCollectorLine the line Kaveri's last notification used, so the
@@ -49,6 +51,7 @@ const loanAccountSchema = new Schema({
         startedAt: {type: Date, default: null},
         firstDueAt: {type: Date, default: null},
         missed: {type: Number, default: 0},
+        jobsDealtAt: {type: Date, default: null},
     },
     lastCheckDay: {type: String, default: null},
     lastCollectorLine: {type: Number, default: null},

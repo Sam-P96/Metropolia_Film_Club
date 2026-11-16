@@ -10,6 +10,11 @@ const { test, describe, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { NAME_ITEMS, BORDER_ITEMS, ALL_ITEMS, CATEGORIES, cosmeticById, lookOf } = require("../../shared/cosmetics/catalogue.js");
+const { BLACK_FRIDAY, blackFridaySale } = require("../../shared/events.js");
+
+// The prices below are the usual ones: in the Black Friday Sale they're
+// halved (tests/siteEvents.test.js), so these are skipped then.
+const SALE_ON = blackFridaySale().on ? "the Black Friday Sale is on: prices are halved" : false;
 
 describe("the cosmetics catalogue", () => {
     test("every item has a unique, stable id, a category, a requirement and a price", () => {
@@ -109,10 +114,12 @@ describe("buying and wearing", { skip: !uri ? "set MONGO_TEST_URI to run these" 
     test("the shop: P-PP, reviews, what's owned and worn", async () => {
         const shopper = await member("shopper", { reviews: 60, ppp: 6000 });
         const shop = await call(shopper, "GET", "/black-market");
-        assert.deepEqual(shop.body, { ppp: 6000, reviews: 60, owned: [], wishlist: [], wearing: { name: null, border: null }, hearts: {} });
+        const { on, lastDay } = blackFridaySale();
+        const sale = { on, discount: Math.round(BLACK_FRIDAY.discount * 100), excluded: BLACK_FRIDAY.excluded, lastDay };
+        assert.deepEqual(shop.body, { ppp: 6000, reviews: 60, owned: [], wishlist: [], wearing: { name: null, border: null }, hearts: {}, sale });
     });
 
-    test("buying: P-PP only, burned, once; the review requirement checked as it's bought", async () => {
+    test("buying: P-PP only, burned, once; the review requirement checked as it's bought", { skip: SALE_ON }, async () => {
         const buyer = await member("buyer", { reviews: 50, pp: 99999, ppp: 5400 });
 
         const tooFew = await call(buyer, "POST", "/black-market/buy", { itemId: "name.fire.blue" });

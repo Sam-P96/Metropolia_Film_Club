@@ -72,8 +72,9 @@ export default function HowItWorks() {
                 pot too.
               </li>
               <li>
-                Every Monday at 12:00 Helsinki time the pot starts over. Half of what&apos;s been left in it goes to the bonus pot (which holds up
-                to {bonus.cap.toLocaleString('en-US')}), and the other half is burned. The new starting bet is what a typical active member
+                Every Monday at 12:00 Helsinki time the pot starts over. {bonus.share >= 1 ? 'Everything' : `${Math.round(bonus.share * 100)}%`} of
+                what&apos;s been left in it goes to the bonus pot (which holds up to {bonus.cap.toLocaleString('en-US')}), and anything that
+                doesn&apos;t fit is burned. The new starting bet is what a typical active member
                 holds: the 75th percentile of the wallets of everyone who&apos;s posted a review in the last {seed.activeMonths} months, between{' '}
                 {seed.min} and {seed.max}.
               </li>

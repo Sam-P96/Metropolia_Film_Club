@@ -6,6 +6,7 @@ import { Skeleton } from './Marquee'
 import { ticketTheme } from './ticketThemes'
 import { SCRATCH } from '../../../../shared/scratch/config.js'
 import { TICKET_TYPES, describeHours, ticketTiers, ticketType } from '../../../../shared/scratch/tickets.js'
+import { DOUBLE_PRIZES } from '../../../../shared/events.js'
 
 const GLASS = 'rounded-2xl border border-white/10 bg-black/40 shadow-xl shadow-black/40 backdrop-blur-md'
 
@@ -36,7 +37,10 @@ const column = (key, viewType) => `transition-colors duration-300 ${key === view
 // Ticket's row shows the real amounts; `viewType` is the ticket the page is
 // showing, whose column is lit; `hours` says whether timed tickets (VIP)
 // are on sale (useTicketHours, null while it loads).
-export default function HowToPlay({ jackpots = null, viewType, hours = null }) {
+// `doublePrizes`: it's a Double Prize Weekend, so the table shows doubled
+// prizes (a refund: the price back, and once more in P-PP).
+export default function HowToPlay({ jackpots = null, viewType, hours = null, doublePrizes = false }) {
+  const times = doublePrizes ? DOUBLE_PRIZES.times : 1
   const [open, setOpen] = useState(false)
   const calm = useReducedMotion()
 
@@ -103,6 +107,7 @@ export default function HowToPlay({ jackpots = null, viewType, hours = null }) {
               <div>
                 <p className="mb-1 flex items-center gap-1.5 text-xs text-white/50">
                   <CoinIcon kind="ppp" size={14} /> Prizes in P-PP
+                  {doublePrizes && <span className="rainbow-text font-bold">· doubled this weekend</span>}
                 </p>
                 <table className="w-full table-fixed text-left tabular-nums">
                   <colgroup>
@@ -141,9 +146,11 @@ export default function HowToPlay({ jackpots = null, viewType, hours = null }) {
                           return (
                             <td key={type.key} className={`px-1 py-2 text-right ${column(type.key, viewType)}`}>
                               {prize.refund ? (
-                                <span className="text-xs font-semibold text-white">{type.price} back</span>
+                                <span className="text-xs font-semibold text-white">
+                                  {type.price} back{times > 1 && <span className="text-brand-gold"> +{type.price * (times - 1)}</span>}
+                                </span>
                               ) : (
-                                <span className="text-base font-bold text-brand-gold">{prize.ppp}</span>
+                                <span className="text-base font-bold text-brand-gold">{prize.ppp * times}</span>
                               )}
                             </td>
                           )
