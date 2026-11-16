@@ -122,7 +122,10 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
       const vertical = width < 640
       const size = viewSize(vertical)
       const maxHeight = vertical ? window.innerHeight * 0.82 : Infinity
-      setLayout({ vertical, scale: Math.min(width / size.w, maxHeight / size.h) })
+      // Lying down (a computer), it takes 90% of the width. Either way the
+      // same scale both ways, so the table keeps its shape.
+      const share = vertical ? 1 : 0.9
+      setLayout({ vertical, scale: Math.min((width * share) / size.w, maxHeight / size.h) })
     }
     fit()
     const observer = new ResizeObserver(fit)
