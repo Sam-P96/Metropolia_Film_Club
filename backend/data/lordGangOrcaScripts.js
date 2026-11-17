@@ -49,6 +49,17 @@ module.exports = {
             "Kid. I said an hour. Do I look like a vending machine?",
             "Patience. The shark rushes. We don't.",
             "Sit. Have some bread. Ask me again later.",
+            // His appetite: family or not, he's still an orca.
+            "Kid. I love you like family. But I've eaten family before. Come back in an hour.",
+            "You've got an appetite, kid. Careful. You're waking up mine.",
+            "We're not like the shark. We don't grab. We wait. So wait.",
+            "Ask me again before the hour's up and I'll start wondering what you taste like.",
+            "Hungry, are we? So am I. Let's both be patient.",
+            "Self-control, kid. It's what separates us from the fish. And from my dinner.",
+            "Orcas eat seals, kid. Seals that don't listen. You're not a seal, are you?",
+            "Every time you ask, I get a little hungrier. Think about that.",
+            "Family eats together, kid. Don't make me wonder who's on the menu.",
+            "People who can't wait are people who disappear. We're better than them. You can wait, can't you?",
         ],
         dailyLimit: [
             "That's enough for today. Go home. Eat something.",
