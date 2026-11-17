@@ -269,6 +269,7 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         assert.equal(mine.status, 200);
         assert.equal("debug" in mine.body, false);
         assert.equal((await call(kid, "POST", "/debug", { action: "forceFavour" })).status, 403);
+        assert.equal("debug" in (await call(admin, "GET", "/")).body, false, "not on the page, even for admins");
         const theirs = await call(admin, "POST", "/debug", { action: "clock", weekday: 1, hour: 20 });
         assert.equal(theirs.status, 200);
         assert.equal(theirs.body.open, true);

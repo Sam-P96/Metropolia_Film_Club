@@ -9,12 +9,11 @@ import { SPEAKERS } from '../components/orca/speakers'
 import { GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
 import useCountdown, { formatCountdown } from '../hooks/useCountdown'
-import { answerOrca, begOrca, getOrca, orcaDebug } from '../services/orca'
+import { answerOrca, begOrca, getOrca } from '../services/orca'
 import { walletChanged } from '../services/wallet'
 import { formatDeadline } from '../utils/farkle'
 
 const CARD = 'rounded-2xl border border-white/10 bg-[#070d18]/80 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 // What a beg paid, in coins.
 function Paid({ paid }) {
@@ -33,79 +32,6 @@ function Paid({ paid }) {
         </span>
       )}
     </p>
-  )
-}
-
-// Admins only (the server sends `debug` only to them, and checks every
-// tool): pretend it's another day and hour, skip the wait, force a
-// question or favour mode, deal today's jobs again, complete one.
-function DebugPanel({ debug, onChange }) {
-  const [weekday, setWeekday] = useState(debug.fakeClock?.weekday ?? 1)
-  const [hour, setHour] = useState(debug.fakeClock?.hour ?? 18)
-  const [error, setError] = useState('')
-  const run = (action, payload) =>
-    orcaDebug(action, payload)
-      .then((status) => {
-        setError('')
-        onChange(status)
-      })
-      .catch((problem) => setError(problem.message))
-  const tool = 'rounded-lg border border-sky-400/50 bg-sky-950/40 px-3 py-1.5 text-sm font-semibold text-sky-200 hover:border-sky-300 hover:text-white cursor-pointer'
-
-  return (
-    <section aria-label="Admin testing tools" className="rounded-2xl border border-sky-400/40 bg-sky-950/30 p-4 text-sm text-sky-100">
-      <h2 className="font-semibold tracking-widest text-sky-200 uppercase">Admin testing tools</h2>
-      <p className="mt-1 text-xs text-sky-200/70">
-        Only admins see this. Built up towards the secret threshold: {debug.built}. Clock: {debug.fakeClock ? `${WEEKDAYS[debug.fakeClock.weekday]} ${debug.fakeClock.hour}:00 (pretend)` : 'real'}.
-        {debug.forceQuestion && ' The next beg is a question.'}
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select value={weekday} onChange={(event) => setWeekday(Number(event.target.value))} className="rounded-lg border border-sky-400/40 bg-black/40 px-2 py-1.5 text-white" aria-label="Pretend weekday">
-          {WEEKDAYS.map((name, i) => (
-            <option key={name} value={i}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <select value={hour} onChange={(event) => setHour(Number(event.target.value))} className="rounded-lg border border-sky-400/40 bg-black/40 px-2 py-1.5 text-white" aria-label="Pretend hour">
-          {Array.from({ length: 24 }, (_, i) => (
-            <option key={i} value={i}>
-              {String(i).padStart(2, '0')}:00
-            </option>
-          ))}
-        </select>
-        <button type="button" className={tool} onClick={() => run('clock', { weekday, hour })}>
-          Pretend
-        </button>
-        <button type="button" className={tool} onClick={() => run('clock', { weekday: null })}>
-          Real clock
-        </button>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button type="button" className={tool} onClick={() => run('skipCooldown')}>
-          Skip cooldown
-        </button>
-        <button type="button" className={tool} onClick={() => run('resetBegs')}>
-          Reset today&apos;s begs
-        </button>
-        <button type="button" className={tool} onClick={() => run('forceQuestion')}>
-          Next beg: a question
-        </button>
-        <button type="button" className={tool} onClick={() => run('forceFavour')}>
-          Start favour mode
-        </button>
-        <button type="button" className={tool} onClick={() => run('regenerateJobs')}>
-          Deal today&apos;s jobs again
-        </button>
-        <button type="button" className={tool} onClick={() => run('completeJob')}>
-          Complete a job
-        </button>
-        <button type="button" className={tool} onClick={() => run('endFavour')}>
-          End favour mode
-        </button>
-      </div>
-      {error && <p className="mt-2 text-red-300">{error}</p>}
-    </section>
   )
 }
 
@@ -281,7 +207,6 @@ export default function LordGangOrca() {
         )}
 
         {status && <FavoursPanel favour={status.favour} />}
-        {status?.debug && <DebugPanel debug={status.debug} onChange={setStatus} />}
       </div>
     </>
   )
