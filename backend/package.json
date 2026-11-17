@@ -7,6 +7,7 @@
     "start": "node server.js",
     "test": "node --test --test-concurrency=1 tests/*.test.js",
     "simulate:scratch": "node scripts/simulate-scratch.js",
+    "sim:crash": "node scripts/simulate-crash.js",
     "slots:rtp": "node scripts/slots-rtp.js",
     "slots:tune": "node scripts/tune-slots.js",
     "backfill:certifications": "node scripts/backfill-certifications.js",

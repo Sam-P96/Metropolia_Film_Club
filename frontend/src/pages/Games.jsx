@@ -109,7 +109,7 @@ export default function Games() {
                 <PoolLogo size={30} />
               </div>
               <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
-                <PoolTitle />
+                <PoolTitle gold />
               </h2>
               <p className="text-white/70">
                 Pot your group, then the 8. Play Clanker on Easy or Hard, or any member online for fun or for PP, and watch and bet on games the

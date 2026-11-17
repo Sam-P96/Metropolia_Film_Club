@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A Particles on / off toggle on 8 Ball Pool's game pages (and the shop's
   Test table): off, no sparks or Ignitions fly when balls collide.
   Remembered on the device.
+- On the Games page, "Pool" in 8 Ball Pool's name is the club's gold, like
+  the other games' names.
 - Live pool: both players and anyone watching see each shot as it's
   played, and the other player's cue as they line up. Members who follow
   either player get a notification when a game starts, can watch it, and
