@@ -73,10 +73,11 @@ const makeCloud = (colour, seed) =>
   sprite(256, (c, s) => {
     let a = seed
     const rand = () => ((a = (a * 16807) % 2147483647) / 2147483647)
+    // Each blob fades out inside the square, so the cloud has no edges.
     for (let i = 0; i < 5; i++) {
-      const x = s * (0.3 + rand() * 0.4)
-      const y = s * (0.3 + rand() * 0.4)
-      const r = s * (0.22 + rand() * 0.2)
+      const r = s * (0.22 + rand() * 0.12)
+      const x = s / 2 + (rand() - 0.5) * s * 0.2
+      const y = s / 2 + (rand() - 0.5) * s * 0.2
       const g = c.createRadialGradient(x, y, 0, x, y, r)
       g.addColorStop(0, rgba(colour, 0.34))
       g.addColorStop(1, rgba(colour, 0))

@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Crash (Games → Crash, `/games/crash`): a live multiplier that starts at
+  0.99x and moves up and down like a stock chart until it crashes to 0,
+  hits 25x or runs 60 seconds. Cash out any time (even under 1x) for your
+  bet times the multiplier when the server gets it, or set an auto
+  cash-out target beforehand; at 25x or 60 seconds everyone still in is
+  cashed out. It's a fair random walk, worked out a tick at a time on the
+  server from a secure random source and kept for replays: every way of
+  cashing out returns about 99% on average (`npm run sim:crash` checks).
+  - Bets from 1 up to a quarter of your daily PP, PP first, then P-PP; the
+    stake comes back in the same coins and profit is P-PP. Payouts are whole
+    points, rounded down.
+  - Six rounds a day from 12:00, at most three of them solo (alone, or a
+    room of 2 or 3); a room of four plays a bonus round, which only counts
+    towards the six.
+  - Rooms of up to four members (three rooms at once), live: everyone ready
+    starts one shared round. "Play alone" starts a private round. Players
+    who leave mid-round stay in it, auto cash-out and all.
+  - The game screen fits one phone screen: the live chart, a big
+    multiplier, a Cash out button (Space too), everyone's pictures riding
+    the line, popping off where they cash out and falling grey on a crash,
+    and a summary with the best cash-out in gold.
+  - Behind the chart the scene follows the multiplier: flames below 1x,
+    calm green, then stars, nebulae, sparkles and spiral galaxies as it
+    climbs, and a flash and a fade to grey on a crash. Fewer particles on a
+    phone; with reduced motion, no shake or shooting stars.
 - 8 Ball Pool (Games → 8 Ball Pool, `/games/pool`): Play For Fun (vs
   Clanker on Easy or Hard, played on the device, or vs Player) or Play For
   PP (vs Player, betting PP and P-PP), with challenges, counters and three days a shot (or the game goes
