@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigationType, useSearchParams } from 'react-router-dom'
 import FilmFilters from '../components/films/FilmFilters'
 import FilmGrid from '../components/films/FilmGrid'
 import { searchFilms, discoverFilms, getGenres } from '../services/tmdb'
@@ -38,13 +38,50 @@ function fetchFilms({ mode, query, filters }, pageNumber) {
 
 const NO_RESULTS = { key: null, films: [], page: 1, totalPages: 0, totalResults: 0, error: null }
 
+// The films on show and how far down the page they'd scrolled, kept for this
+// tab (sessionStorage), so opening a film and coming back shows every film
+// they'd loaded, where they left it, instead of starting again from page 1.
+const SHOWN_KEY = 'filmBrowser.shown'
+const SCROLL_KEY = 'filmBrowser.scroll'
+
+function readShown() {
+  try {
+    const shown = JSON.parse(sessionStorage.getItem(SHOWN_KEY) ?? 'null')
+    return shown?.key && Array.isArray(shown.films) ? { ...shown, error: null } : null
+  } catch {
+    return null
+  }
+}
+
+function readScroll() {
+  try {
+    return Number(sessionStorage.getItem(SCROLL_KEY)) || 0
+  } catch {
+    return 0
+  }
+}
+
+function remember(key, value) {
+  try {
+    sessionStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value))
+  } catch {
+    // Storage full or off: it just won't be remembered.
+  }
+}
+
 function FilmBrowser() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [genres, setGenres] = useState([])
+  // Back, forward or a refresh ("POP"), rather than a link or a search.
+  const cameBack = useNavigationType() === 'POP'
   // The films shown, and which search or filters (`key`) they're for. While
-  // they're for different ones, the new ones are loading.
-  const [results, setResults] = useState(NO_RESULTS)
+  // they're for different ones, the new ones are loading. Coming back, they
+  // start as whatever was on show last time in this tab (readShown), and so
+  // does how far down they were.
+  const [results, setResults] = useState(() => (cameBack && readShown()) || NO_RESULTS)
+  const [cameBackTo] = useState(() => (cameBack ? { key: results.key, scrollY: readScroll() } : null))
+  const shownKey = useRef(results.key)
   const [loadingMore, setLoadingMore] = useState(false)
 
   const mode = searchParams.get('mode') === 'search' ? 'search' : 'browse'
@@ -91,10 +128,44 @@ function FilmBrowser() {
       .catch(() => setGenres([]))
   }, [])
 
-  // Refetch from page 1 whenever the mode, the search or any filter changes
+  // What's on show, remembered for coming back (and which search it's for,
+  // so a remembered one isn't fetched again).
+  useEffect(() => {
+    shownKey.current = results.key
+    if (results.key && !results.error) remember(SHOWN_KEY, results)
+  }, [results])
+
+  // How far down they are, remembered as they scroll and as they leave.
+  useEffect(() => {
+    let y = 0
+    const onScroll = () => {
+      y = window.scrollY
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      remember(SCROLL_KEY, String(y))
+    }
+  }, [])
+
+  // Back (or forward) to the films they had: where they were. After the
+  // site's own scroll to the top on a new page (components/ScrollToTop.jsx).
+  useEffect(() => {
+    if (!cameBackTo || cameBackTo.key !== fetchKey || cameBackTo.scrollY <= 0) return undefined
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => window.scrollTo(0, cameBackTo.scrollY))
+    })
+    return () => cancelAnimationFrame(frame)
+    // Only as the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Refetch from page 1 whenever the mode, the search or any filter changes,
+  // unless those films are on show already (remembered from last time).
   useEffect(() => {
     const asked = JSON.parse(fetchKey)
     if (asked.mode === 'search' && asked.query.trim().length < 2) return undefined
+    if (shownKey.current === fetchKey) return undefined
 
     let cancelled = false
 

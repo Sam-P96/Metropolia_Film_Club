@@ -5,8 +5,8 @@
 export const SECRET_PAGES = [
   {
     path: '/SECRETloanshark',
-    name: 'Loan Shark lists',
-    about: "Who King Loan Shark's jobs can pick: the Persuasion, Review Persuasion, Protected and Target Lists.",
+    name: 'Gang Persuasion List',
+    about: "Who King Loan Shark's and Lord Gang Orca's jobs can pick: the Persuasion, Review Persuasion, Protected and Target Lists.",
     adminOnly: true,
     who: 'Admins',
   },

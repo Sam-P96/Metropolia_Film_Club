@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Box Office Crash on the Notifications page: a cash-out at 10x or more is
+  big news for every member (in every filter, glowing); any other round,
+  win or lose, goes to the player's followers, with the multiplier and how
+  much they won or lost.
 - Lord Gang Orca (Games → Lord Gang Orca, `/games/lord-gang-orca`), King
-  Loan Shark's rival. Monday to Friday, 16:00 to midnight (Helsinki), ask
+  Loan Shark's rival. Monday to Friday, 16:00 to 23:59 (Helsinki), ask
   him for PP: 10% of your daily PP a beg (in PP, within your PP cap), three
   a day an hour apart. Now and then he asks a question instead: answer right
   for the same again in P-PP. Beg enough (a secret amount for each member)
@@ -574,6 +578,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Film Browser: open a film from a search or filtered list and press Back,
+  and every film you'd loaded is there straight away, scrolled to where you
+  were (no loading page one again and clicking "Load more" back down). The
+  last list on show is kept for the browser tab; arriving any other way, or
+  changing the search, loads afresh.
 - Kino Kasino has six symbols: the Clapperboard is gone. With fewer symbols
   lines match more often, so every prize is lower (3 Tickets now pay 0.6x
   the bet and 3 Popcorns 0.7x, softening a losing spin; the jackpot is

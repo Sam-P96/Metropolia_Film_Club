@@ -2,7 +2,7 @@ const { LORD_GANG_ORCA } = require("../../config/lordGangOrca");
 const { helsinkiDay, helsinkiHour } = require("../wallet");
 
 // Lord Gang Orca keeps Helsinki hours: open Monday to Friday, 16:00 to
-// midnight. His day (begs, jobs) starts at 00:00 Helsinki time.
+// 23:59. His day (begs, jobs) starts at 00:00 Helsinki time.
 
 const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -11,14 +11,26 @@ function helsinkiWeekday(date = new Date()) {
     return WEEKDAYS[new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Helsinki", weekday: "short" }).format(date)];
 }
 
-// Where the clock is for him: { weekday, hour }, real, or an admin's
-// pretend one (utils/orca/debug.js) for testing the hours.
-function clockOf(date = new Date(), fake = null) {
-    if (fake && Number.isInteger(fake.weekday) && Number.isInteger(fake.hour)) return { weekday: fake.weekday, hour: fake.hour };
-    return { weekday: helsinkiWeekday(date), hour: helsinkiHour(date) };
+// The minute past the hour in Helsinki, 0 to 59.
+function helsinkiMinute(date = new Date()) {
+    return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Helsinki", minute: "2-digit" }).format(date));
 }
 
-const isOpen = ({ weekday, hour }) => LORD_GANG_ORCA.hours.days.includes(weekday) && hour >= LORD_GANG_ORCA.hours.opensAt;
+// Where the clock is for him: { weekday, hour, minute }, real, or an
+// admin's pretend one (utils/orca/player.js debug, on the hour) for testing
+// the hours.
+function clockOf(date = new Date(), fake = null) {
+    if (fake && Number.isInteger(fake.weekday) && Number.isInteger(fake.hour)) return { weekday: fake.weekday, hour: fake.hour, minute: 0 };
+    return { weekday: helsinkiWeekday(date), hour: helsinkiHour(date), minute: helsinkiMinute(date) };
+}
+
+// Open: a weekday, from 16:00 up to (not including) 23:59.
+const minutesOf = ([hour, minute]) => hour * 60 + minute;
+function isOpen({ weekday, hour, minute = 0 }) {
+    const { days, opensAt, closesAt } = LORD_GANG_ORCA.hours;
+    const now = hour * 60 + minute;
+    return days.includes(weekday) && now >= minutesOf(opensAt) && now < minutesOf(closesAt);
+}
 
 // The moment a Helsinki date ("2026-11-18") starts: its 00:00, as a Date.
 // Helsinki is 2 or 3 hours ahead of UTC, so it's one of those two.
@@ -44,7 +56,7 @@ function nextOpening(date = new Date()) {
         const day = new Date(`${helsinkiDay(date)}T00:00:00Z`);
         day.setUTCDate(day.getUTCDate() + ahead);
         const key = day.toISOString().slice(0, 10);
-        const at = new Date(startOfDay(key).getTime() + LORD_GANG_ORCA.hours.opensAt * 60 * 60 * 1000);
+        const at = new Date(startOfDay(key).getTime() + minutesOf(LORD_GANG_ORCA.hours.opensAt) * 60 * 1000);
         if (at > date && LORD_GANG_ORCA.hours.days.includes(helsinkiWeekday(at))) return at;
     }
     return null;

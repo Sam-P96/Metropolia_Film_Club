@@ -351,6 +351,38 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         assert.deepEqual([day.solo, day.total], [3, 3]);
     });
 
+    test("notifications: 10x or more goes to every member; anything else to the player's followers", async () => {
+        const Follow = require("../models/followModel");
+        const Notification = require("../models/notificationModel");
+        const lucky = await member({ pp: 20, ppp: 0 });
+        const unlucky = await member();
+        const fan = await member();
+        const stranger = await member();
+        await Follow.create({ follower: fan._id, following: unlucky._id });
+        await rooms.hello(socketOf(lucky));
+        await rooms.hello(socketOf(unlucky));
+
+        // Up to the cap: 25x, big news.
+        queue = [...ups(500)];
+        const big = rooms.rooms.get((await rooms.solo(idOf(lucky), { bet: 2 })).id);
+        await until(() => big.room !== null && big.last);
+        // (Earlier tests' big wins are in there too: only this player's count.)
+        const bigWins = () => Notification.countDocuments({ type: "crashBigWin", actors: lucky._id });
+        await until(async () => (await bigWins()) > 0 && (await bigWins()) === (await User.countDocuments()));
+        const note = await Notification.findOne({ type: "crashBigWin", actors: lucky._id, recipient: stranger._id }).lean();
+        assert.ok(note, "a stranger hears about it too");
+        assert.deepEqual([note.amount, note.crash.multiplier, note.crash.net], [50, 25, 48]);
+
+        // A crash: only their followers hear, with what they lost.
+        queue = [];
+        const small = rooms.rooms.get((await rooms.solo(idOf(unlucky), { bet: 5 })).id);
+        await until(() => small.last);
+        await until(async () => (await Notification.countDocuments({ type: "crashResult", actors: unlucky._id })) > 0);
+        const results = await Notification.find({ type: "crashResult", actors: unlucky._id }).lean();
+        assert.deepEqual(results.map((entry) => String(entry.recipient)), [String(fan._id)]);
+        assert.deepEqual([results[0].crash.multiplier, results[0].crash.net, results[0].amount], [null, -5, 0]);
+    });
+
     test("after a restart, a round stopped in the middle hands back bets still riding, and their plays", async () => {
         // Rounds earlier tests left playing when their clocks were stopped.
         await CrashRound.updateMany({ status: "playing" }, { $set: { status: "over" } });
