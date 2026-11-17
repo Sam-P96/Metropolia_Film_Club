@@ -337,6 +337,8 @@ async function createChallenge(req, res) {
             stake,
             prize: pvpPrize(stake),
             offer: { by: me, to: opponent._id, at: now },
+            // Who sent it, for good (Lord Gang Orca's challenge jobs).
+            challenger: me,
             expiresAt: new Date(now.getTime() + CHALLENGE_LIMIT_MS),
             pairKey: pairKeyOf(me, opponent._id),
         });

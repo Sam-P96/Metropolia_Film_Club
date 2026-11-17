@@ -270,9 +270,19 @@ describe("the bots", () => {
         assert.ok(["raise", "allIn"].includes(bots.decide("shark", monster, () => 0.5).action));
     });
 
+    test("Lord Gang Orca slow-plays a strong hand more than he raises it", () => {
+        const legal = { canAct: true, toCall: 0, canCheck: true, canCall: false, canRaise: true, minRaiseTo: 20, maxRaiseTo: 200, allInAmount: 200 };
+        const monster = { cards: hand("Qc Qd Qh Qs 2c"), beforeDraw: false, legal, pot: 50, opponents: 2 };
+        const rolls = (...values) => () => values.shift() ?? 0.5;
+        assert.equal(bots.decide("orca", monster, rolls(0.9, 0.1)).action, "check", "no bluff, then slow-play");
+        assert.ok(["raise", "allIn"].includes(bots.decide("orca", monster, rolls(0.9, 0.9, 0)).action), "or raises it");
+    });
+
     test("every bot has a line for every event", () => {
         const events = ["check", "call", "bet", "raise", "fold", "allIn", "draw", "standPat", "win", "lose", "leave", "stay", "join", "start"];
-        for (const key of Object.keys(POKER.bots)) for (const event of events) assert.ok(LINES[key][event]?.length > 0, `${key} ${event}`);
+        // Lord Gang Orca's are kept with the rest of his words.
+        const lines = { ...LINES, orca: require("../data/lordGangOrcaScripts").poker.lines };
+        for (const key of Object.keys(POKER.bots)) for (const event of events) assert.ok(lines[key][event]?.length > 0, `${key} ${event}`);
     });
 });
 
@@ -353,6 +363,28 @@ function fakes({ chance = () => 0.5 } = {}) {
 }
 
 const kinds = (table) => table.occupied().map((seat) => seat.kind).sort();
+
+describe("Lord Gang Orca at the table", () => {
+    test("he takes Bret Maverick's seat half the time, and the two are never seated together", async () => {
+        const low = fakes({ chance: () => 0.1 });
+        await low.table.join(low.user(1), 60);
+        const keys = (table) => table.occupied().filter((seat) => seat.kind === "bot").map((seat) => seat.botKey).sort();
+        assert.deepEqual(keys(low.table), ["kaveri", "orca", "shark"]);
+        const high = fakes({ chance: () => 0.9 });
+        await high.table.join(high.user(1), 60);
+        assert.deepEqual(keys(high.table), ["kaveri", "maverick", "shark"]);
+    });
+
+    test("with King Loan Shark at the table, they meet with an exchange, one line after the other", async () => {
+        const { table, events, advance, user } = fakes({ chance: () => 0.1 });
+        await table.join(user(1), 60);
+        await advance(POKER.timers.firstHandSeconds * 1000);
+        const meet = events.filter((event) => event.type === "say" && event.event === "meet");
+        assert.ok(meet.length >= 1, "they meet");
+        assert.ok(meet.every((event) => ["shark", "orca"].includes(event.botKey)));
+        if (meet.length > 1) assert.ok((meet[1].delayMs ?? 0) > (meet[0].delayMs ?? 0), "the reply comes after");
+    });
+});
 
 describe("the table", () => {
     test("the first member sits down with three bots, and a hand starts", async () => {

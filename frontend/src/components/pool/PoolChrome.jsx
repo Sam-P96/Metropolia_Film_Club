@@ -46,10 +46,13 @@ export function PoolLogo({ size = 26 }) {
   )
 }
 
-export function PoolTitle() {
+// "8 Ball Pool", "Pool" in the game's pink into purple, or in the club's
+// gold (`gold`: the Games page, beside the other games' gold names).
+export function PoolTitle({ gold = false }) {
   return (
     <>
-      8 Ball <span className="bg-gradient-to-r from-[#ff4d8d] to-[#a35bff] bg-clip-text text-transparent">Pool</span>
+      8 Ball{' '}
+      {gold ? <span className="text-brand-gold">Pool</span> : <span className="bg-gradient-to-r from-[#ff4d8d] to-[#a35bff] bg-clip-text text-transparent">Pool</span>}
     </>
   )
 }

@@ -4,6 +4,7 @@ const { startLive } = require("./games/farkle/live");
 const { startPoker } = require("./games/poker/live");
 const { startGomokuLive } = require("./games/gomoku/live");
 const { startPoolLive } = require("./games/pool/live");
+const { startCrashLive } = require("./games/crash/live");
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,6 +17,7 @@ const io = startLive(server);
 startPoker(io);
 startGomokuLive(io);
 startPoolLive(io);
+startCrashLive(io);
 
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

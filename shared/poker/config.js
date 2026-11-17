@@ -91,5 +91,9 @@ export const POKER = {
     shark: { name: 'King Loan Shark', pictures: ['kingLoanShark'], placeholder: '🦈' },
     kaveri: { name: 'Kaveri', pictures: ['kaveriPokerFace'], placeholder: '🐰' },
     maverick: { name: 'Bret Maverick', pictures: ['bret'], placeholder: '🎩' },
+    // Bret Maverick's seat, half the time (backend/games/poker/table.js):
+    // the two are never at the table together. His lines are in
+    // backend/data/lordGangOrcaScripts.js, with his rivalry with the shark.
+    orca: { name: 'Lord Gang Orca', pictures: ['lordGangOrca'], placeholder: '🐋' },
   },
 }

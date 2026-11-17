@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { POKER } = require("../../../shared/poker/config.js");
 const { LINES } = require("../../../shared/poker/lines.js");
+const ORCA = require("../../data/lordGangOrcaScripts").poker;
 const { newDeck, shuffle } = require("./cards");
 const { evaluate } = require("./evaluator");
 const betting = require("./betting");
@@ -30,6 +31,33 @@ const { PokerError } = betting;
 
 const SECOND = 1000;
 const BOT_KEYS = Object.keys(POKER.bots);
+// Every bot's lines: the usual three's (shared/poker/lines.js) and Lord
+// Gang Orca's, kept with the rest of his words.
+const BOT_LINES = { ...LINES, orca: ORCA.lines };
+
+// Bret Maverick's seat is shared: each time he'd sit down, half the time
+// Lord Gang Orca does instead, and the two are never at the table together.
+const SHARED_SEAT = ["maverick", "orca"];
+function nextBotKey(seated, chance) {
+    for (const key of BOT_KEYS) {
+        if (seated.has(key) || key === "orca") continue;
+        if (key === "maverick") {
+            if (SHARED_SEAT.some((other) => seated.has(other))) continue;
+            return chance() < 0.5 ? "orca" : "maverick";
+        }
+        return key;
+    }
+    return null;
+}
+
+// King Loan Shark and Lord Gang Orca at one table: their rivalry
+// (data/lordGangOrcaScripts.js poker.rivalry). Each exchange plays one line
+// after another, this far apart. Banter comes at most every RIVAL_BANTER_MS,
+// on top of the lines their play sets off.
+const RIVALRY = ORCA.rivalry;
+const RIVAL_GAP_MS = 1800;
+const RIVAL_BANTER_MS = 20 * SECOND;
+const RIVAL_CHANCE = { orcaRaise: 0.6, orcaFold: 0.5, sharkFold: 0.5, banter: 0.45, kaveri: 0.25 };
 
 const isHuman = (seat) => seat?.kind === "human";
 const isBot = (seat) => seat?.kind === "bot";
@@ -108,12 +136,71 @@ class PokerTable {
     // another).
     say(seat, event, { delayMs = 0 } = {}) {
         if (!isBot(seat)) return;
-        const lines = LINES[seat.botKey]?.[event];
+        const lines = BOT_LINES[seat.botKey]?.[event];
         if (!lines?.length) return;
         const chance = POKER.speech.chance[event] ?? 1;
         if (this.chance() >= chance) return;
         const text = lines[Math.floor(this.chance() * lines.length)];
         this.event("say", { seat: seat.index, botKey: seat.botKey, name: seat.name, event, text, ...(delayMs > 0 ? { delayMs } : {}) });
+    }
+
+    // --- King Loan Shark and Lord Gang Orca ---
+
+    botSeat(key) {
+        return this.seats.find((seat) => isBot(seat) && seat.botKey === key) ?? null;
+    }
+
+    rivalsSeated() {
+        return Boolean(this.botSeat("shark") && this.botSeat("orca"));
+    }
+
+    // One of their exchanges (`kind`, a key of RIVALRY), if they're both
+    // here: each line in a bubble by its speaker's seat, or, for
+    // "narration", small text under the table. Returns whether it played.
+    rivalry(kind, { delayMs = 0, chance = RIVAL_CHANCE[kind] ?? 1 } = {}) {
+        if (!this.rivalsSeated()) return false;
+        if (chance < 1 && this.chance() >= chance) return false;
+        const options = RIVALRY[kind];
+        const exchange = options[Math.floor(this.chance() * options.length)];
+        exchange.forEach((step, i) => {
+            const at = delayMs + i * RIVAL_GAP_MS;
+            if (step.who === "narration") {
+                this.event("narrate", { text: step.text, ...(at > 0 ? { delayMs: at } : {}) });
+                return;
+            }
+            const seat = this.botSeat(step.who);
+            if (seat) this.event("say", { seat: seat.index, botKey: seat.botKey, name: seat.name, event: kind, text: step.text, ...(at > 0 ? { delayMs: at } : {}) });
+        });
+        this.lastRivalryAt = this.now();
+        return true;
+    }
+
+    // A bot's word on its own move: the rivalry's line if it has one for
+    // it, otherwise its usual.
+    botSays(seat, action) {
+        if (isBot(seat) && this.rivalsSeated()) {
+            const kind = seat.botKey === "orca" ? { raise: "orcaRaise", fold: "orcaFold" }[action] : seat.botKey === "shark" ? { allIn: "sharkAllIn", fold: "sharkFold" }[action] : null;
+            if (kind && this.rivalry(kind)) return;
+        }
+        this.say(seat, action);
+    }
+
+    // At the start of a hand: the two meeting (once each time they're both
+    // seated), or, now and then, some banter (Kaveri's extras if he's here).
+    rivalsAtHandStart(delayMs) {
+        if (!this.rivalsSeated()) {
+            this.rivalsMet = false;
+            return;
+        }
+        if (!this.rivalsMet) {
+            this.rivalsMet = true;
+            this.rivalry("meet", { delayMs });
+            return;
+        }
+        if (this.now() - (this.lastRivalryAt ?? 0) < RIVAL_BANTER_MS) return;
+        const kaveriHere = Boolean(this.botSeat("kaveri"));
+        if (kaveriHere && this.rivalry("kaveri", { delayMs })) return;
+        this.rivalry("banter", { delayMs });
     }
 
     // --- members coming and going ---
@@ -208,7 +295,7 @@ class PokerTable {
     fillWithBots({ opening = false } = {}) {
         while (this.occupied().length < POKER.minPlayers) {
             const seated = new Set(this.seats.filter(isBot).map((seat) => seat.botKey));
-            const key = BOT_KEYS.find((botKey) => !seated.has(botKey));
+            const key = nextBotKey(seated, this.chance);
             const index = this.seats.findIndex((seat) => seat === null);
             if (!key || index < 0) break;
             const { name, pictures = [], placeholder } = POKER.bots[key];
@@ -424,6 +511,8 @@ class PokerTable {
             bots.forEach((bot, i) => this.say(bot, "start", { delayMs: i * POKER.speech.greetGapMs }));
             this.greetingUntil = this.now() + Math.max(0, bots.length - 1) * POKER.speech.greetGapMs + POKER.speech.bubbleSeconds * SECOND * 0.5;
         }
+        // King Loan Shark and Lord Gang Orca, if they're both here.
+        this.rivalsAtHandStart(Math.max(0, (this.greetingUntil ?? 0) - this.now()) + 600);
 
         // Five cards each, one at a time round the table from the dealer's left.
         for (let round = 0; round < 5; round++) {
@@ -515,7 +604,7 @@ class PokerTable {
         this.syncStacks();
         // (`betTo`, not `to`: an event's `to` sends it to one member only.)
         this.event("action", { seat: seatIndex, action: result.action, amount: result.amount, betTo: result.to });
-        this.say(this.seats[seatIndex], result.action);
+        this.botSays(this.seats[seatIndex], result.action);
         return this.afterAction(seatIndex);
     }
 
@@ -653,11 +742,24 @@ class PokerTable {
             }
         }
 
-        // Who won and who lost, in the bots' words.
+        // Who won and who lost, in the bots' words. A hand Lord Gang Orca won
+        // off King Loan Shark (or the other way round) gets their rivalry's
+        // lines instead of theirs.
         const winnerSeats = new Set(winners.filter((w) => w.won > 0).map((w) => w.seat));
+        const inHand = (key) => hand.players.find((player) => this.seats[player.seat]?.botKey === key && isBot(this.seats[player.seat]));
+        const orcaHand = inHand("orca");
+        const sharkHand = inHand("shark");
+        let rivalsSpoke = false;
+        if (orcaHand && sharkHand && this.rivalsSeated()) {
+            const orcaWon = winnerSeats.has(orcaHand.seat);
+            const sharkWon = winnerSeats.has(sharkHand.seat);
+            if (orcaWon && !sharkWon) rivalsSpoke = this.rivalry("orcaBeatsShark");
+            else if (sharkWon && !orcaWon) rivalsSpoke = this.rivalry("sharkBeatsOrca");
+        }
         for (const player of hand.players) {
             const seat = this.seats[player.seat];
             if (!isBot(seat)) continue;
+            if (rivalsSpoke && (seat.botKey === "orca" || seat.botKey === "shark")) continue;
             if (winnerSeats.has(player.seat)) this.say(seat, "win");
             else if (showdown && !player.folded) this.say(seat, "lose");
         }

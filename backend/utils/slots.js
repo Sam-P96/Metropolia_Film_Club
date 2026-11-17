@@ -6,7 +6,7 @@ const SlotSnapshot = require("../models/slotSnapshotModel");
 const User = require("../models/userModel");
 const Review = require("../models/reviewModel");
 const WalletTx = require("../models/walletTxModel");
-const { changeWallet, spend, leaderboardStages, helsinkiDay, helsinkiHour } = require("./wallet");
+const { changeWallet, spend, leaderboardStages, playDay } = require("./wallet");
 const { noteSlotTriple, noteSlotJackpot } = require("./notify");
 const { CENTS, toPp, SlotError, drawGrid, evaluate, splitBet, checkBet } = require("../games/slots/engine");
 const { LUCK, LAST_CHANCE, targetRtp, tableFor } = require("../games/slots/luck");
@@ -30,12 +30,7 @@ const { slotLuck } = require("../games/happyHours");
 // 3 November is still "2026-11-02". Summer and winter time make no
 // difference: it goes by the clock in Helsinki.
 function slotDay(date = new Date()) {
-    const day = helsinkiDay(date);
-    if (helsinkiHour(date) >= 12) return day;
-
-    const before = new Date(`${day}T00:00:00Z`);
-    before.setUTCDate(before.getUTCDate() - 1);
-    return before.toISOString().slice(0, 10);
+    return playDay(date);
 }
 
 // ---- The leaderboard snapshot ----

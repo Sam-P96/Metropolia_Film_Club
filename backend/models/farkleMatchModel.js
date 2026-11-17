@@ -78,6 +78,11 @@ const farkleMatchSchema = new Schema(
         // What the winner is paid, in P-PP.
         prize: {type: Number, required: true},
 
+        // Who sent the challenge in the first place (counters change
+        // `offer`; it doesn't), for Lord Gang Orca's "get X to challenge
+        // Y" jobs (utils/orca/jobs.js). Games from before it have none.
+        challenger: {type: Schema.Types.ObjectId, ref: "User", default: null},
+
         // A challenge: who offered the current terms, to whom, and when.
         // A counter swaps `by` and `to`. Whoever accepts rolls first.
         offer: {

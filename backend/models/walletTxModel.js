@@ -59,6 +59,14 @@ const Schema = mongoose.Schema;
 //   poolSideRefund   that bet handed back: taken back, or nobody took it
 //   poolShop         a cue bought in 8 Ball Pool's shop (PP first, then P-PP;
 //                    utils/poolShop.js)
+// Crash (utils/crash.js), with the round in `crash`:
+//   crashBet         a bet as the round starts (PP first, then P-PP)
+//   crashWin         a cash-out: the stake back in its own coins, profit in P-PP
+//   crashRefund      a bet handed back: a round that couldn't start, or one
+//                    the server stopped in the middle of
+// Lord Gang Orca (utils/orca/player.js):
+//   orcaBeg          a beg: PP (never past the PP cap), plus P-PP for a
+//                    question answered right
 //   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
 //   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   adminGrant       P-PP sent by an admin from the admin panel (`other`: which
@@ -82,6 +90,7 @@ const walletTxSchema = new Schema({
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
+            "crashBet", "crashWin", "crashRefund", "orcaBeg",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,
@@ -108,6 +117,7 @@ const walletTxSchema = new Schema({
     // someone else's game, the bet.
     pool: {type: Schema.Types.ObjectId, ref: "PoolMatch", default: null},
     poolBet: {type: Schema.Types.ObjectId, ref: "PoolBet", default: null},
+    crash: {type: Schema.Types.ObjectId, ref: "CrashRound", default: null},
     // An admin's note with P-PP they sent (adminGrant), if they wrote one.
     note: {type: String},
     at: {type: Date, default: Date.now},

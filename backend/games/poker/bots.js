@@ -9,12 +9,16 @@ const { evaluate } = require("./evaluator");
 //   kaveri    Kaveri: friendly and cautious. Plays good hands, rarely bluffs.
 //   maverick  Bret Maverick: plays the odds, and bluffs when it's likely to
 //             work (few players left, after they drew a lot).
+//   orca      Lord Gang Orca: calm and patient. Rarely bluffs; with a strong
+//             hand he'd sooner check or call and let others bet into him
+//             (slowPlay) than raise.
 // `random()` gives a number from 0 to 1 (Math.random, or the tests' own).
 
 const PERSONALITIES = {
     shark: { raiseAt: 0.5, aggression: 0.75, bluff: 0.3, callMargin: -0.12, chaos: 0.06, sizing: [0.8, 2], standPatBluff: 0.15 },
     kaveri: { raiseAt: 0.78, aggression: 0.35, bluff: 0.03, callMargin: 0.08, chaos: 0, sizing: [0.4, 0.7], standPatBluff: 0 },
     maverick: { raiseAt: 0.66, aggression: 0.6, bluff: 0.12, callMargin: 0, chaos: 0, sizing: [0.6, 1], standPatBluff: 0.06 },
+    orca: { raiseAt: 0.7, aggression: 0.45, bluff: 0.04, callMargin: 0.02, chaos: 0, sizing: [0.5, 0.9], standPatBluff: 0.03, slowPlay: 0.35 },
 };
 
 // Where each made hand sits from 0 to 1, and how much its ranks move it.
@@ -107,6 +111,11 @@ function decide(personality, view, random = Math.random) {
     // Bret Maverick bluffs when few are left; the others whenever the mood takes them.
     const bluffSpot = personality !== "maverick" || view.opponents <= 2;
     const bluffing = bluffSpot && random() < p.bluff;
+    // Slow-playing: a strong hand, kept quiet (Lord Gang Orca).
+    if (p.slowPlay && !bluffing && strength >= p.raiseAt && random() < p.slowPlay) {
+        if (legal.canCheck) return { action: "check" };
+        return { action: "call" };
+    }
     const wantsToRaise = (strength >= p.raiseAt || bluffing) && random() < (bluffing ? 1 : p.aggression + (strength - p.raiseAt));
     if (legal.canRaise && wantsToRaise) return raiseTo(between(p.sizing, random));
 

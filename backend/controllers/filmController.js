@@ -14,6 +14,7 @@ const { noteReviewVote, noteNewReview, noteTrending, forgetReview } = require(".
 const { dislikeRefusal } = require("../utils/pvp");
 const { banRefusal } = require("../utils/bans");
 const { onReviewPosted, beforeDislike } = require("../utils/loanShark");
+const orcaJobs = require("../utils/orca/jobs");
 const Report = require("../models/reportModel");
 const { hasRole } = require("../middleware/auth");
 
@@ -410,8 +411,10 @@ async function setReviewVote(req, res) {
         return res.status(403).json({ error: refusal });
     }
 
-    // A Loan Shark job may be waiting on exactly this dislike.
+    // A Loan Shark job may be waiting on exactly this dislike, and a Lord
+    // Gang Orca job on this like or dislike.
     const finishJob = vote === "dislike" ? await beforeDislike(review._id, req.user._id) : null;
+    const finishOrcaJob = await orcaJobs.beforeVote(review._id, req.user._id, vote).catch(() => null);
 
     const result = await Review.castVote(review._id, req.user, vote);
 
@@ -420,6 +423,7 @@ async function setReviewVote(req, res) {
     }
 
     if (finishJob) await finishJob();
+    if (finishOrcaJob) await finishOrcaJob();
 
     // Into the author's Feed, and everyone's if it's now trending.
     await noteReviewVote(review, req.user, vote);
@@ -738,6 +742,8 @@ async function saveReview(req, res) {
             await noteNewReview(review);
             // "Convince X to post a movie review" (Loan Shark jobs).
             await onReviewPosted(req.user._id).catch((error) => console.error("Loan Shark review job:", error.message));
+            // "Get X to post a review" (Lord Gang Orca's jobs).
+            await orcaJobs.onReviewPosted(req.user._id).catch((error) => console.error("Lord Gang Orca review job:", error.message));
         }
     } else {
         // No text left: the review goes, with its comments.

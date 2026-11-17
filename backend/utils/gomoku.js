@@ -131,6 +131,8 @@ async function settleSafely(matchId) {
 // who has just left the club.
 async function finishMatch(match, skip = null) {
     await settleSafely(match._id);
+    // Lord Gang Orca's "get X to challenge Y to a game" jobs.
+    await require("./orca/jobs").onGameFinished(match).catch((error) => console.error("Lord Gang Orca game job (Gomoku):", error.message));
     await noteGomokuOver(match, skip);
     if (!match.devPlayed) await noteGomokuResult(match, skip);
 }

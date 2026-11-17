@@ -63,7 +63,7 @@ const TRIES = 5;
 // `note`: an admin's note with P-PP they sent (utils/admin.js), for it too.
 async function changeWallet(userId, decide, {
     reason, match = null, card = null, game = null, other = null, session = null,
-    steal = false, allowDebt = false, stealRef = null, gomoku = null, note = null, pool = null, poolBet = null,
+    steal = false, allowDebt = false, stealRef = null, gomoku = null, note = null, pool = null, poolBet = null, crash = null,
 } = {}) {
     for (let attempt = 0; attempt < TRIES; attempt++) {
         const user = await User.findById(userId).select("wallet").session(session).lean();
@@ -112,7 +112,7 @@ async function changeWallet(userId, decide, {
         if (result.matchedCount === 0) continue; // changed under us: try again
 
         if (pp !== 0 || ppp !== 0) {
-            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other, steal: stealRef, gomoku, pool, poolBet, ...(note && { note }) }], { session });
+            await WalletTx.create([{ user: userId, reason, pp, ppp, balance, match, card, game, other, steal: stealRef, gomoku, pool, poolBet, crash, ...(note && { note }) }], { session });
         }
 
         return { pp, ppp, balance };
@@ -125,7 +125,7 @@ async function changeWallet(userId, decide, {
 // rest. 40 PP and 100 P-PP, betting 60: 40 PP and 20 P-PP go.
 // `async` so a bad amount comes back as a rejected promise, like every
 // other failure here, instead of a throw that a .catch() would miss.
-async function spend(userId, amount, { reason = "bet", match = null, card = null, game = null, gomoku = null, pool = null, poolBet = null, session = null } = {}) {
+async function spend(userId, amount, { reason = "bet", match = null, card = null, game = null, gomoku = null, pool = null, poolBet = null, crash = null, session = null } = {}) {
     if (!Number.isInteger(amount) || amount <= 0) {
         throw new WalletError("A bet has to be a whole number above 0.");
     }
@@ -144,7 +144,7 @@ async function spend(userId, amount, { reason = "bet", match = null, card = null
             // which would end up saved on the receipt as -0.
             return { pp: 0 - fromPp, ppp: 0 - fromPpp };
         },
-        { reason, match, card, game, gomoku, pool, poolBet, session }
+        { reason, match, card, game, gomoku, pool, poolBet, crash, session }
     );
 }
 
@@ -221,6 +221,18 @@ function leaderboardStages(fields = {}) {
 // each member once a day, however many times it runs.
 function helsinkiDay(date = new Date()) {
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(date);
+}
+
+// The play day `date` is in: days that run from 12:00 to 12:00 Helsinki
+// time, starting with the daily payout, keyed by the date they start on:
+// 11:59 on 3 November is still "2026-11-02". The Slot Machine's day and
+// Crash's daily plays go by it.
+function playDay(date = new Date()) {
+    const day = helsinkiDay(date);
+    if (helsinkiHour(date) >= 12) return day;
+    const before = new Date(`${day}T00:00:00Z`);
+    before.setUTCDate(before.getUTCDate() - 1);
+    return before.toISOString().slice(0, 10);
 }
 
 // The hour in Helsinki right now, 0 to 23.
@@ -320,6 +332,7 @@ function giveEveryoneAWallet() {
 }
 
 module.exports = {
+    playDay,
     CAP_DAYS,
     WalletError,
     dailyPp,

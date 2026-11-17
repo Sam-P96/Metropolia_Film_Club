@@ -802,3 +802,27 @@ img.slot-symbol {
     opacity: 0.9;
   }
 }
+
+/* Crash's profile pictures on the chart (components/crash/CrashStage.jsx):
+   popping off the line at a cash-out, and knocked off, falling and greying
+   on a crash. */
+.crash-pop {
+  animation: crash-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes crash-pop {
+  0% { transform: scale(0.6) translateY(6px); }
+  60% { transform: scale(1.3) translateY(-10px); }
+  100% { transform: scale(1) translateY(-6px); }
+}
+.crash-fall {
+  animation: crash-fall 1.3s cubic-bezier(0.55, 0, 0.9, 0.4) forwards;
+}
+@keyframes crash-fall {
+  0% { transform: translateY(0) rotate(0); filter: grayscale(0); opacity: 1; }
+  15% { transform: translate(6px, -14px) rotate(12deg); }
+  100% { transform: translate(28px, 240px) rotate(70deg); filter: grayscale(1) brightness(0.7); opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crash-pop { animation: none; }
+  .crash-fall { animation: none; filter: grayscale(1) brightness(0.7); opacity: 0.55; }
+}

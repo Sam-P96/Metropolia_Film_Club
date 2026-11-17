@@ -121,6 +121,9 @@ export default function PokerTable() {
   const onEvent = useCallback(
     (event) => {
       if (event.type === 'say') addBubble({ id: id(), seat: event.seat, name: event.name, text: event.text }, event.delayMs)
+      // A line of narration (King Loan Shark and Lord Gang Orca's rivalry),
+      // as small text under the table.
+      if (event.type === 'narrate') setTimeout(() => flash(event.text), event.delayMs ?? 0)
       if (event.type === 'emoji') {
         const item = { id: id(), seat: event.seat, emoji: event.emoji }
         setEmojis((list) => [...list, item])
