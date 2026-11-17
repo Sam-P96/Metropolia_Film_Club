@@ -23,6 +23,7 @@ import PokerLogo from '../components/poker/PokerLogo'
 import SharkBadge from '../components/loanShark/SharkBadge'
 import { GomokuLogo, GomokuTitle } from '../components/gomoku/GomokuChrome'
 import { PoolLogo, PoolTitle } from '../components/pool/PoolChrome'
+import { CrashLogo, CrashTitle } from '../components/crash/CrashChrome'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -116,6 +117,21 @@ export default function Games() {
                 members you follow are playing.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play 8 Ball Pool →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/crash" className={CARD}>
+              <div className="self-start">
+                <CrashLogo size={34} />
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                <CrashTitle />
+              </h2>
+              <p className="text-white/70">
+                The multiplier climbs and dips like a stock chart until it crashes: cash out before it does. Play alone or in a room of up to four, six
+                rounds a day.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Crash →</span>
             </Link>
           </li>
           <li>

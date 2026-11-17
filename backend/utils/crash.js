@@ -6,7 +6,7 @@ const CrashRound = require("../models/crashRoundModel");
 const { WalletError, changeWallet, dailyPp, playDay, spend } = require("./wallet");
 const { activeBansOf, banFor, banMessage } = require("./steal/moderation");
 const { payoutFor } = require("../games/crash/engine");
-const { CRASH_RULES, maxBetFor, playsLeft } = require("../../shared/crash/rules.js");
+const { CRASH_RULES, blockedFor, maxBetFor, playsLeft } = require("../../shared/crash/rules.js");
 
 // Crash in the database: who can play and how much, the daily plays, bets,
 // payouts, and the rounds kept for replays. The rooms and the live rounds
@@ -40,19 +40,8 @@ async function statusOf(userId, day = playDay()) {
     };
 }
 
-// Why a member can't ready up with `bet` in a room of `players` (counting
-// them), or null if they can. `status` is statusOf's.
-function blockedFor(status, bet, players) {
-    if (!status) return "Checking your points…";
-    if (status.banned) return status.banned;
-    if (status.dailyPp < 1) return "Write a review to play: your daily PP comes from your reviews.";
-    if (status.left.total < 1) return "No rounds left today. More at 12:00.";
-    if (players < CRASH_RULES.bonusPlayers && status.left.solo < 1) return `No solo rounds left: wait for ${CRASH_RULES.bonusPlayers} players`;
-    if (!Number.isInteger(bet) || bet < CRASH_RULES.minBet) return "Pick a bet first.";
-    if (bet > status.maxBet) return `Bets go up to ${status.maxBet} for you (a quarter of your daily PP).`;
-    if (status.points < bet) return "Not enough points for that bet.";
-    return null;
-}
+// Why a member can't ready up: shared/crash/rules.js blockedFor, the same
+// rule the page shows.
 
 // ---- The daily plays ----
 

@@ -74,6 +74,7 @@ const PoolLobby = lazy(() => import("./pages/PoolLobby"));
 const PoolClanker = lazy(() => import("./pages/PoolClanker"));
 const PoolMatch = lazy(() => import("./pages/PoolMatch"));
 const PoolShop = lazy(() => import("./pages/PoolShop"));
+const Crash = lazy(() => import("./pages/Crash"));
 const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
 const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
@@ -236,6 +237,10 @@ function App() {
             } />
             <Route path="/games/pool/clanker" element={
               isAuthenticated ? (<PoolClanker />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Crash: the lobby and the rooms, one page. */}
+            <Route path="/games/crash" element={
+              isAuthenticated ? (<Crash />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
             } />
             <Route path="/games/pool/shop" element={
               isAuthenticated ? (<PoolShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
