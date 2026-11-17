@@ -30,6 +30,7 @@ const loanSharkAdminRouter = require("./routes/loanSharkAdminRouter");
 const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
 const poolRouter = require("./routes/poolRouter");
+const crashRouter = require("./routes/crashRouter");
 const quizRouter = require("./routes/quizRouter");
 const adminRouter = require("./routes/adminRouter");
 const firstPlaceRouter = require("./routes/firstPlaceRouter");
@@ -160,6 +161,13 @@ connected
     .then(() => startPoolSweep())
     .catch((error) => console.error("Couldn't start the pool sweep:", error.message));
 
+// Crash: rounds the server stopped in the middle of (a restart) hand their
+// bets back (utils/crash.js).
+connected
+    .then(() => require("./utils/crash").recoverRounds())
+    .then((count) => count && console.log(`Crash: put right ${count} round${count === 1 ? "" : "s"} stopped by a restart.`))
+    .catch((error) => console.error("Couldn't check Crash's rounds:", error.message));
+
 // The Daily Quiz: Monday 12:00's weekly draw (jobs/quizDraw.js).
 connected
     .then(() => startQuizDraw())
@@ -224,6 +232,7 @@ app.use("/api/wallet", walletRouter);
 app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/pool", refuseGameBans, poolRouter);
+app.use("/api/crash", refuseGameBans, crashRouter);
 app.use("/api/quiz", quizRouter);
 // The admin panel: admins only (routes/adminRouter.js).
 app.use("/api/admin", adminRouter);
