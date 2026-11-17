@@ -38,9 +38,9 @@ const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
 // Loan Shark first, then Lord Gang Orca, Box Office Scratch, Farkle,
-// Infinite Gomoku, 8 Ball Pool, Box Office Crash, Double or Nothing, Kino Kasino, Steal and
-// Defend (whose picture says "Require PvP" until its PvP is on) and Kino
-// Poker. Every row
+// Infinite Gomoku, 8 Ball Pool, Box Office Crash, Kino Kasino, Kino Poker,
+// Double or Nothing, and Steal and Defend last (its picture says "Require
+// PvP" until its PvP is on). Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
 // Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
 // look; playing needs a login, since games are played for points. Double or
@@ -163,22 +163,6 @@ export default function Games() {
             </Link>
           </li>
           <li>
-            <Link to="/games/double-or-nothing" className={CARD}>
-              <div className="self-start">
-                <span className="sr-only">Your status: </span>
-                <StatusBadge status={doubleStatus} />
-              </div>
-              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
-                Double <span className="text-brand-gold">or Nothing</span>
-              </h2>
-              <p className="text-white/70">
-                Double it, give it to the next person! Match the bet and win 2 of 3 throws of rock, paper, scissors to double it. Lose, and the pot
-                doubles for the next player.
-              </p>
-              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Double or Nothing →</span>
-            </Link>
-          </li>
-          <li>
             <Link to="/games/slots" className={CARD}>
               <div className="flex gap-1.5 self-start" aria-hidden="true">
                 {['logo', 'gauntlet', 'ring'].map((key) => (
@@ -197,6 +181,34 @@ export default function Games() {
             </Link>
           </li>
           <li>
+            <Link to="/games/poker" className={CARD}>
+              <PokerLogo />
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Kino <span className="text-brand-gold">Poker</span>
+              </h2>
+              <p className="text-white/70">
+                5-Card Draw at one live table for up to six. Take on the house bots, or fill the seats with other members. Winnings pay in P-PP.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Kino Poker →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/double-or-nothing" className={CARD}>
+              <div className="self-start">
+                <span className="sr-only">Your status: </span>
+                <StatusBadge status={doubleStatus} />
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Double <span className="text-brand-gold">or Nothing</span>
+              </h2>
+              <p className="text-white/70">
+                Double it, give it to the next person! Match the bet and win 2 of 3 throws of rock, paper, scissors to double it. Lose, and the pot
+                doubles for the next player.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Double or Nothing →</span>
+            </Link>
+          </li>
+          <li>
             <Link to="/games/steal-and-defend" className={CARD}>
               {stealPvp ? (
                 <StealLogo />
@@ -212,18 +224,6 @@ export default function Games() {
                 Follow a member, win a quiz about them, and steal a slice of their points. Defend your own with items from the daily shop.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Steal and Defend →</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/games/poker" className={CARD}>
-              <PokerLogo />
-              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
-                Kino <span className="text-brand-gold">Poker</span>
-              </h2>
-              <p className="text-white/70">
-                5-Card Draw at one live table for up to six. Take on the house bots, or fill the seats with other members. Winnings pay in P-PP.
-              </p>
-              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Kino Poker →</span>
             </Link>
           </li>
         </ul>
