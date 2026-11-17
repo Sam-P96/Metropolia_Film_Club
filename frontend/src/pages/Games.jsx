@@ -122,7 +122,7 @@ export default function Games() {
           <li>
             <Link to="/games/crash" className={CARD}>
               <div className="self-start">
-                <CrashLogo size={34} />
+                <CrashLogo size={40} />
               </div>
               <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
                 <CrashTitle />
@@ -131,7 +131,7 @@ export default function Games() {
                 The multiplier climbs and dips like a stock chart until it crashes: cash out before it does. Play alone or in a room of up to four, six
                 rounds a day.
               </p>
-              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Crash →</span>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Crash →</span>
             </Link>
           </li>
           <li>

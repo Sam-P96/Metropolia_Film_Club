@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Crash (Games → Crash, `/games/crash`): a live multiplier that starts at
+- Box Office Crash (Games → Box Office Crash, `/games/crash`; a "STONKS"
+  chart for a logo): a live multiplier that starts at
   0.99x and moves up and down like a stock chart until it crashes to 0,
   hits 25x or runs 60 seconds. Cash out any time (even under 1x) for your
   bet times the multiplier when the server gets it, or set an auto

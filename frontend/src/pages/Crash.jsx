@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 
 import BetControls from '../components/crash/BetControls'
 import CashOutButton from '../components/crash/CashOutButton'
-import CrashPage, { CARD, CRASH_BACKDROP, HEADING } from '../components/crash/CrashChrome'
+import CrashPage, { CARD, CRASH_BACKDROP, CrashTitle, HEADING } from '../components/crash/CrashChrome'
 import CrashStage from '../components/crash/CrashStage'
 import RoundSummary from '../components/crash/RoundSummary'
 import { saveBet, savedBet } from '../components/crash/betMemory'
@@ -340,8 +340,8 @@ function RoomScreen({ game, myId, value, onValue }) {
           >
             ← {room.private ? 'Lobby' : 'Leave'}
           </button>
-          <h1 className="hidden font-['Bebas_Neue'] text-2xl leading-none tracking-wide sm:block">
-            <span className="text-brand-gold">Crash</span>
+          <h1 className="hidden font-['Bebas_Neue'] text-2xl leading-none tracking-wide text-white sm:block">
+            <CrashTitle />
           </h1>
           <p className="min-w-0 flex-1 truncate text-center text-xs text-white/70 sm:text-sm">
             {!game.connected ? <span className="text-red-300">Reconnecting…</span> : room.private ? 'Playing alone' : bonus ? 'Bonus room' : 'Room'}
