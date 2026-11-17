@@ -1,10 +1,10 @@
 import '@fontsource/bebas-neue'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import GameBackdrop from '../components/GameBackdrop'
 import FavoursPanel from '../components/orca/FavoursPanel'
-import ScriptPlayer from '../components/orca/ScriptPlayer'
+import Chat from '../components/orca/Chat'
 import { SPEAKERS } from '../components/orca/speakers'
 import { GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
 import CoinIcon from '../components/wallet/CoinIcon'
@@ -116,15 +116,19 @@ function DebugPanel({ debug, onChange }) {
 export default function LordGangOrca() {
   const [status, setStatus] = useState(null)
   const [error, setError] = useState('')
-  const [script, setScript] = useState({ steps: [], key: 0 })
+  // The conversation so far, this visit only.
+  const [chat, setChat] = useState([])
+  const nextId = useRef(0)
   const [paid, setPaid] = useState(null)
   const [busy, setBusy] = useState(false)
   const [talking, setTalking] = useState(true)
   const cooldown = useCountdown(status?.cooldownUntil)
 
+  // New lines at the bottom of the conversation.
   const play = useCallback((steps) => {
+    if (!steps.length) return
     setTalking(true)
-    setScript((now) => ({ steps, key: now.key + 1 }))
+    setChat((now) => [...now, ...steps.map((step) => ({ ...step, id: (nextId.current += 1) }))])
   }, [])
 
   const load = useCallback(
@@ -170,7 +174,7 @@ export default function LordGangOrca() {
     setError('')
     try {
       const said = await answerOrca(option)
-      play(said.steps)
+      play([{ type: 'bubble', speaker: 'you', text: option }, ...said.steps])
       setPaid(said.paid ?? null)
       walletChanged()
       await load()
@@ -243,8 +247,8 @@ export default function LordGangOrca() {
               )}
             </div>
 
-            <div className={`${CARD} flex min-h-72 flex-col gap-4`}>
-              <ScriptPlayer key={script.key} steps={script.steps} names={status.names} onDone={() => setTalking(false)} />
+            <div className={`${CARD} flex flex-col gap-4`}>
+              <Chat messages={chat} names={status.names} onIdle={() => setTalking(false)} />
               {status.question && !talking && (
                 <div className="flex flex-col gap-2" role="group" aria-label="Your answer">
                   {status.question.options.map((option) => (
