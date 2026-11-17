@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lord Gang Orca at Kino Poker: half the time he takes Bret Maverick's seat
   (never both), plays calm and patient, and when King Loan Shark is at the
   table too, the two trade insults.
-- The Games page's order: Loan Shark, Box Office Scratch, Kino Farkle, Infinite
+- The Games page's order: Loan Shark, Kino Farkle, Box Office Scratch, Infinite
   Gomoku, 8 Ball Pool, Box Office Crash, Kino Kasino, Kino Poker, Double or
   Nothing, Lord Gang Orca, Steal and Defend.
 - Box Office Crash (Games → Box Office Crash, `/games/crash`; a "STONKS"

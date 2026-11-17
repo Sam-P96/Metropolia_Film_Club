@@ -37,7 +37,7 @@ const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
 const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Loan Shark first, then Box Office Scratch, Farkle, Infinite Gomoku, 8
+// Loan Shark first, then Farkle, Box Office Scratch, Infinite Gomoku, 8
 // Ball Pool, Box Office Crash, Kino Kasino, Kino Poker, Double or Nothing,
 // Lord Gang Orca, and Steal and Defend last (its picture says "Require
 // PvP" until its PvP is on). Every row
@@ -78,6 +78,23 @@ export default function Games() {
             </Link>
           </li>
           <li>
+            <Link to="/games/farkle" className={CARD}>
+              <div className="flex gap-2" aria-hidden="true">
+                {[1, 5, 5, 1].map((face, i) => (
+                  <Die key={i} value={face} size="small" />
+                ))}
+              </div>
+              <h2 className="font-['Cinzel'] text-2xl text-white">
+                Kino <span className="text-brand-gold">Farkle</span>
+              </h2>
+              <p className="text-white/70">
+                The push-your-luck dice game. Play {BOT_MODE} any time, or challenge another member and take turns by
+                notification.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Farkle →</span>
+            </Link>
+          </li>
+          <li>
             {/* Double Prize Weekend: a rainbow edge and glow, and the logo
                 breathing a rainbow glow (index.css). */}
             <Link to="/games/scratch" className={`${CARD} ${doubled ? 'rainbow-card' : ''}`}>
@@ -98,23 +115,6 @@ export default function Games() {
                 {SCRATCH_TIMED.map((type) => ` ${type.name} is on sale ${describeHours(type.hours)}.`).join('')}
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Scratch →</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/games/farkle" className={CARD}>
-              <div className="flex gap-2" aria-hidden="true">
-                {[1, 5, 5, 1].map((face, i) => (
-                  <Die key={i} value={face} size="small" />
-                ))}
-              </div>
-              <h2 className="font-['Cinzel'] text-2xl text-white">
-                Kino <span className="text-brand-gold">Farkle</span>
-              </h2>
-              <p className="text-white/70">
-                The push-your-luck dice game. Play {BOT_MODE} any time, or challenge another member and take turns by
-                notification.
-              </p>
-              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Farkle →</span>
             </Link>
           </li>
           <li>
