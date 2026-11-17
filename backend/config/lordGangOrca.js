@@ -2,9 +2,9 @@
 // data/lordGangOrcaScripts.js. All times are Helsinki's.
 
 const LORD_GANG_ORCA = {
-    // Open Monday to Friday, 16:00 to midnight. Weekdays as Date#getDay():
-    // 0 Sunday ... 6 Saturday.
-    hours: { days: [1, 2, 3, 4, 5], opensAt: 16 },
+    // Open Monday to Friday, 16:00 to 23:59 (closed from 23:59 on). Weekdays
+    // as Date#getDay(): 0 Sunday ... 6 Saturday. Times as [hour, minute].
+    hours: { days: [1, 2, 3, 4, 5], opensAt: [16, 0], closesAt: [23, 59] },
 
     beg: {
         // Each beg pays this share of the member's daily PP, rounded up, at

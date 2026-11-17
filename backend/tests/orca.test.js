@@ -13,9 +13,11 @@ const clock = require("../utils/orca/clock");
 const SCRIPTS = require("../data/lordGangOrcaScripts");
 
 describe("his clock and his words", () => {
-    test("open Monday to Friday from 16:00 to midnight; closed mornings and weekends", () => {
-        assert.equal(clock.isOpen({ weekday: 1, hour: 16 }), true);
-        assert.equal(clock.isOpen({ weekday: 5, hour: 23 }), true);
+    test("open Monday to Friday from 16:00 to 23:59; closed mornings and weekends", () => {
+        assert.equal(clock.isOpen({ weekday: 1, hour: 16, minute: 0 }), true);
+        assert.equal(clock.isOpen({ weekday: 5, hour: 23, minute: 58 }), true);
+        assert.equal(clock.isOpen({ weekday: 5, hour: 23, minute: 59 }), false, "closed at 23:59");
+        assert.equal(clock.isOpen({ weekday: 1, hour: 15, minute: 59 }), false);
         assert.equal(clock.isOpen({ weekday: 3, hour: 15 }), false);
         assert.equal(clock.isOpen({ weekday: 6, hour: 18 }), false);
         assert.equal(clock.isOpen({ weekday: 0, hour: 20 }), false);

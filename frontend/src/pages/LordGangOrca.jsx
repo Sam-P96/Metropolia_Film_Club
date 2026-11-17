@@ -36,7 +36,7 @@ function Paid({ paid }) {
 }
 
 // /games/lord-gang-orca: the mob boss's back room. While he's open (Monday
-// to Friday, 16:00 to midnight, Helsinki), ask him for PP; closed, whoever's
+// to Friday, 16:00 to 23:59, Helsinki), ask him for PP; closed, whoever's
 // minding the place tells you why. His favours are always on show.
 // Everything is decided on the server (backend/utils/orca/).
 export default function LordGangOrca() {
@@ -138,7 +138,7 @@ export default function LordGangOrca() {
                 status.open ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-200' : 'border-white/15 bg-white/5 text-white/70'
               }`}
             >
-              {status.open ? 'Open now · until 00:00' : `Closed · opens ${formatDeadline(status.nextOpening)}`}
+              {status.open ? 'Open now · until 23:59' : `Closed · opens ${formatDeadline(status.nextOpening)}`}
             </p>
           )}
         </header>
@@ -196,7 +196,7 @@ export default function LordGangOrca() {
                   onClick={ask}
                   disabled={busy || !status.open || Boolean(status.question)}
                   className={`${GOLD_BUTTON} min-h-13 text-lg`}
-                  title={!status.open ? 'He only sees people Monday to Friday, 16:00 to midnight.' : undefined}
+                  title={!status.open ? 'He only sees people Monday to Friday, 16:00 to 23:59.' : undefined}
                 >
                   {status.open ? 'Ask the boss' : 'He’s not in'}
                 </button>
