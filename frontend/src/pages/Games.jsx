@@ -21,6 +21,7 @@ import StealLogo from '../components/steal/StealLogo'
 import { getStealStatus } from '../services/steal'
 import PokerLogo from '../components/poker/PokerLogo'
 import SharkBadge from '../components/loanShark/SharkBadge'
+import OrcaCard from '../components/orca/OrcaCard'
 import { GomokuLogo, GomokuTitle } from '../components/gomoku/GomokuChrome'
 import { PoolLogo, PoolTitle } from '../components/pool/PoolChrome'
 import { CrashLogo, CrashTitle } from '../components/crash/CrashChrome'
@@ -36,7 +37,8 @@ const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
 const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Loan Shark first, then Farkle, Infinite Gomoku, Box Office Scratch, Double or Nothing, Kino Kasino, Steal and
+// Loan Shark first, then Lord Gang Orca, Box Office Scratch, Farkle,
+// Infinite Gomoku, 8 Ball Pool, Box Office Crash, Double or Nothing, Kino Kasino, Steal and
 // Defend (whose picture says "Require PvP" until its PvP is on) and Kino
 // Poker. Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
@@ -73,6 +75,32 @@ export default function Games() {
                 Borrow P-PP from King Loan Shark, or lend your PP to other members for interest. Pay on time, or the bunny comes.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Visit Loan Shark →</span>
+            </Link>
+          </li>
+          <li>
+            <OrcaCard className={CARD} loggedIn={loggedIn} />
+          </li>
+          <li>
+            {/* Double Prize Weekend: a rainbow edge and glow, and the logo
+                breathing a rainbow glow (index.css). */}
+            <Link to="/games/scratch" className={`${CARD} ${doubled ? 'rainbow-card' : ''}`}>
+              <div className={`flex items-center gap-2 self-start rounded-lg bg-ticket/80 px-2 py-1.5 ${doubled ? 'rainbow-breathe' : ''}`} aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <StarIcon key={i} className="size-7" />
+                ))}
+                <GoldenTicketIcon className="w-9" />
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Box Office <span className="text-brand-gold">Scratch</span>
+              </h2>
+              {doubled && <p className="rainbow-text -mt-2 text-sm font-bold">Double Prize Weekend: every prize doubled</p>}
+              <p className="text-white/70">
+                {listed(SCRATCH_TICKETS.map((type) => type.name))} scratch cards, from {Math.min(...SCRATCH_PRICES)} to{' '}
+                {Math.max(...SCRATCH_PRICES)} points. Find {SCRATCH.starsToWin} stars in {SCRATCH.scratches} scratches to win P-PP, and hunt
+                for the Golden Ticket and your ticket&apos;s jackpot.
+                {SCRATCH_TIMED.map((type) => ` ${type.name} is on sale ${describeHours(type.hours)}.`).join('')}
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Scratch →</span>
             </Link>
           </li>
           <li>
@@ -132,29 +160,6 @@ export default function Games() {
                 rounds a day.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Crash →</span>
-            </Link>
-          </li>
-          <li>
-            {/* Double Prize Weekend: a rainbow edge and glow, and the logo
-                breathing a rainbow glow (index.css). */}
-            <Link to="/games/scratch" className={`${CARD} ${doubled ? 'rainbow-card' : ''}`}>
-              <div className={`flex items-center gap-2 self-start rounded-lg bg-ticket/80 px-2 py-1.5 ${doubled ? 'rainbow-breathe' : ''}`} aria-hidden="true">
-                {[0, 1, 2].map((i) => (
-                  <StarIcon key={i} className="size-7" />
-                ))}
-                <GoldenTicketIcon className="w-9" />
-              </div>
-              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
-                Box Office <span className="text-brand-gold">Scratch</span>
-              </h2>
-              {doubled && <p className="rainbow-text -mt-2 text-sm font-bold">Double Prize Weekend: every prize doubled</p>}
-              <p className="text-white/70">
-                {listed(SCRATCH_TICKETS.map((type) => type.name))} scratch cards, from {Math.min(...SCRATCH_PRICES)} to{' '}
-                {Math.max(...SCRATCH_PRICES)} points. Find {SCRATCH.starsToWin} stars in {SCRATCH.scratches} scratches to win P-PP, and hunt
-                for the Golden Ticket and your ticket&apos;s jackpot.
-                {SCRATCH_TIMED.map((type) => ` ${type.name} is on sale ${describeHours(type.hours)}.`).join('')}
-              </p>
-              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Scratch →</span>
             </Link>
           </li>
           <li>

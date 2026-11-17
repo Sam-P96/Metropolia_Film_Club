@@ -50,6 +50,7 @@ const TITLES = [
   ['/games/pool/shop', '8 Ball Pool Shop'],
   ['/games/pool/:matchId', '8 Ball Pool'],
   ['/games/crash', 'Box Office Crash'],
+  ['/games/lord-gang-orca', 'Lord Gang Orca'],
   ['/games/scratch', 'Box Office Scratch'],
   ['/games/slots', SLOTS.name],
   ['/games/double-or-nothing', 'Double or Nothing'],
