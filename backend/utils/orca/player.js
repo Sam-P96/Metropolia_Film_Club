@@ -44,6 +44,16 @@ const rollThreshold = (random = secure) => FAVOUR.thresholdMin + Math.floor(rand
 const orcaSays = (text) => ({ type: "bubble", speaker: "orca", text });
 const line = (group, random = secure) => orcaSays(pickFrom(SCRIPTS.lines[group], random));
 
+// A line from `group`, never the one he said to them last (`player`), and
+// remembered as the last.
+async function freshLine(player, group, random = secure) {
+    const lines = SCRIPTS.lines[group];
+    const choices = lines.length > 1 ? lines.filter((text) => text !== player.lastLine) : lines;
+    const text = pickFrom(choices, random);
+    await OrcaPlayer.updateOne({ user: player.user }, { $set: { lastLine: text } });
+    return orcaSays(text);
+}
+
 // A member's record, made the first time they visit.
 async function playerOf(userId) {
     return OrcaPlayer.findOneAndUpdate(
@@ -101,17 +111,17 @@ async function beg(userId, { now = new Date(), random = secure } = {}) {
     if (reviews < 1) return { steps: [line("noReviews", random)] };
     if (!isOpen(clockOf(now, player.fakeClock))) throw new OrcaError("He's not in. Come back Monday to Friday, from 16:00.", 409);
     if (player.question) return { steps: [orcaSays(SCRIPTS.questions[player.question.index].question)], question: questionView(player.question) };
-    if (player.favour.on) return { steps: [line("favourMode", random)] };
+    if (player.favour.on) return { steps: [await freshLine(player, "favourMode", random)] };
 
     // A new day: the count starts again.
     const day = today(now);
     if (player.day !== day) {
         player = (await OrcaPlayer.findOneAndUpdate({ user: userId, day: player.day }, { $set: { day, begs: 0 } }, { returnDocument: "after" }).lean()) ?? (await playerOf(userId));
     }
-    if (player.begs >= BEG.perDay) return { steps: [line("dailyLimit", random)] };
+    if (player.begs >= BEG.perDay) return { steps: [await freshLine(player, "dailyLimit", random)] };
     const ready = new Date(now.getTime() - BEG.cooldownMs);
     if (player.lastBegAt && player.lastBegAt > ready) {
-        return { steps: [line("cooldown", random)], cooldownUntil: new Date(player.lastBegAt.getTime() + BEG.cooldownMs) };
+        return { steps: [await freshLine(player, "cooldown", random)], cooldownUntil: new Date(player.lastBegAt.getTime() + BEG.cooldownMs) };
     }
 
     // Claimed, so two clicks can't both beg.
@@ -143,7 +153,7 @@ async function beg(userId, { now = new Date(), random = secure } = {}) {
     if (question) return { steps: [orcaSays(SCRIPTS.questions[question.index].question)], question: questionView(question) };
 
     const paid = await pay(userId, reviews, amount);
-    const steps = [line("beg", random)];
+    const steps = [await freshLine(claimed, "beg", random)];
     if (await buildUp(userId, now)) steps.push(line("favourStart", random));
     return { steps, paid };
 }

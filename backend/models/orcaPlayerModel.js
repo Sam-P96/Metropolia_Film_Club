@@ -38,6 +38,9 @@ const orcaPlayerSchema = new Schema({
     // The last question asked, so the next is a different one.
     lastQuestion: { type: Number, default: null },
 
+    // The last thing he said to them, so he doesn't say it twice in a row.
+    lastLine: { type: String, default: null },
+
     // Lines waiting for their next visit: "jobDone", "allDone".
     news: { type: [String], default: [] },
 

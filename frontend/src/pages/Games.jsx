@@ -37,9 +37,9 @@ const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
 const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Loan Shark first, then Lord Gang Orca, Box Office Scratch, Farkle,
-// Infinite Gomoku, 8 Ball Pool, Box Office Crash, Kino Kasino, Kino Poker,
-// Double or Nothing, and Steal and Defend last (its picture says "Require
+// Loan Shark first, then Box Office Scratch, Farkle, Infinite Gomoku, 8
+// Ball Pool, Box Office Crash, Kino Kasino, Kino Poker, Double or Nothing,
+// Lord Gang Orca, and Steal and Defend last (its picture says "Require
 // PvP" until its PvP is on). Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
 // Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
@@ -76,9 +76,6 @@ export default function Games() {
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Visit Loan Shark →</span>
             </Link>
-          </li>
-          <li>
-            <OrcaCard className={CARD} loggedIn={loggedIn} />
           </li>
           <li>
             {/* Double Prize Weekend: a rainbow edge and glow, and the logo
@@ -207,6 +204,9 @@ export default function Games() {
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Double or Nothing →</span>
             </Link>
+          </li>
+          <li>
+            <OrcaCard className={CARD} loggedIn={loggedIn} />
           </li>
           <li>
             <Link to="/games/steal-and-defend" className={CARD}>
