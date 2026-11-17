@@ -18,7 +18,7 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
-    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner",
+    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES,
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -340,6 +340,29 @@ async function noteDoubleResult(game) {
     }
     const followers = await Follow.find({ following: game.userId }).distinct("follower");
     await sendToEach(followers, { type: "doublePlay", doubleGame: game._id, actors: [game.userId] });
+}
+
+// A round of Box Office Crash ended (games/crash/rooms.js): how each player
+// came out. A cash-out at 10x or more (CRASH_RULES.bigWinAt) is big news:
+// every member hears about it, the player included. Otherwise everyone who
+// follows the player hears what they won or lost. `players`: the round's,
+// each { userId, bet, cashedAt (null if it crashed on them), payout:
+// { total } }; `endedBy`: "crash", "cap" or "time".
+async function noteCrashResults(players, endedBy) {
+    const { CRASH_RULES } = require("../../shared/crash/rules.js");
+    let members = null;
+    for (const player of players) {
+        if (!player.userId) continue;
+        const total = player.payout?.total ?? 0;
+        const crash = { multiplier: player.cashedAt, bet: player.bet, net: total - player.bet, endedBy };
+        if (player.cashedAt !== null && player.cashedAt >= CRASH_RULES.bigWinAt) {
+            members ??= await User.find().distinct("_id");
+            await sendToEach(members, { type: "crashBigWin", amount: total, crash, actors: [player.userId] });
+            continue;
+        }
+        const followers = await Follow.find({ following: player.userId }).distinct("follower");
+        await sendToEach(followers, { type: "crashResult", amount: total, crash, actors: [player.userId] });
+    }
 }
 
 // Steal and Defend (utils/steal/attacks.js). `attackerId` has started an
@@ -673,6 +696,7 @@ async function forgetMember(userId, reviewIds, cutIds = []) {
 }
 
 module.exports = {
+    noteCrashResults,
     TRENDING_LIKES,
     VIRAL_LIKES,
     noteReviewVote,

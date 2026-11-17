@@ -148,7 +148,15 @@ const ADMIN_TYPES = ["adminGrant"];
 //   doublePrizes  Box Office Scratch's Double Prize Weekend
 const SITE_EVENT_TYPES = ["blackFriday", "doublePrizes"];
 
+// Box Office Crash (utils/notify.js noteCrashResults), as a round ends:
+//   crashBigWin  `actors[0]` cashed out at 10x or more: every member hears
+//   crashResult  `actors[0]`, whom they follow, won or lost a round
+// `amount` is what came back, and `crash` the round: { multiplier (null if
+// it crashed on them), bet, net, endedBy }.
+const CRASH_TYPES = ["crashBigWin", "crashResult"];
+
 const GAME_TYPES = [
+    ...CRASH_TYPES,
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
     ...GOMOKU_TYPES,
@@ -162,7 +170,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES],
         required: true,
     },
     review: {
@@ -170,7 +178,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -186,6 +194,13 @@ const notificationSchema = new Schema({
     amount: {type: Number, default: null},
     // An admin's P-PP send: the note they wrote with it.
     note: {type: String},
+    // Box Office Crash: the round, from this player's side.
+    crash: {
+        multiplier: {type: Number},
+        bet: {type: Number},
+        net: {type: Number},
+        endedBy: {type: String},
+    },
     // Kino Poker: a win's hands won and best hand.
     poker: {
         hands: {type: Number},
@@ -244,6 +259,7 @@ Notification.GOMOKU_TYPES = GOMOKU_TYPES;
 Notification.POOL_TYPES = POOL_TYPES;
 Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
+Notification.CRASH_TYPES = CRASH_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;
 Notification.SITE_EVENT_TYPES = SITE_EVENT_TYPES;

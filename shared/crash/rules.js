@@ -25,6 +25,9 @@ export const CRASH_RULES = {
   autoMax: 25,
   // How long everyone sees the round coming before the first tick.
   countdownMs: 1500,
+  // A cash-out at this or more is big news: every member hears about it.
+  // Anything else, their followers do.
+  bigWinAt: 10,
 }
 
 // The biggest bet for a member whose daily PP is `dailyPp`: a quarter of

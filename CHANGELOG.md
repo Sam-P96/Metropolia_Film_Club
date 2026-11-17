@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Box Office Crash on the Notifications page: a cash-out at 10x or more is
+  big news for every member (in every filter, glowing); any other round,
+  win or lose, goes to the player's followers, with the multiplier and how
+  much they won or lost.
 - Lord Gang Orca (Games → Lord Gang Orca, `/games/lord-gang-orca`), King
   Loan Shark's rival. Monday to Friday, 16:00 to midnight (Helsinki), ask
   him for PP: 10% of your daily PP a beg (in PP, within your PP cap), three

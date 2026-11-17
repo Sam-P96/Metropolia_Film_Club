@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const User = require("../../models/userModel");
 const db = require("../../utils/crash");
+const { noteCrashResults } = require("../../utils/notify");
 const { playDay } = require("../../utils/wallet");
 const { MEMBER_FIELDS, userSummary } = require("../../utils/serialize");
 const { CRASH, CrashRound, cashOutsAt, payoutFor, secureRandom } = require("./engine");
@@ -318,6 +319,8 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         await db
             .finishRound(run.id, { path: run.engine.path, ticks: run.engine.tick, endedBy: run.endedBy, players: run.players })
             .catch((error) => console.error("Crash couldn't save a round:", error));
+        // Big wins to everyone, the rest to followers. Never holds the room up.
+        noteCrashResults(run.players, run.endedBy).catch((error) => console.error("Crash couldn't send its notifications:", error));
 
         const best = run.players.reduce((top, player) => (player.cashedAt !== null && (!top || player.cashedAt > top.cashedAt) ? player : top), null);
         room.last = {

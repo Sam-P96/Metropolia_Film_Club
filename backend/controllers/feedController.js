@@ -44,13 +44,13 @@ const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
 // news (a trending review, a jackpot, a Double or Nothing win, someone
 // tripling their Slot Machine credits, a Steal and Defend Critical Hit, and
 // a viral cut, found by its cut in feedQuery).
-const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit", "quizWinner", ...Notification.SITE_EVENT_TYPES];
+const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit", "quizWinner", "crashBigWin", ...Notification.SITE_EVENT_TYPES];
 
 // The jackpots, which wait just under the games until they've been seen.
 const JACKPOT_TYPES = ["scratchJackpot", "slotJackpot", "quizWinner"];
@@ -310,6 +310,12 @@ async function hydrate(rows, viewer) {
 
         if (row.type === "slotTriple" || row.type === "slotJackpot" || row.type === "quizWinner") {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount }];
+        }
+
+        // Box Office Crash: how the round went for them.
+        if (row.type === "crashBigWin" || row.type === "crashResult") {
+            const crash = { multiplier: row.crash?.multiplier ?? null, bet: row.crash?.bet ?? 0, net: row.crash?.net ?? 0, endedBy: row.crash?.endedBy ?? null };
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, crash }];
         }
 
         if (row.type === "scratchWin" || row.type === "scratchJackpot") {
