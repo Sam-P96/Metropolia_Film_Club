@@ -64,6 +64,9 @@ const Schema = mongoose.Schema;
 //   crashWin         a cash-out: the stake back in its own coins, profit in P-PP
 //   crashRefund      a bet handed back: a round that couldn't start, or one
 //                    the server stopped in the middle of
+// Lord Gang Orca (utils/orca/player.js):
+//   orcaBeg          a beg: PP (never past the PP cap), plus P-PP for a
+//                    question answered right
 //   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
 //   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   adminGrant       P-PP sent by an admin from the admin panel (`other`: which
@@ -87,7 +90,7 @@ const walletTxSchema = new Schema({
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
-            "crashBet", "crashWin", "crashRefund",
+            "crashBet", "crashWin", "crashRefund", "orcaBeg",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,

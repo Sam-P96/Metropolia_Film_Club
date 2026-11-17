@@ -31,6 +31,7 @@ const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
 const poolRouter = require("./routes/poolRouter");
 const crashRouter = require("./routes/crashRouter");
+const orcaRouter = require("./routes/orcaRouter");
 const quizRouter = require("./routes/quizRouter");
 const adminRouter = require("./routes/adminRouter");
 const firstPlaceRouter = require("./routes/firstPlaceRouter");
@@ -46,6 +47,7 @@ const { startLoanSweep } = require("./jobs/loanSweep");
 const { startSlotSweep } = require("./jobs/slotSweep");
 const { startGomokuSweep } = require("./jobs/gomokuSweep");
 const { startPoolSweep } = require("./jobs/poolSweep");
+const { startOrcaSweep } = require("./jobs/orcaSweep");
 const { startQuizDraw } = require("./jobs/quizDraw");
 const { startSiteEvents } = require("./jobs/siteEvents");
 const { sendPage } = require("./utils/linkPreview");
@@ -168,6 +170,12 @@ connected
     .then((count) => count && console.log(`Crash: put right ${count} round${count === 1 ? "" : "s"} stopped by a restart.`))
     .catch((error) => console.error("Couldn't check Crash's rounds:", error.message));
 
+// Lord Gang Orca: his jobs at 00:00, and job dislikes coming off after 48
+// hours (jobs/orcaSweep.js).
+connected
+    .then(() => startOrcaSweep())
+    .catch((error) => console.error("Couldn't start Lord Gang Orca's sweep:", error.message));
+
 // The Daily Quiz: Monday 12:00's weekly draw (jobs/quizDraw.js).
 connected
     .then(() => startQuizDraw())
@@ -233,6 +241,7 @@ app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/pool", refuseGameBans, poolRouter);
 app.use("/api/crash", refuseGameBans, crashRouter);
+app.use("/api/orca", refuseGameBans, orcaRouter);
 app.use("/api/quiz", quizRouter);
 // The admin panel: admins only (routes/adminRouter.js).
 app.use("/api/admin", adminRouter);

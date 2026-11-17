@@ -130,6 +130,8 @@ async function settleSafely(matchId) {
 // the bot too). `skip` is a member who has just left the club.
 async function finishMatch(match, skip = null) {
     await settleSafely(match._id);
+    // Lord Gang Orca's "get X to challenge Y to a game" jobs.
+    await require("./orca/jobs").onGameFinished(match).catch((error) => console.error("Lord Gang Orca game job (Farkle):", error.message));
     if (match.mode === "pvp") await noteFarkleOver(match, skip);
     await noteFarkleResult(match, skip);
 }
