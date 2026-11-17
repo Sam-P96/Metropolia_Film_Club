@@ -140,11 +140,13 @@ function Members({ children, empty }) {
   return <ul className="flex max-h-[70vh] flex-col gap-1.5 overflow-y-auto pr-1">{children}</ul>
 }
 
-// /SECRETloanshark: who King Loan Shark's jobs can pick
-// (backend/utils/loanShark/jobLists.js, the same rules the jobs use). Admins
-// only: the server checks, and anyone else sees none of it. Not linked from
-// anywhere. Four columns, side by side on a wide screen, one under another
-// on a phone; the Review Persuasion List can be hidden.
+// /SECRETloanshark, the Gang Persuasion List: who King Loan Shark's and
+// Lord Gang Orca's jobs can pick. Both bosses read these same lists, live
+// (backend/utils/loanShark/jobLists.js; Lord Gang Orca's jobs in
+// backend/utils/orca/jobs.js). Admins only: the server checks, and anyone
+// else sees none of it. Not linked from anywhere. Four columns, side by side
+// on a wide screen, one under another on a phone; the Review Persuasion List
+// can be hidden.
 export default function SecretLoanShark() {
   const lists = useApi(() => getJobLists(), [])
   const data = lists.data
@@ -195,10 +197,12 @@ export default function SecretLoanShark() {
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-8 text-white sm:py-12">
       <h1 className="font-['Bebas_Neue'] text-5xl leading-none tracking-wide">
-        King Loan Shark&apos;s <span className="text-brand-gold">lists</span>
+        Gang <span className="text-brand-gold">Persuasion List</span>
       </h1>
       <p className="mt-2 max-w-3xl text-white/60">
-        Who his jobs can pick: X in &ldquo;Convince X to…&rdquo;, and Y, the member a job is aimed at. Changes only affect jobs made from now on. Admins only.
+        Who King Loan Shark and Lord Gang Orca can drag into their jobs. X is the member to be talked into something (&ldquo;Convince X to…&rdquo;,
+        &ldquo;Get X to…&rdquo;), and Y is the member the job is aimed at. Both bosses use these same lists, so a change here affects both of them,
+        but only jobs handed out from now on: jobs already given keep their members. Admins only.
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -221,9 +225,9 @@ export default function SecretLoanShark() {
               labelledBy="persuasion-heading"
               title="Persuasion List"
               count={data.persuasion.length}
-              explainer={`X for dislike and steal jobs: every quiet member (${quietRule}), plus anyone added by hand. Never the Protected List. ${
+              explainer={`X for King Loan Shark's dislike and steal jobs, and for every one of Lord Gang Orca's jobs. Every quiet member (${quietRule}) is on it automatically, plus anyone added by hand, and never anyone on the Protected List. Dislike and steal jobs only pick members with PvP on (${
                 data.persuasion.filter((entry) => entry.pvp).length
-              } of them have PvP on, and only they can be picked: both jobs need PvP.`}
+              } of these); Lord Gang Orca's challenge, review and like jobs pick anyone here.`}
             >
               <MemberSearch list="persuasion" onAdd={add} />
               <Members empty="Nobody can be X right now.">
@@ -253,9 +257,9 @@ export default function SecretLoanShark() {
                 labelledBy="review-heading"
                 title="Review Persuasion List"
                 count={data.reviewPersuasion.length}
-                explainer={`X for "Convince X to post a movie review": everyone not on the Protected List, PvP or not. The ${
+                explainer={`X for King Loan Shark's "post a review" jobs only (Lord Gang Orca's review jobs use the Persuasion List). Everyone not on the Protected List, PvP or not: the ${
                   data.reviewPersuasion.filter((entry) => entry.inactive).length
-                } inactive ones are picked first; anyone else only when nobody's inactive. To keep someone out, protect them.`}
+                } inactive ones are picked first, anyone else only when nobody's inactive. To keep someone out, protect them.`}
               >
                 <Members empty="Nobody can be X right now.">
                   {data.reviewPersuasion.map((entry) => (
@@ -274,7 +278,7 @@ export default function SecretLoanShark() {
               labelledBy="protected-heading"
               title="Protected List"
               count={data.protected.length}
-              explainer="Never picked as X. Can still be targeted if they have PvP on."
+              explainer="Never picked as X by either boss: nobody will be asked to talk them into anything. They can still be Y: targeted by dislike and steal jobs if their PvP is on, and by Lord Gang Orca's challenge and like jobs."
             >
               <MemberSearch list="protected" onAdd={add} />
               <Members empty="Nobody's protected.">
@@ -297,7 +301,7 @@ export default function SecretLoanShark() {
               labelledBy="target-heading"
               title="Target List"
               count={data.targets.length}
-              explainer="Y: members with PvP on. Change this by changing their PvP setting."
+              explainer="Y for dislike and steal jobs, from either boss: members with PvP on, so only they can have their reviews disliked or be stolen from. Change this by changing their PvP setting. Lord Gang Orca's challenge and like jobs can aim at any member."
             >
               <Members empty="Nobody has PvP on.">
                 {data.targets.map((entry) => (
