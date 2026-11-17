@@ -6,7 +6,7 @@ import { api } from './api'
 
 // His page: { open, speaker, story, steps, news, names, reviews, begAmount,
 // begs: { used, perDay }, cooldownUntil, nextOpening, question, favour:
-// { on, done, needed, jobs, jobTexts, refreshAt }, debug? (admins) }.
+// { on, done, needed, jobs, jobTexts, refreshAt } }.
 export function getOrca() {
   return api('/orca')
 }
@@ -24,9 +24,4 @@ export function begOrca() {
 // The answer to his question (the option's text): { steps, paid, right }.
 export function answerOrca(option) {
   return api('/orca/answer', { method: 'POST', body: { option } })
-}
-
-// Admins only (the server checks): a testing tool, then the page as it is.
-export function orcaDebug(action, payload = {}) {
-  return api('/orca/debug', { method: 'POST', body: { action, ...payload } })
 }

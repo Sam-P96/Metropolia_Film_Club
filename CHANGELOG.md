@@ -18,8 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dislike a review), before he pays again. Closed, Dolphine Goon (weekdays)
   or Kaveri (weekends) has a story for you. Narration and speech bubbles,
   shown step by step with Skip; all his words in one file
-  (`backend/data/lordGangOrcaScripts.js`). Admins get testing tools on the
-  page. His picture and Dolphine Goon's are placeholders.
+  (`backend/data/lordGangOrcaScripts.js`). His picture and Dolphine Goon's are placeholders.
 - Lord Gang Orca at Kino Poker: half the time he takes Bret Maverick's seat
   (never both), plays calm and patient, and when King Loan Shark is at the
   table too, the two trade insults.
