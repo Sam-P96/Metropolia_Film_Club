@@ -142,8 +142,13 @@ export default function LordGangOrca() {
     []
   )
 
-  // The first visit: his greeting or the closed story, then any news.
+  // The first visit: his greeting or the closed story, then any news. Once
+  // only: React's StrictMode runs this twice in development, which would
+  // say it all twice, and the first fetch would use up the news.
+  const greeted = useRef(false)
   useEffect(() => {
+    if (greeted.current) return
+    greeted.current = true
     load().then((first) => {
       if (!first) return
       const opening = first.question ? [{ type: 'bubble', speaker: 'orca', text: first.question.question }] : first.steps
