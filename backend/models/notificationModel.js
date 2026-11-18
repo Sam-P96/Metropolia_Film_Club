@@ -155,8 +155,17 @@ const SITE_EVENT_TYPES = ["blackFriday", "doublePrizes"];
 // it crashed on them), bet, net, endedBy }.
 const CRASH_TYPES = ["crashBigWin", "crashResult"];
 
+// Forrest Bounce (utils/notify.js), to every member:
+//   forrestCashOut  `actors[0]` cashed a run out: `amount` came back
+//   forrestBest     `actors[0]` beat their own best run
+//   forrestRecord   `actors[0]` beat the site's best run
+// `forrest`: { entry (0: free play), score, fruit (before the multiplier),
+// level, net (won or lost), previous (the best it beat) }.
+const FORREST_TYPES = ["forrestCashOut", "forrestBest", "forrestRecord"];
+
 const GAME_TYPES = [
     ...CRASH_TYPES,
+    ...FORREST_TYPES,
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
     ...GOMOKU_TYPES,
@@ -170,7 +179,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES],
         required: true,
     },
     review: {
@@ -178,7 +187,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -200,6 +209,15 @@ const notificationSchema = new Schema({
         bet: {type: Number},
         net: {type: Number},
         endedBy: {type: String},
+    },
+    // Forrest Bounce: the run.
+    forrest: {
+        entry: {type: Number},
+        score: {type: Number},
+        fruit: {type: Number},
+        level: {type: Number},
+        net: {type: Number},
+        previous: {type: Number},
     },
     // Kino Poker: a win's hands won and best hand.
     poker: {
@@ -260,6 +278,7 @@ Notification.POOL_TYPES = POOL_TYPES;
 Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.CRASH_TYPES = CRASH_TYPES;
+Notification.FORREST_TYPES = FORREST_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;
 Notification.SITE_EVENT_TYPES = SITE_EVENT_TYPES;
