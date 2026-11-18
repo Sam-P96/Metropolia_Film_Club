@@ -43,15 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lord Gang Orca (Games → Gang Orca, `/games/lord-gang-orca`; "Gang Orca"
   on the Games page, Lord Gang Orca once you're in his office), King
   Loan Shark's rival. Monday to Friday, 16:00 to 23:59 (Helsinki), ask
-  him for PP: 10% of your daily PP a beg (in PP, within your PP cap), three
+  him for PP: half your daily PP a beg (in PP, within your PP cap), three
   a day an hour apart. Now and then he asks a question instead: answer right
   for the same again in P-PP. Beg enough (a secret amount for each member)
   and he wants favours: three jobs, four new each day at 00:00 (get a member
   to challenge another to Farkle or Gomoku, post a review, or like or
-  dislike a review), before he pays again. Closed, Dolphine Goon (weekdays)
+  dislike a review), before he pays again. Closed, Goon Dolphine (weekdays)
   or Kaveri (weekends) has a story for you. Narration and speech bubbles,
   shown step by step with Skip; all his words in one file
-  (`backend/data/lordGangOrcaScripts.js`). His picture and Dolphine Goon's are placeholders.
+  (`backend/data/lordGangOrcaScripts.js`). His picture and Goon Dolphine's are placeholders.
 - Lord Gang Orca at Kino Poker: half the time he takes Bret Maverick's seat
   (never both), plays calm and patient, and when King Loan Shark is at the
   table too, the two trade insults.
