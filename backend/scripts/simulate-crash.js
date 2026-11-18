@@ -8,8 +8,12 @@
 //
 // Returns here are for exact multipliers (bet x multiplier, unrounded).
 // Real payouts are whole points rounded down, which costs small bets more:
-// those are shown too, for a few bet sizes, at a 2x target.
-const { CRASH, CrashRound, secureRandom } = require("../games/crash/engine");
+// those are shown too, for a few bet sizes, at a 2x target. So are
+// protected rounds (a full room of 5: half of every loss back), which
+// return more than the bet on average, on purpose: to get people playing
+// together.
+const { CRASH, CrashRound, payoutFor, secureRandom } = require("../games/crash/engine");
+const { CRASH_RULES } = require("../../shared/crash/rules.js");
 
 const ROUNDS = Number(process.argv[2]) || 200000;
 const TARGETS = [1.2, 1.5, 2, 3, 5, 10, 25];
@@ -25,6 +29,10 @@ const ends = { crash: 0, cap: 0, time: 0 };
 const returns = new Map(TARGETS.map((t) => [t, 0]));
 let rideOut = 0;
 const rounded = new Map(BETS.map((bet) => [bet, 0]));
+const PROTECTED_BET = 10;
+const shielded = new Map(TARGETS.map((t) => [t, 0]));
+let shieldedRideOut = 0;
+const shieldedReturn = (multiplier) => payoutFor({ pp: PROTECTED_BET, ppp: 0 }, multiplier, CRASH_RULES.protectShare).total / PROTECTED_BET;
 
 const started = Date.now();
 for (let i = 0; i < ROUNDS; i++) {
@@ -56,6 +64,8 @@ for (let i = 0; i < ROUNDS; i++) {
     rideOut += atEnd;
     const atTwo = paid.get(2) ?? atEnd;
     for (const bet of BETS) rounded.set(bet, rounded.get(bet) + Math.floor(bet * atTwo + 1e-9) / bet);
+    for (const target of TARGETS) shielded.set(target, shielded.get(target) + shieldedReturn(paid.get(target) ?? atEnd));
+    shieldedRideOut += shieldedReturn(atEnd);
 }
 
 const pct = (n) => `${((n / ROUNDS) * 100).toFixed(2)}%`;
@@ -75,3 +85,7 @@ console.log(`  never cash out     ${avg(rideOut)}`);
 console.log("");
 console.log("At a 2x target with real payouts (whole points, rounded down):");
 for (const bet of BETS) console.log(`  bet ${String(bet).padEnd(3)}  ${avg(rounded.get(bet))}`);
+console.log("");
+console.log(`In a protected round (a full room: ${CRASH_RULES.protectShare * 100}% of a loss back), a bet of ${PROTECTED_BET}, real payouts:`);
+for (const target of TARGETS) console.log(`  auto-cash-out ${String(target).padEnd(4)}x  ${avg(shielded.get(target))}`);
+console.log(`  never cash out     ${avg(shieldedRideOut)}`);

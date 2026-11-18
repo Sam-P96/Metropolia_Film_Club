@@ -27,7 +27,8 @@ export default function CrashNotice({ item }) {
   )
 
   let text
-  if (multiplier === null) text = <>{name} rode it too long: the round crashed, and they lost {bet}.</>
+  if (multiplier === null && 0 - net < bet) text = <>{name} rode it too long: the round crashed, and they lost {0 - net} (a full room protected the other {bet + net}).</>
+  else if (multiplier === null) text = <>{name} rode it too long: the round crashed, and they lost {bet}.</>
   else if (net > 0) text = <>{name} cashed out at {formatMultiplier(multiplier)} and won {net}.</>
   else if (net < 0) text = <>{name} cashed out at {formatMultiplier(multiplier)} and lost {0 - net}.</>
   else text = <>{name} cashed out at {formatMultiplier(multiplier)} and broke even.</>

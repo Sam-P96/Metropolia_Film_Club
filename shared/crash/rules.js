@@ -5,17 +5,20 @@
 
 export const CRASH_RULES = {
   // Players in a room, at most.
-  roomSize: 4,
+  roomSize: 5,
   // Rooms open at once (rounds played alone don't count).
   maxRooms: 3,
-  // Rounds a member can play a day, 12:00 to 12:00 Helsinki time.
-  roundsPerDay: 6,
-  // Of those, "solo" rounds: any round that starts with fewer than 4
-  // players (alone, or a room of 2 or 3).
-  soloPerDay: 3,
-  // A round that starts with this many players is a bonus round: it only
-  // counts towards roundsPerDay.
-  bonusPlayers: 4,
+  // Rounds a member can play a day, 12:00 to 12:00 Helsinki time, by how
+  // many players the round starts with: [alone, 2, 3, 4, 5]. Each is a cap
+  // on all of the day's rounds together, so the more players, the more
+  // rounds: after 3 alone there are still 3 to play with 2 players, 9 with
+  // 3, 21 with 4 and 22 with 5.
+  roundsPerDay: [3, 6, 12, 24, 25],
+  // A round that starts with this many players (a full room) is protected:
+  // everyone who loses in it gets this share of what they lost back (whole
+  // points, rounded down).
+  protectedPlayers: 5,
+  protectShare: 0.5,
   // The smallest bet, and the biggest as a share of the member's daily PP
   // (1 PP per review they've written).
   minBet: 1,
@@ -34,20 +37,34 @@ export const CRASH_RULES = {
 // it, rounded down, but always at least 1.
 export const maxBetFor = (dailyPp) => Math.max(1, Math.floor(dailyPp * CRASH_RULES.maxBetShare))
 
-// The kind of round `players` players start: "bonus" with 4, else "solo".
-export const roundKindFor = (players) => (players >= CRASH_RULES.bonusPlayers ? 'bonus' : 'solo')
+// Rounds a day for a round of `players` (1: alone).
+export const roundsFor = (players) => CRASH_RULES.roundsPerDay[Math.min(Math.max(1, players), CRASH_RULES.roundsPerDay.length) - 1]
 
-// What's left of today's plays, from what's been used: { solo, total }.
-export function playsLeft(used = {}) {
-  const total = Math.max(0, CRASH_RULES.roundsPerDay - (used.total ?? 0))
-  const solo = Math.min(total, Math.max(0, CRASH_RULES.soloPerDay - (used.solo ?? 0)))
-  return { solo, total }
+// Whether a round of `players` protects whoever loses in it.
+export const isProtected = (players) => players >= CRASH_RULES.protectedPlayers
+
+// The kind of round `players` start: "solo" alone, "protected" with a full
+// room, else "group".
+export const roundKindFor = (players) => (isProtected(players) ? 'protected' : players <= 1 ? 'solo' : 'group')
+
+// Rounds left today in a round of `players` (a full room's, the most, if
+// not given), after `used` ({ total }: rounds played today).
+export function playsLeft(used = {}, players = CRASH_RULES.roomSize) {
+  return Math.max(0, roundsFor(players) - (used.total ?? 0))
 }
 
-// "Solo 2/3 · Total 4/6": what's left, out of the day's.
-export function playsLine(used) {
-  const left = playsLeft(used)
-  return `Solo ${left.solo}/${CRASH_RULES.soloPerDay} · Total ${left.total}/${CRASH_RULES.roundsPerDay}`
+// The fewest players a round needs for them to play it after `used`, or
+// null if they've played every round they can today.
+export function playersNeeded(used = {}) {
+  const index = CRASH_RULES.roundsPerDay.findIndex((rounds) => rounds > (used.total ?? 0))
+  return index === -1 ? null : index + 1
+}
+
+// "4 played today", or in a round of `players`, "8/12 left": that round's
+// rounds a day, and how many of them are left.
+export function playsLine(used, players) {
+  if (!players) return `${used?.total ?? 0} played today`
+  return `${playsLeft(used, players)}/${roundsFor(players)} left`
 }
 
 // An auto-cash-out target as typed, or null for none: a number from
@@ -61,14 +78,18 @@ export function autoTarget(value) {
 
 // Why a member can't ready up with `bet` in a room of `players` (counting
 // them; a round played alone is 1), or null if they can. `status`: where
-// they stand today ({ dailyPp, maxBet, left, points, banned }, from the
+// they stand today ({ dailyPp, maxBet, used, points, banned }, from the
 // server). The server checks this again as the round starts.
 export function blockedFor(status, bet, players) {
   if (!status) return 'Checking your points…'
   if (status.banned) return status.banned
   if (status.dailyPp < 1) return 'Write a review to play: your daily PP comes from your reviews.'
-  if (status.left.total < 1) return 'No rounds left today. More at 12:00.'
-  if (players < CRASH_RULES.bonusPlayers && status.left.solo < 1) return `No solo rounds left: wait for ${CRASH_RULES.bonusPlayers} players`
+  if (playsLeft(status.used) < 1) return 'No rounds left today. More at 12:00.'
+  if (playsLeft(status.used, players) < 1) {
+    const needed = playersNeeded(status.used)
+    if (players <= 1) return `No rounds alone left (${roundsFor(1)} a day): play in a room of ${needed} or more.`
+    return `A room of ${players} gets ${roundsFor(players)} rounds a day and you've played them: wait for ${needed} players.`
+  }
   if (!Number.isInteger(bet) || bet < CRASH_RULES.minBet) return 'Pick a bet first.'
   if (bet > status.maxBet) return `Bets go up to ${status.maxBet} for you (a quarter of your daily PP).`
   if (status.points < bet) return 'Not enough points for that bet.'

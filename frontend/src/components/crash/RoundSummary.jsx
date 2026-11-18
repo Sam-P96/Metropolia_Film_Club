@@ -12,7 +12,7 @@ export default function RoundSummary({ summary, myId }) {
       <p className="text-center text-xs font-semibold tracking-widest text-white/55 uppercase">
         Last round: {ENDINGS[summary.endedBy] ?? 'Over'}
         {summary.endedBy === 'crash' ? '' : ` at ${formatMultiplier(summary.multiplier)}`}
-        {summary.kind === 'bonus' && <span className="text-[#FFD76A]"> · bonus round</span>}
+        {summary.protected && <span className="text-[#FFD76A]"> · protected: half of every loss back</span>}
       </p>
       <ul className="flex flex-wrap justify-center gap-2">
         {summary.players.map((player) => {

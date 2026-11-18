@@ -62,6 +62,9 @@ const Schema = mongoose.Schema;
 // Crash (utils/crash.js), with the round in `crash`:
 //   crashBet         a bet as the round starts (PP first, then P-PP)
 //   crashWin         a cash-out: the stake back in its own coins, profit in P-PP
+//                    (in a protected round, half of any loss back too)
+//   crashProtect     a protected round (a full room) crashed on them: half
+//                    the bet back, in the coins it was paid in
 //   crashRefund      a bet handed back: a round that couldn't start, or one
 //                    the server stopped in the middle of
 // Lord Gang Orca (utils/orca/player.js):
@@ -90,7 +93,7 @@ const walletTxSchema = new Schema({
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
-            "crashBet", "crashWin", "crashRefund", "orcaBeg",
+            "crashBet", "crashWin", "crashRefund", "crashProtect", "orcaBeg",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,

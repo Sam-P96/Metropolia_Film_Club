@@ -14,7 +14,7 @@ import useCrash from '../hooks/useCrash'
 import useGameFrame from '../hooks/useGameFrame'
 import { devResetCrashDay } from '../services/crash'
 import { getCurrentUserId } from '../utils/currentUser'
-import { CRASH_RULES, autoTarget, blockedFor, playsLine } from '../../../shared/crash/rules.js'
+import { CRASH_RULES, autoTarget, blockedFor, isProtected, playsLeft, playsLine, roundsFor } from '../../../shared/crash/rules.js'
 
 const autoOf = (value) => (value.autoOn ? autoTarget(value.autoText) : null)
 
@@ -51,7 +51,7 @@ function DevReset() {
         type="button"
         onClick={() =>
           devResetCrashDay()
-            .then(() => setSaid("Today's rounds are back to 6 (3 solo)."))
+            .then(() => setSaid("Today's rounds are back to none played."))
             .catch((error) => setSaid(error.message))
         }
         className="rounded-lg border border-sky-400/50 bg-sky-950/40 px-3 py-1.5 text-sm font-semibold text-sky-200 hover:border-sky-300 hover:text-white"
@@ -78,11 +78,49 @@ function HowItWorks() {
           P-PP; your stake comes back in the same coins, and anything above it is P-PP.
         </p>
         <p>
-          You can bet up to a quarter of your daily PP. Six rounds a day, from 12:00: at most three of them solo (alone, or a room of 2 or 3). A room of
-          four plays a bonus round, which only counts towards the six.
+          You can bet up to a quarter of your daily PP. How many rounds you can play a day (from 12:00) goes by how many players a round starts with: 3
+          alone, 6 with 2 players, 12 with 3, 24 with 4 and 25 with a full room of 5. They all count together, so once you&apos;ve played 3 alone you can
+          keep playing with others.
+        </p>
+        <p>
+          A full room of 5 plays a protected round: everyone who loses gets half of what they lost back (whole points, rounded down), crashed or cashed out
+          under 1x.
         </p>
       </div>
     </details>
+  )
+}
+
+// Rounds a day by the size of the round, and how many of each are left for
+// them: the more players, the more rounds, and a full room is protected.
+function RoundsPerDay({ used }) {
+  return (
+    <section aria-labelledby="crash-rounds" className={`${CARD} flex flex-col gap-3`}>
+      <h2 id="crash-rounds" className={HEADING}>
+        Rounds a day
+      </h2>
+      <p className="-mt-1 text-sm text-white/60">The more players in a round, the more you can play. A full room gets half of every loss back.</p>
+      <ul className="grid grid-cols-5 gap-2">
+        {CRASH_RULES.roundsPerDay.map((rounds, index) => {
+          const players = index + 1
+          const full = isProtected(players)
+          const left = playsLeft(used, players)
+          return (
+            <li
+              key={players}
+              className={`flex flex-col items-center gap-0.5 rounded-xl border px-1 py-2 text-center ${
+                full ? 'border-[#FFD76A]/70 bg-[#FFD76A]/10 shadow-[0_0_14px_rgba(255,215,106,0.25)]' : 'border-white/10 bg-white/5'
+              } ${left < 1 ? 'opacity-50' : ''}`}
+            >
+              <span className="flex min-h-[2lh] items-end text-xs text-white/65 sm:min-h-0">{players === 1 ? 'Alone' : `${players} players`}</span>
+              <span className={`font-['Bebas_Neue'] text-3xl leading-none tabular-nums ${full ? 'text-[#FFD76A]' : 'text-white'}`}>{rounds}</span>
+              <span className="text-[11px] text-white/55 tabular-nums">{left} left</span>
+              {full && <span className="text-[11px] font-semibold text-[#FFD76A]">½ losses back</span>}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
@@ -142,7 +180,7 @@ function Lobby({ game, value, onValue }) {
 
   return (
     <CrashPage
-      subtitle="The multiplier climbs and dips like a stock chart until it crashes. Cash out before it does: alone, or in a room of up to four."
+      subtitle="The multiplier climbs and dips like a stock chart until it crashes. Cash out before it does: alone, or in a room of up to five."
       aside={
         me && (
           <p className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm font-semibold text-white/85 tabular-nums">
@@ -154,6 +192,7 @@ function Lobby({ game, value, onValue }) {
       <Notice text={game.notice} onClose={game.clearNotice} />
       {!connected && <p className="text-center text-sm text-white/60">Connecting…</p>}
       {me && me.dailyPp < 1 && <p className={`${CARD} text-center text-white/80`}>Write a review to play: your daily PP, and so your bets, come from your reviews.</p>}
+      {me && <RoundsPerDay used={me.used} />}
 
       <section aria-labelledby="crash-rooms" className={`${CARD} flex flex-col gap-4`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -181,12 +220,12 @@ function Lobby({ game, value, onValue }) {
         )}
       </section>
 
-      {everyRoomFull && me && me.left.solo > 0 && (
+      {everyRoomFull && me && me.left.alone > 0 && (
         <section aria-labelledby="crash-alone" className={`${CARD} flex flex-col gap-4`}>
           <h2 id="crash-alone" className={HEADING}>
             Play alone
           </h2>
-          <p className="-mt-2 text-sm text-white/60">Every room is full. Play a round on your own instead (a solo round).</p>
+          <p className="-mt-2 text-sm text-white/60">Every room is full. Play a round on your own instead.</p>
           <BetControls value={value} maxBet={me.maxBet} onChange={onValue} />
           <button
             type="button"
@@ -194,7 +233,7 @@ function Lobby({ game, value, onValue }) {
             disabled={busy || !connected || Boolean(soloBlocked)}
             className={`${GOLD_BUTTON} min-h-12 text-lg`}
           >
-            Play alone ({me.left.solo}/{CRASH_RULES.soloPerDay})
+            Play alone ({me.left.alone}/{roundsFor(1)})
           </button>
           {soloBlocked && <p className="text-center text-sm text-white/60">{soloBlocked}</p>}
         </section>
@@ -223,7 +262,7 @@ function RoomScreen({ game, myId, value, onValue }) {
   const stillIn = riding && riding.cashedAt === null
   const size = room.private ? 1 : room.players.length
   const blocked = blockedFor(me, value.bet, size)
-  const bonus = !room.private && room.players.length >= CRASH_RULES.bonusPlayers
+  const full = !room.private && isProtected(size)
 
   const run = async (work) => {
     setBusy(true)
@@ -297,10 +336,10 @@ function RoomScreen({ game, myId, value, onValue }) {
                 </li>
               ))}
             </ul>
-            <p className={`text-sm font-semibold ${bonus ? 'text-[#FFD76A]' : 'text-white/70'}`}>
-              {bonus
-                ? `${CRASH_RULES.bonusPlayers}/${CRASH_RULES.bonusPlayers} players: a bonus round`
-                : `${room.players.length}/${CRASH_RULES.bonusPlayers} players: ${CRASH_RULES.bonusPlayers - room.players.length} more for a bonus round`}
+            <p className={`text-sm font-semibold ${full ? 'text-[#FFD76A]' : 'text-white/70'}`}>
+              {full
+                ? `${size}/${CRASH_RULES.roomSize} players: a protected round, half of every loss back`
+                : `${size}/${CRASH_RULES.roomSize} players: ${roundsFor(size)} rounds a day. ${CRASH_RULES.roomSize - size} more for ${roundsFor(CRASH_RULES.roomSize)} and half of every loss back`}
             </p>
           </div>
         )}
@@ -314,9 +353,9 @@ function RoomScreen({ game, myId, value, onValue }) {
           >
             {mine?.ready ? 'Ready ✓ (cancel)' : room.private ? 'Play again' : room.players.length === 1 ? 'Ready: start' : 'Ready'}
           </button>
-          {!room.private && me && me.left.solo > 0 && (
+          {!room.private && me && me.left.alone > 0 && (
             <button type="button" onClick={() => run(() => game.solo(value.bet, autoOf(value)))} disabled={busy || Boolean(blockedFor(me, value.bet, 1))} className={`${QUIET_BUTTON} min-h-12`}>
-              Play alone ({me.left.solo}/{CRASH_RULES.soloPerDay})
+              Play alone ({me.left.alone}/{roundsFor(1)})
             </button>
           )}
         </div>
@@ -344,9 +383,9 @@ function RoomScreen({ game, myId, value, onValue }) {
             <CrashTitle />
           </h1>
           <p className="min-w-0 flex-1 truncate text-center text-xs text-white/70 sm:text-sm">
-            {!game.connected ? <span className="text-red-300">Reconnecting…</span> : room.private ? 'Playing alone' : bonus ? 'Bonus room' : 'Room'}
+            {!game.connected ? <span className="text-red-300">Reconnecting…</span> : room.private ? 'Playing alone' : full ? 'Protected room' : 'Room'}
           </p>
-          {me && <span className="shrink-0 text-xs font-semibold text-white/80 tabular-nums sm:text-sm">{playsLine(me.used)}</span>}
+          {me && <span className="shrink-0 text-xs font-semibold text-white/80 tabular-nums sm:text-sm">{playsLine(me.used, size)}</span>}
         </header>
         {(game.notice || error) && (
           <div className="shrink-0 px-3 pb-1">
