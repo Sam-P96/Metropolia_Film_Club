@@ -79,7 +79,9 @@ export default function Chat({ messages, names, onIdle }) {
 
   return (
     <div className="relative min-h-0 flex-1">
-      <div ref={box} className="flex h-80 flex-col gap-3 overflow-y-auto overscroll-contain pr-1 sm:h-96" aria-live="polite" aria-label="The conversation">
+      {/* No overscroll-contain: scrolled to either end, the next swipe
+          scrolls the page, so a finger on the chat never gets stuck there. */}
+      <div ref={box} className="flex h-80 flex-col gap-3 overflow-y-auto pr-1 sm:h-96" aria-live="polite" aria-label="The conversation">
         {messages.slice(0, shown).map((step) => (
           <motion.div key={step.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             {step.type === 'narration' ? (

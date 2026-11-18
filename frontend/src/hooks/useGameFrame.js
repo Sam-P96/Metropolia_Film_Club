@@ -6,6 +6,25 @@ import { useLayoutEffect, useState } from 'react'
 // can't scroll while it's showing. On a phone it's measured from the
 // visual viewport (the part actually on screen), so it shrinks above the
 // keyboard. Kino Poker's table uses it.
+// How many game screens are holding the page still, and how the page was
+// before the first: the last one to go puts it back, so two screens
+// overlapping (one closing as another opens) can't leave the page stuck
+// unscrollable.
+let holds = 0
+let overflowBefore = ''
+
+function holdPage() {
+  const html = document.documentElement
+  if (holds === 0) overflowBefore = html.style.overflow
+  holds += 1
+  html.style.overflow = 'hidden'
+}
+
+function releasePage() {
+  holds = Math.max(0, holds - 1)
+  if (holds === 0) document.documentElement.style.overflow = overflowBefore
+}
+
 function measure(nav) {
   const viewport = window.visualViewport
   const navBottom = nav ? nav.getBoundingClientRect().bottom : 64
@@ -30,15 +49,13 @@ export default function useGameFrame() {
     viewport?.addEventListener('resize', update)
     viewport?.addEventListener('scroll', update)
     window.addEventListener('resize', update)
-    const html = document.documentElement
-    const before = html.style.overflow
-    html.style.overflow = 'hidden'
+    holdPage()
     return () => {
       observer?.disconnect()
       viewport?.removeEventListener('resize', update)
       viewport?.removeEventListener('scroll', update)
       window.removeEventListener('resize', update)
-      html.style.overflow = before
+      releasePage()
     }
   }, [])
   return frame
