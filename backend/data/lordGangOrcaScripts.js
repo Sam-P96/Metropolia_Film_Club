@@ -1,7 +1,7 @@
 // Every word Lord Gang Orca's feature says, in one place, to edit freely
 // without touching the logic (utils/orca/, games/poker/table.js). Speakers:
 //   orca      Lord Gang Orca
-//   dolphine  Dolphine Goon, his enforcer
+//   dolphine  Goon Dolphine, his enforcer
 //   kaveri    Kaveri, the club's bunny
 //   shark     King Loan Shark (at the poker table)
 // Scripts are lists of steps, shown one after another:
@@ -21,7 +21,7 @@ const kaveri = say("kaveri");
 module.exports = {
     names: {
         orca: "Lord Gang Orca",
-        dolphine: "Dolphine Goon",
+        dolphine: "Goon Dolphine",
         kaveri: "Kaveri",
         shark: "King Loan Shark",
     },
@@ -239,7 +239,7 @@ module.exports = {
     ],
 
     // Section 8: when he's closed. Monday to Friday (00:00 to 16:00), that
-    // weekday's Dolphine Goon story; Saturday and Sunday, Kaveri's.
+    // weekday's Goon Dolphine story; Saturday and Sunday, Kaveri's.
     closed: {
         1: {
             title: "Family Business",
@@ -265,7 +265,7 @@ module.exports = {
         3: {
             title: "Meeting the Partners",
             steps: [
-                narration("You hear laughing from behind a locked door. Before you can knock, Dolphine Goon blocks the way."),
+                narration("You hear laughing from behind a locked door. Before you can knock, Goon Dolphine blocks the way."),
                 dolphine("Nah, nah. Boss is with the partners today. The Crocodile Brothers flew in from the river."),
                 narration("The laughter stops at once. Then it starts again, louder."),
                 dolphine("Business is good when everyone's laughing. Business is bad when one guy stops. *click* Go home. Come back at 16:00."),
@@ -274,7 +274,7 @@ module.exports = {
         4: {
             title: "Collecting Respect",
             steps: [
-                narration("Dolphine Goon is counting a stack of envelopes at the bar. He doesn't look up."),
+                narration("Goon Dolphine is counting a stack of envelopes at the bar. He doesn't look up."),
                 dolphine("Boss is making his rounds. Visiting the neighbourhood. Shaking hands."),
                 narration("He licks his flipper and keeps counting."),
                 dolphine("People in this city pay their respects, y'know? Boss never has to ask twice. He never even has to ask once. *click click* 16:00, kid. Don't make me remember your face for the wrong reasons."),
