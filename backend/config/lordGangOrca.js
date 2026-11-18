@@ -5,11 +5,14 @@ const LORD_GANG_ORCA = {
     // Open Monday to Friday, 16:00 to 23:59 (closed from 23:59 on). Weekdays
     // as Date#getDay(): 0 Sunday ... 6 Saturday. Times as [hour, minute].
     hours: { days: [1, 2, 3, 4, 5], opensAt: [16, 0], closesAt: [23, 59] },
+    // An admin's pretend clock (utils/orca/player.js debug, for testing the
+    // hours) only lasts this long: after that, the real hours again.
+    testClockMs: 2 * 60 * 60 * 1000,
 
     beg: {
         // Each beg pays this share of the member's daily PP, rounded up, at
-        // least 1, in PP (never past their PP cap).
-        share: 0.1,
+        // least 1, in PP (never past their PP cap): half a day's payout.
+        share: 0.5,
         perDay: 3,
         cooldownMs: 60 * 60 * 1000,
         // The chance a beg becomes one of his questions instead (it still
@@ -18,13 +21,15 @@ const LORD_GANG_ORCA = {
         questionChance: 0.1,
     },
 
-    // The secret: each member's favour threshold, a whole number from 150 to
-    // 300 (% of daily PP). Every beg adds `perBeg`; reaching it starts
-    // favour mode. Never sent to the page.
+    // The secret: each member's favour threshold, a whole number from 750 to
+    // 1050 (% of daily PP: what they've begged, 7.5 to 10.5 days' payout).
+    // Every beg adds `perBeg`, the beg's share as a %; reaching it starts
+    // favour mode. At three begs a day of 50%, that's 15 to 21 begs: 5 to 7
+    // days of begging every day. Never sent to the page.
     favour: {
-        thresholdMin: 150,
-        thresholdMax: 300,
-        perBeg: 10,
+        thresholdMin: 750,
+        thresholdMax: 1050,
+        perBeg: 50,
         // Jobs to do before begging again, and how many he hands out each
         // day (at 00:00) while favour mode is on.
         needed: 3,

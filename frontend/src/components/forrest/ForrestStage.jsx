@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { DT, idleStep, newRun, step } from '../../../../shared/forrest/engine.js'
 import { createRenderer } from './draw'
+import { playCues } from './feedback'
 
 // The game's canvas and what's laid over it (the menu, the result). `live`
 // is a ref to the run being played ({ s, taps, pending }) or null, for the
 // menu's idle scene. The run moves in fixed steps (shared/forrest/engine.js
 // DT), however fast the screen draws, and a tap is noted against the step
 // it lands on: those steps are what the server plays the run again from. A
-// hidden tab stops the clock (no step runs while it's away).
+// hidden tab stops the clock (no step runs while it's away). The run's
+// sound cues (jumps, fruit, hits…) are played as each frame is drawn
+// (feedback.js).
 //
 // Tap, click or Space to jump while `playing` (`onTap`). The game page
 // doesn't scroll, so the stage takes every touch (touch-action: none).
@@ -43,6 +46,10 @@ export default function ForrestStage({ live, buddies, playing, onTap, onOver, st
           if (tapped) run.taps.push(run.s.tick)
           step(run.s, tapped)
           owed -= DT
+        }
+        if (run.s.cues.length > 0) {
+          playCues(run.s.cues)
+          run.s.cues.length = 0
         }
         if (run.s.over && !run.told) {
           run.told = true

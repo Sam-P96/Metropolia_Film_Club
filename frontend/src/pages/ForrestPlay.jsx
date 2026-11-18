@@ -2,9 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { FORREST_BACKDROP, LEAF, RainforestGlow } from '../components/forrest/ForrestChrome'
 import ForrestStage from '../components/forrest/ForrestStage'
+import * as forrestSound from '../components/forrest/feedback'
 import { FruitLegend, HowToText } from '../components/forrest/HowTo'
 import { liveRun } from '../components/forrest/liveRun'
 import { FrameBackdrop } from '../components/GameBackdrop'
+import SoundToggle from '../components/SoundToggle'
 import useGameFrame from '../hooks/useGameFrame'
 import { cashOutForrestRun, discardForrestRun, finishForrestRun, getForrest, startForrestRun } from '../services/forrest'
 import { FORREST, SETS } from '../../../shared/forrest/rules.js'
@@ -270,6 +272,7 @@ export default function ForrestPlay() {
           ) : (
             <span className={PILL}>{loadError || 'Loading…'}</span>
           )}
+          <SoundToggle sound={forrestSound} className={`${PILL} transition-colors hover:bg-white/10`} />
         </div>
         <div ref={areaRef} className="flex min-h-0 w-full flex-1 items-center justify-center">
           {width > 0 && (

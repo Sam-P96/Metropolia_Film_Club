@@ -4,11 +4,21 @@
 //   below 0.8x   big flames, embers, a red glow, the screen shaking a little
 //   0.8x to 1x   small flames licking the bottom edge
 //   1x to 2x     calm deep green (the chart's line glows)
-//   2x to 5x     the green darkens into space; mint and white stars
-//   5x to 10x    emerald and violet nebulae drift in; pink and gold sparkles
-//   10x to 25x   spiral galaxies (green cores, pink arms), aqua dust,
-//                shooting stars
+//   2x to 5x     the green darkens into space; mint and white stars drift
+//                past in layers, faster as it climbs, the brightest with
+//                four-point lens flares
+//   5x to 10x    a black hole opens, like Forrest Bounce's Void: a void
+//                swallowing the stars, its accretion disk whirling, matter
+//                spiralling in; pink and gold sparkles. It starts tiny and
+//                grows with the multiplier, until at 25x it nearly fills
+//                the view
+//   10x to 25x   spiral galaxies (green cores, pink arms) fly in from off
+//                the edges, aqua dust, shooting stars; from about 17x the
+//                black hole pulls the galaxies in, and by about 21x it has
+//                eaten them
 //   a crash      a flash, then everything fades to grey
+// Over it all, a feathered shadow in from the edges, round a clear circle
+// in the middle, so the chart (on its own canvas, on top) stands apart.
 // The background blends from deep red below 1x to deep green above it,
 // with no hard edge at 1x.
 //
@@ -68,23 +78,94 @@ const makeFlame = () =>
     c.fillRect(0, 0, s, s)
   })
 
-// A cloud of nebula: a few soft blobs of one colour.
-const makeCloud = (colour, seed) =>
-  sprite(256, (c, s) => {
-    let a = seed
-    const rand = () => ((a = (a * 16807) % 2147483647) / 2147483647)
-    // Each blob fades out inside the square, so the cloud has no edges.
-    for (let i = 0; i < 5; i++) {
-      const r = s * (0.22 + rand() * 0.12)
-      const x = s / 2 + (rand() - 0.5) * s * 0.2
-      const y = s / 2 + (rand() - 0.5) * s * 0.2
-      const g = c.createRadialGradient(x, y, 0, x, y, r)
-      g.addColorStop(0, rgba(colour, 0.34))
-      g.addColorStop(1, rgba(colour, 0))
-      c.fillStyle = g
-      c.fillRect(0, 0, s, s)
+// A four-point lens flare, for the brightest stars: a soft core, and two
+// long thin spikes crossing it, each brightest in the middle and fading to
+// nothing at its tips.
+const makeFlare = () =>
+  sprite(128, (c, s) => {
+    const mid = s / 2
+    const core = c.createRadialGradient(mid, mid, 0, mid, mid, s * 0.16)
+    core.addColorStop(0, 'rgba(255, 255, 255, 1)')
+    core.addColorStop(0.3, rgba(PALETTE.mint, 0.6))
+    core.addColorStop(1, rgba(PALETTE.mint, 0))
+    c.fillStyle = core
+    c.fillRect(0, 0, s, s)
+    for (const across of [true, false]) {
+      const spike = across ? c.createLinearGradient(0, mid, s, mid) : c.createLinearGradient(mid, 0, mid, s)
+      spike.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      spike.addColorStop(0.5, 'rgba(255, 255, 255, 0.95)')
+      spike.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      c.fillStyle = spike
+      c.beginPath()
+      // A thin diamond: widest (3 pixels) at the core, to a point at each end.
+      if (across) {
+        c.moveTo(0, mid)
+        c.lineTo(mid, mid - 1.5)
+        c.lineTo(s, mid)
+        c.lineTo(mid, mid + 1.5)
+      } else {
+        c.moveTo(mid, 0)
+        c.lineTo(mid + 1.5, mid)
+        c.lineTo(mid, s)
+        c.lineTo(mid - 1.5, mid)
+      }
+      c.fill()
     }
   })
+
+// ---- The black hole ----
+// Drawn like Forrest Bounce's, in its last stage, the Void
+// (components/forrest/draw.js drawVoid), at its sizes: the hole 31 across
+// the middle, its photon ring, and the accretion disk round it, scaled to
+// fit the stage. Where it sits, as shares of the stage (moving to the
+// middle as it grows), and its radius as a share of the stage's shorter
+// side: tiny as it opens at 5x, growing with the multiplier, until at
+// 25x it nearly fills the view.
+const HOLE = { x: 0.56, y: 0.5, bigX: 0.5, smallest: 0.03, biggest: 0.46 }
+// Where each galaxy lives (shares of the stage), and where it flies in
+// from, off the edge of the stage, as it fades in.
+const GALAXIES = [
+  { x: 0.3, y: 0.6, fromX: -0.45, fromY: 0.35, size: 0.8 },
+  { x: 0.78, y: 0.3, fromX: 0.45, fromY: -0.45, size: 0.55 },
+]
+// The accretion disk's rings, from the outside in: radius, width and colour.
+const DISK_RINGS = [
+  [78, 9, 'rgba(160,80,255,.35)'],
+  [64, 9, 'rgba(255,120,60,.55)'],
+  [52, 7, 'rgba(255,175,95,.8)'],
+  [43, 5, 'rgba(255,230,180,.9)'],
+]
+
+// Half the accretion disk, from angle `from` to `to` (radians), round
+// (0, 0) in the hole's own units, with bright knots of matter whirling
+// along it. Forrest's diskHalf.
+function diskHalf(ctx, t, from, to) {
+  for (const [r, width, colour] of DISK_RINGS) {
+    ctx.strokeStyle = colour
+    ctx.lineWidth = width
+    ctx.beginPath()
+    ctx.arc(0, 0, r, from, to)
+    ctx.stroke()
+  }
+  ctx.fillStyle = 'rgba(255,240,210,.9)'
+  for (let k = 0; k < 14; k++) {
+    const angle = (t * (1.6 - k * 0.05) + k * 0.45) % TAU
+    if (angle < from || angle > to) continue
+    const r = 46 + (k % 4) * 9
+    ctx.beginPath()
+    ctx.arc(Math.cos(angle) * r, Math.sin(angle) * r, 2.2, 0, TAU)
+    ctx.fill()
+  }
+}
+
+// A soft round glow of `colour` at (x, y), out to radius `r`.
+function softGlow(ctx, x, y, r, colour) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+  g.addColorStop(0, colour)
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(x - r, y - r, r * 2, r * 2)
+}
 
 // A spiral galaxy: a green core and two pink arms of stars.
 const makeGalaxy = (seed) =>
@@ -142,21 +223,32 @@ export function createEffects({ mobile = false, reduced = false } = {}) {
     return null
   }
 
+  // Each star has a depth, 0.25 (far: small, slow) to 1 (near: bigger,
+  // faster), so they drift past in layers. About one in eight, the
+  // nearest, shine bright enough for a lens flare.
   const starCount = reduced ? (mobile ? 30 : 50) : mobile ? 55 : 110
-  const stars = Array.from({ length: starCount }, () => ({
-    x: Math.random(),
-    y: Math.random(),
-    r: 0.4 + Math.random() * 1.3,
-    phase: Math.random() * TAU,
-    speed: 0.6 + Math.random() * 1.8,
-    colour: Math.random() < 0.6 ? PALETTE.mint : '#ffffff',
-  }))
+  const stars = Array.from({ length: starCount }, () => {
+    const depth = 0.25 + Math.random() * 0.75
+    return {
+      x: Math.random(),
+      y: Math.random(),
+      depth,
+      r: 0.3 + depth * 1.4,
+      phase: Math.random() * TAU,
+      speed: 0.6 + Math.random() * 1.8,
+      colour: Math.random() < 0.6 ? PALETTE.mint : '#ffffff',
+      flare: depth > 0.9,
+    }
+  })
   const flame = makeFlame()
-  const clouds = [makeCloud(PALETTE.emerald, 7), makeCloud(PALETTE.violet, 19), makeCloud(PALETTE.emerald, 31)]
+  const flare = makeFlare()
+  // The black hole's sparks of matter spiralling in, each at its own
+  // angle, place in its fall, and speed (Forrest's INFALL).
+  const infall = Array.from({ length: reduced ? 30 : mobile ? 50 : 80 }, () => ({ a: Math.random() * TAU, o: Math.random(), sp: 0.5 + Math.random() * 0.9 }))
   const galaxies = [makeGalaxy(11), makeGalaxy(23)]
 
   // How strong each tier is now, eased towards where the multiplier says.
-  const level = { fire: 0, bigFire: 0, green: 0.6, space: 0, stars: 0, nebula: 0, galaxy: 0 }
+  const level = { fire: 0, bigFire: 0, green: 0.6, space: 0, stars: 0, hole: 0, holeSize: 0, galaxy: 0, swallow: 0 }
   const debt = { flame: 0, ember: 0, sparkle: 0, dust: 0 }
   let nextShooting = 1.5
   const rate = reduced ? 0.25 : 1
@@ -184,8 +276,14 @@ export function createEffects({ mobile = false, reduced = false } = {}) {
       green: smooth(0.96, 1.08, m),
       space: smooth(1.7, 2.6, m),
       stars: smooth(1.9, 2.8, m),
-      nebula: smooth(4.6, 6.2, m),
+      hole: smooth(4.6, 6.2, m),
       galaxy: smooth(9.2, 11.5, m),
+      // The galaxies falling into the black hole, at about 20x.
+      swallow: smooth(17, 21.5, m),
+      // How far the black hole has grown, 0 at 5x to 1 at 25x, evenly on
+      // the multiplier's log scale (as the chart is): each doubling, the
+      // same step.
+      holeSize: clamp01(Math.log(Math.max(m, 5) / 5) / Math.log(5)),
     }
     const ease = 1 - Math.exp(-dt * 4)
     for (const key of Object.keys(level)) level[key] += (targets[key] - level[key]) * ease
@@ -216,38 +314,92 @@ export function createEffects({ mobile = false, reduced = false } = {}) {
 
     ctx.globalCompositeOperation = 'lighter'
 
-    // Stars.
+    // Stars, drifting past to the lower left, the nearest fastest, and
+    // quicker as the multiplier climbs: flying up through space with the
+    // chart. One that leaves comes back in at the far side. `flow`: how far
+    // a near star goes in a second, as a share of the screen.
+    const flow = reduced ? 0 : 0.01 + 0.035 * smooth(2, 20, m)
+    for (const star of stars) {
+      star.x -= flow * star.depth * dt
+      star.y += flow * star.depth * 0.45 * dt
+      if (star.x < -0.02) {
+        star.x += 1.04
+        star.y = Math.random()
+      } else if (star.y > 1.02) {
+        star.y -= 1.04
+        star.x = Math.random()
+      }
+    }
     if (level.stars > 0.01) {
       for (const star of stars) {
         const twinkle = reduced ? 0.8 : 0.55 + 0.45 * Math.sin(now * 0.001 * star.speed + star.phase)
+        const x = star.x * w
+        const y = star.y * h
+        const r = star.r * Math.max(0.8, unit)
         ctx.globalAlpha = level.stars * twinkle
-        ctx.fillStyle = star.colour
-        ctx.beginPath()
-        ctx.arc(star.x * w, star.y * h, star.r * Math.max(0.8, unit), 0, TAU)
-        ctx.fill()
+        // The brightest: a lens flare, its spikes swelling as it twinkles
+        // (and turning a touch).
+        if (star.flare) {
+          const size = r * (14 + 10 * twinkle)
+          ctx.save()
+          ctx.translate(x, y)
+          ctx.rotate(reduced ? 0 : Math.sin(now * 0.0004 + star.phase) * 0.12)
+          ctx.drawImage(flare, -size / 2, -size / 2, size, size)
+          ctx.restore()
+          continue
+        }
+        // The nearest ones, going fast, leave a short streak behind them.
+        const streak = flow * star.depth * 0.3
+        if (star.depth > 0.7 && streak * w > 2) {
+          ctx.strokeStyle = star.colour
+          ctx.lineWidth = r
+          ctx.lineCap = 'round'
+          ctx.beginPath()
+          ctx.moveTo(x, y)
+          ctx.lineTo(x + streak * w, y - streak * 0.45 * h)
+          ctx.stroke()
+        } else {
+          ctx.fillStyle = star.colour
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, TAU)
+          ctx.fill()
+        }
       }
     }
 
-    // Nebulae, drifting.
-    if (level.nebula > 0.01) {
-      clouds.forEach((cloud, i) => {
-        const drift = reduced ? 0 : Math.sin(now / (9000 + i * 2300) + i * 2) * w * 0.06
-        const size = Math.max(w, h) * (0.75 + i * 0.12)
-        const x = [0.2, 0.75, 0.5][i] * w - size / 2 + drift
-        const y = [0.3, 0.45, 0.8][i] * h - size / 2
-        ctx.globalAlpha = level.nebula * 0.85
-        ctx.drawImage(cloud, x, y, size, size)
-      })
-    }
+    // Where the black hole is now: drifting a little round its spot.
+    const t = reduced ? 0 : now / 1000
+    const grown = Math.pow(level.holeSize, 1.6)
+    const holeR = Math.min(w, h) * (HOLE.smallest + (HOLE.biggest - HOLE.smallest) * grown)
+    const drift = 0.02 * (1 - grown)
+    const hole = { x: w * (HOLE.x + (HOLE.bigX - HOLE.x) * grown + Math.sin(t / 15) * drift), y: h * (HOLE.y + Math.cos(t / 19) * drift) }
+    const swallow = level.swallow
 
-    // Galaxies, turning slowly.
-    if (level.galaxy > 0.01) {
+    // Galaxies, turning and wandering slowly, until the black hole pulls
+    // them in (from about 17x, gone by about 21x): each spirals round it as
+    // it falls, shrinking, stretched out towards it, spinning faster, and
+    // fading into the dark. Drawn before the hole, so it covers them.
+    if (level.galaxy > 0.01 && swallow < 0.995) {
       galaxies.forEach((galaxy, i) => {
-        const size = Math.min(w, h) * (i ? 0.55 : 0.8)
+        // Flying in from off the stage as they fade in (level.galaxy).
+        const home = GALAXIES[i]
+        const away = 1 - level.galaxy
+        const homeX = w * (home.x + home.fromX * away * away + Math.sin(t / 9 + i) * 0.04)
+        const homeY = h * (home.y + home.fromY * away * away + Math.cos(t / 11 + i) * 0.04)
+        const dx = homeX - hole.x
+        const dy = homeY - hole.y
+        const turn = swallow * 2.4 * (i ? -1 : 1)
+        const reach = 1 - swallow
+        const x = hole.x + (dx * Math.cos(turn) - dy * Math.sin(turn)) * reach
+        const y = hole.y + (dx * Math.sin(turn) + dy * Math.cos(turn)) * reach
+        const size = Math.min(w, h) * home.size * (1 - 0.85 * swallow)
+        const towards = Math.atan2(hole.y - y, hole.x - x)
         ctx.save()
-        ctx.translate(w * (i ? 0.78 : 0.3), h * (i ? 0.3 : 0.6))
-        ctx.rotate((reduced ? 0 : now * 0.00004 * (i ? -1 : 1)) + i)
-        ctx.globalAlpha = level.galaxy * 0.9
+        ctx.translate(x, y)
+        ctx.rotate(towards)
+        ctx.scale(1 + 1.6 * swallow, 1 - 0.5 * swallow)
+        ctx.rotate(-towards + (reduced ? 0 : now * 0.00007 * (i ? -1 : 1)) + i + swallow * 6 * (i ? -1 : 1))
+        ctx.globalAlpha = level.galaxy * 0.9 * (1 - swallow * swallow)
         ctx.drawImage(galaxy, -size / 2, -size / 2, size, size)
         ctx.restore()
       })
@@ -278,7 +430,7 @@ export function createEffects({ mobile = false, reduced = false } = {}) {
         p.phase = Math.random() * TAU
         p.colour = Math.random() < 0.5 ? '#ffd27a' : PALETTE.flame
       })
-      emit('sparkle', level.nebula * 6 + level.galaxy * 5, dt, (p) => {
+      emit('sparkle', level.hole * 6 + level.galaxy * 5, dt, (p) => {
         p.kind = 'sparkle'
         p.x = Math.random() * w
         p.y = Math.random() * h
@@ -368,6 +520,86 @@ export function createEffects({ mobile = false, reduced = false } = {}) {
         ctx.lineTo(p.x - p.vx * 0.12, p.y - p.vy * 0.12)
         ctx.stroke()
       }
+    }
+
+    // The black hole (from 5x), last of all so nothing shows inside it,
+    // like Forrest Bounce's Void: darkness round
+    // it swallowing the stars, a purple glow, sparks of matter spiralling
+    // in (purple, turning gold near the edge), the disk's far half behind
+    // the hole and its light bent up over the top, the hole itself and its
+    // thin bright edge, then the disk's near half in front. It starts tiny
+    // and grows with the multiplier (holeR above), and glows brighter as it
+    // eats the galaxies.
+    if (level.hole > 0.01) {
+      const k = holeR / 31
+      ctx.save()
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.globalAlpha = level.hole
+      // The darkness hugs it closer as it grows, so the view never goes
+      // all black.
+      const darkR = holeR * (4 - 2 * grown)
+      const dark = ctx.createRadialGradient(hole.x, hole.y, holeR, hole.x, hole.y, darkR)
+      dark.addColorStop(0, 'rgba(0, 0, 0, 0.85)')
+      dark.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = dark
+      ctx.fillRect(hole.x - darkR, hole.y - darkR, darkR * 2, darkR * 2)
+      softGlow(ctx, hole.x, hole.y, 170 * k * (1 + 0.4 * swallow), `rgba(120, 50, 230, ${0.28 + 0.22 * swallow})`)
+      for (const p of infall) {
+        const life = (t * p.sp * 0.22 + p.o) % 1
+        const r = (34 + 150 * (1 - life)) * k
+        const angle = p.a + life * 5
+        ctx.globalAlpha = level.hole * (0.15 + 0.7 * life)
+        ctx.fillStyle = life > 0.7 ? '#ffcf8a' : '#b38cff'
+        ctx.beginPath()
+        ctx.arc(hole.x + Math.cos(angle) * r, hole.y + Math.sin(angle) * r * 0.42, (1 + life * 1.4) * Math.min(2.5, Math.max(1, k)), 0, TAU)
+        ctx.fill()
+      }
+      ctx.globalAlpha = level.hole
+      ctx.translate(hole.x, hole.y)
+      ctx.scale(k, k)
+      ctx.save()
+      ctx.scale(1, 0.3)
+      diskHalf(ctx, t, Math.PI, TAU)
+      ctx.restore()
+      ctx.strokeStyle = 'rgba(255, 170, 100, 0.45)'
+      ctx.lineWidth = 5
+      ctx.beginPath()
+      ctx.arc(0, 0, 40, Math.PI * 1.05, Math.PI * 1.95)
+      ctx.stroke()
+      ctx.fillStyle = '#000'
+      ctx.beginPath()
+      ctx.arc(0, 0, 31, 0, TAU)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(255, 215, 160, 0.9)'
+      ctx.lineWidth = 1.6
+      ctx.beginPath()
+      ctx.arc(0, 0, 32.5, 0, TAU)
+      ctx.stroke()
+      ctx.save()
+      ctx.scale(1, 0.3)
+      diskHalf(ctx, t, 0, Math.PI)
+      ctx.restore()
+      ctx.restore()
+      ctx.globalCompositeOperation = 'lighter'
+    }
+
+    // A feathered shadow in from the edges of the stage, round a clear
+    // circle in the middle, softening out to it: the scene darkens towards
+    // the edges, behind the chart (which has a canvas of its own, on top),
+    // so the line stands apart from everything behind it.
+    {
+      const cx = w / 2
+      const cy = h / 2
+      const clear = Math.min(w, h) * (w > h * 1.6 ? 0.4 : 0.3)
+      const edge = Math.hypot(w, h) / 2
+      const shade = ctx.createRadialGradient(cx, cy, clear, cx, cy, edge)
+      shade.addColorStop(0, 'rgba(0, 0, 0, 0)')
+      shade.addColorStop(0.45, 'rgba(0, 0, 0, 0.32)')
+      shade.addColorStop(1, 'rgba(0, 0, 0, 0.72)')
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.globalAlpha = 1
+      ctx.fillStyle = shade
+      ctx.fillRect(0, 0, w, h)
     }
 
     // A crash: a flash, then the colour drains out.

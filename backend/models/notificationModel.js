@@ -148,12 +148,13 @@ const ADMIN_TYPES = ["adminGrant"];
 //   doublePrizes  Box Office Scratch's Double Prize Weekend
 const SITE_EVENT_TYPES = ["blackFriday", "doublePrizes"];
 
-// Box Office Crash (utils/notify.js noteCrashResults), as a round ends:
+// Box Office Crash (utils/notify.js), as a round ends:
 //   crashBigWin  `actors[0]` cashed out at 10x or more: every member hears
 //   crashResult  `actors[0]`, whom they follow, won or lost a round
 // `amount` is what came back, and `crash` the round: { multiplier (null if
-// it crashed on them), bet, net, endedBy }.
-const CRASH_TYPES = ["crashBigWin", "crashResult"];
+// it crashed on them), bet, net, endedBy }. And from a room:
+//   crashInvite  `actors[0]` invited them into their room, `crash.room`
+const CRASH_TYPES = ["crashBigWin", "crashResult", "crashInvite"];
 
 // Forrest Bounce (utils/notify.js):
 //   forrestCashOut  `actors[0]`, whom they follow, cashed a run out:
@@ -206,12 +207,14 @@ const notificationSchema = new Schema({
     amount: {type: Number, default: null},
     // An admin's P-PP send: the note they wrote with it.
     note: {type: String},
-    // Box Office Crash: the round, from this player's side.
+    // Box Office Crash: the round, from this player's side, or the room
+    // an invite is to.
     crash: {
         multiplier: {type: Number},
         bet: {type: Number},
         net: {type: Number},
         endedBy: {type: String},
+        room: {type: String},
     },
     // Forrest Bounce: the run.
     forrest: {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
+import CrashLive from '../components/crash/CrashLive'
 import CutComposer from '../components/feed/CutComposer'
 import FeedItem, { PasswordResetNotice, ReportNotice } from '../components/feed/FeedItem'
 import { OngoingGame } from '../components/farkle/FarkleNotice'
@@ -9,6 +10,7 @@ import { OngoingPool } from '../components/pool/PoolNotice'
 import { PokerLive } from '../components/poker/PokerNotice'
 import GifBackground from '../components/GifBackground'
 import PillToggle from '../components/PillToggle'
+import useCrashLobby from '../hooks/useCrashLobby'
 import usePagedList from '../hooks/usePagedList'
 import { getFeed, markNotificationsSeen } from '../services/feed'
 import { getCurrentUser } from '../utils/currentUser'
@@ -55,13 +57,13 @@ const FILTERS = [
     value: 'all',
     label: 'All',
     about:
-      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events (promoted ones at the very top until you've seen them), what's trending or viral, your daily PP, your Farkle, Infinite Gomoku and 8 Ball Pool games (games you're playing stay at the top, and challenges stay pinned until you answer), the Kino Poker table while anyone's playing (up top, with a way in), how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, and every jackpot, Double or Nothing win, Kino Poker win, Kino Kasino tripling and Steal and Defend Critical Hit (new jackpots up top until you've seen them). Your last 100, kept for three months.",
+      "Likes, dislikes and replies on your reviews, replies to your cuts, new followers, cuts, new reviews and member screenings from members you follow, new club events (promoted ones at the very top until you've seen them), what's trending or viral, your daily PP, your Farkle, Infinite Gomoku and 8 Ball Pool games (games you're playing stay at the top, and challenges stay pinned until you answer), the Kino Poker table while anyone's playing (up top, with a way in), every open Box Office Crash room (at the very top, to play or spectate) and invites into one, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, and every jackpot, Double or Nothing win, Kino Poker win, Kino Kasino tripling and Steal and Defend Critical Hit (new jackpots up top until you've seen them). Your last 100, kept for three months.",
     empty: 'Nothing here yet. Follow some members, write a review, or join in the comments.',
   },
   {
     value: 'events',
     label: 'Events',
-    about: "New club events and member screenings, plus the big news: what's trending or viral, jackpots, Double or Nothing wins, Kino Kasino triplings and Steal and Defend Critical Hits.",
+    about: "New club events and member screenings, plus the big news: what's trending or viral, jackpots, Double or Nothing wins, Kino Kasino triplings and Steal and Defend Critical Hits. Open Box Office Crash rooms show at the top with every filter.",
     empty: 'No events yet.',
   },
   {
@@ -82,7 +84,7 @@ const FILTERS = [
     value: 'games',
     label: 'Games',
     about:
-      'Your Farkle, Infinite Gomoku and 8 Ball Pool games and challenges, pool games the members you follow are playing and your bets on them, the Kino Poker table while anyone is playing, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, jackpots, wins (Kino Poker ones too), Kino Kasino triplings and Critical Hits, your daily PP and gifts. Events and the big news show here too.',
+      'Your Farkle, Infinite Gomoku and 8 Ball Pool games and challenges, pool games the members you follow are playing and your bets on them, the Kino Poker table while anyone is playing, open Box Office Crash rooms and invites into them, how the members you follow do at Farkle, Box Office Scratch and Double or Nothing, your Steal and Defend attacks, jackpots, wins (Kino Poker ones too), Kino Kasino triplings and Critical Hits, your daily PP and gifts. Events and the big news show here too.',
     empty: 'No games yet. Find one on the Games page.',
   },
 ]
@@ -100,8 +102,9 @@ const withoutCut = (cutId) => (previous) => {
 // reviews, replies, new followers, cuts and new reviews from members they
 // follow, and trending reviews. The newest 100, 10 at a time. Above it all,
 // the box for posting a cut of their own. From the top: for moderators and
-// admins, "Reset Locally" password reset requests; promoted events they
-// haven't seen yet; for moderators and admins, open reports; then the
+// admins, "Reset Locally" password reset requests and open reports; then
+// every open Box Office Crash room, with every filter (kept live); promoted
+// events they haven't seen yet; then the
 // Kino Poker table while members are playing, and the Farkle games they're
 // playing; then jackpots they haven't seen yet; then everything else as
 // usual (pinned challenges, then newest first). Opening the page marks it
@@ -145,6 +148,9 @@ function Feed() {
   // they're left out there.
   const jackpots = feed.data?.jackpots ?? []
   const upTop = new Set([...promoted, ...jackpots].map((item) => item._id))
+  // The open Box Office Crash rooms, kept live, under the moderators' and
+  // admins' own items, with every filter.
+  const crashRooms = useCrashLobby(feed.data?.crash)
   const items = (feed.data?.items ?? []).filter((item) => !upTop.has(item._id))
 
   // Once the page is in, everything on it is seen: up to the moment the
@@ -202,21 +208,31 @@ function Feed() {
           </ul>
         )}
 
-        {promoted.length > 0 && (
-          <ul className="mt-10 space-y-12" aria-label="Promoted events">
-            {promoted.map((item) => (
-              <li key={item._id}>
-                <FeedItem item={item} light={light} onCutDeleted={handleCutDeleted} />
-              </li>
-            ))}
-          </ul>
-        )}
-
         {reports.length > 0 && (
           <ul className="mt-10 space-y-6" aria-label="Reported reviews">
             {reports.map((report) => (
               <li key={report._id}>
                 <ReportNotice report={report} light={light} onResolved={handleResolved} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {crashRooms.length > 0 && (
+          <ul className="mt-10 space-y-6" aria-label="Box Office Crash, live">
+            {crashRooms.map((room) => (
+              <li key={room.id}>
+                <CrashLive room={room} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {promoted.length > 0 && (
+          <ul className="mt-10 space-y-12" aria-label="Promoted events">
+            {promoted.map((item) => (
+              <li key={item._id}>
+                <FeedItem item={item} light={light} onCutDeleted={handleCutDeleted} />
               </li>
             ))}
           </ul>

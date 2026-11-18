@@ -37,7 +37,8 @@ const shuffled = (items, random = secure) => {
     return out;
 };
 
-// A new secret threshold: a whole number from 150 to 300.
+// A new secret threshold: a whole number from FAVOUR.thresholdMin to
+// FAVOUR.thresholdMax (750 to 1050).
 const rollThreshold = (random = secure) => FAVOUR.thresholdMin + Math.floor(random() * (FAVOUR.thresholdMax - FAVOUR.thresholdMin + 1));
 
 // What he says, as a script step.
@@ -54,18 +55,29 @@ async function freshLine(player, group, random = secure) {
     return orcaSays(text);
 }
 
-// A member's record, made the first time they visit.
+// A member's record, made the first time they visit. A threshold rolled
+// before begs paid half a day (150 to 300, when they paid a tenth) is
+// rolled again in today's range, so favours still take 5 to 7 days of
+// begging; what they've begged so far (`built`, % of daily PP) still counts.
 async function playerOf(userId) {
-    return OrcaPlayer.findOneAndUpdate(
+    const player = await OrcaPlayer.findOneAndUpdate(
         { user: userId },
         { $setOnInsert: { user: userId, threshold: rollThreshold() } },
         { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ).lean();
+    if (player.threshold >= FAVOUR.thresholdMin) return player;
+    return (
+        (await OrcaPlayer.findOneAndUpdate(
+            { user: userId, threshold: { $lt: FAVOUR.thresholdMin } },
+            { $set: { threshold: rollThreshold() } },
+            { returnDocument: "after" }
+        ).lean()) ?? (await OrcaPlayer.findOne({ user: userId }).lean())
+    );
 }
 
 const reviewsOf = (userId) => Review.countDocuments({ user: userId });
 
-// One beg's worth: 10% of their daily PP, rounded up, at least 1.
+// One beg's worth: half their daily PP (BEG.share), rounded up, at least 1.
 const begAmount = (reviews) => Math.max(1, Math.ceil(dailyPp(reviews) * BEG.share));
 
 // Pays a beg: `pp` in PP, never past their PP cap (reviews x 3, counting PP
@@ -86,8 +98,9 @@ async function pay(userId, reviews, pp, ppp = 0) {
     return { pp: change?.pp ?? 0, ppp: change?.ppp ?? 0 };
 }
 
-// After a beg is paid: +10 towards the threshold (only the PP part counts),
-// and favour mode if it's reached. Returns whether favour mode started.
+// After a beg is paid: +50 towards the threshold (FAVOUR.perBeg, the beg's
+// share of daily PP as a %; only the PP part counts), and favour mode if
+// it's reached. Returns whether favour mode started.
 async function buildUp(userId, now = new Date()) {
     const after = await OrcaPlayer.findOneAndUpdate({ user: userId }, { $inc: { built: FAVOUR.perBeg } }, { returnDocument: "after" }).lean();
     if (!after || after.favour.on || after.built < after.threshold) return false;
@@ -261,7 +274,8 @@ async function debug(userId, action, payload = {}, now = new Date()) {
     await playerOf(userId);
     switch (action) {
         case "clock": {
-            const fake = payload.weekday === null || payload.weekday === undefined ? null : { weekday: Number(payload.weekday), hour: Number(payload.hour) };
+            // Remembered with when it was set: it lasts LORD_GANG_ORCA.testClockMs.
+            const fake = payload.weekday === null || payload.weekday === undefined ? null : { weekday: Number(payload.weekday), hour: Number(payload.hour), setAt: now };
             if (fake && (!WEEKDAY_OK(fake.weekday) || !HOUR_OK(fake.hour))) throw new OrcaError("A weekday 0 to 6 and an hour 0 to 23.");
             await OrcaPlayer.updateOne({ user: userId }, { $set: { fakeClock: fake } });
             break;

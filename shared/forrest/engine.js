@@ -75,8 +75,8 @@ const sideIdx = (side) => (side > 0 ? 1 : 0)
 // ---------- A run ----------
 
 // A new run from `seed` (a whole number) at multiplier `mult`. `visual`:
-// keep the floating texts and puffs for drawing (the server doesn't need
-// them).
+// keep the floating texts and puffs for drawing, and the sound cues for
+// the page to play (the server doesn't need either).
 // phase 'ready':  one buddy perched on a branch, one on the low end of the seesaw
 // phase 'jump':   the perched buddy is dropping onto the raised end
 // phase 'launch': the other buddy is flying up to the branch on the far side
@@ -109,6 +109,7 @@ export function newRun({ seed, mult, visual = true, idle = false }) {
     fruits: [],
     shurikens: [],
     fx: [],
+    cues: [],
     nextShur: 4,
     hp: 0,
     fadeFrom: 1,
@@ -178,6 +179,14 @@ function text(s, x, y, words, color, size = 18, max = 0.9) {
   if (s.visual) s.fx.push({ x, y, text: words, color, size, t: max, max })
 }
 
+// Something the page should play a sound for (components/forrest/
+// feedback.js), like a jump or a fruit caught: `type`, and anything about
+// it. The page takes them as it draws. Like the floating texts, only kept
+// in the browser, and nothing here changes the run.
+function cue(s, type, about = {}) {
+  if (s.visual) s.cues.push({ type, ...about })
+}
+
 // A tap (or Space): the perched buddy jumps; mid-flight, a double jump; just
 // before landing, remembered for the next jump.
 function tap(s) {
@@ -198,6 +207,7 @@ function doubleJump(s, fl) {
   nf.spinDir = nf.vx >= 0 ? 1 : -1
   s.flight = nf
   if (s.visual) s.fx.push({ x: c.x, y: c.y + 20, emoji: '💨', t: 0.4, max: 0.4 })
+  cue(s, 'doubleJump')
 }
 
 function doJump(s) {
@@ -210,6 +220,7 @@ function doJump(s) {
   s.perch = null
   s.phase = 'jump'
   s.buffer = 0
+  cue(s, 'jump')
 }
 
 function onFlightLanded(s, fl) {
@@ -222,10 +233,13 @@ function onFlightLanded(s, fl) {
     s.flight = makeFlight(s, launcher, c.x, c.y, dest.x, dest.y, rand(s, 108, 140))
     s.flight.kind = 'launch'
     s.phase = 'launch'
+    cue(s, 'land')
+    cue(s, 'launch')
   } else {
     s.perch = { who: fl.who, side: s.seat.side }
     s.flight = null
     s.phase = 'ready'
+    cue(s, 'perch')
   }
 }
 
@@ -233,7 +247,11 @@ function gainHeart(s, x, y) {
   if (s.hp < MAX_HEARTS) {
     s.hp += 1
     text(s, x, y - 24, '+1 💗', '#ff7ac8', 20)
-  } else text(s, x, y - 24, 'Hearts full', '#ff7ac8', 15)
+    cue(s, 'heart', { full: false })
+  } else {
+    text(s, x, y - 24, 'Hearts full', '#ff7ac8', 15)
+    cue(s, 'heart', { full: true })
+  }
 }
 
 // One shuriken ends the run, unless a heart saves it.
@@ -244,10 +262,12 @@ function loseLife(s) {
     s.inv = 1.5
     s.shake = 0.3
     text(s, W / 2, 250, 'Saved by a heart! 💗', '#ff7ac8', 22, 1.3)
+    cue(s, 'hit', { saved: true })
     return
   }
   s.shake = 0.45
   text(s, W / 2, 250, 'Shuriken!', '#ef476f', 26, 1.2)
+  cue(s, 'hit', { saved: false })
   s.over = true
   s.endedBy = 'hit'
 }
@@ -310,6 +330,7 @@ function update(s, dt) {
       s.score += pts
       s.basic += m
       text(s, fr.x, fy, '+' + pts, TIER_COLORS[fr.tier], fr.tier === 4 ? 30 : 18)
+      cue(s, 'fruit', { tier: fr.tier })
       if (fr.tier === 4) s.banner = { text: 'JACKPOT FRUIT! ×100', t: 1.8 }
     }
   }
@@ -319,6 +340,7 @@ function update(s, dt) {
     s.fadeT = 0
     s.level += 1
     s.banner = { text: `Level ${s.level} · ${setFor(s.level).name}`, t: 2.2 }
+    cue(s, 'stage', { level: s.level })
   }
 
   // Shurikens: straight across, hitting anyone.

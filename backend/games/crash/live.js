@@ -8,11 +8,17 @@ const { createCrashRooms } = require("./rooms");
 // The page asks with these, each answered (ack) with { ok, ... } or
 // { error }:
 //   crash:hello                      everything to show: { lobby, room, me }
+//   crash:watch                      just the open rooms, from now on
+//                                    (Notifications): { lobby }
 //   crash:create                     a new room, and into it
-//   crash:join     { roomId }
+//   crash:join     { roomId, spectate }
+//   crash:spectate { on }             sit rounds out, or take a seat again
 //   crash:leave
 //   crash:bet      { bet, autoAt }   (un-readies)
 //   crash:ready    { ready, bet, autoAt }
+//   crash:start                      Start Game, without everyone ready
+//   crash:answer   { join }          join the smaller game, or sit it out
+//   crash:invite   { userId }        a notification inviting them in
 //   crash:solo     { bet, autoAt }   play alone, now
 //   crash:allin                      Lord Gang Orca's offer: alone, all in
 //   crash:cashout
@@ -46,11 +52,18 @@ function startCrashLive(io) {
             joined = true;
             return rooms.hello(socket);
         });
+        // Notifications: only the open rooms, so it doesn't count as being in
+        // the game.
+        handle("crash:watch", async () => rooms.watch(socket));
         handle("crash:create", async () => ({ room: await rooms.create(userId) }));
-        handle("crash:join", async ({ roomId }) => ({ room: await rooms.join(userId, roomId) }));
+        handle("crash:join", async ({ roomId, spectate }) => ({ room: await rooms.join(userId, roomId, { spectate: spectate === true }) }));
+        handle("crash:spectate", async ({ on }) => rooms.spectate(userId, { on: on !== false }));
         handle("crash:leave", async () => rooms.leave(userId));
         handle("crash:bet", async (payload) => rooms.setBet(userId, payload));
         handle("crash:ready", async (payload) => rooms.ready(userId, payload));
+        handle("crash:start", async () => rooms.startGame(userId));
+        handle("crash:answer", async ({ join }) => rooms.answer(userId, { join: join === true }));
+        handle("crash:invite", async ({ userId: to }) => rooms.invite(userId, { userId: to }));
         handle("crash:solo", async (payload) => ({ room: await rooms.solo(userId, payload) }));
         handle("crash:allin", async () => ({ room: await rooms.allIn(userId) }));
         handle("crash:cashout", async () => ({ cashout: rooms.cashOut(userId) }));
@@ -66,4 +79,8 @@ function crashDayReset(userId) {
     return rooms?.resetMe(String(userId));
 }
 
-module.exports = { startCrashLive, crashDayReset };
+// The rooms, for Notifications and invites (null until startCrashLive runs,
+// and in tests that never start it).
+const getCrashRooms = () => rooms;
+
+module.exports = { startCrashLive, crashDayReset, getCrashRooms };

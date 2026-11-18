@@ -16,11 +16,20 @@ function helsinkiMinute(date = new Date()) {
     return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Helsinki", minute: "2-digit" }).format(date));
 }
 
+// Whether an admin's pretend clock still counts: set less than
+// testClockMs ago. One saved without a time it was set (from before they
+// expired) never does, so it can't keep him open for good.
+function pretending(date, fake) {
+    if (!fake || !Number.isInteger(fake.weekday) || !Number.isInteger(fake.hour) || !fake.setAt) return false;
+    const age = date.getTime() - new Date(fake.setAt).getTime();
+    return age >= 0 && age < LORD_GANG_ORCA.testClockMs;
+}
+
 // Where the clock is for him: { weekday, hour, minute }, real, or an
 // admin's pretend one (utils/orca/player.js debug, on the hour) for testing
-// the hours.
+// the hours, while it lasts.
 function clockOf(date = new Date(), fake = null) {
-    if (fake && Number.isInteger(fake.weekday) && Number.isInteger(fake.hour)) return { weekday: fake.weekday, hour: fake.hour, minute: 0 };
+    if (pretending(date, fake)) return { weekday: fake.weekday, hour: fake.hour, minute: 0 };
     return { weekday: helsinkiWeekday(date), hour: helsinkiHour(date), minute: helsinkiMinute(date) };
 }
 

@@ -826,3 +826,99 @@ img.slot-symbol {
   .crash-pop { animation: none; }
   .crash-fall { animation: none; filter: grayscale(1) brightness(0.7); opacity: 0.55; }
 }
+
+/* An open Box Office Crash room at the top of Notifications
+   (components/crash/CrashLive.jsx): a green galaxy box whose rim and glow
+   fade between green and red, stars twinkling in it, nebulae drifting, a
+   chart line drawing itself upwards over and over, and the status
+   ("Game in progress", "Waiting for game") flashing green and red. Every
+   change is a smooth fade, slower than once a second, never a strobe. */
+.crash-live {
+  animation: crash-live-rim 2.4s ease-in-out infinite;
+}
+@keyframes crash-live-rim {
+  0%, 100% {
+    border-color: rgb(31 209 139 / 0.9);
+    box-shadow: 0 0 18px 2px rgb(31 209 139 / 0.45), inset 0 0 30px rgb(31 209 139 / 0.12);
+  }
+  50% {
+    border-color: rgb(255 77 94 / 0.9);
+    box-shadow: 0 0 22px 3px rgb(255 77 94 / 0.45), inset 0 0 30px rgb(255 77 94 / 0.1);
+  }
+}
+.crash-live-status {
+  animation: crash-live-status 1.6s ease-in-out infinite;
+}
+@keyframes crash-live-status {
+  0%, 100% { color: #3dffa8; text-shadow: 0 0 12px rgb(61 255 168 / 0.7); }
+  50% { color: #ff4d5e; text-shadow: 0 0 12px rgb(255 77 94 / 0.7); }
+}
+.crash-live-star {
+  animation: crash-live-twinkle var(--twinkle, 2.6s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes crash-live-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+/* A bright star's lens flare: its spikes swell and shrink, turning a
+   little, as it twinkles. */
+.crash-live-flare {
+  animation: crash-live-flare var(--twinkle, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes crash-live-flare {
+  0%, 100% { opacity: 0.45; transform: scale(0.55) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(10deg); }
+}
+.crash-live-nebula {
+  animation: crash-live-drift 14s ease-in-out infinite alternate;
+}
+@keyframes crash-live-drift {
+  from { transform: translate(-6%, -4%) scale(1) rotate(0deg); }
+  to { transform: translate(8%, 6%) scale(1.15) rotate(12deg); }
+}
+/* The chart's line and the area under it: drawn from nothing to the top,
+   held a moment, then again. The line's pathLength is 1, so 1 is all of it. */
+.crash-live-line {
+  stroke-dasharray: 1;
+  animation: crash-live-draw 3.2s cubic-bezier(0.4, 0, 0.3, 1) infinite;
+}
+@keyframes crash-live-draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  70% { stroke-dashoffset: 0; opacity: 1; }
+  92% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+/* The arrow's point: nothing until the line reaches the top (70% of the
+   way through, when the line finishes), then it pops in from the tip, and
+   fades with the line. */
+.crash-live-arrow {
+  transform-box: view-box;
+  transform-origin: 222px 7px;
+  animation: crash-live-arrow 3.2s linear infinite;
+}
+@keyframes crash-live-arrow {
+  0%, 69% { opacity: 0; transform: scale(0.2); }
+  74% { opacity: 1; transform: scale(1.25); }
+  78%, 92% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+.crash-live-area {
+  animation: crash-live-area 3.2s ease-in-out infinite;
+}
+@keyframes crash-live-area {
+  0%, 20% { opacity: 0; }
+  70%, 92% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crash-live { animation: none; border-color: rgb(31 209 139 / 0.9); box-shadow: 0 0 18px 2px rgb(31 209 139 / 0.45); }
+  .crash-live-status { animation: none; color: #3dffa8; }
+  .crash-live-star { animation: none; opacity: 0.7; }
+  .crash-live-flare { animation: none; opacity: 0.85; transform: scale(0.8); }
+  .crash-live-nebula { animation: none; }
+  .crash-live-line { animation: none; stroke-dashoffset: 0; }
+  .crash-live-arrow { animation: none; }
+  .crash-live-area { animation: none; opacity: 1; }
+}

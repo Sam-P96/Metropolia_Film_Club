@@ -8,10 +8,18 @@ export const CRASH_RULES = {
   roomSize: 30,
   // Rooms open at once (rounds played alone don't count).
   maxRooms: 3,
-  // In a room of 2 or more, the first one ready starts this countdown: when
-  // it ends, the round starts with whoever's ready (straight away, if
-  // everyone is), and the rest watch and play the next one.
-  readyMs: 15000,
+  // In a room of 2 or more, the first one ready starts this countdown: the
+  // round starts straight away once every player is ready (spectators
+  // don't count). If the countdown ends first, whoever's ready can press
+  // Start Game to play without the rest.
+  readyMs: 30000,
+  // Start Game: the other ready players get this long to say whether
+  // they'll join the smaller game. Whoever doesn't answer sits it out. (A
+  // smaller round can mean fewer rounds a day, and no half back, so nobody
+  // is put in one without saying yes.)
+  offerMs: 30000,
+  // Invites one member can send from one room.
+  invitesPerRoom: 30,
   // Rounds a member can play a day, 12:00 to 12:00 Helsinki time, by how
   // many players the round starts with: [alone, 2, 3, 4, 5 or more]. Each
   // is a cap on all of the day's rounds together, so the more players, the
