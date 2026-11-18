@@ -3,19 +3,29 @@ import { formatMultiplier } from '../../../../shared/crash/rules.js'
 
 const ENDINGS = { crash: 'Crashed', cap: 'Hit the 25x cap', time: '60 seconds: time' }
 
+// Chips shown before the rest are a "+N" (a room holds up to 30).
+const SHOWN = 6
+
 // After a round: everyone's picture, where they cashed out (or that they
-// crashed) and what they won or lost, the best cash-out in gold.
+// crashed) and what they won or lost, the best cash-out in gold. In a big
+// round, the best few and you, then "+N".
 // `summary`: the room's `last` (backend/games/crash/rooms.js).
 export default function RoundSummary({ summary, myId }) {
+  const ranked = [...summary.players].sort((a, b) => b.net - a.net)
+  const shown = ranked.slice(0, SHOWN)
+  const mine = ranked.find((player) => player.userId === myId)
+  if (mine && !shown.includes(mine)) shown[SHOWN - 1] = mine
+  const more = summary.players.length - shown.length
   return (
     <div className="flex flex-col gap-1.5" aria-label="The last round">
       <p className="text-center text-xs font-semibold tracking-widest text-white/55 uppercase">
         Last round: {ENDINGS[summary.endedBy] ?? 'Over'}
         {summary.endedBy === 'crash' ? '' : ` at ${formatMultiplier(summary.multiplier)}`}
         {summary.protected && <span className="text-[#FFD76A]"> · protected: half of every loss back</span>}
+        {summary.kind === 'allIn' && <span className="text-[#FFD76A]"> · all in</span>}
       </p>
       <ul className="flex flex-wrap justify-center gap-2">
-        {summary.players.map((player) => {
+        {shown.map((player) => {
           const best = summary.best === player.userId
           const won = player.net > 0
           return (
@@ -42,6 +52,7 @@ export default function RoundSummary({ summary, myId }) {
             </li>
           )
         })}
+        {more > 0 && <li className="self-center text-sm font-semibold text-white/60">+{more} more</li>}
       </ul>
     </div>
   )

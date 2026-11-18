@@ -138,7 +138,7 @@ function payoutFor(paid, multiplier, protectShare = 0) {
     // A hair added so 10 x 1.1 (11.000000000000002 or 10.999999999999998)
     // doesn't round down a whole point.
     let total = Math.max(0, Math.floor(bet * multiplier + 1e-9));
-    // A protected round (a full room): `protectShare` of what was lost
+    // A protected round (5 or more players): `protectShare` of what was lost
     // comes back too, rounded down.
     if (total < bet && protectShare > 0) total += Math.floor((bet - total) * protectShare + 1e-9);
     if (total >= bet) return { pp: paid.pp, ppp: paid.ppp + (total - bet), total };

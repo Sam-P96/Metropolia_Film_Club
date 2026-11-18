@@ -6,7 +6,8 @@ const CrashRound = require("../models/crashRoundModel");
 const { WalletError, changeWallet, dailyPp, playDay, spend } = require("./wallet");
 const { activeBansOf, banFor, banMessage } = require("./steal/moderation");
 const { payoutFor } = require("../games/crash/engine");
-const { blockedFor, maxBetFor, playsLeft, roundsFor } = require("../../shared/crash/rules.js");
+const { pointsElsewhere } = require("./pointsElsewhere");
+const { allInBlockedFor, blockedFor, maxBetFor, playsLeft, roundsFor } = require("../../shared/crash/rules.js");
 
 // Crash in the database: who can play and how much, the daily plays, bets,
 // payouts, and the rounds kept for replays. The rooms and the live rounds
@@ -18,19 +19,22 @@ const { blockedFor, maxBetFor, playsLeft, roundsFor } = require("../../shared/cr
 // ---- Who can play ----
 
 // Where a member stands today: { dailyPp, maxBet, used: { total }, left:
-// { alone, total }, points, banned }. `left`: rounds left today alone, and
-// in a full room (the most); `banned`: the message, if an admin has banned
-// them from games.
+// { alone, total }, points, banned, allIn }. `left`: rounds left today
+// alone, and with 5 or more (the most); `banned`: the message, if an admin
+// has banned them from games; `allIn`: Lord Gang Orca's offer, once their
+// rounds alone are used up and until they take it (null otherwise), with
+// any points they've got elsewhere (shared/crash/rules.js allInBlockedFor).
 async function statusOf(userId, day = playDay()) {
     const [reviews, used, user, bans] = await Promise.all([
         Review.countDocuments({ user: userId }),
-        CrashDay.findOne({ user: userId, day }).select("total").lean(),
+        CrashDay.findOne({ user: userId, day }).select("total allIn").lean(),
         User.findById(userId).select("wallet").lean(),
         activeBansOf(userId),
     ]);
     const daily = dailyPp(reviews);
     const ban = banFor(bans, "games");
     const usage = { total: used?.total ?? 0 };
+    const offered = !ban && playsLeft(usage, 1) < 1 && !used?.allIn;
     return {
         dailyPp: daily,
         maxBet: maxBetFor(daily),
@@ -38,11 +42,12 @@ async function statusOf(userId, day = playDay()) {
         left: { alone: playsLeft(usage, 1), total: playsLeft(usage) },
         points: (user?.wallet?.pp ?? 0) + (user?.wallet?.ppp ?? 0),
         banned: ban ? banMessage(ban, "games") : null,
+        allIn: offered ? { elsewhere: await pointsElsewhere(userId) } : null,
     };
 }
 
 // Why a member can't ready up: shared/crash/rules.js blockedFor, the same
-// rule the page shows.
+// rule the page shows (and allInBlockedFor for Lord Gang Orca's offer).
 
 // ---- The daily plays ----
 
@@ -64,6 +69,19 @@ async function claimPlay(userId, players, day = playDay()) {
 // Hands a play back (a round that couldn't start, or never finished).
 function releasePlay(userId, day) {
     return CrashDay.updateOne({ user: userId, day, total: { $gt: 0 } }, { $inc: { total: -1 } });
+}
+
+// Takes Lord Gang Orca's all-in round for today, atomically: only once their
+// rounds alone are used up, and only once a day. Throws a WalletError if
+// it's not theirs to take.
+async function claimAllIn(userId, day = playDay()) {
+    const { matchedCount } = await CrashDay.updateOne({ user: userId, day, total: { $gte: roundsFor(1) }, allIn: { $ne: true } }, { $set: { allIn: true } });
+    if (matchedCount === 0) throw new WalletError("Lord Gang Orca's offer is gone for today.", 409);
+}
+
+// Hands it back (a round that couldn't start, or never finished).
+function releaseAllIn(userId, day) {
+    return CrashDay.updateOne({ user: userId, day }, { $set: { allIn: false } });
 }
 
 // ---- Bets and payouts ----
@@ -156,7 +174,7 @@ async function recoverRounds() {
         for (const player of round.players) {
             if (player.cashedAt !== null && player.cashedAt !== undefined) continue;
             await giveBack(player.user, player.paid, round._id);
-            if (player.user) await releasePlay(player.user, round.day);
+            if (player.user) await (round.kind === "allIn" ? releaseAllIn(player.user, round.day) : releasePlay(player.user, round.day));
         }
         await CrashRound.updateOne({ _id: round._id, status: "playing" }, { $set: { status: "void", endedBy: "void", endedAt: new Date() } });
     }
@@ -195,7 +213,7 @@ async function roundFor(roundId, userId) {
 async function crashDataOf(userId) {
     const [rounds, days] = await Promise.all([
         CrashRound.find({ "players.user": userId }).sort({ startedAt: -1 }).lean(),
-        CrashDay.find({ user: userId }).sort({ day: -1 }).select("day total -_id").lean(),
+        CrashDay.find({ user: userId }).sort({ day: -1 }).select("day total allIn -_id").lean(),
     ]);
     return {
         rounds: rounds.map((round) => {
@@ -231,8 +249,11 @@ function resetDay(userId, day = playDay()) {
 module.exports = {
     statusOf,
     blockedFor,
+    allInBlockedFor,
     claimPlay,
     releasePlay,
+    claimAllIn,
+    releaseAllIn,
     takeBet,
     giveBack,
     payCashOut,

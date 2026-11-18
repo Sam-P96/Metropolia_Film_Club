@@ -54,9 +54,12 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
     let frame = null
     let last = performance.now()
     let shownRound = null
+    // Held here: React empties the ref as the screen closes, a moment before
+    // this effect is cleaned up, and a last frame can land in between.
+    const stage = shakeRef.current
 
     const fit = () => {
-      const rect = shakeRef.current.getBoundingClientRect()
+      const rect = stage.getBoundingClientRect()
       const dpr = Math.min(2, window.devicePixelRatio || 1)
       size = { w: rect.width, h: rect.height, dpr }
       for (const canvas of [fx, chart]) {
@@ -66,7 +69,7 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
     }
     fit()
     const observer = new ResizeObserver(fit)
-    observer.observe(shakeRef.current)
+    observer.observe(stage)
 
     const draw = (now) => {
       frame = requestAnimationFrame(draw)
@@ -127,7 +130,7 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
       // The scene, then the chart over it.
       fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       const shake = effects.frame(fxCtx, w, h, { m: shown, crashed, crashAge }, dt, now)
-      shakeRef.current.style.transform = shake.x || shake.y ? `translate(${shake.x}px, ${shake.y}px)` : ''
+      stage.style.transform = shake.x || shake.y ? `translate(${shake.x}px, ${shake.y}px)` : ''
       chartCtx.setTransform(1, 0, 0, 1, 0, 0)
       chartCtx.clearRect(0, 0, chart.width, chart.height)
       chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0)

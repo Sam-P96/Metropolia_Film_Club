@@ -14,6 +14,7 @@ const { createCrashRooms } = require("./rooms");
 //   crash:bet      { bet, autoAt }   (un-readies)
 //   crash:ready    { ready, bet, autoAt }
 //   crash:solo     { bet, autoAt }   play alone, now
+//   crash:allin                      Lord Gang Orca's offer: alone, all in
 //   crash:cashout
 // and hears "crash:lobby", "crash:room", "crash:tick", "crash:cashout",
 // "crash:me", "crash:kicked" and "crash:error" (rooms.js).
@@ -51,6 +52,7 @@ function startCrashLive(io) {
         handle("crash:bet", async (payload) => rooms.setBet(userId, payload));
         handle("crash:ready", async (payload) => rooms.ready(userId, payload));
         handle("crash:solo", async (payload) => ({ room: await rooms.solo(userId, payload) }));
+        handle("crash:allin", async () => ({ room: await rooms.allIn(userId) }));
         handle("crash:cashout", async () => ({ cashout: rooms.cashOut(userId) }));
 
         socket.on("disconnect", () => {

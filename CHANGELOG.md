@@ -44,13 +44,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     points, rounded down.
   - Rounds a day (from 12:00) go by how many players a round starts with,
     to encourage playing together: 3 alone, 6 with 2 players, 12 with 3, 24
-    with 4 and 25 with a full room of 5, all counting together (3 rounds
-    alone still leave 22 to play in full rooms). A full room plays a
-    protected round: everyone who loses gets half of what they lost back
-    (whole points, rounded down).
-  - Rooms of up to five members (three rooms at once), live: everyone ready
-    starts one shared round. "Play alone" starts a private round. Players
-    who leave mid-round stay in it, auto cash-out and all.
+    with 4 and 25 with 5 or more, all counting together (3 rounds alone
+    still leave 22 to play with 5 or more). A round of 5 or more is
+    protected: everyone who loses gets half of what they lost back (whole
+    points, rounded down).
+  - Rooms of up to 30 members (three rooms at once), live: everyone ready
+    starts one shared round at once; otherwise the first one ready starts
+    a 15 second countdown and the round starts with whoever's ready (the
+    rest watch, and play the next). Anyone who's played every round they
+    can in a round that size sits it out. "Play alone" starts a private
+    round. Players who leave mid-round stay in it, auto cash-out and all.
+  - Once a member's rounds alone are used up, a glowing "Play One More Time
+    All In" offer from Lord Gang Orca turns up (explained nowhere on the
+    page): once a play day, one more round alone with every point they
+    have on it, past the usual biggest bet. Not while they've points
+    anywhere else they could get back (Kino Kasino credits, poker chips,
+    loan offers or money lent out, stakes in games still going, trade
+    offers: `backend/utils/pointsElsewhere.js`).
   - The game screen fits one phone screen: the live chart, a big
     multiplier, a Cash out button (Space too), everyone's pictures riding
     the line, popping off where they cash out and falling grey on a crash,

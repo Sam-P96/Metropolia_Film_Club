@@ -63,7 +63,7 @@ const Schema = mongoose.Schema;
 //   crashBet         a bet as the round starts (PP first, then P-PP)
 //   crashWin         a cash-out: the stake back in its own coins, profit in P-PP
 //                    (in a protected round, half of any loss back too)
-//   crashProtect     a protected round (a full room) crashed on them: half
+//   crashProtect     a protected round (5 or more players) crashed on them: half
 //                    the bet back, in the coins it was paid in
 //   crashRefund      a bet handed back: a round that couldn't start, or one
 //                    the server stopped in the middle of

@@ -46,7 +46,7 @@ const REASONS = {
   crashBet: 'Box Office Crash bet',
   crashWin: 'Box Office Crash: cashed out',
   crashRefund: 'Box Office Crash: bet returned',
-  crashProtect: 'Box Office Crash: half back (full room)',
+  crashProtect: 'Box Office Crash: half back (5+ players)',
   quizPrize: 'Daily Quiz: won the weekly draw!',
   quizStreak: 'Daily Quiz: 7 day streak bonus',
 }

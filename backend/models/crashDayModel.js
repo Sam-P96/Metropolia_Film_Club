@@ -8,10 +8,14 @@ const Schema = mongoose.Schema;
 // room). utils/crash.js claims a play here, atomically, as a round starts,
 // so two rounds at once can't both take the last one. (Days from before
 // the caps went by size also have a `solo` count, no longer used.)
+// `allIn`: whether they've taken Lord Gang Orca's all-in round this play
+// day (once a day, once their rounds alone are used up; it doesn't count
+// towards `total`).
 const crashDaySchema = new Schema({
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     day: { type: String, required: true },
     total: { type: Number, default: 0 },
+    allIn: { type: Boolean, default: false },
 });
 
 crashDaySchema.index({ user: 1, day: 1 }, { unique: true });

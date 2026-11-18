@@ -5,16 +5,20 @@
 
 export const CRASH_RULES = {
   // Players in a room, at most.
-  roomSize: 5,
+  roomSize: 30,
   // Rooms open at once (rounds played alone don't count).
   maxRooms: 3,
+  // In a room of 2 or more, the first one ready starts this countdown: when
+  // it ends, the round starts with whoever's ready (straight away, if
+  // everyone is), and the rest watch and play the next one.
+  readyMs: 15000,
   // Rounds a member can play a day, 12:00 to 12:00 Helsinki time, by how
-  // many players the round starts with: [alone, 2, 3, 4, 5]. Each is a cap
-  // on all of the day's rounds together, so the more players, the more
-  // rounds: after 3 alone there are still 3 to play with 2 players, 9 with
-  // 3, 21 with 4 and 22 with 5.
+  // many players the round starts with: [alone, 2, 3, 4, 5 or more]. Each
+  // is a cap on all of the day's rounds together, so the more players, the
+  // more rounds: after 3 alone there are still 3 to play with 2 players, 9
+  // with 3, 21 with 4 and 22 with 5 or more.
   roundsPerDay: [3, 6, 12, 24, 25],
-  // A round that starts with this many players (a full room) is protected:
+  // A round that starts with this many players or more is protected:
   // everyone who loses in it gets this share of what they lost back (whole
   // points, rounded down).
   protectedPlayers: 5,
@@ -37,18 +41,19 @@ export const CRASH_RULES = {
 // it, rounded down, but always at least 1.
 export const maxBetFor = (dailyPp) => Math.max(1, Math.floor(dailyPp * CRASH_RULES.maxBetShare))
 
-// Rounds a day for a round of `players` (1: alone).
+// Rounds a day for a round of `players` (1: alone; 5 or more all get the
+// last).
 export const roundsFor = (players) => CRASH_RULES.roundsPerDay[Math.min(Math.max(1, players), CRASH_RULES.roundsPerDay.length) - 1]
 
 // Whether a round of `players` protects whoever loses in it.
 export const isProtected = (players) => players >= CRASH_RULES.protectedPlayers
 
-// The kind of round `players` start: "solo" alone, "protected" with a full
-// room, else "group".
+// The kind of round `players` start: "solo" alone, "protected" with 5 or
+// more, else "group".
 export const roundKindFor = (players) => (isProtected(players) ? 'protected' : players <= 1 ? 'solo' : 'group')
 
-// Rounds left today in a round of `players` (a full room's, the most, if
-// not given), after `used` ({ total }: rounds played today).
+// Rounds left today in a round of `players` (the most, a round of 5 or
+// more, if not given), after `used` ({ total }: rounds played today).
 export function playsLeft(used = {}, players = CRASH_RULES.roomSize) {
   return Math.max(0, roundsFor(players) - (used.total ?? 0))
 }
@@ -88,11 +93,33 @@ export function blockedFor(status, bet, players) {
   if (playsLeft(status.used, players) < 1) {
     const needed = playersNeeded(status.used)
     if (players <= 1) return `No rounds alone left (${roundsFor(1)} a day): play in a room of ${needed} or more.`
-    return `A room of ${players} gets ${roundsFor(players)} rounds a day and you've played them: wait for ${needed} players.`
+    return `A round of ${players} gets ${roundsFor(players)} rounds a day and you've played them: wait for ${needed} players.`
   }
   if (!Number.isInteger(bet) || bet < CRASH_RULES.minBet) return 'Pick a bet first.'
   if (bet > status.maxBet) return `Bets go up to ${status.maxBet} for you (a quarter of your daily PP).`
   if (status.points < bet) return 'Not enough points for that bet.'
+  return null
+}
+
+// Lord Gang Orca's offer, not in the page's rules (it just turns up): once a
+// play day, for anyone who's played all their rounds alone, one more round
+// alone with everything they have on it, PP and P-PP, past the usual
+// biggest bet and with no auto cash-out. `status.allIn`: null when it isn't
+// on offer, else { elsewhere: [{ points, where }] }, points they've put
+// somewhere they could get back (backend/utils/pointsElsewhere.js). All in
+// means all of it, so it won't go while there are any. Why they can't take
+// it, or null if they can.
+export function allInBlockedFor(status) {
+  if (!status?.allIn) return 'Not today, kid.'
+  if (status.banned) return status.banned
+  if (status.dailyPp < 1) return 'Write a review to play: your daily PP comes from your reviews.'
+  if (status.points < 1) return "You've got nothing to put in."
+  const elsewhere = status.allIn.elsewhere ?? []
+  if (elsewhere.length > 0) {
+    const places = elsewhere.map((place) => `${place.points.toLocaleString('en-US')} ${place.where}`)
+    const list = places.length > 1 ? `${places.slice(0, -1).join(', ')} and ${places.at(-1)}` : places[0]
+    return `All in means all of it, and you've got ${list}. Bring it home first.`
+  }
   return null
 }
 

@@ -313,6 +313,28 @@ module.exports = {
     },
 
     // Section 7 and 11: at Kino Poker.
+    // Box Office Crash: what he says once his all-in round is over
+    // (games/crash/rooms.js): won, kept some (cashed out under 1x, or broke
+    // even), or lost the lot. The offer's own line is on the page
+    // (frontend/src/components/crash/AllInOffer.jsx).
+    crashAllIn: {
+        won: [
+            "Goodjob, kid. You made a profit for the family.",
+            "Lucky tonight, aren't we? There's a reason for that. Stick around and you'll find out.",
+            "I'm so proud of you, kid. You did well. Family's proud of you.",
+        ],
+        some: [
+            "You blinked. Smart. Mostly.",
+            "Half a meal is still a meal, kid.",
+            "Walked away with something. Family respects that. A little.",
+        ],
+        lost: [
+            "You tried your best, kid. That's all I ask.",
+            "That's the game, kid. Go eat something. You'll always have a seat at my table.",
+            "Loss is just a part of doing business. Don't let it get to you.",
+        ],
+    },
+
     poker: {
         // His own lines, like the other bots' (shared/poker/lines.js).
         lines: {

@@ -9,7 +9,7 @@
 // Returns here are for exact multipliers (bet x multiplier, unrounded).
 // Real payouts are whole points rounded down, which costs small bets more:
 // those are shown too, for a few bet sizes, at a 2x target. So are
-// protected rounds (a full room of 5: half of every loss back), which
+// protected rounds (5 or more players: half of every loss back), which
 // return more than the bet on average, on purpose: to get people playing
 // together.
 const { CRASH, CrashRound, payoutFor, secureRandom } = require("../games/crash/engine");
@@ -86,6 +86,6 @@ console.log("");
 console.log("At a 2x target with real payouts (whole points, rounded down):");
 for (const bet of BETS) console.log(`  bet ${String(bet).padEnd(3)}  ${avg(rounded.get(bet))}`);
 console.log("");
-console.log(`In a protected round (a full room: ${CRASH_RULES.protectShare * 100}% of a loss back), a bet of ${PROTECTED_BET}, real payouts:`);
+console.log(`In a protected round (5 or more players: ${CRASH_RULES.protectShare * 100}% of a loss back), a bet of ${PROTECTED_BET}, real payouts:`);
 for (const target of TARGETS) console.log(`  auto-cash-out ${String(target).padEnd(4)}x  ${avg(shielded.get(target))}`);
 console.log(`  never cash out     ${avg(shieldedRideOut)}`);
