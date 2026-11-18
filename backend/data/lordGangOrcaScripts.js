@@ -239,7 +239,8 @@ module.exports = {
     ],
 
     // Section 8: when he's closed. Monday to Friday (00:00 to 16:00), that
-    // weekday's Goon Dolphine story; Saturday and Sunday, Kaveri's.
+    // weekday's Goon Dolphine story; Saturday and Sunday, Kaveri's. Then one
+    // of their scenes (moments, below), and the story's `closing`, if any.
     closed: {
         1: {
             title: "Family Business",
@@ -307,7 +308,179 @@ module.exports = {
                 narration("He gives you a big wave and a bigger smile."),
                 kaveri("Go home and watch a movie! And hey, let's keep this our little secret, okay? Okay! Byeee!"),
                 narration("He hops away whistling. Behind him, the back door of the lounge creaks shut by itself."),
-                narration("*Come back Monday at 16:00.*"),
+            ],
+            // After Kaveri's scene (moments below), to end the visit.
+            closing: [narration("*Come back Monday at 16:00.*")],
+        },
+    },
+
+    // When he's closed, after the day's story: one little scene from
+    // whoever's minding the place, at random, never the same one twice in a
+    // row (utils/orca/player.js statusOf). `leadIn` comes first, so the
+    // scene follows on from the story's goodbye; then, if the story has a
+    // `closing`, that ends the visit. Add, change or remove scenes freely:
+    // each is a list of steps, like the stories.
+    moments: {
+        // Monday to Friday: Goon Dolphine. Loyal to the boss, would do
+        // anything for him. Just a goon, not a monster: now and then you see
+        // his softer side, and he treats you like family.
+        dolphine: {
+            leadIn: "As you turn to go, Goon Dolphine calls after you.",
+            scenes: [
+                // Loyal to the boss.
+                [
+                    narration("He's polishing the boss's armchair with a silk handkerchief, slow and careful."),
+                    dolphine("Boss found me tangled in a fishing net when I was a pup. Cut me loose with his own teeth."),
+                    dolphine("Everything I got, I owe him. The suit. The sunglasses. The smile. ...Well. I came with the smile."),
+                ],
+                [
+                    dolphine("Some guys work for money. Some guys work for respect."),
+                    dolphine("Me? I work for the boss. *click* It's simpler that way."),
+                ],
+                [
+                    dolphine("Boss says jump, I don't ask how high."),
+                    narration("He thinks about it for a moment."),
+                    dolphine("I'm already up there, kid. Waiting for him."),
+                ],
+                [
+                    narration("He straightens a framed photo behind the bar: the boss, younger, next to a little dolphin in a suit three sizes too big."),
+                    dolphine("That's me. First day on the job."),
+                    dolphine("Boss said I'd grow into the suit. *click click* I did."),
+                ],
+                [
+                    dolphine("King Loan Shark tried to hire me once. Offered me double."),
+                    dolphine("I sent his guy back with a polite note and a fish. A whole fish."),
+                    dolphine("It's a message, kid. It means no thank you."),
+                ],
+                [
+                    dolphine("You know what I'd do for the boss?"),
+                    narration("He doesn't wait for an answer."),
+                    dolphine("Anything. That's the whole list. *click*"),
+                ],
+                // His softer side: you're family now.
+                [
+                    narration("He looks you up and down."),
+                    dolphine("You eating okay, kid? You look thin."),
+                    dolphine("Here. Crackers. Don't tell the boss I keep snacks behind the bar."),
+                ],
+                [
+                    dolphine("Anybody giving you trouble out there?"),
+                    dolphine("You tell me. Not the boss, me. I'll have a word with them. A polite word."),
+                    narration("He cracks his knuckles."),
+                    dolphine("...Mostly polite."),
+                ],
+                [
+                    narration("He takes his sunglasses off for a second. His eyes are kinder than you expected."),
+                    dolphine("You keep coming back. Most people don't."),
+                    dolphine("That makes you family, kid. And family uses the front door. Next time, don't sneak round the back."),
+                ],
+                [
+                    dolphine("You remind me of me, before the suit."),
+                    dolphine("Hungry. Honest. Bit lost."),
+                    narration("He pats your shoulder with a flipper."),
+                    dolphine("Stick around. We'll look after you."),
+                ],
+                [
+                    narration("He fixes your collar, then brushes something off your shoulder."),
+                    dolphine("There. Now you look like somebody."),
+                    dolphine("In this family, we look sharp. Even on the bad days. *Especially* on the bad days."),
+                ],
+                [
+                    dolphine("Rough day?"),
+                    narration("He slides a napkin across the bar. On it, he's drawn a little smiling orca."),
+                    dolphine("Boss drew me one of these once, when I was a pup and things were bad. Keep it. It helps. *click*"),
+                ],
+                // His sister, Marina: loyalty isn't something you're born
+                // with. It's something you earn.
+                [
+                    narration("He goes quiet, turning an empty glass round and round in his flipper."),
+                    dolphine("I had a sister. Marina. Smartest dolphin in the bay."),
+                    dolphine("She sold the boss out to the shark."),
+                    narration("He puts the glass down, very gently."),
+                    dolphine("Loyalty ain't something you're born with, kid. It's something you earn. Every day."),
+                ],
+                [
+                    dolphine("People say blood's thicker than water."),
+                    dolphine("Kid, we *live* in water."),
+                    narration("For once, he isn't smiling."),
+                    dolphine("Marina thought being my sister meant something. It did. Just not enough."),
+                ],
+                [
+                    narration("There's a pink seashell on the shelf behind the bar. He never lets anyone touch it."),
+                    dolphine("Marina's. My sister."),
+                    dolphine("When she went to the shark, the boss asked me to take care of it. I took care of it."),
+                    dolphine("*click* That's what loyal means, kid. Even when it costs you everything."),
+                ],
+                [
+                    dolphine("You know dolphins sing? I used to."),
+                    dolphine("Marina and me, when we were pups. Every night, out past the docks."),
+                    narration("He clears his throat."),
+                    dolphine("Anyway. Boss needed it done. I did it. Don't sing much any more."),
+                ],
+                [
+                    dolphine("Being born into a family don't mean nothing."),
+                    dolphine("Marina was born my family. She traded us for a few fish."),
+                    dolphine("You? Nobody made you come here. You chose us. That's worth more than blood, kid."),
+                ],
+                // A drink with him: the boss is out.
+                [
+                    dolphine("Boss is out. And nobody drinks alone in this lounge."),
+                    narration("He pulls a bar stool out for you."),
+                    dolphine("Sit. What're you having? I got milk, and I got milk with ice."),
+                ],
+                [
+                    narration("He pours two glasses of milk and slides one over to you."),
+                    dolphine("Boss's private stock. Don't tell him I'm into the good stuff."),
+                    dolphine("...Actually, tell him. He likes it when I'm hospitable."),
+                ],
+                [
+                    dolphine("Quiet night. Have a drink with me, kid."),
+                    narration("He raises his glass."),
+                    dolphine("To the boss. Long may he swim."),
+                ],
+                [
+                    dolphine("You look like you could use a drink."),
+                    dolphine("On the house. Family never pays at this bar."),
+                    narration("He wipes the counter, even though it's already clean."),
+                    dolphine("So. How's life treating you? Honestly. I got time."),
+                ],
+                [
+                    narration("He already has two glasses out."),
+                    dolphine("Saw you coming down the docks. Figured you'd be thirsty."),
+                    dolphine("Boss won't be back for a while. We got time. Tell me about your day."),
+                ],
+            ],
+        },
+        // Saturday and Sunday: Kaveri. The club's cheerful, friendly bunny,
+        // who delivers mail for *everybody*, and doesn't see the problem.
+        kaveri: {
+            leadIn: "Before you reach the end of the alley, Kaveri comes hopping back.",
+            scenes: [
+                [
+                    narration("He has a carrot in each paw."),
+                    kaveri("Want one? I've got two! I always carry two. One for each side! Of my mouth! Teehee!"),
+                ],
+                [
+                    kaveri("Did you know the boss *and* King Loan Shark both love my carrot muffins?"),
+                    kaveri("Same muffins, same recipe, same Saturday! Nobody ever asks why they taste the same!"),
+                    narration("He looks very pleased with himself."),
+                ],
+                [
+                    narration("He sits down on the back step and sorts his envelopes into two neat piles."),
+                    kaveri("This pile's for the orca, and this pile's for the shark!"),
+                    narration("He stops and squints at them."),
+                    kaveri("...Or was it the other way round? Eh! They'll work it out! They always do!"),
+                ],
+                [
+                    kaveri("Hi hi! You look like you need a hug!"),
+                    narration("He hugs you before you can answer. He smells faintly of seawater and popcorn."),
+                    kaveri("Weekends are for movies and hugs, not for business! Go have some fun, okay?"),
+                ],
+                [
+                    narration("He's carrying a film reel almost as big as he is."),
+                    kaveri("Movie night at the club! You should come! Everybody's welcome! Orcas, sharks, bunnies, *you*!"),
+                    kaveri("Bring snacks! I'll bring two of everything! Teehee!"),
+                ],
             ],
         },
     },
