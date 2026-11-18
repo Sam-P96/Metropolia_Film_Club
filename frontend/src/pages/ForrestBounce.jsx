@@ -20,8 +20,8 @@ function Menu({ status, message, busy, onStart }) {
   const note = locked
     ? `All ${FORREST.cashOutsPerDay} cash-outs used today: free play until 12:00.`
     : status.points < FORREST.entries[0]
-      ? `You need at least ${FORREST.entries[0]} points to play.`
-      : `Cash-outs left today: ${status.cashOutsLeft}/${FORREST.cashOutsPerDay} · ${FORREST.scorePerPoint} score = 1 point`
+      ? `You need at least ${FORREST.entries[0]} PP to play.`
+      : `Cash-outs left today: ${status.cashOutsLeft}/${FORREST.cashOutsPerDay} · ${FORREST.scorePerPoint} score = 1 PP`
   return (
     <div className={OVERLAY}>
       {message && <p className="text-sm font-semibold text-[#ffd166]">{message}</p>}
@@ -54,7 +54,7 @@ function Menu({ status, message, busy, onStart }) {
             onClick={() => onStart(cost)}
             className={`${ENTRY} border-white/10 bg-[#1f3a24] text-white hover:border-[#9be564]/60`}
           >
-            <b className="text-base">{cost} pts</b>
+            <b className="text-base">{cost} PP</b>
             <small className="text-[11px] text-white/60">
               {fruit[0]} = {cost / 10} score
             </small>
@@ -81,7 +81,7 @@ function Result({ result, status, busy, onCashOut, onDiscard, onAgain, onMenu })
       <p className="text-5xl font-extrabold text-[#ffd166] tabular-nums">{run.score}</p>
       <p className="text-sm text-[#d6efd0]/80">
         {run.fruit} fruit × {run.mult}
-        {run.free ? '' : ` (${run.cost} point game)`} · level {run.level}
+        {run.free ? '' : ` (${run.cost} PP game)`} · level {run.level}
       </p>
       {best?.site && (
         <motion.p initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-xl border border-[#ffd166]/60 bg-[#ffd166]/10 px-3 py-2 font-semibold text-[#ffd166]">
@@ -108,19 +108,19 @@ function Result({ result, status, busy, onCashOut, onDiscard, onAgain, onMenu })
       ) : (
         <>
           <p className="text-white">
-            Worth <b>{run.payout} points</b>{' '}
+            Worth <b>{run.payout} PP</b>{' '}
             <span className="text-xs text-white/55">
-              ({FORREST.scorePerPoint} score = 1 point)
+              ({FORREST.scorePerPoint} score = 1 PP)
             </span>
             <br />
             <span style={{ color: net >= 0 ? LEAF : '#ef476f' }}>
               {net >= 0 ? '+' : '−'}
-              {Math.abs(net)} vs. your entry
+              {Math.abs(net)} PP vs. your entry
             </span>
           </p>
           <div className="flex w-full gap-2">
             <button type="button" className={PRIMARY} disabled={busy || status.cashOutsLeft <= 0} onClick={onCashOut}>
-              Cash out +{run.payout}
+              Cash out +{run.payout} PP
             </button>
             <button type="button" className={SECONDARY} disabled={busy} onClick={onDiscard}>
               Throw away
@@ -271,7 +271,7 @@ export default function ForrestBounce() {
     act(async () => {
       const { payout, status: next } = await cashOutForrestRun(result.run.id)
       setStatus(next)
-      toMenu(next.cashOutsLeft === 0 ? `Cashed out +${payout}. That's today's cash-outs: free play's open.` : `Cashed out +${payout}.`)
+      toMenu(next.cashOutsLeft === 0 ? `Cashed out +${payout} PP. That's today's cash-outs: free play's open.` : `Cashed out +${payout} PP.`)
     })
   const discard = () =>
     act(async () => {
@@ -301,7 +301,9 @@ export default function ForrestBounce() {
       aside={
         status && (
           <div className="flex flex-wrap justify-center gap-2 text-sm font-semibold text-white/85 tabular-nums">
-            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">💰 {status.points} points</span>
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
+              💰 {status.pp} PP · {status.ppp} P-PP
+            </span>
             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
               💸 {status.cashOutsLeft}/{FORREST.cashOutsPerDay} cash-outs
             </span>

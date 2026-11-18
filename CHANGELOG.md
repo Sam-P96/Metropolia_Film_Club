@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   far tree, through floating fruit (higher is worth more, up to a x100
   jackpot fruit) and past shurikens (one hit ends the run, unless a heart
   you caught saves you), across six stages from the Orchard to the Void.
-  - Entries of 10, 20, 30, 50 or 100 points (PP first, then P-PP); fruit
-    counts x1 to x10 with the entry. A run's score is worth 5 to 1 point:
+  - Entries of 10, 20, 30, 50 or 100 PP (PP first, then P-PP); fruit
+    counts x1 to x10 with the entry. A run's score is worth 5 to 1 PP:
     cash it out (the entry back in its own coins, the rest in P-PP) or
     throw it away to keep the cash-out. Three cash-outs a play day; then
     free play (x2) until 12:00, never cashed out.

@@ -32,15 +32,15 @@ export default function ForrestNotice({ item }) {
     line =
       net > 0 ? (
         <>
-          {name} cashed out a {entry} point game and won {net}.
+          {name} cashed out a {entry} PP game and won {net} PP.
         </>
       ) : net < 0 ? (
         <>
-          {name} cashed out a {entry} point game and lost {0 - net}.
+          {name} cashed out a {entry} PP game and lost {0 - net} PP.
         </>
       ) : (
         <>
-          {name} cashed out a {entry} point game and broke even.
+          {name} cashed out a {entry} PP game and broke even.
         </>
       )
     big = (
@@ -86,8 +86,8 @@ export default function ForrestNotice({ item }) {
             <p className="text-lg text-[#f3ead8]">{line}</p>
             {big}
             <p className="mt-1 text-sm text-[#d9c7a8]/75">
-              {score} points · {fruit} fruit · level {level}
-              {item.type === 'forrestCashOut' && ` · ${item.amount ?? 0} back`}
+              Score {score} · {fruit} fruit · level {level}
+              {item.type === 'forrestCashOut' && ` · ${item.amount ?? 0} PP back`}
             </p>
             <Link to="/games/forrest-bounce" className={`${BUTTON} mt-4`}>
               Play Forrest Bounce

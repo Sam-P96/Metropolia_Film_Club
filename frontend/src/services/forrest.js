@@ -1,8 +1,8 @@
 import { api } from './api'
 
 // Forrest Bounce (backend/routes/forrestRouter.js). Every answer carries
-// `status`: { points, cashOutsLeft, buddies, choices, best, leaderboard,
-// waiting }.
+// `status`: { pp, ppp, points, cashOutsLeft, buddies, choices, best,
+// leaderboard, waiting }.
 
 export function getForrest() {
   return api('/forrest')

@@ -85,9 +85,9 @@ function runView(run) {
     };
 }
 
-// Everything the page shows: { points, cashOutsLeft, buddies, choices,
-// best, leaderboard, waiting } (`waiting`: a scored run still to be cashed
-// out or thrown away, after a refresh).
+// Everything the page shows: { pp, ppp, points (the two together),
+// cashOutsLeft, buddies, choices, best, leaderboard, waiting } (`waiting`:
+// a scored run still to be cashed out or thrown away, after a refresh).
 async function statusOf(userId, day = playDay()) {
     const [user, today, player, owned, top, waiting] = await Promise.all([
         User.findById(userId).select("wallet").lean(),
@@ -99,6 +99,8 @@ async function statusOf(userId, day = playDay()) {
     ]);
     const choices = buddyChoices(owned);
     return {
+        pp: user?.wallet?.pp ?? 0,
+        ppp: user?.wallet?.ppp ?? 0,
         points: (user?.wallet?.pp ?? 0) + (user?.wallet?.ppp ?? 0),
         cashOutsLeft: Math.max(0, FORREST.cashOutsPerDay - (today?.cashOuts ?? 0)),
         buddies: buddiesFrom(player?.buddies, choices),

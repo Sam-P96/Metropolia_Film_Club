@@ -424,7 +424,7 @@ export function createRenderer(canvas) {
     ctx.font = '600 13px system-ui'
     ctx.fillStyle = '#d6efd0'
     ctx.textAlign = 'left'
-    ctx.fillText(s.free ? `Free play · ×${s.mult}` : `${s.cost} point game · ×${s.mult}`, 30, top + 56)
+    ctx.fillText(s.free ? `Free play · ×${s.mult}` : `${s.cost} PP game · ×${s.mult}`, 30, top + 56)
     ctx.textAlign = 'right'
     ctx.fillText(`Lv ${s.level} · ${S.name}`, W - 30, top + 56)
     const a = threshold(s.level)
