@@ -39,8 +39,11 @@ const crashRoundSchema = new Schema(
         // of their own, `private`).
         room: { type: String, required: true },
         private: { type: Boolean, default: false },
-        // "solo" (fewer than 4 players) or "bonus" (4).
-        kind: { type: String, enum: ["solo", "bonus"], required: true },
+        // "solo" (played alone), "group" (2 to 4 players), "protected" (a
+        // round of 5 or more: half of every loss back) or "allIn" (Lord Gang
+        // Orca's offer: alone, everything they had on it). "bonus" was a
+        // room of 4 under the old daily plays.
+        kind: { type: String, enum: ["solo", "group", "protected", "allIn", "bonus"], required: true },
         // The play day it counts towards (12:00 to 12:00 Helsinki).
         day: { type: String, required: true },
         status: { type: String, enum: ["playing", "over", "void"], default: "playing" },

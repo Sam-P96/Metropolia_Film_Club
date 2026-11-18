@@ -13,7 +13,7 @@ import { walletChanged } from '../services/wallet'
 // else on the page.
 //
 // Returns { connected, lobby, room, round, me, live, notice, clearNotice,
-//   create, join, leave, setBet, ready, solo, cashOut }.
+//   create, join, leave, setBet, ready, solo, allIn, cashOut }.
 // Each action resolves to the server's answer, or throws its reason.
 
 const blankLive = () => ({ roundId: null, path: [], lastTickAt: 0, status: null, endedBy: null, config: null, cashouts: new Map(), crashedAt: 0 })
@@ -192,6 +192,7 @@ export default function useCrash() {
     setBet: (bet, autoAt) => request('crash:bet', { bet, autoAt }),
     ready: (on, bet, autoAt) => request('crash:ready', { ready: on, bet, autoAt }),
     solo: (bet, autoAt) => request('crash:solo', { bet, autoAt }).then(enter),
+    allIn: () => request('crash:allin').then(enter),
     cashOut: () => request('crash:cashout'),
   }
 }

@@ -6,13 +6,23 @@ const { noteCrashResults } = require("../../utils/notify");
 const { playDay } = require("../../utils/wallet");
 const { MEMBER_FIELDS, userSummary } = require("../../utils/serialize");
 const { CRASH, CrashRound, cashOutsAt, payoutFor, secureRandom } = require("./engine");
-const { CRASH_RULES, autoTarget, roundKindFor } = require("../../../shared/crash/rules.js");
+const { CRASH_RULES, autoTarget, isProtected, roundKindFor } = require("../../../shared/crash/rules.js");
+const ORCA_LINES = require("../../data/lordGangOrcaScripts").crashAllIn;
 
 // Crash's rooms, lobby and live rounds, all in the server's memory (one
-// server): rooms of up to 4 members, up to 3 at once, plus rooms of one for
+// server): rooms of up to 30 members, up to 3 at once, plus rooms of one for
 // rounds played alone ("Play alone", private, never listed). Everyone in a
-// room plays the same round: one multiplier path, made a tick at a time
+// round plays the same one: one multiplier path, made a tick at a time
 // (engine.js) and sent to the room as it's made, 10 times a second.
+//
+// A round starts as soon as everyone in the room is ready. Otherwise the
+// first one ready starts a countdown (CRASH_RULES.readyMs), and when it ends
+// the round starts with whoever's ready; the rest watch, and play the next.
+//
+// The more players a round starts with, the more rounds a day they can
+// play (shared/crash/rules.js roundsPerDay), and a round of 5 or more is
+// protected: half of every loss comes back. Once someone's rounds alone are used up,
+// Lord Gang Orca offers one more, once a day: alone, all in (allIn below).
 //
 // The server decides everything: when a round starts (when everyone in the
 // room is ready), every tick, every cash-out (at the multiplier when the
@@ -31,8 +41,8 @@ const roomChannel = (id) => `crash:room:${id}`;
 const userChannel = (id) => `crash:user:${id}`;
 
 // `io`: the Socket.IO server (or a stand-in, in tests). `random`, `config`,
-// `countdownMs` and `graceMs` can be changed for tests.
-function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdownMs = CRASH_RULES.countdownMs, graceMs = 8000 } = {}) {
+// `countdownMs`, `readyMs` and `graceMs` can be changed for tests.
+function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdownMs = CRASH_RULES.countdownMs, readyMs = CRASH_RULES.readyMs, graceMs = 8000 } = {}) {
     const rooms = new Map(); // id -> room
     const where = new Map(); // userId -> the id of the room they're in
     const sockets = new Map(); // userId -> Set of their socket ids
@@ -86,6 +96,9 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
             })),
             round: room.round ? roundView(room.round) : null,
             last: room.last,
+            // When the ready countdown ends (the round starts with whoever's
+            // ready), or null.
+            countdownEndsAt: room.countdown?.endsAt ?? null,
         };
     }
 
@@ -159,7 +172,10 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         room.players = room.players.filter((player) => player.userId !== userId);
         where.delete(userId);
         io.in(userChannel(userId)).socketsLeave(roomChannel(room.id));
-        if (room.players.length === 0 && !isLive(room.round)) rooms.delete(room.id);
+        if (room.players.length === 0 && !isLive(room.round)) {
+            stopCountdown(room);
+            rooms.delete(room.id);
+        }
     }
 
     function roomOf(userId) {
@@ -168,9 +184,9 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         return room;
     }
 
-    // After the room changed: anyone ready who no longer can be (say, a
-    // room dropped below 4 and they have no solo rounds) isn't, and if
-    // everyone left is ready, the round starts.
+    // After the room changed: anyone ready who no longer can be (say, the
+    // room got smaller and they've played its rounds) isn't, and the round
+    // starts if it should.
     function recheck(room) {
         for (const player of room.players) {
             if (player.ready && db.blockedFor(statuses.get(player.userId), player.bet, room.private ? 1 : room.players.length)) player.ready = false;
@@ -178,10 +194,37 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         maybeStart(room);
     }
 
+    function stopCountdown(room) {
+        clearTimeout(room.countdown?.timer);
+        room.countdown = null;
+    }
+
+    const start = (room) => startRound(room).catch((error) => console.error("Crash couldn't start a round:", error));
+
+    // Everyone ready: the round starts now. Some ready: the countdown runs
+    // (started by the first), and the round starts with them when it ends.
+    // Nobody ready: no countdown.
     function maybeStart(room) {
         if (isLive(room.round) || room.players.length === 0) return;
-        if (room.players.every((player) => player.ready)) {
-            startRound(room).catch((error) => console.error("Crash couldn't start a round:", error));
+        const ready = room.players.filter((player) => player.ready).length;
+        if (ready === room.players.length) {
+            stopCountdown(room);
+            start(room);
+        } else if (ready === 0) {
+            if (room.countdown) {
+                stopCountdown(room);
+                sendRoom(room);
+            }
+        } else if (!room.countdown) {
+            room.countdown = {
+                endsAt: Date.now() + readyMs,
+                timer: setTimeout(() => {
+                    room.countdown = null;
+                    if (rooms.has(room.id) && !isLive(room.round) && room.players.some((player) => player.ready)) start(room);
+                    else if (rooms.has(room.id)) sendRoom(room);
+                }, readyMs),
+            };
+            sendRoom(room);
         }
     }
 
@@ -189,16 +232,45 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
 
     async function startRound(room) {
         const day = playDay();
-        const kind = room.private ? "solo" : roundKindFor(room.players.length);
+        stopCountdown(room);
+        // Lord Gang Orca's all-in round: this room's first round only.
+        const allIn = room.private && room.allIn === true;
+        room.allIn = false;
+
+        // Who plays: everyone ready, less anyone who's played every round
+        // they can in a round this size (fewer than the room, if some
+        // weren't ready), until nobody else drops out. They sit it out. (Not
+        // all in: that round is past the usual ones.)
+        let riders = room.players.filter((player) => player.ready);
+        while (!allIn) {
+            const count = room.private ? 1 : riders.length;
+            const out = riders.filter((player) => db.blockedFor(statuses.get(player.userId), player.bet, count));
+            if (out.length === 0) break;
+            for (const player of out) {
+                io.to(userChannel(player.userId)).emit("crash:error", { message: `You sat this round out. ${db.blockedFor(statuses.get(player.userId), player.bet, count)}` });
+                player.ready = false;
+            }
+            riders = riders.filter((player) => !out.includes(player));
+        }
+        if (riders.length === 0) {
+            sendRoomAndMe(room);
+            sendLobby();
+            return;
+        }
+
+        const size = room.private ? 1 : riders.length;
+        const kind = allIn ? "allIn" : roundKindFor(size);
         const run = {
             id: new mongoose.Types.ObjectId(),
             kind,
             day,
+            // 5 or more players: half of every loss back.
+            protectShare: !allIn && isProtected(size) ? CRASH_RULES.protectShare : 0,
             status: "starting",
             startsAt: null,
             endedBy: null,
             engine: new CrashRound(random, config),
-            players: room.players.map((player) => ({
+            players: riders.map((player) => ({
                 userId: player.userId,
                 user: player.user,
                 bet: player.bet,
@@ -218,50 +290,67 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         sendRoom(room);
         sendLobby();
 
-        // Everyone's play and bet, all or nothing.
-        let failed = null;
-        for (const player of run.players) {
-            try {
-                await db.claimPlay(player.userId, kind, day);
-                player.claimed = true;
-                player.paid = await db.takeBet(player.userId, player.bet, run.id);
-            } catch (error) {
-                failed = { player, error };
-                break;
-            }
+        const release = (player) => (allIn ? db.releaseAllIn(player.userId, day) : db.releasePlay(player.userId, day)).catch(() => {});
+        const handBack = (player) => db.giveBack(player.userId, player.paid, run.id).catch((error) => console.error("Crash couldn't hand a bet back:", error));
+
+        // Everyone's play and bet, all at once. All in: the offer, and
+        // everything in their wallet as it is now. Anyone whose bet can't be
+        // taken sits it out; the rest play.
+        const taken = await Promise.allSettled(
+            run.players.map(async (player) => {
+                try {
+                    if (allIn) {
+                        await db.claimAllIn(player.userId, day);
+                        player.claimed = true;
+                        await refresh(player.userId);
+                        player.bet = statuses.get(player.userId).points;
+                        if (player.bet < 1) throw new CrashError("You've got nothing to put in.");
+                        const entry = room.players.find((seat) => seat.userId === player.userId);
+                        if (entry) entry.bet = player.bet;
+                    } else {
+                        await db.claimPlay(player.userId, size, day);
+                        player.claimed = true;
+                    }
+                    player.paid = await db.takeBet(player.userId, player.bet, run.id);
+                } catch (error) {
+                    if (player.claimed) await release(player);
+                    throw error;
+                }
+            })
+        );
+        const missed = run.players.filter((player, index) => taken[index].status === "rejected");
+        for (const [index, player] of run.players.entries()) {
+            if (taken[index].status !== "rejected") continue;
+            const entry = room.players.find((seat) => seat.userId === player.userId);
+            if (entry) entry.ready = false;
+            io.to(userChannel(player.userId)).emit("crash:error", { message: taken[index].reason?.message ?? "Your bet couldn't be taken." });
+            await refresh(player.userId).catch(() => {});
         }
-        if (!failed) {
+        run.players = run.players.filter((player) => !missed.includes(player));
+
+        let saved = run.players.length > 0;
+        if (saved) {
             try {
                 await db.startRound({ room: room.id, isPrivate: room.private, kind, day }, run.players, run.id);
             } catch (error) {
-                failed = { player: null, error };
+                console.error("Crash couldn't save a round:", error);
+                saved = false;
             }
         }
-
-        if (failed) {
+        if (!saved) {
             for (const player of run.players) {
-                if (player.paid) await db.giveBack(player.userId, player.paid, run.id).catch((error) => console.error("Crash couldn't hand a bet back:", error));
-                if (player.claimed) await db.releasePlay(player.userId, kind, day).catch(() => {});
+                await handBack(player);
+                await release(player);
             }
             room.round = null;
-            if (failed.player) {
-                const entry = room.players.find((player) => player.userId === failed.player.userId);
-                if (entry) entry.ready = false;
-                io.to(userChannel(failed.player.userId)).emit("crash:error", { message: failed.error.message ?? "Your bet couldn't be taken." });
-                await refresh(failed.player.userId).catch(() => {});
-            } else {
-                console.error("Crash couldn't save a round:", failed.error);
-                for (const player of room.players) player.ready = false;
-            }
+            for (const player of room.players) player.ready = false;
             sendRoomAndMe(room);
             sendLobby();
             return;
         }
 
-        for (const player of run.players) {
-            await refresh(player.userId).catch(() => {});
-            sendMe(player.userId);
-        }
+        await Promise.all(run.players.map((player) => refresh(player.userId).catch(() => {})));
+        for (const player of run.players) sendMe(player.userId);
         run.startsAt = Date.now() + countdownMs;
         sendRoom(room);
         setTimeout(() => begin(room, run), countdownMs);
@@ -280,10 +369,10 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         player.cashedAt = multiplier;
         player.cashedTick = tickNumber;
         player.auto = auto;
-        player.payout = payoutFor(player.paid, multiplier);
+        player.payout = payoutFor(player.paid, multiplier, run.protectShare);
         run.credits.push(
             db
-                .payCashOut(player.userId, player.paid, multiplier, run.id)
+                .payCashOut(player.userId, player.paid, multiplier, run.id, run.protectShare)
                 .then(() => refresh(player.userId))
                 .then(() => sendMe(player.userId))
                 .catch((error) => console.error("Crash couldn't pay a cash-out:", error))
@@ -311,8 +400,14 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         clearInterval(run.timer);
         run.status = "over";
         run.endedBy = run.engine.ended;
+        // Whoever rode it to the crash: nothing back, or in a protected
+        // round, half their bet.
         for (const player of run.players) {
-            if (player.cashedAt === null) player.payout = { pp: 0, ppp: 0, total: 0 };
+            if (player.cashedAt !== null) continue;
+            player.payout = payoutFor(player.paid, 0, run.protectShare);
+            if (player.payout.total > 0) {
+                run.credits.push(db.payCashOut(player.userId, player.paid, 0, run.id, run.protectShare).catch((error) => console.error("Crash couldn't pay a protected loss:", error)));
+            }
         }
 
         await Promise.allSettled(run.credits);
@@ -326,6 +421,7 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         room.last = {
             roundId: String(run.id),
             kind: run.kind,
+            protected: run.protectShare > 0,
             endedBy: run.endedBy,
             multiplier: run.engine.multiplier,
             ticks: run.engine.tick,
@@ -342,7 +438,7 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         };
         for (const player of room.players) player.ready = false;
 
-        for (const player of run.players) await refresh(player.userId).catch(() => {});
+        await Promise.all(run.players.map((player) => refresh(player.userId).catch(() => {})));
 
         // Who goes: anyone who left their page in the round, and anyone with
         // no plays they can use here (back to the lobby).
@@ -352,11 +448,18 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
                 continue;
             }
             const left = statuses.get(player.userId)?.left;
-            const noneLeft = !left || left.total < 1 || (room.private && left.solo < 1);
-            if (noneLeft) {
+            const noneLeft = !left || left.total < 1 || (room.private && left.alone < 1);
+            if (run.kind === "allIn") {
+                // His round's over: a word from him, and back to the lobby.
+                const result = run.players.find((entry) => entry.userId === player.userId);
+                const back = result?.payout.total ?? 0;
+                const lines = back > (result?.bet ?? 0) ? ORCA_LINES.won : back > 0 ? ORCA_LINES.some : ORCA_LINES.lost;
+                removePlayer(room, player.userId);
+                io.to(userChannel(player.userId)).emit("crash:kicked", { message: `Lord Gang Orca: "${lines[Math.floor(Math.random() * lines.length)]}"` });
+            } else if (noneLeft) {
                 removePlayer(room, player.userId);
                 io.to(userChannel(player.userId)).emit("crash:kicked", {
-                    message: !left || left.total < 1 ? "That was your last round today. More at 12:00." : "No solo rounds left today: join a room of 4 for more.",
+                    message: !left || left.total < 1 ? "That was your last round today. More at 12:00." : "No rounds alone left today: join a room for more. The more players, the more rounds.",
                 });
             }
         }
@@ -475,6 +578,7 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         player.ready = false;
         sendRoomAndMe(room);
         sendLobby();
+        maybeStart(room);
     }
 
     // Ready (with the bet and target, if given) or not. When everyone in the
@@ -504,7 +608,7 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
     }
 
     // Play alone: out of their room (if they're in one) and straight into a
-    // round of their own, a solo round.
+    // round of their own (3 a day).
     async function solo(userId, { bet, autoAt = null } = {}) {
         const amount = checkBet(bet);
         const current = rooms.get(where.get(userId));
@@ -522,6 +626,35 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
         }
         const room = newRoom(true);
         addPlayer(room, userId, { bet: amount, autoAt: autoTarget(autoAt) });
+        room.players[0].ready = true;
+        sendRoomAndMe(room);
+        sendLobby();
+        maybeStart(room);
+        return roomView(room);
+    }
+
+    // Lord Gang Orca's offer: out of their room (if they're in one) and
+    // straight into a round of their own with everything they have on it,
+    // no auto cash-out. Once a play day, once their rounds alone are used
+    // up, and not while they've points anywhere else (utils/pointsElsewhere.js).
+    async function allIn(userId) {
+        const current = rooms.get(where.get(userId));
+        if (current && isLive(current.round) && inRun(current.round, userId)) throw new CrashError("You're in this round: wait for it to end.");
+        await know(userId);
+        await refresh(userId);
+        const status = statuses.get(userId);
+        const blocked = db.allInBlockedFor(status);
+        if (blocked) throw new CrashError(blocked);
+        if (current) {
+            removePlayer(current, userId);
+            if (rooms.has(current.id)) {
+                recheck(current);
+                sendRoomAndMe(current);
+            }
+        }
+        const room = newRoom(true);
+        room.allIn = true;
+        addPlayer(room, userId, { bet: status.points, autoAt: null });
         room.players[0].ready = true;
         sendRoomAndMe(room);
         sendLobby();
@@ -552,11 +685,14 @@ function createCrashRooms({ io, random = secureRandom(), config = CRASH, countdo
 
     // For tests: stop every round's clock.
     function stopAll() {
-        for (const room of rooms.values()) clearInterval(room.round?.timer);
+        for (const room of rooms.values()) {
+            clearInterval(room.round?.timer);
+            stopCountdown(room);
+        }
         for (const timer of goneTimers.values()) clearTimeout(timer);
     }
 
-    return { CrashError, hello, goodbye, create, join, leave, setBet, ready, solo, cashOut, resetMe, stopAll, lobbyView, rooms };
+    return { CrashError, hello, goodbye, create, join, leave, setBet, ready, solo, allIn, cashOut, resetMe, stopAll, lobbyView, rooms };
 }
 
 module.exports = { CrashError, createCrashRooms };

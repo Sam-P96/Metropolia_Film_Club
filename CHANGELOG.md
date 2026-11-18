@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   big news for every member (in every filter, glowing); any other round,
   win or lose, goes to the player's followers, with the multiplier and how
   much they won or lost.
-- Lord Gang Orca (Games → Lord Gang Orca, `/games/lord-gang-orca`), King
+- Lord Gang Orca (Games → Gang Orca, `/games/lord-gang-orca`; "Gang Orca"
+  on the Games page, Lord Gang Orca once you're in his office), King
   Loan Shark's rival. Monday to Friday, 16:00 to 23:59 (Helsinki), ask
   him for PP: 10% of your daily PP a beg (in PP, within your PP cap), three
   a day an hour apart. Now and then he asks a question instead: answer right
@@ -41,12 +42,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bets from 1 up to a quarter of your daily PP, PP first, then P-PP; the
     stake comes back in the same coins and profit is P-PP. Payouts are whole
     points, rounded down.
-  - Six rounds a day from 12:00, at most three of them solo (alone, or a
-    room of 2 or 3); a room of four plays a bonus round, which only counts
-    towards the six.
-  - Rooms of up to four members (three rooms at once), live: everyone ready
-    starts one shared round. "Play alone" starts a private round. Players
-    who leave mid-round stay in it, auto cash-out and all.
+  - Rounds a day (from 12:00) go by how many players a round starts with,
+    to encourage playing together: 3 alone, 6 with 2 players, 12 with 3, 24
+    with 4 and 25 with 5 or more, all counting together (3 rounds alone
+    still leave 22 to play with 5 or more). A round of 5 or more is
+    protected: everyone who loses gets half of what they lost back (whole
+    points, rounded down).
+  - Rooms of up to 30 members (three rooms at once), live: everyone ready
+    starts one shared round at once; otherwise the first one ready starts
+    a 15 second countdown and the round starts with whoever's ready (the
+    rest watch, and play the next). Anyone who's played every round they
+    can in a round that size sits it out. "Play alone" starts a private
+    round. Players who leave mid-round stay in it, auto cash-out and all.
+  - Once a member's rounds alone are used up, a glowing "Play One More Time
+    All In" offer from Lord Gang Orca turns up (explained nowhere on the
+    page): once a play day, one more round alone with every point they
+    have on it, past the usual biggest bet. Not while they've points
+    anywhere else they could get back (Kino Kasino credits, poker chips,
+    loan offers or money lent out, stakes in games still going, trade
+    offers: `backend/utils/pointsElsewhere.js`).
   - The game screen fits one phone screen: the live chart, a big
     multiplier, a Cash out button (Space too), everyone's pictures riding
     the line, popping off where they cash out and falling grey on a crash,

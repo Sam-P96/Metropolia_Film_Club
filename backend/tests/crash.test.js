@@ -5,6 +5,8 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 const { CRASH, ENDINGS, CrashRound, cashOutsAt, payoutFor, secureRandom } = require("../games/crash/engine");
+const { CRASH_RULES, allInBlockedFor, blockedFor, isProtected, playersNeeded, playsLeft, roundKindFor, roundsFor } = require("../../shared/crash/rules.js");
+const ORCA_LINES = require("../data/lordGangOrcaScripts").crashAllIn;
 
 // Random numbers in a set order, then the last one for ever.
 const scripted = (...values) => {
@@ -92,6 +94,15 @@ describe("the engine", () => {
         assert.deepEqual(payoutFor({ pp: 0, ppp: 8 }, 0), { pp: 0, ppp: 0, total: 0 });
     });
 
+    test("a protected round (5 or more players): half of a loss back, rounded down, in the coins it was paid in; wins untouched", () => {
+        assert.deepEqual(payoutFor({ pp: 10, ppp: 0 }, 0, 0.5), { pp: 5, ppp: 0, total: 5 }, "crashed: half the bet");
+        assert.deepEqual(payoutFor({ pp: 6, ppp: 4 }, 0, 0.5), { pp: 3, ppp: 2, total: 5 });
+        assert.deepEqual(payoutFor({ pp: 7, ppp: 0 }, 0, 0.5), { pp: 3, ppp: 0, total: 3 }, "3.5 rounds down");
+        assert.deepEqual(payoutFor({ pp: 10, ppp: 0 }, 0.7, 0.5), { pp: 8, ppp: 0, total: 8 }, "7 back, and 1 of the 3 lost");
+        assert.deepEqual(payoutFor({ pp: 1, ppp: 0 }, 0, 0.5), { pp: 0, ppp: 0, total: 0 }, "half of 1 rounds down to nothing");
+        assert.deepEqual(payoutFor({ pp: 10, ppp: 0 }, 2.5, 0.5), { pp: 10, ppp: 15, total: 25 });
+    });
+
     test("a fair walk: cashing out at 2x returns about 0.99 over many rounds", () => {
         const random = seeded(20261117);
         const rounds = 40000;
@@ -124,6 +135,43 @@ describe("the engine", () => {
 // The database is wiped first, so its name has to end in "_test".
 const uri = process.env.MONGO_TEST_URI;
 const dbName = uri ? new URL(uri).pathname.slice(1) : "";
+
+describe("the daily plays (shared/crash/rules.js)", () => {
+    test("rounds a day go by the size of the round: 3 alone, 6, 12, 24, then 25 with 5 or more (rooms of up to 30)", () => {
+        assert.equal(CRASH_RULES.roomSize, 30);
+        assert.deepEqual([1, 2, 3, 4, 5, 12, 30].map(roundsFor), [3, 6, 12, 24, 25, 25, 25]);
+        assert.deepEqual([1, 2, 3, 4, 5, 30].map(roundKindFor), ["solo", "group", "group", "group", "protected", "protected"]);
+        assert.deepEqual([1, 4, 5, 30].map(isProtected), [false, false, true, true]);
+    });
+
+    test("Lord Gang Orca's all in: only while it's on offer, with points, and nothing stashed elsewhere", () => {
+        const status = (allIn, points = 100) => ({ dailyPp: 40, maxBet: 10, points, banned: null, used: { total: 3 }, allIn });
+        assert.match(allInBlockedFor(status(null)), /Not today/);
+        assert.equal(allInBlockedFor(status({ elsewhere: [] })), null);
+        assert.match(allInBlockedFor(status({ elsewhere: [] }, 0)), /nothing to put in/);
+        assert.equal(
+            allInBlockedFor(status({ elsewhere: [{ points: 1200, where: "in Kino Kasino credits" }, { points: 5, where: "lent out and still owed to you" }] })),
+            "All in means all of it, and you've got 1,200 in Kino Kasino credits and 5 lent out and still owed to you. Bring it home first."
+        );
+    });
+
+    test("they all count together: what's left in each size, and the fewest players still playable", () => {
+        const used = { total: 4 };
+        assert.deepEqual([1, 2, 3, 4, 5].map((players) => playsLeft(used, players)), [0, 2, 8, 20, 21]);
+        assert.equal(playsLeft(used), 21, "the most: a full room's");
+        assert.deepEqual([0, 3, 6, 12, 24, 25].map((total) => playersNeeded({ total })), [1, 2, 3, 4, 5, null]);
+    });
+
+    test("ready or not: alone used up asks for a room; a room too small asks for more players; none left at 25", () => {
+        const status = (total) => ({ dailyPp: 40, maxBet: 10, points: 100, banned: null, used: { total } });
+        assert.equal(blockedFor(status(2), 5, 1), null);
+        assert.match(blockedFor(status(3), 5, 1), /No rounds alone left .*room of 2/);
+        assert.equal(blockedFor(status(3), 5, 2), null);
+        assert.match(blockedFor(status(12), 5, 3), /wait for 4 players/);
+        assert.equal(blockedFor(status(24), 5, 5), null);
+        assert.match(blockedFor(status(25), 5, 5), /No rounds left today/);
+    });
+});
 
 describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName.endsWith("_test") ? "MONGO_TEST_URI's database must end in _test" : false }, () => {
     const { before, after, beforeEach, afterEach } = require("node:test");
@@ -223,7 +271,7 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         assert.equal(me.auto, true);
         assert.equal(me.payout, 3, "2 x 1.55, rounded down");
         assert.deepEqual(await walletOf(rider), { pp: 5, ppp: 6 }, "2 PP back, 1 P-PP profit");
-        assert.deepEqual(await CrashDay.findOne({ user: rider._id, day: playDay() }).select("solo total -_id").lean(), { solo: 1, total: 1 });
+        assert.deepEqual(await CrashDay.findOne({ user: rider._id, day: playDay() }).select("total -_id").lean(), { total: 1 });
 
         const saved = await CrashRound.findById(room.last.roundId).lean();
         assert.deepEqual([saved.status, saved.kind, saved.endedBy, saved.private], ["over", "solo", "crash", true]);
@@ -231,7 +279,7 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         assert.equal(saved.path.at(-1), 0);
         assert.equal(saved.players[0].cashedAt, me.cashedAt);
         assert.deepEqual((await WalletTx.find({ user: rider._id, reason: /^crash/ }).distinct("reason")).sort(), ["crashBet", "crashWin"]);
-        assert.equal(rooms.rooms.has(view.id), true, "still in their room of one, with solo rounds left");
+        assert.equal(rooms.rooms.has(view.id), true, "still in their room of one, with rounds alone left");
     });
 
     test("a room of two: both ready starts one round; a cash-out pays at the server's multiplier; riding to the crash loses", async () => {
@@ -260,36 +308,136 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         assert.equal(room.last.best, idOf(a));
         assert.deepEqual(await walletOf(b), { pp: 90, ppp: 100 });
         const day = await CrashDay.findOne({ user: b._id, day: playDay() }).lean();
-        assert.deepEqual([day.solo, day.total], [1, 1], "2 players: a solo round");
+        assert.equal(day.total, 1);
+        assert.equal(room.last.kind, "group");
+        assert.equal(room.last.protected, false);
         assert.ok(room.players.every((player) => !player.ready), "ready resets for the next round");
     });
 
-    test("solo rounds run out: a room of 4 still plays, as a bonus round; the last round sends a player back to the lobby", async () => {
-        const players = [await member(), await member(), await member(), await member()];
-        const [tired, , , last] = players;
-        await CrashDay.create({ user: tired._id, day: playDay(), solo: 3, total: 3 });
-        await CrashDay.create({ user: last._id, day: playDay(), solo: 1, total: 5 });
+    test("more players, more rounds: alone used up still plays in a room; a round of 5 is protected, half of every loss back; the last round sends a player back to the lobby", async () => {
+        const players = [await member(), await member(), await member(), await member(), await member()];
+        const [tired, busy, fresh, last] = players;
+        await CrashDay.create({ user: tired._id, day: playDay(), total: 3 });
+        await CrashDay.create({ user: busy._id, day: playDay(), total: 12 });
+        await CrashDay.create({ user: last._id, day: playDay(), total: 24 });
         for (const player of players) await rooms.hello(socketOf(player));
 
-        await assert.rejects(rooms.solo(idOf(tired), { bet: 1 }), /No solo rounds left/);
+        await assert.rejects(rooms.solo(idOf(tired), { bet: 1 }), /No rounds alone left/);
         const { id } = await rooms.create(idOf(tired));
         const room = rooms.rooms.get(id);
-        await rooms.join(idOf(players[1]), id);
-        await assert.rejects(rooms.ready(idOf(tired), { bet: 1 }), /wait for 4 players/);
-        await rooms.join(idOf(players[2]), id);
+        await rooms.join(idOf(busy), id);
+        await rooms.ready(idOf(tired), { bet: 10 });
+        await rooms.ready(idOf(tired), { ready: false });
+        await assert.rejects(rooms.ready(idOf(busy), { bet: 10 }), /wait for 4 players/, "12 played: rooms of 4 or more");
+        await rooms.join(idOf(fresh), id);
         await rooms.join(idOf(last), id);
-        const fifth = await member();
-        await rooms.hello(socketOf(fifth));
-        await assert.rejects(rooms.join(idOf(fifth), id), /full/);
+        await assert.rejects(rooms.ready(idOf(last), { bet: 10 }), /wait for 5 players/, "24 played: only a full room");
+        await rooms.join(idOf(players[4]), id);
 
-        queue = [...ups(2)];
-        for (const player of players) await rooms.ready(idOf(player), { bet: 1 });
+        // It crashes at once: everyone loses their 10, and gets 5 back.
+        queue = [];
+        for (const player of players) await rooms.ready(idOf(player), { bet: 10 });
         await until(() => room.round?.status === "over" && room.last);
-        assert.equal(room.last.kind, "bonus");
-        const tiredDay = await CrashDay.findOne({ user: tired._id, day: playDay() }).lean();
-        assert.deepEqual([tiredDay.solo, tiredDay.total], [3, 4], "a bonus round only counts towards the 6");
-        assert.ok(!room.players.some((player) => player.userId === idOf(last)), "6 of 6 played: out of the room");
+        assert.deepEqual([room.last.kind, room.last.protected], ["protected", true]);
+        assert.deepEqual(
+            room.last.players.map((player) => [player.payout, player.net]),
+            players.map(() => [5, -5])
+        );
+        assert.deepEqual(await walletOf(fresh), { pp: 95, ppp: 100 }, "10 PP bet, 5 PP back");
+        assert.deepEqual((await WalletTx.find({ user: fresh._id, reason: /^crash/ }).distinct("reason")).sort(), ["crashBet", "crashProtect"]);
+        const saved = await CrashRound.findById(room.last.roundId).lean();
+        assert.deepEqual([saved.kind, saved.players[2].payout.pp], ["protected", 5]);
+
+        const totals = await Promise.all([tired, busy, last].map((player) => CrashDay.findOne({ user: player._id, day: playDay() }).lean()));
+        assert.deepEqual(totals.map((day) => day.total), [4, 13, 25]);
+        await until(() => lastFor(last, "crash:kicked"));
+        assert.ok(!room.players.some((player) => player.userId === idOf(last)), "25 of 25 played: out of the room");
         assert.match(lastFor(last, "crash:kicked").message, /last round/);
+    });
+
+    test("a big room: the first one ready starts the countdown; then whoever's ready plays, anyone past their rounds for that size sits it out, the rest watch; 30 is full", async () => {
+        rooms.stopAll();
+        rooms = createCrashRooms({ io, random, config: { ...CRASH, tickMs: 5 }, countdownMs: 0, readyMs: 80, graceMs: 20 });
+        const [a, b, c, d] = [await member(), await member(), await member(), await member()];
+        await CrashDay.create({ user: b._id, day: playDay(), total: 12 });
+        for (const player of [a, b, c, d]) await rooms.hello(socketOf(player));
+        const { id } = await rooms.create(idOf(a));
+        const room = rooms.rooms.get(id);
+        for (const player of [b, c, d]) await rooms.join(idOf(player), id);
+
+        // b has played 12: fine in a round of 4, not of 3.
+        await rooms.ready(idOf(a), { bet: 5 });
+        assert.ok(room.countdown, "the first one ready starts the countdown");
+        await rooms.ready(idOf(a), { ready: false });
+        assert.equal(room.countdown, null, "nobody ready: no countdown");
+        queue = [];
+        for (const player of [a, b, c]) await rooms.ready(idOf(player), { bet: 5 });
+        assert.equal(room.round, null, "d isn't ready: it waits for the countdown");
+        await until(() => room.last);
+
+        assert.deepEqual(room.last.players.map((player) => player.userId).sort(), [idOf(a), idOf(c)].sort(), "b sat out, d watched");
+        assert.equal(room.last.kind, "group");
+        assert.match(lastFor(b, "crash:error").message, /^You sat this round out. A round of 3 gets 12 rounds a day/);
+        const totals = await Promise.all([a, b, c, d].map((player) => CrashDay.findOne({ user: player._id, day: playDay() }).lean()));
+        assert.deepEqual(totals.map((day) => day?.total ?? 0), [1, 12, 1, 0]);
+        assert.deepEqual(await walletOf(d), { pp: 100, ppp: 100 });
+
+        // Up to 30.
+        for (let i = 4; i < CRASH_RULES.roomSize; i++) {
+            const filler = await member({ reviews: 0 });
+            await rooms.hello(socketOf(filler));
+            await rooms.join(idOf(filler), id);
+        }
+        assert.equal(room.players.length, 30);
+        assert.equal(rooms.lobbyView().find((entry) => entry.id === id).full, true);
+        const extra = await member({ reviews: 0 });
+        await rooms.hello(socketOf(extra));
+        await assert.rejects(rooms.join(idOf(extra), id), /full/);
+    });
+
+    test("Lord Gang Orca's all in: offered once rounds alone are used up; not while points are stashed elsewhere; everything on one round; once a day", async () => {
+        const LoanOffer = require("../models/loanOfferModel");
+        const SlotMachine = require("../models/slotMachineModel");
+        const PokerSeat = require("../models/pokerSeatModel");
+        const PlayerDebt = require("../models/playerDebtModel");
+        const gambler = await member({ pp: 60, ppp: 40 });
+        const friend = await member();
+        await CrashDay.create({ user: gambler._id, day: playDay(), total: 2 });
+        assert.equal((await crash.statusOf(gambler._id)).allIn, null, "rounds alone left: not yet");
+        await CrashDay.updateOne({ user: gambler._id, day: playDay() }, { $set: { total: 3 } });
+        assert.deepEqual((await crash.statusOf(gambler._id)).allIn, { elsewhere: [] });
+
+        // Stashed: poker chips, a loan offer, a loan, Kasino credits.
+        await PokerSeat.create({ _id: gambler._id, stack: 40, funds: { pp: 40, ppp: 0 } });
+        await LoanOffer.create({ lender: gambler._id, style: "fixed", amount: 30, available: 30, rate: 25 });
+        await PlayerDebt.create({ borrower: friend._id, lender: gambler._id, principal: 20, interest: 5, principalPaid: 5 });
+        await SlotMachine.create({ user: gambler._id, pp: 1250, ppp: 0 });
+        await rooms.hello(socketOf(gambler));
+        await assert.rejects(
+            rooms.allIn(idOf(gambler)),
+            /^Error: All in means all of it, and you've got 40 at the Kino Poker table, 30 in loan offers still up, 20 lent out and still owed to you and 12 in Kino Kasino credits. Bring it home first.$/
+        );
+        await Promise.all([PokerSeat, LoanOffer, PlayerDebt, SlotMachine].map((Model) => Model.deleteMany({})));
+
+        // Everything, and it crashes.
+        queue = [...ups(20)];
+        const view = await rooms.allIn(idOf(gambler));
+        assert.equal(view.private, true);
+        const room = rooms.rooms.get(view.id);
+        await until(() => lastFor(gambler, "crash:kicked"));
+        assert.deepEqual(await walletOf(gambler), { pp: 0, ppp: 0 });
+        const saved = await CrashRound.findOne({ kind: "allIn", "players.user": gambler._id }).lean();
+        assert.deepEqual([saved.players[0].bet, saved.players[0].paid.pp, saved.players[0].paid.ppp, saved.endedBy], [100, 60, 40, "crash"]);
+        const day = await CrashDay.findOne({ user: gambler._id, day: playDay() }).lean();
+        assert.deepEqual([day.total, day.allIn], [3, true], "it doesn't use a round");
+        const said = lastFor(gambler, "crash:kicked").message;
+        assert.ok(ORCA_LINES.lost.some((line) => said === `Lord Gang Orca: "${line}"`), said);
+        assert.ok(!room.players.length && !rooms.rooms.has(view.id), "back to the lobby");
+
+        await CrashDay.updateOne({ user: gambler._id, day: playDay() }, { $set: { allIn: true } });
+        await User.updateOne({ _id: gambler._id }, { $set: { "wallet.pp": 50 } });
+        await assert.rejects(rooms.allIn(idOf(gambler)), /Not today/, "once a day");
+        await assert.rejects(crash.claimAllIn(gambler._id), /gone for today/);
     });
 
     test("three rooms at most; leaving mid-round isn't allowed while riding; a dropped page leaves a waiting room", async () => {
@@ -342,13 +490,14 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         await assert.rejects(rooms.solo(idOf(fresh), { bet: 1 }), /review/);
     });
 
-    test("plays are claimed atomically: racing for the last solo round, only one gets it", async () => {
+    test("plays are claimed atomically: racing for the last round alone, only one gets it", async () => {
         const racer = await member();
-        await CrashDay.create({ user: racer._id, day: playDay(), solo: 2, total: 2 });
-        const results = await Promise.allSettled([1, 2, 3, 4].map(() => crash.claimPlay(racer._id, "solo")));
+        await CrashDay.create({ user: racer._id, day: playDay(), total: 2 });
+        const results = await Promise.allSettled([1, 2, 3, 4].map(() => crash.claimPlay(racer._id, 1)));
         assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
-        const day = await CrashDay.findOne({ user: racer._id, day: playDay() }).lean();
-        assert.deepEqual([day.solo, day.total], [3, 3]);
+        assert.equal((await CrashDay.findOne({ user: racer._id, day: playDay() }).lean()).total, 3);
+        await crash.claimPlay(racer._id, 2);
+        assert.equal((await CrashDay.findOne({ user: racer._id, day: playDay() }).lean()).total, 4, "a room of 2 still has rounds");
     });
 
     test("notifications: 10x or more goes to every member; anything else to the player's followers", async () => {
@@ -388,7 +537,7 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         await CrashRound.updateMany({ status: "playing" }, { $set: { status: "over" } });
         const rider = await member({ pp: 50, ppp: 0 });
         const cashed = await member({ pp: 50, ppp: 0 });
-        await crash.claimPlay(rider._id, "solo");
+        await crash.claimPlay(rider._id, 1);
         const id = new mongoose.Types.ObjectId();
         const paid = await crash.takeBet(rider._id, 10, id);
         await CrashRound.create({
@@ -401,10 +550,21 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
                 { user: cashed._id, bet: 5, paid: { pp: 5, ppp: 0 }, cashedAt: 1.5, payout: { pp: 5, ppp: 2 } },
             ],
         });
-        assert.equal(await crash.recoverRounds(), 1);
+        // And an all-in round: the offer comes back too.
+        const allInRider = await member({ pp: 30, ppp: 0 });
+        await CrashDay.create({ user: allInRider._id, day: playDay(), total: 3 });
+        await crash.claimAllIn(allInRider._id);
+        const allInId = new mongoose.Types.ObjectId();
+        const allInPaid = await crash.takeBet(allInRider._id, 30, allInId);
+        await CrashRound.create({ _id: allInId, room: "gone", private: true, kind: "allIn", day: playDay(), players: [{ user: allInRider._id, bet: 30, paid: allInPaid }] });
+
+        assert.equal(await crash.recoverRounds(), 2);
         assert.deepEqual(await walletOf(rider), { pp: 50, ppp: 0 });
         assert.deepEqual(await walletOf(cashed), { pp: 50, ppp: 0 }, "already paid when they cashed out: nothing more");
         assert.equal((await CrashRound.findById(id).lean()).status, "void");
         assert.equal((await CrashDay.findOne({ user: rider._id }).lean()).total, 0);
+        assert.deepEqual(await walletOf(allInRider), { pp: 30, ppp: 0 });
+        const allInDay = await CrashDay.findOne({ user: allInRider._id }).lean();
+        assert.deepEqual([allInDay.total, allInDay.allIn], [3, false]);
     });
 });

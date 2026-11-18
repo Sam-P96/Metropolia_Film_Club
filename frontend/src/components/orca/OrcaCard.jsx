@@ -6,6 +6,8 @@ import { SPEAKERS } from './speakers'
 
 // Lord Gang Orca's card on the Games page, beside King Loan Shark's: open or
 // closed, begs left today, the cooldown, and favours, for members logged in.
+// Out here he's just "Gang Orca"; inside his office (pages/LordGangOrca.jsx)
+// he's Lord Gang Orca.
 export default function OrcaCard({ className, loggedIn }) {
   const summary = useApi(() => getOrcaSummary(), [loggedIn], { enabled: loggedIn })
   const data = summary.data
@@ -22,7 +24,7 @@ export default function OrcaCard({ className, loggedIn }) {
         className="size-14 self-start rounded-full border-2 border-brand-gold bg-ink object-cover shadow-[0_0_18px_rgb(250_188_63/0.3)]"
       />
       <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
-        Lord Gang <span className="text-brand-gold">Orca</span>
+        Gang <span className="text-brand-gold">Orca</span>
       </h2>
       <p className="text-white/70">King Loan Shark&apos;s rival gives PP away, no interest. Ask nicely. One day, he&apos;ll want a favour back.</p>
       {data && (
@@ -41,7 +43,7 @@ export default function OrcaCard({ className, loggedIn }) {
           )}
         </div>
       )}
-      <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Visit Lord Gang Orca →</span>
+      <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Visit Gang Orca →</span>
     </Link>
   )
 }

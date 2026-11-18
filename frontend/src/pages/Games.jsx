@@ -153,8 +153,8 @@ export default function Games() {
                 <CrashTitle />
               </h2>
               <p className="text-white/70">
-                The multiplier climbs and dips like a stock chart until it crashes: cash out before it does. Play alone or in a room of up to four, six
-                rounds a day.
+                The multiplier climbs and dips like a stock chart until it crashes: cash out before it does. Play alone, or in a room of up to 30 for
+                more rounds a day and, with 5 or more, half of every loss back.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Crash →</span>
             </Link>

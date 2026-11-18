@@ -43,6 +43,10 @@ const REASONS = {
   gomokuWin: 'Infinite Gomoku win',
   gomokuRefund: 'Infinite Gomoku: points back',
   gomokuShop: 'Infinite Gomoku shop',
+  crashBet: 'Box Office Crash bet',
+  crashWin: 'Box Office Crash: cashed out',
+  crashRefund: 'Box Office Crash: bet returned',
+  crashProtect: 'Box Office Crash: half back (5+ players)',
   quizPrize: 'Daily Quiz: won the weekly draw!',
   quizStreak: 'Daily Quiz: 7 day streak bonus',
 }
