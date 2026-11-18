@@ -10,8 +10,15 @@ function useCountdown(deadline) {
   useEffect(() => {
     if (end === null) return
 
+    // Straight away too: `now` stood still while there was no deadline, so
+    // a new one would otherwise count from when that was, for a second
+    // (Box Office Crash's 30 second prompt showing "64s").
+    const first = setTimeout(() => setNow(Date.now()), 0)
     const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
+    return () => {
+      clearTimeout(first)
+      clearInterval(timer)
+    }
   }, [end])
 
   return end === null ? null : Math.max(0, end - now)

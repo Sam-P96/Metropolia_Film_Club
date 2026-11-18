@@ -15,8 +15,9 @@ const orcaPlayerSchema = new Schema({
     begs: { type: Number, default: 0 },
     lastBegAt: { type: Date, default: null },
 
-    // The secret threshold (150 to 300) and what's built up towards it
-    // (+10 a beg). Never sent to the page.
+    // The secret threshold (750 to 1050, % of daily PP) and what's built up
+    // towards it (+50 a beg: each beg's share of daily PP, as a %). Never
+    // sent to the page.
     threshold: { type: Number, required: true },
     built: { type: Number, default: 0 },
 
@@ -44,12 +45,13 @@ const orcaPlayerSchema = new Schema({
     // Lines waiting for their next visit: "jobDone", "allDone".
     news: { type: [String], default: [] },
 
-    // Admins' testing tools (utils/orca/debug.js): the next beg is a
+    // Admins' testing tools (utils/orca/player.js debug): the next beg is a
     // question; a pretend Helsinki weekday (0 to 6) and hour for the
-    // opening hours.
+    // opening hours, and when it was set (it lasts two hours:
+    // config/lordGangOrca.js testClockMs).
     forceQuestion: { type: Boolean, default: false },
     fakeClock: {
-        type: new Schema({ weekday: Number, hour: Number }, { _id: false }),
+        type: new Schema({ weekday: Number, hour: Number, setAt: Date }, { _id: false }),
         default: null,
     },
 });

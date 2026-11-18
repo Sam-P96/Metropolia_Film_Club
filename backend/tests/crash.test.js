@@ -355,34 +355,42 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         assert.match(lastFor(last, "crash:kicked").message, /last round/);
     });
 
-    test("a big room: the first one ready starts the countdown; then whoever's ready plays, anyone past their rounds for that size sits it out, the rest watch; 30 is full", async () => {
+    test("a big room: the first one ready starts the countdown, which never starts a round by itself; Start Game asks the others ready; whoever doesn't answer sits out; 30 is full", async () => {
         rooms.stopAll();
-        rooms = createCrashRooms({ io, random, config: { ...CRASH, tickMs: 5 }, countdownMs: 0, readyMs: 80, graceMs: 20 });
+        rooms = createCrashRooms({ io, random, config: { ...CRASH, tickMs: 5 }, countdownMs: 0, readyMs: 80, offerMs: 150, graceMs: 20 });
         const [a, b, c, d] = [await member(), await member(), await member(), await member()];
-        await CrashDay.create({ user: b._id, day: playDay(), total: 12 });
         for (const player of [a, b, c, d]) await rooms.hello(socketOf(player));
         const { id } = await rooms.create(idOf(a));
         const room = rooms.rooms.get(id);
         for (const player of [b, c, d]) await rooms.join(idOf(player), id);
 
-        // b has played 12: fine in a round of 4, not of 3.
         await rooms.ready(idOf(a), { bet: 5 });
         assert.ok(room.countdown, "the first one ready starts the countdown");
         await rooms.ready(idOf(a), { ready: false });
         assert.equal(room.countdown, null, "nobody ready: no countdown");
         queue = [];
         for (const player of [a, b, c]) await rooms.ready(idOf(player), { bet: 5 });
-        assert.equal(room.round, null, "d isn't ready: it waits for the countdown");
+        await assert.rejects(rooms.startGame(idOf(a)), /30 seconds/, "not before the countdown ends");
+        await until(() => room.startable);
+        assert.equal(room.round, null, "d isn't ready: the countdown ending doesn't start it");
+
+        await assert.rejects(rooms.startGame(idOf(d)), /Ready up first/);
+        await rooms.startGame(idOf(a));
+        assert.deepEqual([room.offer.by, room.offer.size, [...room.offer.asked].sort()], [idOf(a), 3, [idOf(b), idOf(c)].sort()]);
+        await assert.rejects(rooms.startGame(idOf(b)), /starting already/);
+        assert.throws(() => rooms.answer(idOf(d), { join: true }), /nothing to answer/, "d wasn't ready, so wasn't asked");
+        rooms.answer(idOf(b), { join: true });
+        assert.equal(room.round, null, "c hasn't answered: it waits");
         await until(() => room.last);
 
-        assert.deepEqual(room.last.players.map((player) => player.userId).sort(), [idOf(a), idOf(c)].sort(), "b sat out, d watched");
+        assert.deepEqual(room.last.players.map((player) => player.userId).sort(), [idOf(a), idOf(b)].sort(), "c didn't answer and sat out; d watched");
         assert.equal(room.last.kind, "group");
-        assert.match(lastFor(b, "crash:error").message, /^You sat this round out. A round of 3 gets 12 rounds a day/);
+        assert.match(lastFor(c, "crash:error").message, /Time's up/);
         const totals = await Promise.all([a, b, c, d].map((player) => CrashDay.findOne({ user: player._id, day: playDay() }).lean()));
-        assert.deepEqual(totals.map((day) => day?.total ?? 0), [1, 12, 1, 0]);
-        assert.deepEqual(await walletOf(d), { pp: 100, ppp: 100 });
+        assert.deepEqual(totals.map((day) => day?.total ?? 0), [1, 1, 0, 0]);
+        assert.deepEqual(await walletOf(c), { pp: 100, ppp: 100 }, "nothing taken from c");
 
-        // Up to 30.
+        // Up to 30 players; spectators don't take a seat.
         for (let i = 4; i < CRASH_RULES.roomSize; i++) {
             const filler = await member({ reviews: 0 });
             await rooms.hello(socketOf(filler));
@@ -393,6 +401,108 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         const extra = await member({ reviews: 0 });
         await rooms.hello(socketOf(extra));
         await assert.rejects(rooms.join(idOf(extra), id), /full/);
+        await rooms.join(idOf(extra), id, { spectate: true });
+        assert.deepEqual(rooms.lobbyView().find((entry) => entry.id === id).spectators.map((entry) => entry.userId), [idOf(extra)]);
+        await assert.rejects(rooms.spectate(idOf(extra), { on: false }), /Every seat is taken/);
+    });
+
+    test("Start Game: only for a player who can play a round that size; a no sits out at once; readying during the prompt is a yes; once everyone asked has answered it starts", async () => {
+        rooms.stopAll();
+        rooms = createCrashRooms({ io, random, config: { ...CRASH, tickMs: 5 }, countdownMs: 0, readyMs: 60, offerMs: 60000, graceMs: 20 });
+        const [e, f, g, h, i] = [await member(), await member(), await member(), await member(), await member()];
+        // f has played 12: fine in a round of 4, not of 3.
+        await CrashDay.create({ user: f._id, day: playDay(), total: 12 });
+        for (const player of [e, f, g, h, i]) await rooms.hello(socketOf(player));
+        const { id } = await rooms.create(idOf(e));
+        const room = rooms.rooms.get(id);
+        for (const player of [f, g, h, i]) await rooms.join(idOf(player), id);
+
+        queue = [];
+        for (const player of [e, f, g]) await rooms.ready(idOf(player), { bet: 5 });
+        await until(() => room.startable);
+        await assert.rejects(rooms.startGame(idOf(f)), /A round of 3 gets 12 rounds a day/, "f can't play a round of the 3 ready");
+        await rooms.startGame(idOf(g));
+        await rooms.ready(idOf(h), { bet: 5 });
+        assert.equal(room.offer.answers.get(idOf(h)), "yes", "h readied during the prompt");
+        rooms.answer(idOf(e), { join: false });
+        assert.equal(room.players.find((player) => player.userId === idOf(e)).ready, false, "a no sits out at once");
+        rooms.answer(idOf(f), { join: true });
+        // Everyone asked has answered: it starts now, not in a minute. With g,
+        // f and h it's a round of 3, too small for f, so f sits it out too.
+        await until(() => room.last, 3000);
+        assert.deepEqual(room.last.players.map((player) => player.userId).sort(), [idOf(g), idOf(h)].sort());
+        assert.match(lastFor(f, "crash:error").message, /^You sat this round out. A round of 3 gets 12 rounds a day/);
+        assert.equal(room.offer, null);
+        assert.equal(room.startable, false);
+    });
+
+    test("spectators: they don't hold a round up, can't ready, stay through it, and can take a seat again; whoever pressed Start Game un-readying calls it off", async () => {
+        rooms.stopAll();
+        rooms = createCrashRooms({ io, random, config: { ...CRASH, tickMs: 5 }, countdownMs: 0, readyMs: 60, offerMs: 60000, graceMs: 20 });
+        const [a, b, c, d] = [await member(), await member(), await member(), await member()];
+        for (const player of [a, b, c, d]) await rooms.hello(socketOf(player));
+        const { id } = await rooms.create(idOf(a));
+        const room = rooms.rooms.get(id);
+        await rooms.join(idOf(b), id);
+        await rooms.join(idOf(c), id);
+        await rooms.join(idOf(d), id, { spectate: true });
+        await rooms.spectate(idOf(c), { on: true });
+        await assert.rejects(rooms.ready(idOf(c), { bet: 5 }), /spectating/);
+
+        queue = [];
+        await rooms.ready(idOf(a), { bet: 5 });
+        await rooms.ready(idOf(b), { bet: 5 });
+        await until(() => room.last);
+        assert.deepEqual(room.last.players.map((player) => player.userId).sort(), [idOf(a), idOf(b)].sort(), "every player ready: it started, spectators or not");
+        assert.deepEqual(
+            rooms.lobbyView().find((entry) => entry.id === id).spectators.map((entry) => entry.userId).sort(),
+            [idOf(c), idOf(d)].sort(),
+            "still watching after the round"
+        );
+
+        // c takes a seat again: now a and b wait for c.
+        await rooms.spectate(idOf(c), { on: false });
+        await rooms.ready(idOf(a), { bet: 5 });
+        await rooms.ready(idOf(b), { bet: 5 });
+        await until(() => room.startable);
+        await rooms.startGame(idOf(a));
+        assert.ok(room.offer);
+        await rooms.ready(idOf(a), { ready: false });
+        assert.equal(room.offer, null, "a pressed it, then un-readied: it's off");
+        assert.equal(room.startable, true, "b, still ready, can press it");
+        // a and c spectating leaves b the only player, and ready: that's everyone.
+        await rooms.spectate(idOf(a), { on: true });
+        await rooms.spectate(idOf(c), { on: true });
+        await until(() => room.last && room.last.players.length === 1);
+        assert.equal(room.last.players[0].userId, idOf(b));
+    });
+
+    test("invites: a notification to the room, once per member per room, never to someone in it already or to yourself", async () => {
+        const Notification = require("../models/notificationModel");
+        const [host, guest, outsider] = [await member(), await member(), await member()];
+        await rooms.hello(socketOf(host));
+        await rooms.hello(socketOf(guest));
+        await assert.rejects(rooms.invite(idOf(host), { userId: idOf(outsider) }), /not in a room/);
+        const { id } = await rooms.create(idOf(host));
+        await rooms.join(idOf(guest), id, { spectate: true });
+
+        await rooms.invite(idOf(guest), { userId: idOf(outsider) });
+        const note = await Notification.findOne({ recipient: outsider._id, type: "crashInvite" }).lean();
+        assert.deepEqual([note.crash.room, note.actors.map(String)], [id, [idOf(guest)]], "spectators can invite too");
+        await assert.rejects(rooms.invite(idOf(guest), { userId: idOf(outsider) }), /already/);
+        await rooms.invite(idOf(host), { userId: idOf(outsider) });
+        await assert.rejects(rooms.invite(idOf(host), { userId: idOf(guest) }), /in this room already/);
+        await assert.rejects(rooms.invite(idOf(host), { userId: idOf(host) }), /here already/);
+        await assert.rejects(rooms.invite(idOf(host), { userId: "nobody" }), /Pick someone/);
+        await assert.rejects(rooms.invite(idOf(host), { userId: String(new mongoose.Types.ObjectId()) }), /doesn't exist/);
+        assert.equal(await Notification.countDocuments({ recipient: outsider._id, type: "crashInvite" }), 2);
+
+        const state = rooms.inviteState(idOf(host), [idOf(guest), idOf(outsider)]);
+        assert.deepEqual([state.room, [...state.here], [...state.invited]], [id, [idOf(guest)], [idOf(outsider)]]);
+        assert.equal(rooms.isOpen(id), true);
+        rooms.leave(idOf(host));
+        rooms.leave(idOf(guest));
+        assert.equal(rooms.isOpen(id), false, "everyone left: closed");
     });
 
     test("Lord Gang Orca's all in: offered once rounds alone are used up; not while points are stashed elsewhere; everything on one round; once a day", async () => {

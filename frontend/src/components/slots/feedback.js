@@ -116,6 +116,11 @@ function output(context) {
   return master
 }
 
+// The master volume itself, for a game that builds a sound lasting as long
+// as something on screen does (Box Office Crash's rising note), instead of
+// a one-off note from playVoice. It still goes through the compressor.
+export const soundOutput = (context) => output(context)
+
 // The sound, ready to play, or null when muted (or sound isn't allowed).
 function ready() {
   return muted ? null : wakeAudio()

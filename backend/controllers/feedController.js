@@ -22,6 +22,7 @@ const { withAuthorStanding } = require("../utils/level");
 const { CUT_FIELDS, cutDetails } = require("../utils/cuts");
 const { parseOffset } = require("../utils/paging");
 const { getTable: getPokerTable } = require("../games/poker/live");
+const { getCrashRooms } = require("../games/crash/live");
 
 // The Feed shows a member's newest notifications, this many at most, a page
 // at a time. Older ones are deleted after 90 days (models/notificationModel.js).
@@ -325,6 +326,12 @@ async function hydrate(rows, viewer) {
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, forrest }];
         }
 
+        // Box Office Crash: an invite into a room, and whether it's still open.
+        if (row.type === "crashInvite") {
+            const room = row.crash?.room ?? null;
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, crash: { room, open: Boolean(room && getCrashRooms()?.isOpen(room)) } }];
+        }
+
         // Box Office Crash: how the round went for them.
         if (row.type === "crashBigWin" || row.type === "crashResult") {
             const crash = { multiplier: row.crash?.multiplier ?? null, bet: row.crash?.bet ?? 0, net: row.crash?.net ?? 0, endedBy: row.crash?.endedBy ?? null };
@@ -494,6 +501,9 @@ const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 //             those out)
 //   seenAt    when they last opened the page (null if never), and `now`,
 //             for marking everything up to it seen (markSeen below)
+//   crash     the open Box Office Crash rooms, with every filter, at the
+//             very top under anything only moderators and admins get
+//             (games/crash/rooms.js lobbyView; the page keeps it live)
 // Moderators and admins also get `passwordResets` (whatever the filter: a
 // member is waiting on them, in person) and `reports`, with "all" and
 // "reviews": the open ones, above everything. In `items`, pinned notifications come first
@@ -526,6 +536,7 @@ async function getFeed(req, res) {
             pool: filter === "all" || filter === "games" ? await ongoingPool(req.user) : [],
             poker: filter === "all" || filter === "games" ? (getPokerTable()?.liveFor(req.user._id) ?? null) : null,
             jackpots: await unreadJackpots(req.user, seenSince(req.user)),
+            crash: getCrashRooms()?.lobbyView() ?? [],
             seenAt: req.user.notificationsSeenAt ?? null,
             now,
         }),

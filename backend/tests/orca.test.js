@@ -23,6 +23,22 @@ describe("his clock and his words", () => {
         assert.equal(clock.isOpen({ weekday: 0, hour: 20 }), false);
     });
 
+    test("closed 00:00 to 15:59 by the real clock; an admin's pretend clock lasts two hours, and one with no time it was set never counts", () => {
+        // Thursday 19 November 2026, 00:30 in Helsinki (22:30 UTC the day before).
+        const afterMidnight = new Date("2026-11-18T22:30:00Z");
+        assert.deepEqual(clock.clockOf(afterMidnight), { weekday: 4, hour: 0, minute: 30 });
+        assert.equal(clock.isOpen(clock.clockOf(afterMidnight)), false, "closed after midnight");
+        assert.equal(clock.isOpen(clock.clockOf(new Date("2026-11-19T13:59:00Z"))), false, "15:59: still closed");
+        assert.equal(clock.isOpen(clock.clockOf(new Date("2026-11-19T14:00:00Z"))), true, "16:00: open");
+
+        const tuesdayEvening = { weekday: 2, hour: 18 };
+        assert.equal(clock.isOpen(clock.clockOf(afterMidnight, tuesdayEvening)), false, "saved before they expired: the real hours");
+        const setAt = new Date(afterMidnight.getTime() - 60 * 60 * 1000);
+        assert.equal(clock.isOpen(clock.clockOf(afterMidnight, { ...tuesdayEvening, setAt })), true, "set an hour ago: still pretending");
+        const old = new Date(afterMidnight.getTime() - 2 * 60 * 60 * 1000);
+        assert.equal(clock.isOpen(clock.clockOf(afterMidnight, { ...tuesdayEvening, setAt: old })), false, "two hours on: the real hours again");
+    });
+
     test("the next 00:00 in Helsinki, summer and winter", () => {
         assert.equal(clock.nextMidnight(new Date("2026-11-17T12:00:00Z")).toISOString(), "2026-11-17T22:00:00.000Z");
         assert.equal(clock.nextMidnight(new Date("2026-07-01T12:00:00Z")).toISOString(), "2026-07-01T21:00:00.000Z");
@@ -91,11 +107,11 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
     // An open Tuesday evening for this member.
     const openUp = (user) => orca.debug(user._id, "clock", { weekday: 2, hour: 18 });
 
-    test("begging: 10% of daily PP (rounded up) in PP, an hour apart, three a day; nothing without a review", async () => {
+    test("begging: half of daily PP (rounded up) in PP, an hour apart, three a day; nothing without a review", async () => {
         const kid = await member({ reviews: 23 });
         await openUp(kid);
         const first = await orca.beg(kid._id, { random: () => 0.5 });
-        assert.deepEqual(first.paid, { pp: 3, ppp: 0 }, "10% of 23, rounded up");
+        assert.deepEqual(first.paid, { pp: 12, ppp: 0 }, "half of 23, rounded up");
         assert.equal(first.steps[0].speaker, "orca");
         assert.ok(SCRIPTS.lines.beg.includes(first.steps[0].text));
 
@@ -110,11 +126,33 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         await orca.debug(kid._id, "skipCooldown");
         const fourth = await orca.beg(kid._id, { random: () => 0.5 });
         assert.ok(SCRIPTS.lines.dailyLimit.includes(fourth.steps[0].text));
-        assert.equal((await walletOf(kid)).pp, 9);
+        assert.equal((await walletOf(kid)).pp, 36, "three begs of 12");
 
         const nobody = await member({ reviews: 0 });
         await openUp(nobody);
         assert.equal((await orca.beg(nobody._id)).steps[0].text, SCRIPTS.lines.noReviews[0]);
+    });
+
+    test("favours come after 5 to 7 days of begging every day: thresholds of 750 to 1050, +50 a beg", async () => {
+        const { LORD_GANG_ORCA } = require("../config/lordGangOrca");
+        const { favour, beg } = LORD_GANG_ORCA;
+        assert.deepEqual([beg.share, favour.perBeg, favour.thresholdMin, favour.thresholdMax], [0.5, 50, 750, 1050]);
+        const days = (threshold) => Math.ceil(threshold / favour.perBeg) / beg.perDay;
+        assert.deepEqual([days(favour.thresholdMin), days(favour.thresholdMax)], [5, 7], "15 begs at the least, 21 at the most");
+        assert.equal(orca.rollThreshold(() => 0), 750);
+        assert.equal(orca.rollThreshold(() => 0.9999999), 1050);
+    });
+
+    test("a threshold from when begs paid a tenth (150 to 300) is rolled again in today's range; what's been begged still counts", async () => {
+        const kid = await member({ reviews: 20 });
+        await openUp(kid);
+        await OrcaPlayer.updateOne({ user: kid._id }, { $set: { threshold: 200, built: 180 } });
+        const begged = await orca.beg(kid._id, { random: () => 0.5 });
+        assert.ok(!begged.steps.some((step) => SCRIPTS.lines.favourStart.includes(step.text)), "180 + 50 would have passed 200: no favours yet");
+        const player = await OrcaPlayer.findOne({ user: kid._id }).lean();
+        assert.ok(player.threshold >= 750 && player.threshold <= 1050, `rolled again: ${player.threshold}`);
+        assert.equal(player.built, 230, "the 180 begged before, and this beg's 50");
+        assert.equal(player.favour.on, false);
     });
 
     test("closed hours: no begging, and the day's story", async () => {
@@ -149,7 +187,7 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         const q = SCRIPTS.questions.find((entry) => entry.question === asked.question.question);
         const result = await orca.answer(kid._id, q.correct);
         assert.equal(result.right, true);
-        assert.deepEqual(result.paid, { pp: 2, ppp: 2 });
+        assert.deepEqual(result.paid, { pp: 10, ppp: 10 }, "half of 20 in PP, and the same in P-PP");
         assert.equal(result.steps[0].text, q.right);
         await assert.rejects(orca.answer(kid._id, q.correct), /hasn't asked/);
         assert.equal((await OrcaPlayer.findOne({ user: kid._id }).lean()).begs, 1, "it used a beg");
@@ -162,7 +200,7 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         await member({ reviews: 30, pvp: true });
         await member({ reviews: 30, pvp: true });
         await openUp(kid);
-        await OrcaPlayer.updateOne({ user: kid._id }, { $set: { threshold: 150, built: 140 } });
+        await OrcaPlayer.updateOne({ user: kid._id }, { $set: { threshold: 750, built: 700 } });
         const begged = await orca.beg(kid._id, { random: () => 0.5 });
         assert.equal(begged.steps[1].text, SCRIPTS.lines.favourStart[0]);
 
@@ -223,7 +261,7 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         player = await OrcaPlayer.findOne({ user: kid._id }).lean();
         assert.equal(player.favour.on, false, "three done: favour mode over");
         assert.equal(player.built, 0);
-        assert.ok(player.threshold >= 150 && player.threshold <= 300);
+        assert.ok(player.threshold >= 750 && player.threshold <= 1050);
         assert.ok(player.news.includes("allDone"));
         assert.equal((await OrcaJob.findOne({ player: kid._id, type: "dislike" }).lean()).status, "cancelled", "what's left is cancelled");
 
@@ -275,7 +313,9 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         const theirs = await call(admin, "POST", "/debug", { action: "clock", weekday: 1, hour: 20 });
         assert.equal(theirs.status, 200);
         assert.equal(theirs.body.open, true);
-        assert.deepEqual(theirs.body.debug.fakeClock, { weekday: 1, hour: 20 });
+        const { setAt, ...pretend } = theirs.body.debug.fakeClock;
+        assert.deepEqual(pretend, { weekday: 1, hour: 20 });
+        assert.ok(Date.now() - new Date(setAt).getTime() < 60 * 1000, "remembered with when it was set, so it can run out");
         assert.equal((await call(kid, "GET", "/summary")).status, 200);
     });
 });

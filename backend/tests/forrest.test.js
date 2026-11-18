@@ -8,13 +8,14 @@
 const { test, describe, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const engine = require("../../shared/forrest/engine.js");
-const { FORREST, payoutFor } = require("../../shared/forrest/rules.js");
+const { FORREST, TIERS, payoutFor } = require("../../shared/forrest/rules.js");
 const { buddyChoices, isAnimal } = require("../../shared/forrest/buddies.js");
 
 // A simple player: taps a moment after landing on a branch, and now and then
-// double-jumps. What it scores depends only on the seed.
-function play(seed, mult, { maxTicks = engine.MAX_TICKS } = {}) {
-    const s = engine.newRun({ seed, mult, visual: false });
+// double-jumps. What it scores depends only on the seed. `visual`: as the
+// browser plays it, keeping the floating texts and sound cues.
+function play(seed, mult, { maxTicks = engine.MAX_TICKS, visual = false } = {}) {
+    const s = engine.newRun({ seed, mult, visual });
     const taps = [];
     let wait = 0;
     while (!s.over && s.tick < maxTicks) {
@@ -45,6 +46,35 @@ describe("the engine", () => {
             const again = engine.replay({ seed, mult: 3, taps, endTick: s.tick });
             assert.deepEqual([again.score, again.fruit, again.level, again.ticks, again.over], [s.score, s.basic, s.level, s.tick, s.over], `seed ${seed}`);
         }
+    });
+
+    test("the sound cues are only kept in the browser, and never change the run", () => {
+        for (const seed of [1, 42, -5, 777, 2024]) {
+            const server = play(seed, 3);
+            const browser = play(seed, 3, { visual: true });
+            const outcome = ({ s }) => [s.score, s.basic, s.level, s.tick, s.over, s.endedBy, s.hp, s.rng];
+            assert.deepEqual(outcome(browser), outcome(server), `seed ${seed}`);
+            assert.deepEqual(browser.taps, server.taps, `seed ${seed}`);
+            assert.equal(server.s.cues.length, 0);
+            assert.ok(browser.s.cues.length > 0);
+            const again = engine.replay({ seed, mult: 3, taps: browser.taps, endTick: browser.s.tick });
+            assert.deepEqual([again.score, again.level, again.ticks], [browser.s.score, browser.s.level, browser.s.tick], `seed ${seed}`);
+        }
+    });
+
+    test("a run's cues match what happened in it", () => {
+        const { s } = play(2024, 3, { visual: true });
+        const count = (type) => s.cues.filter((cue) => cue.type === type).length;
+        for (const type of ["jump", "land", "launch", "perch", "fruit"]) assert.ok(count(type) > 0, type);
+        // Every fruit caught, at its own tier: together they're the fruit counted.
+        const fruitCaught = s.cues.filter((cue) => cue.type === "fruit").reduce((sum, cue) => sum + TIERS[cue.tier].m, 0);
+        assert.equal(fruitCaught, s.basic);
+        // One stage cue for each new level.
+        assert.equal(count("stage"), s.level - 1);
+        // Each jump lands on the seesaw, which launches the other buddy.
+        assert.ok(count("land") === count("launch") && count("land") <= count("jump"));
+        // A run ended by a shuriken ends on an unsaved hit.
+        if (s.endedBy === "hit") assert.deepEqual(s.cues.filter((cue) => cue.type === "hit").at(-1), { type: "hit", saved: false });
     });
 
     test("the multiplier only scales the score: the same taps catch the same fruit", () => {

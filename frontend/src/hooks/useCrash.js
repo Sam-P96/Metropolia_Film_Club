@@ -13,7 +13,8 @@ import { walletChanged } from '../services/wallet'
 // else on the page.
 //
 // Returns { connected, lobby, room, round, me, live, notice, clearNotice,
-//   create, join, leave, setBet, ready, solo, allIn, cashOut }.
+//   showNotice, create, join, spectate, leave, setBet, ready, startGame,
+//   answer, invite, solo, allIn, cashOut }.
 // Each action resolves to the server's answer, or throws its reason.
 
 const blankLive = () => ({ roundId: null, path: [], lastTickAt: 0, status: null, endedBy: null, config: null, cashouts: new Map(), crashedAt: 0 })
@@ -181,8 +182,12 @@ export default function useCrash() {
     live,
     notice,
     clearNotice: () => setNotice(''),
+    showNotice: setNotice,
     create: () => request('crash:create').then(enter),
-    join: (roomId) => request('crash:join', { roomId }).then(enter),
+    // Into a room, to play, or with `spectate` to watch.
+    join: (roomId, spectate = false) => request('crash:join', { roomId, spectate }).then(enter),
+    // Sit rounds out (`on`), or take a seat again.
+    spectate: (on) => request('crash:spectate', { on }),
     leave: () =>
       request('crash:leave').then(() => {
         showRoom(null)
@@ -191,6 +196,10 @@ export default function useCrash() {
       }),
     setBet: (bet, autoAt) => request('crash:bet', { bet, autoAt }),
     ready: (on, bet, autoAt) => request('crash:ready', { ready: on, bet, autoAt }),
+    // Start Game, without everyone ready; and the answer to its prompt.
+    startGame: () => request('crash:start'),
+    answer: (join) => request('crash:answer', { join }),
+    invite: (userId) => request('crash:invite', { userId }),
     solo: (bet, autoAt) => request('crash:solo', { bet, autoAt }).then(enter),
     allIn: () => request('crash:allin').then(enter),
     cashOut: () => request('crash:cashout'),

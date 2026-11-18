@@ -10,6 +10,56 @@ const BUTTON = 'inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-gold
 const GLOW_SMALL = '0 0 14px 1px rgba(31,209,139,0.45)'
 const GLOW_BIG = '0 0 30px 4px rgba(31,209,139,0.75)'
 
+const SPECTATE = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-4 font-semibold text-white transition hover:bg-white/10'
+
+// An invite into someone's Box Office Crash room (backend/utils/notify.js
+// noteCrashInvite): Play and Spectate while the room's open
+// (`item.crash.open`), going straight into it (pages/Crash.jsx); once it's
+// closed, just the way to the game.
+export function CrashInvite({ item }) {
+  const host = item.actors[0]
+  const { room, open } = item.crash
+  return (
+    <article className="rounded-2xl border border-[#1FD18B]/40 bg-[#04140F]/90 p-5 shadow-xl shadow-black/30 backdrop-blur-md sm:p-6">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <CrashLogo size={22} />
+        <h2 className="font-['Bebas_Neue'] text-xl tracking-[0.2em] text-brand-gold">Box Office Crash</h2>
+        <span className="text-xs text-white/40">{timeAgo(item.at)}</span>
+      </div>
+      <div className="flex items-start gap-4">
+        <Link to={`/users/${host._id}`} className="shrink-0" aria-hidden="true" tabIndex={-1}>
+          <MemberAvatar user={host} size="lg" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <p className="text-lg text-white/90">
+            <Link to={`/users/${host._id}`} className="font-semibold text-white hover:text-brand-gold">
+              {host.username}
+            </Link>{' '}
+            invited you into their Box Office Crash room.
+          </p>
+          {open ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link to={`/games/crash?room=${room}&as=play`} className={BUTTON}>
+                Play
+              </Link>
+              <Link to={`/games/crash?room=${room}&as=spectate`} className={SPECTATE}>
+                Spectate
+              </Link>
+            </div>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-white/55">That room has closed since.</p>
+              <Link to="/games/crash" className={`${BUTTON} mt-4`}>
+                Play Box Office Crash
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
 // A Box Office Crash notification (backend/utils/notify.js noteCrashResults):
 //   crashBigWin  someone cashed out at 10x or more: sent to every member,
 //                glowing like the other big wins

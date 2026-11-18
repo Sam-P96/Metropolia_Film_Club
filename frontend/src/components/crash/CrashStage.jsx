@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import MemberAvatar from '../profile/MemberAvatar'
 import { createEffects } from './effects'
+import { createCrashSound } from './feedback'
 import { drawChart } from './chart'
 import { formatMultiplier } from '../../../../shared/crash/rules.js'
 
@@ -25,7 +26,9 @@ function readoutColour(m, crashed) {
 // falling and greying, when it crashes. All drawn in one loop at the
 // screen's rate from `live` (hooks/useCrash.js), smoothing the server's 10
 // ticks a second. `displayRef` gets the multiplier as shown, for the
-// cash-out button. The loop rests while the tab is hidden.
+// cash-out button. The sound (feedback.js) follows the same multiplier:
+// a note rising and falling with it, and the crash. The loop, and the
+// sound, rest while the tab is hidden.
 export default function CrashStage({ round, live, myId, displayRef, idle = 'Waiting for everyone to be ready' }) {
   const shakeRef = useRef(null)
   const fxRef = useRef(null)
@@ -49,6 +52,12 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
     const mobile = window.matchMedia('(max-width: 640px)').matches
     const reduced = reducedMotion()
     const effects = createEffects({ mobile, reduced })
+    const sound = createCrashSound()
+    // A hidden tab stops drawing, so the note is stopped from here.
+    const onVisibility = () => {
+      if (document.hidden) sound.stop()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
     const view = { lo: 0.75, hi: 2.2, xMax: 80 }
     let size = { w: 0, h: 0, dpr: 1 }
     let frame = null
@@ -136,7 +145,7 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
       chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       if (crashed) chartCtx.filter = `grayscale(${clamp01((crashAge - 200) / 1100)})`
       const glow = shown >= 1 && shown < 2 ? 1 : 0.45
-      const to = drawChart(chartCtx, w, h, { points, scale: view, crashed, crashAge, glow })
+      const to = drawChart(chartCtx, w, h, { points, scale: view, crashed, crashAge, glow, now, reduced })
       chartCtx.filter = 'none'
 
       // The big multiplier.
@@ -158,6 +167,9 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
                   : idleRef.current
       }
       if (displayRef) displayRef.current = { m: shown, crashed, status: state.status }
+      // A crash is only heard as it happens, not on coming back to the tab
+      // a while after.
+      sound.frame({ roundId: state.roundId, playing: state.status === 'playing', crashed: crashed && crashAge < 1500, m: shown })
 
       // Everyone's pictures.
       const riders = playersRef.current.filter((player) => !state.cashouts.has(player.userId))
@@ -192,6 +204,8 @@ export default function CrashStage({ round, live, myId, displayRef, idle = 'Wait
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibility)
+      sound.stop()
     }
   }, [live, displayRef])
 

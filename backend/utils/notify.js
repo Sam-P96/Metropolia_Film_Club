@@ -365,6 +365,13 @@ async function noteCrashResults(players, endedBy) {
     }
 }
 
+// Box Office Crash (games/crash/rooms.js invite): `from` invited `to` into
+// the room `roomId`. Their notification has Play and Spectate while the
+// room is open.
+async function noteCrashInvite(from, to, roomId) {
+    await Notification.create({ recipient: to, type: "crashInvite", actors: [from], crash: { room: roomId } });
+}
+
 // Forrest Bounce (utils/forrest.js): a run cashed out. 5 times the entry
 // or more (FORREST.bigWinTimes) is big news: every member hears it, the
 // player included. Anything less goes to the player's followers: what came
@@ -722,6 +729,7 @@ module.exports = {
     noteForrestCashOut,
     noteForrestBest,
     noteCrashResults,
+    noteCrashInvite,
     TRENDING_LIKES,
     VIRAL_LIKES,
     noteReviewVote,
