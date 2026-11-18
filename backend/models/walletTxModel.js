@@ -67,6 +67,10 @@ const Schema = mongoose.Schema;
 //                    the bet back, in the coins it was paid in
 //   crashRefund      a bet handed back: a round that couldn't start, or one
 //                    the server stopped in the middle of
+// Forrest Bounce (utils/forrest.js), with the run in `forrest`:
+//   forrestEntry     a run's entry (PP first, then P-PP)
+//   forrestCashOut   a run cashed out: the entry back in its own coins, the
+//                    rest in P-PP (less than the entry: split like it)
 // Lord Gang Orca (utils/orca/player.js):
 //   orcaBeg          a beg: PP (never past the PP cap), plus P-PP for a
 //                    question answered right
@@ -93,7 +97,7 @@ const walletTxSchema = new Schema({
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
-            "crashBet", "crashWin", "crashRefund", "crashProtect", "orcaBeg",
+            "crashBet", "crashWin", "crashRefund", "crashProtect", "forrestEntry", "forrestCashOut", "orcaBeg",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,
@@ -121,6 +125,7 @@ const walletTxSchema = new Schema({
     pool: {type: Schema.Types.ObjectId, ref: "PoolMatch", default: null},
     poolBet: {type: Schema.Types.ObjectId, ref: "PoolBet", default: null},
     crash: {type: Schema.Types.ObjectId, ref: "CrashRound", default: null},
+    forrest: {type: Schema.Types.ObjectId, ref: "ForrestRun", default: null},
     // An admin's note with P-PP they sent (adminGrant), if they wrote one.
     note: {type: String},
     at: {type: Date, default: Date.now},

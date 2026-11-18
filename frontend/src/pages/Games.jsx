@@ -25,6 +25,7 @@ import OrcaCard from '../components/orca/OrcaCard'
 import { GomokuLogo, GomokuTitle } from '../components/gomoku/GomokuChrome'
 import { PoolLogo, PoolTitle } from '../components/pool/PoolChrome'
 import { CrashLogo, CrashTitle } from '../components/crash/CrashChrome'
+import { ForrestLogo, ForrestTitle } from '../components/forrest/ForrestChrome'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -38,7 +39,7 @@ const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
 // Loan Shark first, then Farkle, Box Office Scratch, Infinite Gomoku, 8
-// Ball Pool, Box Office Crash, Kino Kasino, Kino Poker, Double or Nothing,
+// Ball Pool, Box Office Crash, Forrest Bounce, Kino Kasino, Kino Poker, Double or Nothing,
 // Lord Gang Orca, and Steal and Defend last (its picture says "Require
 // PvP" until its PvP is on). Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
@@ -157,6 +158,21 @@ export default function Games() {
                 more rounds a day and, with 5 or more, half of every loss back.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Box Office Crash →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/forrest-bounce" className={CARD}>
+              <div className="self-start">
+                <ForrestLogo size={40} />
+              </div>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                <ForrestTitle />
+              </h2>
+              <p className="text-white/70">
+                Bounce two buddies on a seesaw between the trees, through the fruit and past the shurikens. Pick an entry, then cash out your best
+                runs, three a day.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Forrest Bounce →</span>
             </Link>
           </li>
           <li>

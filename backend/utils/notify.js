@@ -18,7 +18,7 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
-    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES,
+    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES,
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -365,6 +365,29 @@ async function noteCrashResults(players, endedBy) {
     }
 }
 
+// Forrest Bounce (utils/forrest.js): a run cashed out. 5 times the entry
+// or more (FORREST.bigWinTimes) is big news: every member hears it, the
+// player included. Anything less goes to the player's followers: what came
+// back, and what they won or lost on it.
+async function noteForrestCashOut(run, total) {
+    const { FORREST } = require("../../shared/forrest/rules.js");
+    const big = run.cost > 0 && total >= FORREST.bigWinTimes * run.cost;
+    const recipients = big ? await User.find().distinct("_id") : await Follow.find({ following: run.user }).distinct("follower");
+    await sendToEach(recipients, {
+        type: big ? "forrestBigWin" : "forrestCashOut",
+        amount: total,
+        forrest: { entry: run.cost, score: run.score, fruit: run.fruit, level: run.level, net: total - run.cost },
+        actors: [run.user],
+    });
+}
+
+// Forrest Bounce: a new best run, the site's (`site`) or their own. Every
+// member hears it.
+async function noteForrestBest(userId, { fruit, score, level, previous, site }) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, { type: site ? "forrestRecord" : "forrestBest", forrest: { fruit, score, level, previous }, actors: [userId] });
+}
+
 // Steal and Defend (utils/steal/attacks.js). `attackerId` has started an
 // attack on `victimId`: they hear about it straight away, so there's time
 // to swap items.
@@ -696,6 +719,8 @@ async function forgetMember(userId, reviewIds, cutIds = []) {
 }
 
 module.exports = {
+    noteForrestCashOut,
+    noteForrestBest,
     noteCrashResults,
     TRENDING_LIKES,
     VIRAL_LIKES,

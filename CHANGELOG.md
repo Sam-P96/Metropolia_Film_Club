@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Forrest Bounce (Games → Forrest Bounce, `/games/forrest-bounce`): tap to
+  drop one buddy from a branch onto a seesaw and launch the other up to the
+  far tree, through floating fruit (higher is worth more, up to a x100
+  jackpot fruit) and past shurikens (one hit ends the run, unless a heart
+  you caught saves you), across six stages from the Orchard to the Void.
+  - Entries of 10, 20, 30, 50 or 100 PP (PP first, then P-PP); fruit
+    counts x1 to x10 with the entry. A run's score is worth 5 to 1 PP:
+    cash it out (the entry back in its own coins, the rest in P-PP) or
+    throw it away to keep the cash-out. Three cash-outs a play day; then
+    free play (x2) until 12:00, never cashed out.
+  - The server picks each run's seed and plays the run again from the taps
+    the page sends (`shared/forrest/engine.js`, run the same in the browser
+    and in Node), so the score that's paid is the server's; a run that
+    played faster than the clock doesn't count.
+  - Play with the frog and the rabbit, or any animal (or animal's head)
+    bought as a piece in the Infinite Gomoku shop.
+  - A cash-out goes to the player's followers on the Notifications page,
+    with what they won or lost; one paying 5x the entry or more goes to
+    every member as a big win (glowing, in every filter). A new personal
+    best or site record goes to every member too (best runs count fruit
+    before the multiplier); a site record shows in every filter. The
+    notices are bark brown and moss green.
+  - The start page has Play and How to Play, your buddies and the best
+    runs; Play opens the game on a screen of its own
+    (`/games/forrest-bounce/play`) that fills the window under the nav bar
+    and can't be scrolled, on a computer or a phone.
+  - A rainforest green glow behind the page, and the site's best runs
+    under the game.
 - Box Office Crash on the Notifications page: a cash-out at 10x or more is
   big news for every member (in every filter, glowing); any other round,
   win or lose, goes to the player's followers, with the multiplier and how

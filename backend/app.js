@@ -31,6 +31,7 @@ const blackMarketRouter = require("./routes/blackMarketRouter");
 const gomokuRouter = require("./routes/gomokuRouter");
 const poolRouter = require("./routes/poolRouter");
 const crashRouter = require("./routes/crashRouter");
+const forrestRouter = require("./routes/forrestRouter");
 const orcaRouter = require("./routes/orcaRouter");
 const quizRouter = require("./routes/quizRouter");
 const adminRouter = require("./routes/adminRouter");
@@ -241,6 +242,7 @@ app.use("/api/farkle", refuseGameBans, farkleRouter);
 app.use("/api/gomoku", refuseGameBans, gomokuRouter);
 app.use("/api/pool", refuseGameBans, poolRouter);
 app.use("/api/crash", refuseGameBans, crashRouter);
+app.use("/api/forrest", refuseGameBans, forrestRouter);
 app.use("/api/orca", refuseGameBans, orcaRouter);
 app.use("/api/quiz", quizRouter);
 // The admin panel: admins only (routes/adminRouter.js).

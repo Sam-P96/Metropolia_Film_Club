@@ -75,6 +75,8 @@ const PoolClanker = lazy(() => import("./pages/PoolClanker"));
 const PoolMatch = lazy(() => import("./pages/PoolMatch"));
 const PoolShop = lazy(() => import("./pages/PoolShop"));
 const Crash = lazy(() => import("./pages/Crash"));
+const ForrestBounce = lazy(() => import("./pages/ForrestBounce"));
+const ForrestPlay = lazy(() => import("./pages/ForrestPlay"));
 const LordGangOrca = lazy(() => import("./pages/LordGangOrca"));
 const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
 const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
@@ -246,6 +248,14 @@ function App() {
             {/* Crash: the lobby and the rooms, one page. */}
             <Route path="/games/crash" element={
               isAuthenticated ? (<Crash />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Forrest Bounce: bounce for fruit, cash the best runs out. */}
+            <Route path="/games/forrest-bounce" element={
+              isAuthenticated ? (<ForrestBounce />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* The game itself, on a screen that doesn't scroll. */}
+            <Route path="/games/forrest-bounce/play" element={
+              isAuthenticated ? (<ForrestPlay />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
             } />
             <Route path="/games/pool/shop" element={
               isAuthenticated ? (<PoolShop />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
