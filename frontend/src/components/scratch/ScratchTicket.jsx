@@ -250,11 +250,12 @@ export default function ScratchTicket({ game }) {
           ))}
         </AnimatePresence>
 
-        {/* touch-action: none here only, so rubbing the card doesn't scroll
-            the page, and the rest of the page scrolls as normal. On a VIP
-            card, the end of a tap here (touchend, or click with a mouse)
-            asks an iPhone for its tilt, if nobody has yet. */}
-        <div className="grid touch-none grid-cols-4 gap-2 select-none" onTouchEnd={askTilt} onClick={askTilt}>
+        {/* touch-action: pan-y, so a finger going up or down the card
+            scrolls the page and one rubbing sideways scratches
+            (ScratchTile.jsx). On a VIP card, the end of a tap here
+            (touchend, or click with a mouse) asks an iPhone for its tilt, if
+            nobody has yet. */}
+        <div className="grid touch-pan-y grid-cols-4 gap-2 select-none" onTouchEnd={askTilt} onClick={askTilt}>
           {Array.from({ length: SCRATCH.rows * SCRATCH.cols }, (_, tile) => {
             const scratchedHere = card.tiles[tile] !== null
             const content = card.tiles[tile] ?? layout?.[tile] ?? null

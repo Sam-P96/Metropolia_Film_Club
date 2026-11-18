@@ -721,6 +721,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Scrolling games on a phone: a finger going up or down a Box Office
+  Scratch card scrolls the page instead of scratching it (rub sideways to
+  scratch; a tap does nothing). On 8 Ball Pool a swipe across the table on
+  your turn scrolls the page and never shoots: a shot needs the finger held
+  still a moment first (and off your turn the table scrolls like the rest
+  of the page). A Box Office Crash room taller than a short phone scrolls,
+  from a finger on the chart too, and leaving it always lets the page
+  scroll again. Lord Gang Orca's chat, scrolled to its end, hands the swipe
+  on to the page.
 - Finishing the Daily Quiz on the home page shows the Full Quiz Leaderboard
   button straight away, and the hero's slides can be changed again, instead
   of both waiting for a refresh.

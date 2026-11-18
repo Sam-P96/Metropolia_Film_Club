@@ -8,6 +8,9 @@ const CLEAR_AT = 0.5
 // How often, in pointer moves, to measure how much foil is left.
 const MEASURE_EVERY = 5
 
+// How far (px) a finger moves before it counts as a rub or a scroll.
+const TOUCH_SLOP = 10
+
 // Paints the foil onto `canvas` at its size on the page (sharp on
 // high-density screens): brushed silver, a little glitter, and a faint star
 // to say there's something underneath. Its size on the page, not on screen:
@@ -97,6 +100,8 @@ export default function ScratchTile({
   const pressed = useRef(false)
   const wantsClear = useRef(false)
   const fading = useRef(false)
+  // A touch that hasn't yet shown whether it's a rub or a scroll.
+  const touchStart = useRef(null)
 
   // The foil fades away (and swells a touch), then it's gone for good.
   const fadeFoil = useCallback(() => {
@@ -173,17 +178,42 @@ export default function ScratchTile({
     onPress(index)
   }
 
+  const begin = (from) => {
+    drawing.current = true
+    last.current = from
+    start()
+    rub(from, from)
+  }
+
+  // A finger has to share the card with scrolling the page: a touch only
+  // starts scratching once it rubs sideways (TOUCH_SLOP pixels, more across
+  // than up or down). Up and down is the page's (touch-action: pan-y, and
+  // the browser cancels the touch as it scrolls), and a tap does nothing, so
+  // scrolling past a card, or a tap to stop the page, never scratches it.
+  // Once it's scratching, any direction rubs. A mouse or pen scratches
+  // straight away, and a click uncovers.
   const handlePointerDown = (event) => {
     if (!active || gone || fading.current) return
+    if (event.pointerType === 'touch') {
+      touchStart.current = { id: event.pointerId, point: pointAt(event), x: event.clientX, y: event.clientY }
+      return
+    }
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
-    drawing.current = true
-    last.current = pointAt(event)
-    start()
-    rub(last.current, last.current)
+    begin(pointAt(event))
   }
 
   const handlePointerMove = (event) => {
+    const pending = touchStart.current
+    if (!drawing.current && pending && pending.id === event.pointerId) {
+      const dx = event.clientX - pending.x
+      const dy = event.clientY - pending.y
+      if (Math.hypot(dx, dy) < TOUCH_SLOP) return
+      touchStart.current = null
+      if (Math.abs(dy) > Math.abs(dx) || !active || gone || fading.current) return
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+      begin(pending.point)
+    }
     if (!drawing.current) return
     const point = pointAt(event)
     rub(last.current, point)
@@ -193,10 +223,11 @@ export default function ScratchTile({
   }
 
   // Letting go finishes the scratch, however little was rubbed: the server
-  // used it up at the first touch, so a tap or a click uncovers the tile as
-  // surely as rubbing it all off. Otherwise the tile stayed covered, and the
+  // used it up as the scratching began, so a click, or the shortest rub,
+  // uncovers the tile as surely as rubbing it all off. Otherwise the tile stayed covered, and the
   // rest of the card locked, until the page was refreshed.
   const handlePointerUp = () => {
+    touchStart.current = null
     if (!drawing.current) return
     drawing.current = false
     wantsClear.current = true
@@ -232,7 +263,7 @@ export default function ScratchTile({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          className={`absolute inset-0 size-full touch-none rounded-xl transition-[filter] duration-300 ${
+          className={`absolute inset-0 size-full touch-pan-y rounded-xl transition-[filter] duration-300 ${
             active ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
           } ${!active && !waiting && covered ? 'brightness-75' : ''}`}
         />

@@ -401,7 +401,9 @@ function RoomScreen({ game, myId, value, onValue }) {
   return (
     <>
       <FrameBackdrop top={frame.top} to={CRASH_BACKDROP} className="z-39" />
-      <div className="fixed inset-x-0 z-40 flex flex-col overflow-hidden bg-[#04140F]" style={{ top: frame.top, height: frame.height }}>
+      {/* Fits the screen when it can; on a short phone it scrolls, from a
+          finger anywhere on it, the chart included. */}
+      <div className="fixed inset-x-0 z-40 flex flex-col overflow-y-auto overscroll-contain bg-[#04140F]" style={{ top: frame.top, height: frame.height }}>
         <header className="flex shrink-0 items-center gap-2 px-3 py-1.5">
           <button
             type="button"
@@ -443,7 +445,7 @@ function RoomScreen({ game, myId, value, onValue }) {
             />
           </div>
         )}
-        <div className="min-h-40 flex-1 px-2 sm:px-4">
+        <div className="min-h-48 flex-1 px-2 sm:px-4">
           <CrashStage round={round} live={live} myId={myId} displayRef={displayRef} idle={room.private ? 'Ready when you are' : startsIn !== null ? `Starting in ${startsIn}s` : 'Waiting for everyone to be ready'} />
         </div>
         <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-3 pt-2 pb-3">

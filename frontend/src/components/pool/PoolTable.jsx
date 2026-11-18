@@ -10,6 +10,11 @@ const { R } = TABLE
 
 // How long you hold (ms) for a full-power shot.
 const HOLD_MS = 2000
+// On a phone a finger on the table may mean "scroll", not "shoot": a touch
+// becomes a shot once it's held still for TOUCH_HOLD_MS; one that moves more
+// than TOUCH_SLOP px first scrolls the page instead.
+const TOUCH_HOLD_MS = 140
+const TOUCH_SLOP = 10
 // Sparks: every time the cue ball hits a ball, and the first few hits
 // between any two balls in a shot. How hard they spark goes with the speed
 // of the hit, from a little to SPARK_FULL and up.
@@ -365,24 +370,99 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
     return { dx: dx / d, dy: dy / d, power }
   }
 
+  // A touch on your turn (the table takes touches itself then, touch-action:
+  // none): it waits to see whether it's a shot or a scroll. Held still for
+  // TOUCH_HOLD_MS, it's a press, from when the finger landed. Moving first,
+  // it scrolls the page by hand, gliding on a little when it lets go.
+  const touch = useRef(null)
+  const glideFrame = useRef(null)
+  const stopGlide = () => {
+    cancelAnimationFrame(glideFrame.current)
+    glideFrame.current = null
+  }
+  const glide = (velocity) => {
+    stopGlide()
+    let speed = velocity * 16
+    const step = () => {
+      if (Math.abs(speed) < 0.5) return
+      window.scrollBy(0, -speed)
+      speed *= 0.94
+      glideFrame.current = requestAnimationFrame(step)
+    }
+    glideFrame.current = requestAnimationFrame(step)
+  }
+  const dropTouch = () => {
+    clearTimeout(touch.current?.timer)
+    touch.current = null
+  }
+  useEffect(
+    () => () => {
+      clearTimeout(touch.current?.timer)
+      cancelAnimationFrame(glideFrame.current)
+    },
+    []
+  )
+
+  const startTouch = (event, point, aimable) => {
+    stopGlide()
+    const now = performance.now()
+    const pending = { id: event.pointerId, x: event.clientX, y: event.clientY, at: now, point, aimable, scrolling: false, lastY: event.clientY, lastAt: now, velocity: 0, timer: null }
+    if (aimable) {
+      pending.timer = setTimeout(() => {
+        const s = state.current
+        if (touch.current !== pending || pending.scrolling || s.playing || !props.current.canAim) return
+        touch.current = null
+        s.press = { start: pending.at }
+        s.aim = aimToward(pending.point, 0)
+        report(true)
+      }, TOUCH_HOLD_MS)
+    }
+    touch.current = pending
+  }
+
   const onPointerDown = (event) => {
-    if (!canAim || state.current.playing) return
+    // Not your turn: the table is just part of the page, and scrolls with it.
+    if (!canAim) return
+    const aimable = !state.current.playing
     const point = pointAt(event)
     const s = state.current
     const cue = cueSpot()
     event.currentTarget.setPointerCapture?.(event.pointerId)
 
     // Picking up the cue ball.
-    if (hand && cue && (point.x - cue.x) ** 2 + (point.y - cue.y) ** 2 <= (R * 2.4) ** 2) {
+    if (aimable && hand && cue && (point.x - cue.x) ** 2 + (point.y - cue.y) ** 2 <= (R * 2.4) ** 2) {
       s.dragging = true
       return
     }
+    if (event.pointerType === 'touch') {
+      startTouch(event, point, aimable)
+      return
+    }
+    if (!aimable) return
     s.press = { start: performance.now() }
     s.aim = aimToward(point, 0)
     report(true)
   }
 
   const onPointerMove = (event) => {
+    const pending = touch.current
+    if (pending && pending.id === event.pointerId) {
+      if (!pending.scrolling) {
+        if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) <= TOUCH_SLOP) {
+          pending.point = pointAt(event)
+          return
+        }
+        clearTimeout(pending.timer)
+        pending.scrolling = true
+      }
+      const now = performance.now()
+      const dy = event.clientY - pending.lastY
+      window.scrollBy(0, -dy)
+      pending.velocity = dy / Math.max(1, now - pending.lastAt)
+      pending.lastY = event.clientY
+      pending.lastAt = now
+      return
+    }
     if (!canAim || state.current.playing) return
     const point = pointAt(event)
     const s = state.current
@@ -407,6 +487,19 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
 
   const onPointerUp = () => {
     const s = state.current
+    const pending = touch.current
+    if (pending) {
+      dropTouch()
+      if (pending.scrolling) {
+        // Still moving as it let go: glide on.
+        if (performance.now() - pending.lastAt < 80) glide(pending.velocity)
+      } else if (pending.aimable && canAim) {
+        // A quick tap: the cue turns that way, no shot.
+        s.aim = aimToward(pending.point, 0)
+        report(false)
+      }
+      return
+    }
     if (s.dragging) {
       s.dragging = false
       return
@@ -420,6 +513,20 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
     } else if (aim) {
       // Let go straight away: nothing happens.
       s.aim = { ...aim, power: 0 }
+      report(false)
+    }
+  }
+
+  // The browser took the touch away (a scroll, a call coming in): never a
+  // shot. The cue is put down, and a cue ball being moved stays put.
+  const onPointerCancel = () => {
+    const s = state.current
+    dropTouch()
+    s.dragging = false
+    if (!s.press) return
+    s.press = null
+    if (s.aim) {
+      s.aim = { ...s.aim, power: 0 }
       report(false)
     }
   }
@@ -448,8 +555,8 @@ export default function PoolTable({ balls, shot, onShotDone, canAim, hand, onSho
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        className={`touch-none select-none rounded-[22px] shadow-[0_30px_80px_rgba(0,0,0,0.6),0_0_60px_rgba(180,40,90,0.25)] ${canAim ? 'cursor-crosshair' : ''}`}
+        onPointerCancel={onPointerCancel}
+        className={`select-none rounded-[22px] shadow-[0_30px_80px_rgba(0,0,0,0.6),0_0_60px_rgba(180,40,90,0.25)] ${canAim ? 'cursor-crosshair touch-none' : 'touch-pan-y'}`}
       />
     </div>
   )
