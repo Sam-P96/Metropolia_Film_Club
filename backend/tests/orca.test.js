@@ -50,6 +50,23 @@ describe("his clock and his words", () => {
         assert.equal(SCRIPTS.questions.length, 20);
         for (const q of SCRIPTS.questions) assert.ok(q.options.includes(q.correct), q.question);
     });
+
+    test("the closed scenes: Goon Dolphine's and Kaveri's, each a lead-in and steps that say something", () => {
+        for (const [who, least] of [["dolphine", 20], ["kaveri", 5]]) {
+            const { leadIn, scenes } = SCRIPTS.moments[who];
+            assert.ok(leadIn, who);
+            assert.ok(scenes.length >= least, `${who}: ${scenes.length} scenes`);
+            for (const scene of scenes) {
+                assert.ok(scene.length > 0);
+                for (const step of scene) {
+                    assert.ok(step.text?.length > 0);
+                    if (step.type === "bubble") assert.ok(step.speaker in SCRIPTS.names, step.speaker);
+                    else assert.equal(step.type, "narration");
+                }
+                assert.ok(scene.some((step) => step.speaker === who), `${who} speaks in every one of his scenes`);
+            }
+        }
+    });
 });
 
 const uri = process.env.MONGO_TEST_URI;
@@ -164,6 +181,36 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         await orca.debug(kid._id, "clock", { weekday: 3, hour: 9 });
         const wednesday = await orca.statusOf(kid._id);
         assert.deepEqual([wednesday.speaker, wednesday.story], ["dolphine", "Meeting the Partners"]);
+    });
+
+    test("closed: the day's story, a different scene each visit (Goon Dolphine on weekdays, Kaveri at weekends), then the story's closing", async () => {
+        const kid = await member();
+        const sceneAfter = (steps, from) => JSON.stringify(steps.slice(from, steps.length));
+
+        await orca.debug(kid._id, "clock", { weekday: 3, hour: 9 });
+        const story = SCRIPTS.closed[3].steps;
+        const dolphineScenes = SCRIPTS.moments.dolphine.scenes.map((scene) => JSON.stringify(scene));
+        let previous = null;
+        for (let visit = 0; visit < 6; visit++) {
+            const { steps } = await orca.statusOf(kid._id);
+            assert.deepEqual(steps.slice(0, story.length), story, "Wednesday's story first");
+            assert.deepEqual(steps[story.length], { type: "narration", text: SCRIPTS.moments.dolphine.leadIn });
+            const scene = sceneAfter(steps, story.length + 1);
+            assert.ok(dolphineScenes.includes(scene), "then one of Goon Dolphine's scenes");
+            assert.notEqual(scene, previous, "never the same one twice in a row");
+            previous = scene;
+        }
+
+        await orca.debug(kid._id, "clock", { weekday: 6, hour: 18 });
+        const weekend = SCRIPTS.closed.weekend;
+        const { steps } = await orca.statusOf(kid._id);
+        assert.deepEqual(steps.slice(0, weekend.steps.length), weekend.steps);
+        assert.equal(steps[weekend.steps.length].text, SCRIPTS.moments.kaveri.leadIn);
+        assert.ok(
+            SCRIPTS.moments.kaveri.scenes.map((scene) => JSON.stringify(scene)).includes(JSON.stringify(steps.slice(weekend.steps.length + 1, -1))),
+            "then one of Kaveri's"
+        );
+        assert.deepEqual(steps.at(-1), weekend.closing[0], "Come back Monday, last");
     });
 
     test("the PP cap: a beg never takes PP past it", async () => {

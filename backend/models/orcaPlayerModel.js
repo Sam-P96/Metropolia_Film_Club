@@ -41,6 +41,9 @@ const orcaPlayerSchema = new Schema({
 
     // The last thing he said to them, so he doesn't say it twice in a row.
     lastLine: { type: String, default: null },
+    // The last scene they saw while he was closed ("dolphine:4", "kaveri:1":
+    // data/lordGangOrcaScripts.js moments), so the next is a different one.
+    lastMoment: { type: String, default: null },
 
     // Lines waiting for their next visit: "jobDone", "allDone".
     news: { type: [String], default: [] },

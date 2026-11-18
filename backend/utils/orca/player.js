@@ -43,6 +43,7 @@ const rollThreshold = (random = secure) => FAVOUR.thresholdMin + Math.floor(rand
 
 // What he says, as a script step.
 const orcaSays = (text) => ({ type: "bubble", speaker: "orca", text });
+const narration = (text) => ({ type: "narration", text });
 const line = (group, random = secure) => orcaSays(pickFrom(SCRIPTS.lines[group], random));
 
 // A line from `group`, never the one he said to them last (`player`), and
@@ -53,6 +54,18 @@ async function freshLine(player, group, random = secure) {
     const text = pickFrom(choices, random);
     await OrcaPlayer.updateOne({ user: player.user }, { $set: { lastLine: text } });
     return orcaSays(text);
+}
+
+// One of `who`'s scenes for when he's closed (SCRIPTS.moments: "dolphine"
+// or "kaveri"), after its lead-in: never the one this member saw last, and
+// remembered as the last.
+async function freshMoment(player, who, random = secure) {
+    const { leadIn, scenes } = SCRIPTS.moments[who];
+    const keys = scenes.map((_, index) => `${who}:${index}`);
+    const choices = keys.length > 1 ? keys.filter((key) => key !== player.lastMoment) : keys;
+    const key = pickFrom(choices, random);
+    await OrcaPlayer.updateOne({ user: player.user }, { $set: { lastMoment: key } });
+    return [narration(leadIn), ...scenes[keys.indexOf(key)]];
 }
 
 // A member's record, made the first time they visit. A threshold rolled
@@ -209,8 +222,11 @@ async function statusOf(userId, { now = new Date(), takeNews = false, admin = fa
 
     let steps = [];
     if (!open) {
-        const story = clock.weekday === 0 || clock.weekday === 6 ? SCRIPTS.closed.weekend : SCRIPTS.closed[clock.weekday];
-        steps = story.steps;
+        // The day's story, then a scene from whoever's minding the place
+        // (Goon Dolphine on weekdays, Kaveri at weekends), then its closing.
+        const weekend = clock.weekday === 0 || clock.weekday === 6;
+        const story = weekend ? SCRIPTS.closed.weekend : SCRIPTS.closed[clock.weekday];
+        steps = [...story.steps, ...(await freshMoment(player, weekend ? "kaveri" : "dolphine")), ...(story.closing ?? [])];
     } else {
         steps = [line(reviews < 1 ? "noReviews" : "greeting")];
     }
