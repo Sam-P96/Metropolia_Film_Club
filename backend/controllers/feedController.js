@@ -50,7 +50,7 @@ const FEED_FILTERS = {
 // news (a trending review, a jackpot, a Double or Nothing win, someone
 // tripling their Slot Machine credits, a Steal and Defend Critical Hit, and
 // a viral cut, found by its cut in feedQuery).
-const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit", "quizWinner", "crashBigWin", "forrestRecord", ...Notification.SITE_EVENT_TYPES];
+const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit", "quizWinner", "crashBigWin", "forrestBigWin", "forrestRecord", ...Notification.SITE_EVENT_TYPES];
 
 // The jackpots, which wait just under the games until they've been seen.
 const JACKPOT_TYPES = ["scratchJackpot", "slotJackpot", "quizWinner"];

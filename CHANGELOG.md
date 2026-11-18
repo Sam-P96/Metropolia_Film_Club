@@ -24,10 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     played faster than the clock doesn't count.
   - Play with the frog and the rabbit, or any animal (or animal's head)
     bought as a piece in the Infinite Gomoku shop.
-  - Every cash-out goes to every member on the Notifications page, with
-    what they won or lost, and so does a new personal best or site record
-    (best runs count fruit before the multiplier); a site record shows in
-    every filter. The notices are bark brown and moss green.
+  - A cash-out goes to the player's followers on the Notifications page,
+    with what they won or lost; one paying 5x the entry or more goes to
+    every member as a big win (glowing, in every filter). A new personal
+    best or site record goes to every member too (best runs count fruit
+    before the multiplier); a site record shows in every filter. The
+    notices are bark brown and moss green.
+  - The start page has Play and How to Play, your buddies and the best
+    runs; Play opens the game on a screen of its own
+    (`/games/forrest-bounce/play`) that fills the window under the nav bar
+    and can't be scrolled, on a computer or a phone.
   - A rainforest green glow behind the page, and the site's best runs
     under the game.
 - Box Office Crash on the Notifications page: a cash-out at 10x or more is

@@ -9,10 +9,11 @@ import { createRenderer } from './draw'
 // it lands on: those steps are what the server plays the run again from. A
 // hidden tab stops the clock (no step runs while it's away).
 //
-// Tap, click or Space to jump while `playing` (`onTap`); then the stage
-// takes the touch for itself (touch-action: none), and the rest of the time
-// a finger on it scrolls the page.
-export default function ForrestStage({ live, buddies, playing, onTap, onOver, children }) {
+// Tap, click or Space to jump while `playing` (`onTap`). The game page
+// doesn't scroll, so the stage takes every touch (touch-action: none).
+// `style`: its width and height (the game page fits it to the screen); the
+// menu and result over it size their text to it (container units, cqw).
+export default function ForrestStage({ live, buddies, playing, onTap, onOver, style, children }) {
   const canvasRef = useRef(null)
   const buddiesRef = useRef(buddies)
   const onOverRef = useRef(onOver)
@@ -80,9 +81,8 @@ export default function ForrestStage({ live, buddies, playing, onTap, onOver, ch
   return (
     <div
       onPointerDown={onPointerDown}
-      className={`relative aspect-[400/640] w-full max-w-[430px] self-center overflow-hidden rounded-[18px] border border-[#6b8f3a]/40 shadow-[0_10px_40px_rgba(0,0,0,0.5),0_0_50px_rgba(76,190,96,0.25)] select-none [-webkit-tap-highlight-color:transparent] ${
-        playing ? 'touch-none' : 'touch-pan-y'
-      }`}
+      style={style}
+      className="@container relative shrink-0 touch-none overflow-hidden rounded-[18px] border border-[#6b8f3a]/40 shadow-[0_10px_40px_rgba(0,0,0,0.5),0_0_50px_rgba(76,190,96,0.25)] select-none [-webkit-tap-highlight-color:transparent]"
     >
       <canvas ref={canvasRef} role="img" aria-label="Forrest Bounce" className="block size-full" />
       {children}

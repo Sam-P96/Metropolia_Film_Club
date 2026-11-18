@@ -8,11 +8,12 @@ const BUTTON = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border
 const WOOD =
   'relative overflow-hidden rounded-2xl border-2 border-[#8b5a2b] bg-[linear-gradient(160deg,#16301a_0%,#1d2a14_45%,#3a2716_100%)] p-5 shadow-xl shadow-black/40 sm:p-6 before:pointer-events-none before:absolute before:inset-0 before:bg-[repeating-linear-gradient(100deg,rgba(139,90,43,0.10)_0px,rgba(139,90,43,0.10)_2px,transparent_2px,transparent_14px)] before:content-[""]'
 
-// A Forrest Bounce notification (backend/utils/notify.js), sent to every
-// member:
-//   forrestCashOut  someone cashed a run out: what they won or lost
-//   forrestBest     someone beat their own best run
-//   forrestRecord   someone beat the site's best run
+// A Forrest Bounce notification (backend/utils/notify.js):
+//   forrestCashOut  someone you follow cashed a run out: what they won or lost
+//   forrestBigWin   someone cashed out 5 times their entry or more (to
+//                   everyone, glowing)
+//   forrestBest     someone beat their own best run (to everyone)
+//   forrestRecord   someone beat the site's best run (to everyone)
 // `item.forrest`: { entry, score, fruit, level, net, previous }.
 export default function ForrestNotice({ item }) {
   const player = item.actors[0]
@@ -23,12 +24,14 @@ export default function ForrestNotice({ item }) {
     </Link>
   )
   const record = item.type === 'forrestRecord'
+  const cashOut = item.type === 'forrestCashOut' || item.type === 'forrestBigWin'
+  const glowing = record || item.type === 'forrestBigWin'
 
   let heading
   let line
   let big = null
-  if (item.type === 'forrestCashOut') {
-    heading = 'Forrest Bounce: cashed out'
+  if (cashOut) {
+    heading = item.type === 'forrestBigWin' ? 'Forrest Bounce: big win' : 'Forrest Bounce: cashed out'
     line =
       net > 0 ? (
         <>
@@ -65,7 +68,7 @@ export default function ForrestNotice({ item }) {
   }
 
   return (
-    <article className={`${WOOD} ${record ? 'shadow-[0_0_28px_rgba(155,229,100,0.45)]' : ''}`}>
+    <article className={`${WOOD} ${glowing ? 'shadow-[0_0_28px_rgba(155,229,100,0.45)]' : ''}`}>
       <span aria-hidden="true" className="pointer-events-none absolute -top-2 -right-1 rotate-12 text-4xl opacity-70">
         🌿
       </span>
@@ -75,7 +78,7 @@ export default function ForrestNotice({ item }) {
       <div className="relative">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <ForrestLogo size={22} />
-          <h2 className={`font-['Bebas_Neue'] text-xl tracking-[0.15em] ${record ? 'text-brand-gold' : 'text-[#b8e986]'}`}>{heading}</h2>
+          <h2 className={`font-['Bebas_Neue'] text-xl tracking-[0.15em] ${glowing ? 'text-brand-gold' : 'text-[#b8e986]'}`}>{heading}</h2>
           <span className="text-xs text-[#d9c7a8]/60">{timeAgo(item.at)}</span>
         </div>
         <div className="flex items-start gap-4">
@@ -87,7 +90,7 @@ export default function ForrestNotice({ item }) {
             {big}
             <p className="mt-1 text-sm text-[#d9c7a8]/75">
               Score {score} · {fruit} fruit · level {level}
-              {item.type === 'forrestCashOut' && ` · ${item.amount ?? 0} PP back`}
+              {cashOut && ` · ${item.amount ?? 0} PP back`}
             </p>
             <Link to="/games/forrest-bounce" className={`${BUTTON} mt-4`}>
               Play Forrest Bounce

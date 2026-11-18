@@ -155,13 +155,16 @@ const SITE_EVENT_TYPES = ["blackFriday", "doublePrizes"];
 // it crashed on them), bet, net, endedBy }.
 const CRASH_TYPES = ["crashBigWin", "crashResult"];
 
-// Forrest Bounce (utils/notify.js), to every member:
-//   forrestCashOut  `actors[0]` cashed a run out: `amount` came back
-//   forrestBest     `actors[0]` beat their own best run
-//   forrestRecord   `actors[0]` beat the site's best run
+// Forrest Bounce (utils/notify.js):
+//   forrestCashOut  `actors[0]`, whom they follow, cashed a run out:
+//                   `amount` came back
+//   forrestBigWin   `actors[0]` cashed out 5 times their entry or more:
+//                   every member hears
+//   forrestBest     `actors[0]` beat their own best run (every member)
+//   forrestRecord   `actors[0]` beat the site's best run (every member)
 // `forrest`: { entry (0: free play), score, fruit (before the multiplier),
 // level, net (won or lost), previous (the best it beat) }.
-const FORREST_TYPES = ["forrestCashOut", "forrestBest", "forrestRecord"];
+const FORREST_TYPES = ["forrestCashOut", "forrestBigWin", "forrestBest", "forrestRecord"];
 
 const GAME_TYPES = [
     ...CRASH_TYPES,

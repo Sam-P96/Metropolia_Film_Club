@@ -16,6 +16,9 @@ export const FORREST = {
   // Cash-outs a member gets a play day (12:00 to 12:00 Helsinki). A run
   // can be cashed out or thrown away; throwing it away keeps the cash-out.
   cashOutsPerDay: 3,
+  // A cash-out paying this many times the entry or more is big news: every
+  // member hears it. Anything less, the player's followers do.
+  bigWinTimes: 5,
 }
 
 // The fruit, from the commonest (low, slow) to the jackpot fruit (high,

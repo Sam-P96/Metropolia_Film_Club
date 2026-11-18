@@ -165,9 +165,12 @@ describe("the server", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         assert.equal((await ForrestRun.findById(quick.id).lean()).status, "discarded");
     });
 
-    test("cash-outs: the entry back in its own coins and the rest in P-PP; three a day; throwing a run away keeps the cash-out; everyone hears", async () => {
+    test("cash-outs: the entry back in its own coins and the rest in P-PP; three a day; throwing a run away keeps the cash-out; followers hear", async () => {
+        const Follow = require("../models/followModel");
         const player = await member({ pp: 100, ppp: 0 });
         const other = await member();
+        const stranger = await member();
+        await Follow.create({ follower: other._id, following: player._id });
         const { run, s, finish } = await playRun(player, 10, -5);
         await finish();
         const { payout } = await forrest.cashOut(player._id, run.id);
@@ -175,9 +178,11 @@ describe("the server", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         const tx = await WalletTx.findOne({ user: player._id, reason: "forrestCashOut" }).lean();
         assert.deepEqual([tx.pp, tx.ppp, String(tx.forrest)], [10, payout - 10, run.id]);
         await assert.rejects(forrest.cashOut(player._id, run.id), /can't be cashed out/, "only once");
-        await until(async () => (await Notification.countDocuments({ type: "forrestCashOut", actors: player._id })) === (await User.countDocuments()));
-        const note = await Notification.findOne({ type: "forrestCashOut", actors: player._id, recipient: other._id }).lean();
-        assert.deepEqual([note.amount, note.forrest.entry, note.forrest.net, note.forrest.fruit], [payout, 10, payout - 10, s.basic]);
+        await until(async () => (await Notification.countDocuments({ type: "forrestCashOut", actors: player._id })) > 0);
+        const notes = await Notification.find({ type: "forrestCashOut", actors: player._id }).lean();
+        assert.deepEqual(notes.map((note) => String(note.recipient)), [String(other._id)], "a follower, not the stranger");
+        assert.deepEqual([notes[0].amount, notes[0].forrest.entry, notes[0].forrest.net, notes[0].forrest.fruit], [payout, 10, payout - 10, s.basic]);
+        assert.equal(await Notification.countDocuments({ recipient: stranger._id, type: { $in: ["forrestCashOut", "forrestBigWin"] } }), 0);
 
         // Thrown away: no points, the cash-out still there.
         const second = await playRun(player, 10, 1);
@@ -198,6 +203,15 @@ describe("the server", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         assert.deepEqual([freeScored.free, freeScored.mult, freeScored.status], [true, 2, "discarded"], "free play is never cashed out");
         await assert.rejects(forrest.cashOut(player._id, freeRun.run.id), /can't be cashed out/);
         assert.equal((await ForrestDay.findOne({ user: player._id, day: playDay() }).lean()).cashOuts, 3);
+    });
+
+    test("a cash-out of 5 times the entry or more goes to every member as a big win", async () => {
+        const { noteForrestCashOut } = require("../utils/notify");
+        const lucky = await member();
+        await noteForrestCashOut({ user: lucky._id, cost: 10, score: 250, fruit: 250, level: 4 }, 50);
+        assert.equal(await Notification.countDocuments({ type: "forrestBigWin", actors: lucky._id }), await User.countDocuments());
+        await noteForrestCashOut({ user: lucky._id, cost: 10, score: 245, fruit: 245, level: 4 }, 49);
+        assert.equal(await Notification.countDocuments({ type: "forrestCashOut", actors: lucky._id }), 0, "49 back on 10: only followers (none)");
     });
 
     test("less back than the entry is split like the entry was paid", () => {

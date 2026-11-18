@@ -10,13 +10,14 @@ export const HEADING = "font-['Bebas_Neue'] text-2xl tracking-wide text-[#b8e986
 export const LEAF = '#9be564'
 
 // A green glow over the page behind the game, like light through a
-// rainforest canopy: two soft pools of green that breathe slowly.
-function RainforestGlow() {
+// rainforest canopy: soft pools of green that breathe slowly. `className`:
+// its stacking (behind the page, or just under the game page's layer).
+export function RainforestGlow({ className = '-z-10' }) {
   const reduce = useReducedMotion()
   return (
     <motion.div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10"
+      className={`pointer-events-none fixed inset-0 ${className}`}
       style={{
         backgroundImage:
           'radial-gradient(ellipse 75% 50% at 50% 16%, rgba(76,190,96,0.42), transparent 70%), radial-gradient(ellipse 65% 55% at 10% 85%, rgba(20,150,72,0.5), transparent 70%), radial-gradient(ellipse 60% 50% at 92% 65%, rgba(110,200,80,0.34), transparent 70%)',

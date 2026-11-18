@@ -365,12 +365,16 @@ async function noteCrashResults(players, endedBy) {
     }
 }
 
-// Forrest Bounce (utils/forrest.js): a run cashed out. Every member hears
-// what came back and what they won or lost on it.
+// Forrest Bounce (utils/forrest.js): a run cashed out. 5 times the entry
+// or more (FORREST.bigWinTimes) is big news: every member hears it, the
+// player included. Anything less goes to the player's followers: what came
+// back, and what they won or lost on it.
 async function noteForrestCashOut(run, total) {
-    const members = await User.find().distinct("_id");
-    await sendToEach(members, {
-        type: "forrestCashOut",
+    const { FORREST } = require("../../shared/forrest/rules.js");
+    const big = run.cost > 0 && total >= FORREST.bigWinTimes * run.cost;
+    const recipients = big ? await User.find().distinct("_id") : await Follow.find({ following: run.user }).distinct("follower");
+    await sendToEach(recipients, {
+        type: big ? "forrestBigWin" : "forrestCashOut",
         amount: total,
         forrest: { entry: run.cost, score: run.score, fruit: run.fruit, level: run.level, net: total - run.cost },
         actors: [run.user],
