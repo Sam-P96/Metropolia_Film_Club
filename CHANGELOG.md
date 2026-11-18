@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   big news for every member (in every filter, glowing); any other round,
   win or lose, goes to the player's followers, with the multiplier and how
   much they won or lost.
-- Lord Gang Orca (Games → Lord Gang Orca, `/games/lord-gang-orca`), King
+- Lord Gang Orca (Games → Gang Orca, `/games/lord-gang-orca`; "Gang Orca"
+  on the Games page, Lord Gang Orca once you're in his office), King
   Loan Shark's rival. Monday to Friday, 16:00 to 23:59 (Helsinki), ask
   him for PP: 10% of your daily PP a beg (in PP, within your PP cap), three
   a day an hour apart. Now and then he asks a question instead: answer right
