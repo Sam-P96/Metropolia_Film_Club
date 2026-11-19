@@ -777,6 +777,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Review card banners with a picture came up empty (leaderboards, review
+  cards, profiles, Resonance, Notifications) when the server didn't have
+  its small copies of them on disk: the database said the copies were
+  there, so every banner pointed at a file the server answered with 404.
+  Each copy is now checked once per page load, and a banner whose copy
+  doesn't load (picture or video) shows its original picture instead
+  (`hooks/useBannerMedia.js`). With ffmpeg on the server, a restart makes
+  the copies again.
 - Box Office Crash's Invite box (and the prompt to join a smaller game)
   stays in the space under the nav bar however long the friends list grows
   with "Load more": its title and close button stay put at the top and the
