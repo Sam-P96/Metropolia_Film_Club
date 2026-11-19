@@ -54,6 +54,10 @@ const scratchCardSchema = new Schema(
         goldenFound: {type: Boolean, default: false},
         jackpotAmount: {type: Number, default: null},
         jackpotPaid: {type: Boolean, default: false},
+        // Bought in the Golden Rush (games/happyHours.js), on the ticket
+        // it was on: dealt with one in 10 hiding the Golden Ticket. Its
+        // jackpot win stops the rush. Never sent to the page.
+        goldenRush: {type: Boolean, default: false},
 
         // The member's id while this card is pending or active, missing once
         // it's done. It's unique, so the database itself stops anyone having

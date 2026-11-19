@@ -7,6 +7,7 @@ const { WalletError, changeWallet, dailyPp, playDay, spend } = require("./wallet
 const { activeBansOf, banFor, banMessage } = require("./steal/moderation");
 const { payoutFor } = require("../games/crash/engine");
 const { pointsElsewhere } = require("./pointsElsewhere");
+const { feedFromCrash } = require("./jackpotFeed");
 const { allInBlockedFor, blockedFor, maxBetFor, playsLeft, roundsFor } = require("../../shared/crash/rules.js");
 
 // Crash in the database: who can play and how much, the daily plays, bets,
@@ -120,6 +121,19 @@ async function payCashOut(userId, paid, multiplier, roundId, protectShare = 0) {
     }
     return payout;
 }
+
+// What a round's players lost between them: each one's bet, less whatever
+// came back (a protected round's half of a loss, or a cash-out under 1x).
+function lostIn(players) {
+    return players.reduce((sum, player) => {
+        const bet = (player.paid?.pp ?? 0) + (player.paid?.ppp ?? 0);
+        return sum + Math.max(0, bet - (player.payout?.total ?? 0));
+    }, 0);
+}
+
+// A round's over: 90% of what it lost goes to the Box Office Scratch
+// jackpots (config/jackpotFeed.js). Never throws.
+const feedJackpotsFrom = (players) => feedFromCrash(lostIn(players));
 
 // ---- Rounds ----
 
@@ -257,6 +271,8 @@ module.exports = {
     takeBet,
     giveBack,
     payCashOut,
+    lostIn,
+    feedJackpotsFrom,
     startRound,
     finishRound,
     recoverRounds,

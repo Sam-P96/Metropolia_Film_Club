@@ -282,6 +282,46 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         assert.equal(rooms.rooms.has(view.id), true, "still in their room of one, with rounds alone left");
     });
 
+    test("90% of what a round loses goes to the scratch jackpots: bets ridden to the crash (less a protected round's half back), never a cash-out's profit", async () => {
+        const { jackpotView } = require("../utils/scratch");
+        const inPools = async () => Object.values((await jackpotView()).amounts).reduce((sum, amount) => sum + amount, 0);
+        assert.equal(crash.lostIn([
+            { paid: { pp: 10, ppp: 0 }, payout: { total: 5 } },
+            { paid: { pp: 4, ppp: 6 }, payout: { total: 25 } },
+            { paid: { pp: 0, ppp: 7 }, payout: { total: 0 } },
+        ]), 12, "5 + nothing + 7");
+
+        // Alone, ridden to the crash: 7 lost, 90% is 6.3, rounded up to 7.
+        const rider = await member();
+        await rooms.hello(socketOf(rider));
+        let before = await inPools();
+        queue = [...ups(3)];
+        const view = await rooms.solo(idOf(rider), { bet: 7 });
+        const alone = rooms.rooms.get(view.id);
+        await until(() => alone.round?.status === "over" && alone.last);
+        assert.equal(alone.last.players[0].payout, 0);
+        assert.equal((await inPools()) - before, 7);
+
+        // A room of two: one cashes out ahead, the other rides it down: 10
+        // lost, 9 to the pools.
+        const a = await member();
+        const b = await member();
+        await rooms.hello(socketOf(a));
+        await rooms.hello(socketOf(b));
+        const { id } = await rooms.create(idOf(a));
+        await rooms.join(idOf(b), id);
+        const room = rooms.rooms.get(id);
+        before = await inPools();
+        queue = [...ups(40)];
+        await rooms.ready(idOf(a), { bet: 10 });
+        await rooms.ready(idOf(b), { bet: 10 });
+        await until(() => room.round?.status === "playing" && room.round.engine.tick >= 3);
+        rooms.cashOut(idOf(a));
+        await until(() => room.round?.status === "over" && room.last);
+        assert.ok(room.last.players[0].payout >= 10, "a cashed out ahead");
+        assert.equal((await inPools()) - before, 9);
+    });
+
     test("a room of two: both ready starts one round; a cash-out pays at the server's multiplier; riding to the crash loses", async () => {
         const a = await member();
         const b = await member();

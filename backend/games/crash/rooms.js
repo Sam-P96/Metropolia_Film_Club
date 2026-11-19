@@ -511,6 +511,8 @@ function createCrashRooms({
         await db
             .finishRound(run.id, { path: run.engine.path, ticks: run.engine.tick, endedBy: run.endedBy, players: run.players })
             .catch((error) => console.error("Crash couldn't save a round:", error));
+        // 90% of what the round lost to the scratch jackpots (never throws).
+        await db.feedJackpotsFrom(run.players);
         // Big wins to everyone, the rest to followers. Never holds the room up.
         noteCrashResults(run.players, run.endedBy).catch((error) => console.error("Crash couldn't send its notifications:", error));
 

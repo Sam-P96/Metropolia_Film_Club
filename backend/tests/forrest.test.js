@@ -295,6 +295,59 @@ describe("the server", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNam
         assert.deepEqual((await forrest.statusOf(player._id)).buddies, ["🐸", "🐰"]);
     });
 
+    test("everything a run loses goes to the scratch jackpots: less back than the entry, a run thrown away, let go, not counted or never finished; a win, nothing", async () => {
+        const { jackpotView } = require("../utils/scratch");
+        const inPools = async () => Object.values((await jackpotView()).amounts).reduce((sum, amount) => sum + amount, 0);
+        const grew = async (work) => {
+            const before = await inPools();
+            await work();
+            return (await inPools()) - before;
+        };
+        await inPools();
+        const player = await member({ pp: 500, ppp: 0 });
+
+        // A second's play and no taps: less back than the 50 it cost.
+        const short = await forrest.startRun(player._id, 50);
+        await ForrestRun.updateOne({ _id: short.id }, { $set: { startedAt: new Date(Date.now() - 60 * 1000) } });
+        const { run: scored } = await forrest.finishRun(player._id, short.id, { taps: [], endTick: 120 });
+        assert.ok(scored.payout < 50, `paid ${scored.payout}`);
+        assert.equal(await grew(() => forrest.cashOut(player._id, short.id)), 50 - scored.payout);
+
+        // More back than the entry: nothing lost.
+        const good = await playRun(player, 10, -5);
+        await good.finish();
+        assert.ok(payoutFor(good.s.score) >= 10);
+        assert.equal(await grew(() => forrest.cashOut(player._id, good.run.id)), 0);
+
+        // Thrown away: all 20.
+        const thrown = await playRun(player, 20, 1);
+        await thrown.finish();
+        assert.equal(await grew(() => forrest.discard(player._id, thrown.run.id)), 20);
+
+        // Let go when a new run starts: all 30 (the new one's entry isn't lost).
+        const waiting = await playRun(player, 30, 1);
+        await waiting.finish();
+        let next;
+        assert.equal(await grew(async () => (next = await forrest.startRun(player._id, 10))), 30);
+
+        // Not counted, faster than the clock: its 10.
+        assert.equal(await grew(() => assert.rejects(forrest.finishRun(player._id, next.id, { taps: [], endTick: 120 * 60 }), /faster than the clock/)), 10);
+
+        // Never finished: the sweep lets it go once it's past counting, with
+        // its 20; a run still going stays. Swept again, nothing more.
+        const left = await forrest.startRun(player._id, 20);
+        await ForrestRun.updateOne({ _id: left.id }, { $set: { startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) } });
+        const going = await forrest.startRun((await member())._id, 10);
+        const anHourAgo = Date.now() - 60 * 60 * 1000;
+        let swept;
+        assert.equal(await grew(async () => (swept = await forrest.sweepForrestRuns(anHourAgo))), 20);
+        assert.equal(swept, 1);
+        assert.equal((await ForrestRun.findById(left.id).lean()).status, "discarded");
+        assert.equal(await grew(() => forrest.sweepForrestRuns(Date.now())), 0, "a run 31 minutes old would go; this one's new");
+        assert.equal((await ForrestRun.findById(going.id).lean()).status, "playing");
+        assert.equal(await grew(() => forrest.sweepForrestRuns(anHourAgo)), 0);
+    });
+
     test("a new run lets go of the one waiting; leaving the club takes their runs", async () => {
         const player = await member();
         const waiting = await playRun(player, 10, 1);
