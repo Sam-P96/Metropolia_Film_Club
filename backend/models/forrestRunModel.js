@@ -7,8 +7,8 @@ const Schema = mongoose.Schema;
 // steps it tapped on; the server plays it again from those
 // (shared/forrest/engine.js replay) and keeps what it got: the score is the
 // server's, never the page's.
-//   playing    started, not back yet (a page closed mid-run stays here:
-//              its entry is gone)
+//   playing    started, not back yet (a page closed mid-run stays here
+//              until the sweep lets it go: its entry is gone)
 //   finished   scored: waiting to be cashed out or thrown away
 //   cashed     paid out (one of the day's cash-outs)
 //   discarded  thrown away (the cash-out kept), or left when a new run
@@ -51,5 +51,7 @@ const forrestRunSchema = new Schema(
 
 forrestRunSchema.index({ user: 1, status: 1 });
 forrestRunSchema.index({ user: 1, startedAt: -1 });
+// For the sweep: runs still playing long after they started.
+forrestRunSchema.index({ status: 1, startedAt: 1 });
 
 module.exports = mongoose.model("ForrestRun", forrestRunSchema);

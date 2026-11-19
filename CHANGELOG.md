@@ -648,9 +648,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3,000); whatever doesn't fit is burned.
 - The Box Office Scratch jackpots also grow from what's lost elsewhere:
   75% of a stake lost to Clanker at Kino Farkle (beaten, resigned, left or
-  timed out) and 50% of everything King Loan Shark takes (repayments and
-  Kaveri's collections), each rounded up, shared 15% Standard, 35% Premium
-  and 50% VIP (`backend/config/jackpotFeed.js`, `utils/jackpotFeed.js`).
+  timed out), 50% of everything King Loan Shark takes (repayments and
+  Kaveri's collections), 90% of what a Box Office Crash round loses (bets
+  ridden to the crash, less a protected round's half back; Lord Gang Orca's
+  all in too) and everything a Forrest Bounce run loses (the entry, less
+  what its cash-out paid; all of it for a run thrown away, let go when a
+  new one starts, not counted, or never finished), each rounded up, shared
+  15% Standard, 35% Premium and 50% VIP (`backend/config/jackpotFeed.js`,
+  `utils/jackpotFeed.js`). Forrest Bounce runs nobody comes back to finish
+  are let go every 10 minutes (`jobs/forrestSweep.js`).
+- Box Office Scratch has a new hidden rule for the Golden Ticket
+  (`backend/games/happyHours.js`).
 - Loan Shark: King Loan Shark lends up to 30x a member's daily PP (was 5x),
   missed payments double his rate up to 320% (was 160%), and Kaveri starts
   collecting well before the top. Where he starts is set in

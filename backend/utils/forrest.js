@@ -7,6 +7,7 @@ const ForrestPlayer = require("../models/forrestPlayerModel");
 const GomokuOwned = require("../models/gomokuOwnedModel");
 const { WalletError, changeWallet, playDay, spend } = require("./wallet");
 const { noteForrestCashOut, noteForrestBest } = require("./notify");
+const { feedFromForrest } = require("./jackpotFeed");
 const { FORREST, DEFAULT_BUDDIES, multFor, payoutFor } = require("../../shared/forrest/rules.js");
 const { MAX_TICKS, TICK_HZ, replay } = require("../../shared/forrest/engine.js");
 const { buddyChoices } = require("../../shared/forrest/buddies.js");
@@ -15,7 +16,8 @@ const { buddyChoices } = require("../../shared/forrest/buddies.js");
 // from start (the entry taken, the seed picked here) to finish (the page's
 // taps played again here: shared/forrest/engine.js replay, so the score is
 // the server's), the day's cash-outs, and the best runs. Every balance
-// change goes through utils/wallet.js.
+// change goes through utils/wallet.js. Everything a run loses goes to the
+// Box Office Scratch jackpots (config/jackpotFeed.js): see letGo.
 
 class ForrestError extends Error {
     constructor(message, status = 400) {
@@ -30,6 +32,10 @@ const SLACK_MS = 3000;
 // Taps have to come back within this long of the start (a run lasts 20
 // minutes at most).
 const RUN_LIFETIME_MS = 25 * 60 * 1000;
+// A run still playing this long after it started is let go by the sweep:
+// past RUN_LIFETIME_MS it can't count, and a little more so a run coming
+// back right at the end isn't caught halfway.
+const ABANDONED_MS = RUN_LIFETIME_MS + 5 * 60 * 1000;
 
 const isId = (id) => mongoose.isValidObjectId(id);
 
@@ -113,6 +119,20 @@ async function statusOf(userId, day = playDay()) {
 
 // ---- A run ----
 
+// What a run lost: what its entry took, less what came back (`back`: a
+// cash-out's payout). Free play loses nothing.
+const lostBy = (run, back = 0) => Math.max(0, (run.paid?.pp ?? 0) + (run.paid?.ppp ?? 0) - back);
+
+// Lets a run go (discarded, with `set`) if it's still as `filter` says,
+// and its whole entry goes to the scratch jackpots. Only the call that
+// lets it go feeds them, so an entry is only ever fed once. Resolves to
+// the run, or null if it wasn't there to let go.
+async function letGo(filter, set = {}) {
+    const run = await ForrestRun.findOneAndUpdate(filter, { $set: { ...set, status: "discarded" } }, { new: true }).lean();
+    if (run) await feedFromForrest(lostBy(run));
+    return run;
+}
+
 // Starts a run: `cost` one of the entries (taken now, PP first, then
 // P-PP), or 0 for free play, which only opens once the day's cash-outs are
 // used. Any run they had waiting is let go. Resolves to the run, with its
@@ -126,7 +146,8 @@ async function startRun(userId, cost) {
     if (free && used < FORREST.cashOutsPerDay) throw new ForrestError(`Free play opens once your ${FORREST.cashOutsPerDay} cash-outs today are used.`, 409);
     if (!free && used >= FORREST.cashOutsPerDay) throw new ForrestError(`Your ${FORREST.cashOutsPerDay} cash-outs today are used: free play until 12:00.`, 409);
 
-    await ForrestRun.updateMany({ user: userId, status: { $in: ["playing", "finished"] } }, { $set: { status: "discarded" } });
+    const waiting = await ForrestRun.find({ user: userId, status: { $in: ["playing", "finished"] } }).select("_id").lean();
+    for (const { _id } of waiting) await letGo({ _id, status: { $in: ["playing", "finished"] } });
 
     const id = new mongoose.Types.ObjectId();
     let paid = { pp: 0, ppp: 0 };
@@ -161,7 +182,7 @@ async function finishRun(userId, runId, { taps, endTick } = {}) {
     const elapsed = Date.now() - run.startedAt.getTime();
     const tooFast = (endTick / TICK_HZ) * 1000 > elapsed + SLACK_MS;
     if (tooFast || elapsed > RUN_LIFETIME_MS) {
-        await ForrestRun.updateOne({ _id: run._id, status: "playing" }, { $set: { status: "discarded", finishedAt: new Date() } });
+        await letGo({ _id: run._id, status: "playing" }, { finishedAt: new Date() });
         throw new ForrestError(tooFast ? "That run went faster than the clock, so it doesn't count." : "That run took too long to come back, so it doesn't count.", 409);
     }
 
@@ -226,7 +247,8 @@ function splitPayout(paid, total) {
 }
 
 // Cashes a scored run out: one of today's cash-outs, and its score in
-// points (5 to 1). Everyone hears what they won or lost.
+// points (5 to 1). Everyone hears what they won or lost. Less back than
+// the entry: the difference goes to the scratch jackpots.
 async function cashOut(userId, runId) {
     if (!isId(runId)) throw new ForrestError("That run can't be cashed out.", 404);
     const run = await ForrestRun.findOne({ _id: runId, user: userId, status: "finished", free: false }).lean();
@@ -249,17 +271,30 @@ async function cashOut(userId, runId) {
         throw new ForrestError("That run can't be cashed out.", 404);
     }
     if (total > 0) await changeWallet(userId, () => payout, { reason: "forrestCashOut", forrest: run._id });
+    await feedFromForrest(lostBy(cashed, total));
 
     noteForrestCashOut(cashed, total).catch((error) => console.error("Forrest Bounce couldn't send a cash-out:", error));
     return { run: runView(cashed), payout: total };
 }
 
-// Throws a scored run away: no points, and the cash-out kept.
+// Throws a scored run away: no points, and the cash-out kept. Its entry
+// goes to the scratch jackpots.
 async function discard(userId, runId) {
     if (!isId(runId)) throw new ForrestError("That run is over.", 404);
-    const run = await ForrestRun.findOneAndUpdate({ _id: runId, user: userId, status: "finished" }, { $set: { status: "discarded" } }, { new: true }).lean();
+    const run = await letGo({ _id: runId, user: userId, status: "finished" });
     if (!run) throw new ForrestError("That run is over.", 404);
     return runView(run);
+}
+
+// Every 10 minutes (jobs/forrestSweep.js): runs nobody came back to finish
+// are let go, their entries to the scratch jackpots. Resolves to how many.
+async function sweepForrestRuns(now = Date.now()) {
+    const stale = await ForrestRun.find({ status: "playing", startedAt: { $lt: new Date(now - ABANDONED_MS) } }).select("_id").lean();
+    let count = 0;
+    for (const { _id } of stale) {
+        if (await letGo({ _id, status: "playing" }, { finishedAt: new Date(now) })) count += 1;
+    }
+    return count;
 }
 
 // ---- Their data, and leaving ----
@@ -292,6 +327,7 @@ module.exports = {
     finishRun,
     cashOut,
     discard,
+    sweepForrestRuns,
     splitPayout,
     forrestDataOf,
     forgetForrestPlayer,

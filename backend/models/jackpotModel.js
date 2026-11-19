@@ -6,8 +6,9 @@ const Schema = mongoose.Schema;
 // Standard (the pool from before there were ticket types), "premium" and
 // "vip" (utils/scratch.js jackpotId). `amount` is the pool in P-PP: every
 // ticket of that type adds to it, and so does a share of what's lost to
-// Clanker at Kino Farkle and taken by King Loan Shark (config/
-// jackpotFeed.js). Finding the Golden Ticket on one wins
+// Clanker at Kino Farkle, taken by King Loan Shark, and lost at Box Office
+// Crash and Forrest Bounce (config/jackpotFeed.js). Finding the Golden
+// Ticket on one wins
 // all of it and puts it back to the type's seed (shared/scratch/config.js).
 // `recent` are the latest wins, newest first, for "Recent jackpots"; each
 // win is added in the same step that empties the pool (utils/scratch.js

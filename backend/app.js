@@ -42,6 +42,7 @@ const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
 const { startFarkleSweep } = require("./jobs/farkleSweep");
 const { startScratchSweep } = require("./jobs/scratchSweep");
+const { startForrestSweep } = require("./jobs/forrestSweep");
 const { startResonanceSweep } = require("./jobs/resonanceSweep");
 const { startStealSweep } = require("./jobs/stealSweep");
 const { startLoanSweep } = require("./jobs/loanSweep");
@@ -127,6 +128,12 @@ connected
 connected
     .then(() => startScratchSweep())
     .catch((error) => console.error("Couldn't start the scratch sweep:", error.message));
+
+// Forrest Bounce: lets go of runs nobody came back to finish, their entries
+// to the scratch jackpots (jobs/forrestSweep.js).
+connected
+    .then(() => startForrestSweep())
+    .catch((error) => console.error("Couldn't start the Forrest sweep:", error.message));
 
 // Resonance: everyone's taste matches, worked out again at 04:00
 // (jobs/resonanceSweep.js).

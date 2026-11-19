@@ -4,7 +4,7 @@
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 
-const { happyHour, helsinkiMinutes, goldenTicketOneIn, slotLuck, clankerBustChance } = require("../games/happyHours");
+const { GOLDEN_RUSH, happyHour, helsinkiMinutes, goldenRushHour, goldenTicketOneIn, slotLuck, clankerBustChance } = require("../games/happyHours");
 const { newLayout, GOLDEN } = require("../games/scratch/engine");
 const { LUCK, targetRtp, tableFor } = require("../games/slots/luck");
 const { FARKLE_CHANCE, rollWithBust, cryptoDice, newGame, playBot } = require("../games/farkle/engine");
@@ -25,7 +25,7 @@ describe("the windows", () => {
     test("take in their first minute but not their last", () => {
         const at = (key, time) => [happyHour(key, winter(time)), happyHour(key, summer(time))];
         for (const [key, before, first, last, after] of [
-            ["scratch", "12:29", "12:30", "14:29", "14:30"],
+            ["scratch", "12:30", "12:31", "14:29", "14:30"],
             ["slots", "12:29", "12:30", "12:59", "13:00"],
             ["clanker", "11:59", "12:00", "16:44", "16:45"],
         ]) {
@@ -37,9 +37,11 @@ describe("the windows", () => {
     });
 });
 
-describe("scratch cards: the Golden Ticket 4 times as often, 12:30 to 14:30", () => {
-    test("one card in 50 instead of 200, on every ticket type", () => {
+describe("scratch cards: the Golden Ticket 4 times as often, 12:31 to 14:30", () => {
+    test("one card in 50 instead of 200, on every ticket type, from 12:31 (12:30 is the Golden Rush's)", () => {
         assert.equal(goldenTicketOneIn(SCRATCH.goldenTicketOneIn, winter("13:00")), SCRATCH.goldenTicketOneIn / 4);
+        assert.equal(goldenTicketOneIn(SCRATCH.goldenTicketOneIn, winter("12:31")), 50);
+        assert.equal(goldenTicketOneIn(SCRATCH.goldenTicketOneIn, winter("12:30")), SCRATCH.goldenTicketOneIn);
         assert.equal(goldenTicketOneIn(SCRATCH.goldenTicketOneIn, winter("15:00")), SCRATCH.goldenTicketOneIn);
     });
 
@@ -59,6 +61,23 @@ describe("scratch cards: the Golden Ticket 4 times as often, 12:30 to 14:30", ()
             return 0;
         });
         assert.ok(normal.includes(SCRATCH.goldenTicketOneIn));
+    });
+});
+
+describe("scratch cards: the Golden Rush's windows, 11:30 to 12:30 and VIP's first 30 minutes", () => {
+    test("one card in 10, off for 14 days after a win", () => {
+        assert.deepEqual([GOLDEN_RUSH.oneIn, GOLDEN_RUSH.restDays], [10, 14]);
+    });
+
+    test("11:30 to 12:30 (up to 12:31, when the 1 in 50 starts) and 16:00 to 16:29, summer and winter", () => {
+        const at = (time) => [goldenRushHour(winter(time)), goldenRushHour(summer(time))];
+        for (const time of ["11:30", "12:00", "12:30", "16:00", "16:29"]) assert.deepEqual(at(time), [true, true], time);
+        for (const time of ["11:29", "12:31", "13:00", "15:59", "16:30", "23:30", "00:00"]) assert.deepEqual(at(time), [false, false], time);
+    });
+
+    test("the second window is VIP's opening time, from the ticket config", () => {
+        assert.equal(SCRATCH.ticketTypes.vip.hours.opens, "16:00");
+        assert.deepEqual(GOLDEN_RUSH.windows, [{ from: "11:30", to: "12:31" }, { from: "16:00", to: "16:30" }]);
     });
 });
 

@@ -14,6 +14,16 @@ const JACKPOT_FEED = {
     // Of everything King Loan Shark takes (PP and P-PP): what members pay
     // him back, and what Kaveri collects.
     loanShark: 0.5,
+
+    // Of what a Box Office Crash round loses (PP and P-PP): each player's
+    // bet, less whatever came back to them (half of it, in a protected
+    // round). Lord Gang Orca's all in too.
+    crash: 0.9,
+
+    // Of what a Forrest Bounce run loses (PP and P-PP): its entry, less what
+    // its cash-out paid. All of it for a run thrown away, let go when a new
+    // one started, not counted, or never finished.
+    forrest: 1,
 };
 
 module.exports = { JACKPOT_FEED };
