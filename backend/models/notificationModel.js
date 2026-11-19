@@ -183,7 +183,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "cutMention", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES],
         required: true,
     },
     review: {
@@ -191,7 +191,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES].includes(this.type);
+            return !["follow", "event", "pvp", "cut", "cutReply", "cutMention", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},

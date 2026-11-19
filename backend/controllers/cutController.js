@@ -3,7 +3,8 @@ const Cut = require("../models/cutModel");
 const Comment = require("../models/commentModel");
 const { parseVote } = require("../models/votable");
 const { hasRole } = require("../middleware/auth");
-const { noteNewCut, noteViralCut, forgetCut } = require("../utils/notify");
+const { noteNewCut, noteViralCut, forgetCut, retagCut } = require("../utils/notify");
+const { mentionsIn } = require("../utils/mentions");
 const { banRefusal } = require("../utils/bans");
 const { dislikeRefusal } = require("../utils/pvp");
 const { MEMBER_FIELDS } = require("../utils/serialize");
@@ -11,6 +12,9 @@ const { CUT_FIELDS, cutItems } = require("../utils/cuts");
 const { parseOffset } = require("../utils/paging");
 
 const MAX_CUT_LENGTH = 280;
+
+// A cut's tags as the page reads them: [{ _id, name }].
+const mentionView = (mentions = []) => mentions.map((mention) => ({ _id: mention.user, name: mention.name }));
 const PAGE_SIZE = 10;
 
 // "Show all cuts" on the Notifications page, for moderators and admins; the
@@ -54,7 +58,8 @@ async function getCut(req, res) {
 }
 
 // Any logged-in member, from the box at the top of their Notifications. It
-// goes to their followers' Notifications and their own.
+// goes to their followers' Notifications and their own, and to anyone it
+// tags ("@" and a username) as "tagged you".
 async function postCut(req, res) {
     const text = String(req.body?.text ?? "").trim();
 
@@ -67,17 +72,19 @@ async function postCut(req, res) {
         return res.status(403).json({ error: banned });
     }
 
-    const cut = await Cut.create({ user: req.user._id, text });
+    const mentions = await mentionsIn(text, req.user._id);
+    const cut = await Cut.create({ user: req.user._id, text, mentions });
     await noteNewCut(cut);
 
-    res.status(201).json({ _id: cut._id, text: cut.text, createdAt: cut.createdAt });
+    res.status(201).json({ _id: cut._id, text: cut.text, mentions: mentionView(cut.mentions), createdAt: cut.createdAt });
 }
 
 // Only the member who posted it can change what it says: the same 1 to
 // MAX_CUT_LENGTH characters as a new cut, and not while they're banned
 // from posting cuts. Its votes, replies and place in everyone's
 // Notifications stay. Saving it unchanged doesn't mark it edited.
-// Resolves to { _id, text, editedAt }.
+// Members newly tagged hear about it; ones no longer tagged lose that
+// notice. Resolves to { _id, text, mentions, editedAt }.
 async function editCut(req, res) {
     const { id } = req.params;
     const text = String(req.body?.text ?? "").trim();
@@ -86,7 +93,7 @@ async function editCut(req, res) {
         return res.status(400).json({ error: `Cuts are 1 to ${MAX_CUT_LENGTH} characters.` });
     }
 
-    const cut = mongoose.isValidObjectId(id) ? await Cut.findById(id).select("user text editedAt").lean() : null;
+    const cut = mongoose.isValidObjectId(id) ? await Cut.findById(id).select("user text mentions editedAt").lean() : null;
 
     if (!cut) {
         return res.status(404).json({ error: "Cut not found." });
@@ -102,12 +109,18 @@ async function editCut(req, res) {
     }
 
     if (text === cut.text) {
-        return res.json({ _id: cut._id, text: cut.text, editedAt: cut.editedAt ?? null });
+        return res.json({ _id: cut._id, text: cut.text, mentions: mentionView(cut.mentions), editedAt: cut.editedAt ?? null });
     }
 
     const editedAt = new Date();
-    await Cut.updateOne({ _id: id }, { $set: { text, editedAt } });
-    res.json({ _id: cut._id, text, editedAt });
+    const mentions = await mentionsIn(text, req.user._id);
+    await Cut.updateOne({ _id: id }, { $set: { text, mentions, editedAt } });
+    await retagCut(
+        cut,
+        (cut.mentions ?? []).map((mention) => mention.user),
+        mentions.map((mention) => mention.user)
+    );
+    res.json({ _id: cut._id, text, mentions: mentionView(mentions), editedAt });
 }
 
 // The thumbs up and thumbs down, as on comments (dislikes only between

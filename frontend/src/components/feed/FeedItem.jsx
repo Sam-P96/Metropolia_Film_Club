@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import EditText from '../EditText'
+import CutWords from './CutWords'
 import ReviewCard from '../reviews/ReviewCard'
 import { CutReplies } from '../reviews/ReviewComments'
 import VoteButtons from '../reviews/VoteButtons'
@@ -26,7 +27,6 @@ import { bannerMedia } from '../../utils/bannerStyle'
 import BannerFill from '../profile/BannerFill'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
-import { splitLinks } from '../../utils/links'
 import { canDeleteAnyCut } from '../../utils/permissions'
 import { timeAgo } from '../../utils/timeAgo'
 import { resolveReports } from '../../services/films'
@@ -392,7 +392,9 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
   const viral = cut.viral || votes.likeCount >= VIRAL_LIKES
 
   // What it says, and when it was last changed, as edited here.
-  const [words, setWords] = useState({ text: cut.text, editedAt: cut.editedAt ?? null })
+  const [words, setWords] = useState({ text: cut.text, mentions: cut.mentions ?? [], editedAt: cut.editedAt ?? null })
+  // It tags you: "tagged you in their cut".
+  const taggedYou = item.type === 'cutMention'
   const [editing, setEditing] = useState(false)
 
   const [confirming, setConfirming] = useState(false)
@@ -449,7 +451,7 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
               'You posted your cut'
             ) : (
               <>
-                <NameLink user={author} className={bannerNameClasses} /> posted their cut
+                <NameLink user={author} className={bannerNameClasses} /> {taggedYou ? 'tagged you in their cut' : 'posted their cut'}
               </>
             )}
             <span className="text-white/50">
@@ -466,8 +468,9 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
             maxLength={MAX_CUT_LENGTH}
             label="Edit your cut"
             save={(text) => editCut(cut._id, text)}
+            mentions
             onSaved={(saved) => {
-              setWords({ text: saved.text, editedAt: saved.editedAt })
+              setWords({ text: saved.text, mentions: saved.mentions ?? [], editedAt: saved.editedAt })
               setEditing(false)
             }}
             onCancel={() => setEditing(false)}
@@ -476,21 +479,7 @@ export function CutNotice({ item, onDeleted, repliesOpen = false }) {
         ) : (
           <blockquote className="mt-4 rounded-2xl rounded-tl-sm border border-white/10 bg-ink/70 px-5 py-4 text-lg leading-relaxed text-white backdrop-blur-sm">
             <p className="whitespace-pre-line wrap-break-word">
-              {splitLinks(words.text).map((part, index) =>
-                typeof part === 'string' ? (
-                  part
-                ) : (
-                  <a
-                    key={index}
-                    href={part.href}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow ugc"
-                    className="font-medium break-all text-brand-gold underline underline-offset-2 transition-colors hover:text-white"
-                  >
-                    {part.text}
-                  </a>
-                )
-              )}
+              <CutWords text={words.text} mentions={words.mentions} />
             </p>
           </blockquote>
         )}
@@ -959,7 +948,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'follow') return <FollowNotice item={item} />
   if (item.type === 'pvp') return <PvpNotice item={item} />
   if (item.type === 'event') return <EventNotice item={item} light={light} />
-  if (item.type === 'cut') return <CutNotice item={item} onDeleted={onCutDeleted} />
+  if (item.type === 'cut' || item.type === 'cutMention') return <CutNotice item={item} onDeleted={onCutDeleted} />
   if (item.type === 'cutReply') return <CutReplyNotice item={item} />
   if (item.type === 'payout') return <PayoutNotice item={item} light={light} />
   if (item.type === 'gift' || item.type === 'adminGrant') return <GiftNotice item={item} light={light} />

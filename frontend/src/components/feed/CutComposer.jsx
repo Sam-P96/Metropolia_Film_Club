@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import MentionTextarea from './MentionTextarea'
 import { postCut } from '../../services/cuts'
 
 // Matches the server's limit (backend/controllers/cutController.js).
@@ -24,7 +25,9 @@ const LOOKS = {
 
 // The box at the very top of Notifications for posting a cut: a short post
 // that goes to your followers' Notifications and your own, where any web
-// addresses in it become links. `onPosted` runs once it's saved.
+// addresses in it become links. "@" and a name tags a member (3 closest
+// names come up as you type: MentionTextarea.jsx), who gets it in their
+// Notifications as "tagged you". `onPosted` runs once it's saved.
 function CutComposer({ light = false, onPosted }) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
@@ -62,19 +65,21 @@ function CutComposer({ light = false, onPosted }) {
       >
         Post a cut
       </label>
-      <textarea
-        id="cut"
-        rows={3}
-        maxLength={MAX_LENGTH}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="What's on your mind? Links become clickable."
-        className={`mt-3 w-full resize-y rounded-md border px-4 py-3 leading-relaxed outline-none transition-colors ${look.input}`}
-      />
+      <div className="mt-3">
+        <MentionTextarea
+          id="cut"
+          rows={3}
+          maxLength={MAX_LENGTH}
+          value={text}
+          onChange={setText}
+          placeholder="What's on your mind? Links become clickable, and @name tags a member."
+          className={`w-full resize-y rounded-md border px-4 py-3 leading-relaxed outline-none transition-colors ${look.input}`}
+        />
+      </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
         <span className={`text-xs ${look.muted}`}>
-          {text.length} / {MAX_LENGTH} · goes to your followers' Notifications
+          {text.length} / {MAX_LENGTH} · goes to your followers' Notifications, and anyone you tag
         </span>
 
         <button

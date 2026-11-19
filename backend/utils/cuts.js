@@ -1,27 +1,33 @@
 const Cut = require("../models/cutModel");
 const Comment = require("../models/commentModel");
+const User = require("../models/userModel");
 const { userSummary } = require("./serialize");
 
 // What a cut needs from the database to be drawn.
-const CUT_FIELDS = "user text likeCount dislikeCount viralAt editedAt createdAt";
+const CUT_FIELDS = "user text mentions likeCount dislikeCount viralAt editedAt createdAt";
 
 // Cuts (plain .lean() documents with CUT_FIELDS) as the page draws them:
-// { _id, text, likeCount, dislikeCount, myVote, replyCount, viral,
-// editedAt }, with `myVote` for `viewer` (the member asking, or null) and
-// `editedAt` null unless its author has changed it.
+// { _id, text, mentions, likeCount, dislikeCount, myVote, replyCount,
+// viral, editedAt }, with `myVote` for `viewer` (the member asking, or
+// null), `editedAt` null unless its author has changed it, and `mentions`
+// the members it tags who are still members: [{ _id, name }].
 async function cutDetails(cuts, viewer) {
-    const [voted, counts] = await Promise.all([
+    const taggedIds = [...new Set(cuts.flatMap((cut) => (cut.mentions ?? []).map((mention) => String(mention.user))))];
+    const [voted, counts, stillHere] = await Promise.all([
         Cut.withMyVote(cuts, viewer),
         Comment.aggregate([
             { $match: { cut: { $in: cuts.map((cut) => cut._id) } } },
             { $group: { _id: "$cut", count: { $sum: 1 } } },
         ]),
+        taggedIds.length ? User.find({ _id: { $in: taggedIds } }).distinct("_id") : [],
     ]);
     const replyCounts = new Map(counts.map((row) => [String(row._id), row.count]));
+    const members = new Set(stillHere.map(String));
 
     return voted.map((cut) => ({
         _id: cut._id,
         text: cut.text,
+        mentions: (cut.mentions ?? []).filter((mention) => members.has(String(mention.user))).map((mention) => ({ _id: mention.user, name: mention.name })),
         likeCount: cut.likeCount,
         dislikeCount: cut.dislikeCount,
         myVote: cut.myVote,

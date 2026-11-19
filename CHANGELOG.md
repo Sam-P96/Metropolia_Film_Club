@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Tagging members in cuts: "@" and a username tags them. Typing "@" and the
+  start of a name lists the 3 closest usernames under the box (typos and
+  swapped letters too); click one, or pick with the arrow keys and Enter or
+  Tab. Tagged members get the cut in their Notifications as "tagged you in
+  their cut" (in place of the plain cut if they follow you, so it's there
+  once), and the tags in a cut link to their profiles. Editing a cut tags
+  anyone newly named and untags anyone taken out. Usernames can have
+  spaces, so a tag is the longest username that fits (\`shared/mentions.js\`);
+  an email address isn't a tag, and a cut tags 10 members at most.
 - Forrest Bounce (Games → Forrest Bounce, `/games/forrest-bounce`): tap to
   drop one buddy from a branch onto a seesaw and launch the other up to the
   far tree, through floating fruit (higher is worth more, up to a x100

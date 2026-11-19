@@ -1,12 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import MentionTextarea from './feed/MentionTextarea'
 
 // Changing something already posted (a cut, or a comment), right where it
 // was: its words in a box, with the cursor at the end, how long they are,
 // and Save and Cancel (Escape cancels too). `save(text)` sends the trimmed
 // text and resolves to what was saved, which `onSaved` gets. Saving it
 // unchanged just closes it. If saving fails, the box stays, with what they
-// wrote and why.
-function EditText({ initial, maxLength, rows = 3, label, save, onSaved, onCancel, className = '' }) {
+// wrote and why. `mentions`: "@" tags members, with names suggested as you
+// type (a cut: feed/MentionTextarea.jsx).
+function EditText({ initial, maxLength, rows = 3, label, save, onSaved, onCancel, mentions = false, className = '' }) {
   const [text, setText] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -45,18 +47,33 @@ function EditText({ initial, maxLength, rows = 3, label, save, onSaved, onCancel
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
-      <textarea
-        ref={box}
-        id={id}
-        rows={rows}
-        maxLength={maxLength}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && !saving) onCancel()
-        }}
-        className="w-full resize-y rounded-md border border-white/15 bg-ink/70 px-4 py-3 text-sm leading-relaxed text-white outline-none backdrop-blur-sm transition-colors focus:border-brand-gold/60"
-      />
+      {mentions ? (
+        <MentionTextarea
+          textareaRef={box}
+          id={id}
+          rows={rows}
+          maxLength={maxLength}
+          value={text}
+          onChange={setText}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !saving) onCancel()
+          }}
+          className="w-full resize-y rounded-md border border-white/15 bg-ink/70 px-4 py-3 text-sm leading-relaxed text-white outline-none backdrop-blur-sm transition-colors focus:border-brand-gold/60"
+        />
+      ) : (
+        <textarea
+          ref={box}
+          id={id}
+          rows={rows}
+          maxLength={maxLength}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !saving) onCancel()
+          }}
+          className="w-full resize-y rounded-md border border-white/15 bg-ink/70 px-4 py-3 text-sm leading-relaxed text-white outline-none backdrop-blur-sm transition-colors focus:border-brand-gold/60"
+        />
+      )}
 
       <div className="mt-2 flex items-center justify-between gap-4">
         <span className="text-xs text-white/40">

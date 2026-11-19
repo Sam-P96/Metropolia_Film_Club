@@ -16,7 +16,7 @@ const VIRAL_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
-    "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
+    "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "cutMention", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
     "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES,
 ];
@@ -210,9 +210,35 @@ function forgetEvent(eventId) {
 // A member posted a cut: it goes to everyone who follows them, and to them,
 // so they see it went out (and can delete it from there). Replies under it
 // go through noteReply.
+// Anyone it tags gets it as "cutMention" ("tagged you") in place of the
+// plain cut, follower or not, so nobody has it twice.
 async function noteNewCut(cut) {
+    const tagged = (cut.mentions ?? []).map((mention) => String(mention.user));
     const followers = await Follow.find({ following: cut.user }).distinct("follower");
-    await sendToEach([cut.user, ...followers], { type: "cut", cut: cut._id, actors: [cut.user] });
+    const plain = [cut.user, ...followers].filter((id) => !tagged.includes(String(id)));
+    await sendToEach(plain, { type: "cut", cut: cut._id, actors: [cut.user] });
+    await sendToEach(tagged, { type: "cutMention", cut: cut._id, actors: [cut.user] });
+}
+
+// A cut edited: `before` and `after` are who it tagged then and now. Newly
+// tagged members get it as "tagged you" (in place of the plain cut, if they
+// had it); members no longer tagged lose that, and get the plain cut back if
+// they follow its author (or it's gone out to everyone as viral).
+async function retagCut(cut, before, after) {
+    const was = new Set(before.map(String));
+    const now = new Set(after.map(String));
+    const added = [...now].filter((id) => !was.has(id));
+    const dropped = [...was].filter((id) => !now.has(id));
+    if (added.length > 0) {
+        await Notification.deleteMany({ type: "cut", cut: cut._id, recipient: { $in: added } });
+        await sendToEach(added, { type: "cutMention", cut: cut._id, actors: [cut.user] });
+    }
+    if (dropped.length > 0) {
+        await Notification.deleteMany({ type: "cutMention", cut: cut._id, recipient: { $in: dropped } });
+        const viral = await Cut.exists({ _id: cut._id, viralAt: { $ne: null } });
+        const back = viral ? dropped : (await Follow.find({ following: cut.user, follower: { $in: dropped } }).distinct("follower")).map(String);
+        await sendToEach(back, { type: "cut", cut: cut._id, actors: [cut.user] });
+    }
 }
 
 // After a like on a cut: if it has just reached the viral line, mark it so
@@ -224,11 +250,13 @@ async function noteViralCut(cutId) {
         { _id: cutId, viralAt: null, likeCount: { $gte: VIRAL_LIKES } },
         { $set: { viralAt: new Date() } },
         { timestamps: false }
-    ).select("user").lean();
+    ).select("user mentions").lean();
 
     if (!cut) return;
 
-    const members = await User.find().distinct("_id");
+    // Members it tags have it already, as "tagged you".
+    const tagged = new Set((cut.mentions ?? []).map((mention) => String(mention.user)));
+    const members = (await User.find().distinct("_id")).filter((id) => !tagged.has(String(id)));
     await Notification.deleteMany({ type: "cut", cut: cut._id });
     await sendToEach(members, { type: "cut", cut: cut._id, actors: [cut.user] });
 }
@@ -726,6 +754,7 @@ async function forgetMember(userId, reviewIds, cutIds = []) {
 }
 
 module.exports = {
+    retagCut,
     noteForrestCashOut,
     noteForrestBest,
     noteCrashResults,

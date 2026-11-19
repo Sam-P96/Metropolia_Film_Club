@@ -44,7 +44,7 @@ const PAGE_SIZE = 10;
 const FEED_FILTERS = {
     events: [],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
-    cuts: ["cut", "cutReply"],
+    cuts: ["cut", "cutReply", "cutMention"],
     games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES],
 };
 // What every filter shows whatever else it leaves out: club events, and big
@@ -364,7 +364,8 @@ async function hydrate(rows, viewer) {
             }];
         }
 
-        if (row.type === "cut") {
+        // A cut, or one that tags them ("tagged you"), drawn the same.
+        if (row.type === "cut" || row.type === "cutMention") {
             const cut = cutById.get(String(row.cut));
             return cut ? [{ _id: row._id, type: row.type, at: row.at, actors: members, cut }] : [];
         }

@@ -157,4 +157,47 @@ describe("cuts and comments", { skip: !uri ? "set MONGO_TEST_URI to run these" :
         assert.equal((await call(commenter, "PATCH", "/comments/nonsense", { text: "Hi." })).status, 404);
         assert.equal((await call(null, "PATCH", `/comments/${reply._id}`, { text: "Hi." })).status, 401);
     });
+
+    test("tagging: \"@name\" tags a member (the longest name that fits), who gets the cut as \"tagged you\" in place of the plain one", async () => {
+        const Notification = require("../models/notificationModel");
+        const author = await member({ username: "Ripley" });
+        const fan = await member({ username: "Ann Lee" });
+        const namesake = await member({ username: "Ann" });
+        const stranger = await member({ username: "bob" });
+        const reader = await member({ username: "Dallas" });
+        await Follow.create([fan, namesake, reader].map((user) => ({ follower: user._id, following: author._id })));
+
+        const posted = await postCut(author, "Bring @Ann Lee and @BOB, not me@ann.com, and @Ripley or @nobody.");
+        assert.deepEqual(posted.mentions.map((mention) => [String(mention._id), mention.name]), [[String(fan._id), "Ann Lee"], [String(stranger._id), "BOB"]], "never its author");
+
+        const typesFor = async (user) => (await Notification.find({ recipient: user._id, cut: posted._id }).lean()).map((note) => note.type).sort();
+        assert.deepEqual(await typesFor(fan), ["cutMention"], "a follower it tags: just the tag");
+        assert.deepEqual(await typesFor(stranger), ["cutMention"], "tagged without following");
+        assert.deepEqual(await typesFor(namesake), ["cut"], "Ann isn't Ann Lee");
+        assert.deepEqual(await typesFor(reader), ["cut"]);
+        assert.deepEqual(await typesFor(author), ["cut"]);
+
+        // In bob's Notifications, under Cuts: the cut, with its tags to link.
+        const item = (await call(stranger, "GET", "/feed?filter=cuts")).body.items.find((entry) => entry.cut?._id === posted._id);
+        assert.equal(item.type, "cutMention");
+        assert.deepEqual(item.cut.mentions.map((mention) => mention.name), ["Ann Lee", "BOB"]);
+        assert.deepEqual((await call(reader, "GET", `/cuts/${posted._id}`)).body.cut.mentions.map((mention) => mention.name), ["Ann Lee", "BOB"]);
+    });
+
+    test("editing a cut re-tags it: newly tagged members get it, untagged ones lose the tag (a follower gets the plain cut back)", async () => {
+        const Notification = require("../models/notificationModel");
+        const author = await member({ username: "Hicks" });
+        const follower = await member({ username: "Vasquez" });
+        const other = await member({ username: "Hudson" });
+        const later = await member({ username: "Bishop" });
+        await Follow.create({ follower: follower._id, following: author._id });
+        const posted = await postCut(author, "@Vasquez and @Hudson, with me.");
+
+        const edited = (await call(author, "PATCH", `/cuts/${posted._id}`, { text: "Just @Bishop now." })).body;
+        assert.deepEqual(edited.mentions.map((mention) => mention.name), ["Bishop"]);
+        const typesFor = async (user) => (await Notification.find({ recipient: user._id, cut: posted._id }).lean()).map((note) => note.type).sort();
+        assert.deepEqual(await typesFor(later), ["cutMention"]);
+        assert.deepEqual(await typesFor(follower), ["cut"], "untagged, still a follower: the plain cut");
+        assert.deepEqual(await typesFor(other), [], "untagged, not a follower: nothing");
+    });
 });

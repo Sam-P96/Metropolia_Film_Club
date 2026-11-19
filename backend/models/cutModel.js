@@ -17,6 +17,12 @@ const cutSchema = new Schema(
         // When its author last changed what it says, or null if they never
         // have (updatedAt moves with every vote, so it can't tell).
         editedAt: {type: Date, default: null},
+        // The members it tags ("@" and their username: utils/mentions.js),
+        // each with the name as written, which the page links to them.
+        mentions: {
+            type: [{user: {type: Schema.Types.ObjectId, ref: "User", required: true}, name: {type: String, required: true}, _id: false}],
+            default: [],
+        },
     },
     {timestamps: true}
 );
