@@ -749,6 +749,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Box Office Crash's Invite box (and the prompt to join a smaller game)
+  stays in the space under the nav bar however long the friends list grows
+  with "Load more": its title and close button stay put at the top and the
+  list scrolls inside it. It used to grow up behind the nav bar, out of
+  reach of the close button, on a computer and a phone.
 - Scrolling games on a phone: a finger going up or down a Box Office
   Scratch card scrolls the page instead of scratching it (rub sideways to
   scratch; a tap does nothing). On 8 Ball Pool a swipe across the table on
