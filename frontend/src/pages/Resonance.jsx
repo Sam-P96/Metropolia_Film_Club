@@ -6,7 +6,7 @@ import PillToggle from '../components/PillToggle'
 import SettingRow from '../components/profile/SettingRow'
 import StyledAvatar from '../components/cosmetics/StyledAvatar'
 import StyledUsername from '../components/cosmetics/StyledUsername'
-import { useFirstPlaceShown } from '../components/firstPlace/firstPlaceStore'
+import { useNameEffectShown } from '../components/firstPlace/firstPlaceStore'
 import { edgeOf } from '../components/leaderboard/edges'
 import BannerStrip from '../components/profile/BannerStrip'
 import ResonanceCard from '../components/resonance/ResonanceCard'
@@ -259,9 +259,9 @@ function Row({ match, rank, edge }) {
   const tier = resonanceTier(match.percent)
   const { user } = match
   const cosmetics = user.cosmetics
-  // The First Place effect, in place of their name style, if they hold a title.
-  const firstPlace = useFirstPlaceShown(user._id)
-  const styledName = Boolean(cosmetics?.name) || firstPlace
+  // A name effect (First Place's or an Infinity Stone's), in place of their name style.
+  const nameEffect = useNameEffectShown(user._id)
+  const styledName = Boolean(cosmetics?.name) || nameEffect
 
   return (
     <li

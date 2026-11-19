@@ -1,0 +1,467 @@
+/* Infinity Stone names (StoneName.jsx): the name of whoever holds a stone,
+   in that stone's effect. Made in shared/prototype/Infinity Stone Username
+   Effects.html. Particles, lightning and the stones' moments (the Space
+   Stone's teleport, Reality's rewrite, Power's blast, Time's loop) come
+   from stoneFx.js; the liquid, smoke and water from StoneFilters.jsx.
+
+   The same rules as the Black Market name styles (cosmetics.css):
+   - The font never changes: the name keeps the font, size and weight of
+     where it is. Everything is sized in em, so it scales with the name.
+   - Nothing changes the layout: every layer around the letters is
+     absolutely positioned and lets clicks through.
+   - Long names wrap.
+   - background-clip: text comes AFTER the background shorthand.
+   - Held still (reduce motion, or .isn-still): the same colours and glow,
+     no movement, no particles. */
+
+@property --isn-spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.isn {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  isolation: isolate;
+}
+.isn-t {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.isn-l {
+  display: inline-block;
+  white-space: pre;
+}
+.isn-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.isn-p {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.isn > [aria-hidden] {
+  pointer-events: none;
+}
+
+/* ---------- Space: the Tesseract's portal, and teleporting ---------- */
+.isn-space .isn-fx { z-index: 0; }
+.isn-space .isn-t {
+  background: linear-gradient(100deg, #1e40af 0%, #3b82f6 22%, #e0f2fe 42%, #60a5fa 58%, #1d4ed8 78%, #bae6fd 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 .06em #bfdbfe) drop-shadow(0 0 .25em #3b82f6) drop-shadow(0 0 .7em rgba(37, 99, 235, .7));
+  animation: isn-spaceShift 5s linear infinite;
+}
+@keyframes isn-spaceShift { to { background-position: -250% 0; } }
+.isn-portal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + 1.3em);
+  height: 2.1em;
+  translate: -50% -50%;
+  z-index: -1;
+  border-radius: 50%;
+  background: conic-gradient(from var(--isn-spin), transparent 0 8%, rgba(96, 165, 250, .6) 16%, transparent 28%, rgba(29, 78, 216, .75) 42%, transparent 55%, rgba(186, 230, 253, .5) 68%, transparent 80%, rgba(59, 130, 246, .65) 90%, transparent);
+  -webkit-mask: radial-gradient(closest-side, transparent 25%, #000 55%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 25%, #000 55%, transparent 100%);
+  filter: blur(.08em);
+  animation: isn-portalSpin 2.8s linear infinite;
+}
+.isn-portal::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(10, 20, 60, .9), rgba(15, 30, 90, .4) 60%, transparent);
+}
+@keyframes isn-portalSpin { to { --isn-spin: 360deg; } }
+.isn-space.isn-warp .isn-t { animation: isn-spaceShift 5s linear infinite, isn-teleport .95s ease-in-out; }
+.isn-space.isn-warp .isn-portal { animation: isn-portalSpin .7s linear infinite, isn-portalFlare .95s ease-in-out; }
+@keyframes isn-teleport {
+  0% { transform: none; opacity: 1; }
+  22% { transform: scale(1.15, .07); opacity: 1; filter: brightness(3) drop-shadow(0 0 .35em #93c5fd); }
+  38%, 62% { transform: scale(0, .02); opacity: 0; }
+  78% { transform: scale(1.15, .07); opacity: 1; filter: brightness(3) drop-shadow(0 0 .35em #93c5fd); }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes isn-portalFlare { 0%, 100% { scale: 1; opacity: .85; } 40%, 60% { scale: 1.35 1.6; opacity: 1; } }
+
+/* ---------- Mind: the Scepter's psychic waves ---------- */
+.isn-mind .isn-l {
+  color: #fde047;
+  text-shadow: 0 0 .06em #fffbe0, 0 0 .25em #facc15, 0 0 .6em rgba(234, 179, 8, .75), 0 0 1.1em rgba(202, 138, 4, .5);
+  animation: isn-mindSway 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -.17s);
+}
+@keyframes isn-mindSway { 0%, 100% { transform: translateY(.03em); } 50% { transform: translateY(-.06em); } }
+.isn-haze {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + .8em);
+  height: 1.6em;
+  translate: -50% -50%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(250, 204, 21, .28), transparent);
+  animation: isn-haze 2.6s ease-in-out infinite;
+}
+@keyframes isn-haze { 50% { opacity: .5; scale: .92; } }
+.isn-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + .3em);
+  height: 1.35em;
+  translate: -50% -50%;
+  z-index: -1;
+  border: .055em solid rgba(253, 224, 71, .85);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 .25em rgba(250, 204, 21, .55), inset 0 0 .25em rgba(250, 204, 21, .35);
+  animation: isn-mindRing 2.7s ease-out infinite;
+}
+.isn-ring.isn-r2 { animation-delay: .9s; }
+.isn-ring.isn-r3 { animation-delay: 1.8s; }
+@keyframes isn-mindRing { 0% { scale: .55; opacity: 0; } 15% { opacity: .9; } 100% { scale: 1.45 1.7; opacity: 0; } }
+
+/* ---------- Reality: the Aether ---------- */
+.isn-reality .isn-t {
+  color: #ff2b2b;
+  filter: url(#isn-reality);
+  text-shadow: 0 0 .08em #ff8a8a, 0 0 .3em #dc2626, 0 0 .7em rgba(185, 28, 28, .9), 0 0 1.2em rgba(220, 38, 38, .5);
+}
+.isn-reality.isn-sm .isn-t { filter: url(#isn-reality-sm); }
+.isn-aether {
+  position: absolute;
+  left: -.55em;
+  right: -.55em;
+  top: -.5em;
+  bottom: -.5em;
+  z-index: -1;
+  border-radius: 45%;
+  background:
+    radial-gradient(38% 55% at 25% 50%, rgba(220, 20, 20, .75), transparent 70%),
+    radial-gradient(35% 55% at 75% 45%, rgba(150, 0, 0, .85), transparent 70%),
+    radial-gradient(55% 70% at 50% 55%, rgba(25, 0, 0, .95), transparent 75%);
+  filter: url(#isn-smoke);
+  animation: isn-aetherFlow 5s ease-in-out infinite alternate;
+}
+.isn-reality.isn-sm .isn-aether { filter: url(#isn-smoke-sm); }
+@keyframes isn-aetherFlow { 0% { rotate: -4deg; scale: 1; } 100% { rotate: 4deg; scale: 1.08 .94; } }
+.isn-reality.isn-shift .isn-t { animation: isn-realityShift .5s steps(3); }
+@keyframes isn-realityShift {
+  0% { color: #0d0000; -webkit-text-stroke: .03em #ff3b3b; transform: skewX(-10deg) scaleX(1.05); }
+  50% { color: #ff2b2b; -webkit-text-stroke: 0; transform: skewX(7deg) translateX(.04em); }
+  100% { transform: none; }
+}
+
+/* ---------- Power: the Orb ---------- */
+.isn-power .isn-t {
+  color: #f5ecff;
+  text-shadow: 0 0 .04em #fff, 0 0 .16em #c084fc, 0 0 .38em #a855f7, 0 0 .8em #7e22ce, 0 0 1.3em rgba(147, 51, 234, .55);
+  animation: isn-powerFlicker 1.9s steps(1) infinite;
+}
+@keyframes isn-powerFlicker {
+  0%, 100% { filter: none; }
+  6% { filter: brightness(.7); }
+  7% { filter: brightness(1.5); }
+  9% { filter: none; }
+  41% { filter: brightness(1.4); }
+  42% { filter: brightness(.8); }
+  44% { filter: none; }
+  77% { filter: brightness(1.6); }
+  78% { filter: none; }
+}
+.isn-aura {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + 1em);
+  height: 1.9em;
+  translate: -50% -50%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(168, 85, 247, .5), rgba(88, 28, 135, .35) 55%, transparent);
+  animation: isn-auraThrob 1.1s ease-in-out infinite;
+}
+@keyframes isn-auraThrob { 0%, 100% { opacity: .7; scale: 1; } 35% { opacity: 1; scale: 1.06; } 55% { opacity: .6; scale: .97; } }
+.isn-bolts {
+  position: absolute;
+  left: -.3em;
+  top: -.4em;
+  width: calc(100% + .6em);
+  height: calc(100% + .8em);
+  overflow: visible;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 0 .08em #d8b4fe) drop-shadow(0 0 .2em #9333ea);
+}
+.isn-shock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + .5em);
+  height: 1.5em;
+  border-radius: 50%;
+  border: .07em solid #ecdcff;
+  box-shadow: 0 0 .3em #a855f7, inset 0 0 .3em #a855f7;
+}
+.isn-power.isn-blast .isn-t { animation: isn-powerFlicker 1.9s steps(1) infinite, isn-shake .5s linear; }
+.isn-power.isn-blast .isn-aura { animation: isn-auraBlast .6s ease-out; }
+@keyframes isn-shake {
+  0% { transform: none; filter: brightness(2.4); }
+  10% { transform: translate(.05em, -.03em); }
+  20% { transform: translate(-.06em, .03em); }
+  30% { transform: translate(.04em, .04em); }
+  40% { transform: translate(-.03em, -.04em); }
+  55% { transform: translate(.02em, .02em); }
+  70% { transform: translate(-.02em, 0); }
+  100% { transform: none; filter: none; }
+}
+@keyframes isn-auraBlast { 0% { scale: 1.6; opacity: 1; } 100% { scale: 1; opacity: .7; } }
+
+/* ---------- Time: the Eye of Agamotto ---------- */
+.isn-time .isn-l {
+  color: #4ade80;
+  text-shadow: 0 0 .06em #bbf7d0, 0 0 .25em #22c55e, 0 0 .6em rgba(22, 163, 74, .7), 0 0 1.1em rgba(34, 197, 94, .4);
+  animation: isn-tick 3.2s linear infinite;
+  animation-delay: calc(var(--i) * .1s);
+}
+@keyframes isn-tick {
+  0%, 14%, 100% {
+    color: #4ade80;
+    text-shadow: 0 0 .06em #bbf7d0, 0 0 .25em #22c55e, 0 0 .6em rgba(22, 163, 74, .7), 0 0 1.1em rgba(34, 197, 94, .4);
+  }
+  5% {
+    color: #f0fdf4;
+    text-shadow: 0 0 .08em #fff, 0 0 .35em #4ade80, 0 0 .8em #16a34a, 0 0 1.4em rgba(34, 197, 94, .6);
+  }
+}
+.isn-mandala {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.9em;
+  height: 2.9em;
+  translate: -50% -50%;
+  z-index: -1;
+  color: #4ade80;
+  opacity: .8;
+  filter: drop-shadow(0 0 .06em #22c55e) drop-shadow(0 0 .22em #16a34a);
+}
+.isn-mandala svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.isn-m1 { transform-origin: 100px 100px; animation: isn-spin 16s linear infinite; }
+.isn-m2 { transform-origin: 100px 100px; animation: isn-spin 10s linear infinite reverse; }
+.isn-m3 { transform-origin: 100px 100px; animation: isn-spin 6s linear infinite; }
+@keyframes isn-spin { to { transform: rotate(360deg); } }
+.isn-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  z-index: 0;
+  overflow-wrap: anywhere;
+  color: #22c55e;
+  opacity: 0;
+  text-shadow: 0 0 .2em #15803d;
+}
+.isn-time.isn-rewind .isn-g1 { animation: isn-ghost 1s ease-out; }
+.isn-time.isn-rewind .isn-g2 { animation: isn-ghost 1s ease-out .12s; }
+@keyframes isn-ghost {
+  0% { opacity: .75; transform: none; }
+  40% { opacity: .3; transform: translateX(-.35em); }
+  45% { opacity: .75; transform: none; }
+  85% { opacity: .25; transform: translateX(-.35em); }
+  100% { opacity: 0; transform: translateX(-.45em); }
+}
+.isn-time.isn-rewind .isn-t { animation: isn-stutter 1s steps(1); }
+@keyframes isn-stutter {
+  0% { transform: none; }
+  10% { transform: translateX(-.05em); }
+  20% { transform: none; }
+  30% { transform: translateX(-.05em); }
+  45% { transform: none; }
+  55% { transform: translateX(-.05em); }
+  65% { transform: none; }
+  75% { transform: translateX(-.05em); }
+  85%, 100% { transform: none; }
+}
+.isn-time.isn-rewind .isn-mandala { animation: isn-rewindSpin 1s cubic-bezier(.5, 0, .3, 1); }
+@keyframes isn-rewindSpin { 0% { rotate: 0deg; opacity: .8; } 50% { opacity: 1; scale: 1.12; } 100% { rotate: -360deg; opacity: .8; } }
+
+/* ---------- Soul: Vormir ---------- */
+.isn-soul .isn-t { color: #fdba74; animation: isn-soulBreath 3.6s ease-in-out infinite; }
+@keyframes isn-soulBreath {
+  0%, 100% { text-shadow: 0 0 .06em #fff1e0, 0 0 .25em #f97316, 0 0 .6em rgba(234, 88, 12, .7), 0 0 1.1em rgba(194, 65, 12, .45); }
+  50% {
+    color: #ffd7ad;
+    text-shadow: 0 0 .1em #fff7ed, 0 0 .4em #fb923c, 0 0 .9em rgba(234, 88, 12, .85), 0 0 1.5em rgba(249, 115, 22, .55);
+  }
+}
+.isn-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + 1.2em);
+  height: 2em;
+  translate: -50% -50%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(249, 115, 22, .32), rgba(154, 52, 18, .15) 60%, transparent);
+  animation: isn-haloBreath 3.6s ease-in-out infinite;
+}
+@keyframes isn-haloBreath { 0%, 100% { opacity: .7; } 50% { scale: 1.1; opacity: 1; } }
+.isn-reflect {
+  position: absolute;
+  left: 0;
+  top: calc(100% - .14em);
+  width: 100%;
+  z-index: 0;
+  overflow-wrap: anywhere;
+  color: #fb923c;
+  opacity: .4;
+  transform: scaleY(-1);
+  -webkit-mask-image: linear-gradient(to top, #000 5%, transparent 78%);
+  mask-image: linear-gradient(to top, #000 5%, transparent 78%);
+  filter: url(#isn-water);
+}
+.isn-soul.isn-sm .isn-reflect { filter: url(#isn-water-sm); }
+.isn-water {
+  position: absolute;
+  left: -.3em;
+  right: -.3em;
+  top: calc(100% - .12em);
+  height: .035em;
+  min-height: 1px;
+  z-index: 0;
+  background: linear-gradient(90deg, transparent, rgba(253, 186, 116, .7), transparent);
+  animation: isn-waterGlint 3.6s ease-in-out infinite;
+}
+@keyframes isn-waterGlint { 50% { opacity: .4; } }
+
+/* ---------- Every stone: the horizontal lens flare ---------- */
+.isn-flare {
+  --fc: #fff;
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: calc(100% + 3.4em);
+  height: 1em;
+  translate: -50% -50%;
+  z-index: 0;
+  mix-blend-mode: screen;
+  animation: isn-flareBreath 3.2s ease-in-out infinite;
+}
+.isn-flare::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: .055em;
+  min-height: 1px;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent 0, color-mix(in srgb, var(--fc) 55%, transparent) 20%, color-mix(in srgb, var(--fc) 35%, #fff) 50%, color-mix(in srgb, var(--fc) 55%, transparent) 80%, transparent 100%);
+  box-shadow: 0 0 .12em var(--fc), 0 0 .3em color-mix(in srgb, var(--fc) 60%, transparent);
+}
+.isn-flare::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 50%;
+  height: .5em;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--fc) 40%, transparent), transparent);
+  opacity: .75;
+}
+.isn-flare i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: .45em;
+  height: .45em;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .95), color-mix(in srgb, var(--fc) 70%, transparent) 40%, transparent);
+}
+.isn-flare b {
+  position: absolute;
+  top: 50%;
+  width: .22em;
+  height: .22em;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--fc) 60%, transparent);
+  opacity: .5;
+}
+.isn-flare b:first-of-type { left: 22%; }
+.isn-flare b:last-of-type { left: 80%; width: .14em; height: .14em; }
+@keyframes isn-flareBreath { 0%, 100% { scale: 1 1; opacity: .8; } 50% { scale: 1.12 1; opacity: 1; } }
+
+.isn-space .isn-flare { --fc: #60a5fa; }
+.isn-space.isn-warp .isn-flare { animation: isn-flareWarp .95s ease-in-out; }
+@keyframes isn-flareWarp { 0%, 100% { scale: 1 1; } 22%, 78% { scale: 1.9 1.6; opacity: 1; filter: brightness(1.8); } 50% { scale: .4 .6; opacity: .4; } }
+.isn-mind .isn-flare { --fc: #facc15; animation-duration: 2.7s; }
+.isn-reality .isn-flare { --fc: #ef4444; filter: url(#isn-reality-sm); }
+.isn-power .isn-flare { --fc: #a855f7; animation: isn-flareBreath 3.2s ease-in-out infinite, isn-powerFlicker 1.9s steps(1) infinite; }
+.isn-power.isn-blast .isn-flare { animation: isn-flareBlast .6s ease-out; }
+@keyframes isn-flareBlast { 0% { scale: 2.3 1.8; filter: brightness(2); } 100% { scale: 1 1; filter: none; } }
+.isn-time .isn-flare { --fc: #22c55e; }
+.isn-time.isn-rewind .isn-flare { animation: isn-flareRewind 1s ease-in-out; }
+@keyframes isn-flareRewind { 0%, 100% { transform: none; } 25%, 70% { transform: translateX(-.3em); opacity: .6; } 45% { transform: none; opacity: 1; } }
+.isn-soul .isn-flare { --fc: #f97316; animation-duration: 3.6s; }
+
+/* ---------- Held still ---------- */
+.isn-still,
+.isn-still * {
+  animation: none !important;
+  transition: none !important;
+}
+/* The liquid, smoke and water filters move by themselves: still, they go. */
+.isn-still.isn-reality .isn-t,
+.isn-still .isn-aether,
+.isn-still .isn-reflect,
+.isn-still.isn-reality .isn-flare {
+  filter: none;
+}
+.isn-still .isn-ring { opacity: .5; }
+@media (prefers-reduced-motion: reduce) {
+  .isn,
+  .isn * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- The stones themselves, as little gems (NameEffectPicker.jsx) ---------- */
+.isn-gem {
+  --c: #fff;
+  display: inline-block;
+  flex: none;
+  width: .7em;
+  height: .9em;
+  border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+  background: radial-gradient(circle at 34% 28%, #fff 0 9%, color-mix(in srgb, var(--c) 70%, #fff) 20%, var(--c) 45%, color-mix(in srgb, var(--c) 35%, #000) 100%);
+  box-shadow: 0 0 .4em color-mix(in srgb, var(--c) 80%, transparent), inset 0 -.1em .15em rgba(0, 0, 0, .35);
+}

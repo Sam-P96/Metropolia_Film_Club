@@ -1,6 +1,8 @@
 // First Place: who holds each title (#1 on the PP Leaderboard, the Critics
-// Leaderboard and by level), and saving the name effect's settings.
-// Against a real MongoDB.
+// Leaderboard and by level), and saving the name effect's settings. Then
+// the Infinity Stone names: who holds each stone, and picking which name
+// effect shows (shared/stoneNames/config.js). Against a real MongoDB, but
+// for the rule for which effect shows.
 //
 // From backend/, with a MongoDB running:
 //   PowerShell:  $env:MONGO_TEST_URI="mongodb://127.0.0.1:27017/kino_test"; npm test
@@ -14,14 +16,35 @@ const mongoose = require("mongoose");
 const express = require("express");
 const jwt = require("jsonwebtoken");
 
+const { FIRST_PLACE_EFFECT, nameEffectOptions, shownNameEffect, stoneOfItem } = require("../../shared/stoneNames/config.js");
+
 const uri = process.env.MONGO_TEST_URI;
 const dbName = uri ? new URL(uri).pathname.slice(1) : "";
+
+describe("which name effect shows", () => {
+    test("the one picked, while they still have it; otherwise First Place, then the stones in order", () => {
+        assert.equal(shownNameEffect({ stones: ["time", "power"], chosen: "time" }), "time");
+        assert.equal(shownNameEffect({ stones: ["time", "power"] }), "power", "Space, Mind, Reality, Power, Time, Soul");
+        assert.equal(shownNameEffect({ stones: ["time"], firstPlace: true }), FIRST_PLACE_EFFECT);
+        assert.equal(shownNameEffect({ stones: ["time"], firstPlace: true, chosen: "time" }), "time");
+        assert.equal(shownNameEffect({ stones: ["time"], chosen: "soul" }), "time", "a stone they've lost");
+        assert.equal(shownNameEffect({ stones: ["soul"], firstPlace: false, chosen: FIRST_PLACE_EFFECT }), "soul", "First Place off, or the title gone");
+        assert.equal(shownNameEffect({}), null, "nothing: their name style");
+        assert.deepEqual(nameEffectOptions({ stones: ["soul", "space"], firstPlace: true }), [FIRST_PLACE_EFFECT, "space", "soul"]);
+    });
+
+    test("the Steal and Defend items that are stones", () => {
+        assert.deepEqual(["space-stone", "mind-stone", "reality-stone", "power-stone", "time-stone", "soul-stone"].map(stoneOfItem), ["space", "mind", "reality", "power", "time", "soul"]);
+        assert.equal(stoneOfItem("red-pill"), null);
+    });
+});
 
 describe("First Place", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName.endsWith("_test") ? "MONGO_TEST_URI's database must end in _test" : false }, () => {
     let base;
     let server;
     let User;
     let Review;
+    let StealItem;
     let firstPlace;
     const tokens = new Map();
 
@@ -30,8 +53,9 @@ describe("First Place", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNa
         await mongoose.connection.dropDatabase();
         User = require("../models/userModel");
         Review = require("../models/reviewModel");
+        StealItem = require("../models/stealItemModel");
         firstPlace = require("../utils/firstPlace");
-        await Promise.all([User, Review].map((model) => model.syncIndexes()));
+        await Promise.all([User, Review, StealItem].map((model) => model.syncIndexes()));
 
         const app = express();
         app.use(express.json());
@@ -49,7 +73,7 @@ describe("First Place", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNa
 
     // Every test starts from nobody, so the rankings are only its own members.
     beforeEach(async () => {
-        await Promise.all([User.deleteMany({}), Review.deleteMany({})]);
+        await Promise.all([User.deleteMany({}), Review.deleteMany({}), StealItem.deleteMany({})]);
         firstPlace.forgetFirstPlaceHolders();
     });
 
@@ -237,5 +261,61 @@ describe("First Place", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNa
         const off = await call("PUT", "/settings", { ...custom, enabled: false }, champ);
         assert.equal(off.status, 200);
         assert.equal((await settingsOf(champ)).enabled, false);
+    });
+
+    // An Infinity Stone held by `user` (`key`: its Steal and Defend item).
+    const stone = (user, key, state = "owned") =>
+        StealItem.create({ owner: user._id, key, durability: 10, maxDurability: 10, originalPrice: 1000, unique: true, state });
+
+    test("the stones: who holds each, one up for sale or in a trade offer included; none for a holder whose account has gone", async () => {
+        const thanos = await member();
+        const gamora = await member();
+        await stone(thanos, "power-stone");
+        await stone(thanos, "time-stone", "listed");
+        await stone(gamora, "soul-stone", "escrow");
+        const gone = await member();
+        await stone(gone, "space-stone");
+        await User.deleteOne({ _id: gone._id });
+        await StealItem.create({ owner: thanos._id, key: "red-pill", durability: 3, maxDurability: 3, originalPrice: 50 });
+        firstPlace.forgetFirstPlaceHolders();
+
+        const view = (await call("GET")).body;
+        assert.deepEqual(view.stones, { space: null, mind: null, reality: null, power: String(thanos._id), time: String(thanos._id), soul: String(gamora._id) });
+        assert.deepEqual(view.chosen, { [String(thanos._id)]: null, [String(gamora._id)]: null }, "nothing picked yet");
+        assert.deepEqual(view.settings, {}, "First Place settings only for title holders");
+    });
+
+    test("picking a name effect: only one they have right now, and it shows for everyone", async () => {
+        const holder = await member();
+        await stone(holder, "power-stone");
+        await stone(holder, "time-stone");
+
+        assert.equal((await call("PUT", "/name-effect", { effect: "time" })).status, 401, "not logged in");
+        const picked = await call("PUT", "/name-effect", { effect: "time" }, holder);
+        assert.deepEqual([picked.status, picked.body], [200, { effect: "time" }]);
+        firstPlace.forgetFirstPlaceHolders();
+        assert.equal((await call("GET")).body.chosen[String(holder._id)], "time");
+
+        // A stone they don't hold, First Place without a title, or nonsense.
+        const notMine = await call("PUT", "/name-effect", { effect: "soul" }, holder);
+        assert.deepEqual([notMine.status, notMine.body.error], [403, "You don't hold the Soul Stone any more."]);
+        assert.equal((await call("PUT", "/name-effect", { effect: FIRST_PLACE_EFFECT }, holder)).status, 403);
+        for (const effect of ["gauntlet", "", null, 3]) assert.equal((await call("PUT", "/name-effect", { effect }, holder)).status, 400, String(effect));
+        assert.equal((await User.findById(holder._id).lean()).nameEffect, "time", "still Time");
+
+        // With a title, First Place too.
+        await User.updateOne({ _id: holder._id }, { $set: { "wallet.pp": 500 } });
+        firstPlace.forgetFirstPlaceHolders();
+        assert.equal((await call("PUT", "/name-effect", { effect: FIRST_PLACE_EFFECT }, holder)).status, 200);
+
+        // The Time Stone stolen: the pick stays saved for when it's back, and
+        // the view says who holds it now.
+        const thief = await member();
+        await StealItem.updateOne({ key: "time-stone" }, { $set: { owner: thief._id } });
+        assert.equal((await call("PUT", "/name-effect", { effect: "time" }, holder)).status, 403);
+        firstPlace.forgetFirstPlaceHolders();
+        const view = (await call("GET")).body;
+        assert.equal(view.stones.time, String(thief._id));
+        assert.equal(view.chosen[String(holder._id)], FIRST_PLACE_EFFECT);
     });
 });

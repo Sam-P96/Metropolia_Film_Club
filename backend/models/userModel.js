@@ -232,6 +232,12 @@ const userSchema = new Schema(
         // they're kept for good, so losing every title and winning one back
         // brings them back.
         firstPlaceFx: { type: firstPlaceFxSchema, default: undefined },
+
+        // The name effect they picked on their profile, for when they have
+        // more than one to show (an Infinity Stone's, or First Place's): an
+        // id from shared/stoneNames/config.js NAME_EFFECTS, or null for
+        // the first they have. Kept when they lose it, for when it's back.
+        nameEffect: { type: String, default: null },
     },
     { timestamps: { createdAt: "joinedAt", updatedAt: "updatedAt" } }
 );

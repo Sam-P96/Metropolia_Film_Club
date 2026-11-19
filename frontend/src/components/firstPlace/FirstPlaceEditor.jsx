@@ -128,7 +128,9 @@ export default function FirstPlaceEditor({ user, firstPlace, onClose }) {
               Effect on
               <OnOffSwitch on={draft.enabled} onChange={(enabled) => setDraft({ ...draft, enabled })} label="First Place effect" />
             </span>
-            {!draft.enabled && <span className="text-xs text-white/50">Off: your Black Market name style (or plain name) shows instead.</span>}
+            {!draft.enabled && (
+              <span className="text-xs text-white/50">Off: your Infinity Stone's effect if you hold one, or else your Black Market name style (or plain name), shows instead.</span>
+            )}
           </div>
 
           <StoneControls value={draft} onChange={setDraft} />

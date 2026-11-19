@@ -8,6 +8,7 @@ import Footer from './components/Footer'
 import Home from './pages/Home'
 import StealAlert from "./components/steal/StealAlert";
 import HazeFilter from "./components/cosmetics/HazeFilter";
+import StoneFilters from "./components/stoneNames/StoneFilters";
 import "./components/cosmetics/cosmetics.css";
 import PageLoading from "./components/PageLoading";
 
@@ -116,8 +117,10 @@ function App() {
   return (
     <div className="flex min-h-screen flex-col">
       <ScrollToTop />
-      {/* The Black Market cosmetics' heat haze shimmer, defined once. */}
+      {/* The Black Market cosmetics' heat haze shimmer, and the Infinity
+          Stone names' liquid, smoke and water, defined once. */}
       <HazeFilter />
+      <StoneFilters />
       <NavigationBar
         isAuthenticated={isAuthenticated}
         setIsAuthenticated={setIsAuthenticated}
