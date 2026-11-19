@@ -40,7 +40,7 @@ const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 // Every game on the site, as a card each, behind "Games" in the nav:
 // Loan Shark first, then Farkle, Box Office Scratch, Infinite Gomoku, 8
 // Ball Pool, Box Office Crash, Forrest Bounce, Kino Kasino, Kino Poker, Double or Nothing,
-// Lord Gang Orca, and Steal and Defend last (its picture says "Require
+// Lord Gang Orca, and Steal and Defend last (its picture says "Requires
 // PvP" until its PvP is on). Every row
 // is as tall as the tallest card, so the cards are all one size. Below them, the PP
 // Leaderboard, like the Critics Leaderboard under Movie Reviews. Anyone can
@@ -230,7 +230,7 @@ export default function Games() {
                 <StealLogo />
               ) : (
                 <span className="self-start rounded-lg border border-brand-red/60 bg-brand-red/15 px-3 py-1.5 font-['Bebas_Neue'] text-2xl leading-none tracking-wide text-white">
-                  Require PvP
+                  Requires PvP
                 </span>
               )}
               <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">

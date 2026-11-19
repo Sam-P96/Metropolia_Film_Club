@@ -620,6 +620,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Steal and Defend with PvP off: its card on the Games page says "Requires
+  PvP", and on its page Play is Enable PvP. That says what turning PvP on
+  means (steals both ways, dislikes both ways, every member told, the
+  hashed device check) and asks to confirm; once it's on, the page loads
+  again 3 seconds later, with Play. It's the same switch as Edit
+  profile's.
 - Film Browser: open a film from a search or filtered list and press Back,
   and every film you'd loaded is there straight away, scrolled to where you
   were (no loading page one again and clicking "Load more" back down). The

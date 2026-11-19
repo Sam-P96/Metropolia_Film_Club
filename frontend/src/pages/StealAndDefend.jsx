@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import StealPage, { PvpRequired, StealTitle } from '../components/steal/StealPage'
+import StealPage, { StealTitle } from '../components/steal/StealPage'
+import EnablePvp from '../components/steal/EnablePvp'
 import StealLogo from '../components/steal/StealLogo'
 import HowToPlay from '../components/steal/HowToPlay'
 import { GOLD_BUTTON, QUIET_BUTTON } from '../components/steal/style'
@@ -11,17 +12,19 @@ import { getStealStatus } from '../services/steal'
 const EASE = [0.22, 1, 0.36, 1]
 
 // Steal and Defend's intro, like the other games: what it is, Play, Shop and
-// How to play. Play goes to the hub, or with PvP off says how to turn it on.
+// How to play. Play goes to the hub; with PvP off it's Enable PvP instead,
+// which says what PvP means and turns it on (components/steal/EnablePvp.jsx).
 // Shop goes straight to the daily shop.
 export default function StealAndDefend() {
   const navigate = useNavigate()
   const [rules, setRules] = useState(false)
-  const [blocked, setBlocked] = useState(false)
+  const [asking, setAsking] = useState(false)
   const status = useApi(getStealStatus, [])
+  const pvpOff = Boolean(status.data && !status.data.pvp)
 
   const play = () => {
-    if (status.data && !status.data.pvp) {
-      setBlocked(true)
+    if (pvpOff) {
+      setAsking(true)
       return
     }
     navigate('/games/steal-and-defend/play')
@@ -41,8 +44,8 @@ export default function StealAndDefend() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={play} disabled={status.loading} className={`${GOLD_BUTTON} min-h-13 flex-1 text-lg`}>
-          Play
+        <button type="button" onClick={play} disabled={status.loading} aria-expanded={pvpOff ? asking : undefined} className={`${GOLD_BUTTON} min-h-13 flex-1 text-lg`}>
+          {pvpOff ? 'Enable PvP' : 'Play'}
         </button>
         <Link to="/games/steal-and-defend/shop" className={`${QUIET_BUTTON} min-h-13 flex-1 text-lg`}>
           Shop
@@ -52,7 +55,7 @@ export default function StealAndDefend() {
         </button>
       </div>
 
-      {blocked && <PvpRequired />}
+      <AnimatePresence initial={false}>{asking && <EnablePvp key="enable-pvp" onCancel={() => setAsking(false)} />}</AnimatePresence>
 
       <AnimatePresence initial={false}>
         {rules && (
