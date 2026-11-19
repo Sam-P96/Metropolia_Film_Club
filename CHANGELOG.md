@@ -36,6 +36,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and can't be scrolled, on a computer or a phone.
   - A rainforest green glow behind the page, and the site's best runs
     under the game.
+- Infinity Stone names: holding an Infinity Stone in Steal and Defend gives
+  your name that stone's effect everywhere a Black Market name style (or
+  the First Place effect) shows: leaderboards, review cards, the Resonance
+  list and profiles. Space: a turning Tesseract portal pulling in stardust,
+  and every few seconds the name teleports. Mind: golden psychic rings and
+  swaying letters. Reality: the name in churning red Aether that warps it,
+  now and then rewritten. Power: purple lightning and a shockwave blast.
+  Time: green spell rings, motes drifting backwards and a rewind. Soul: a
+  breathing orange glow, rising embers and a rippling reflection. Each has
+  a lens flare in its colour; reduce motion holds them still. A stone up
+  for sale or held in a trade is still yours.
+  - With more than one to show (two or more stones, or a stone and a First
+    Place title), a Name effect picker under your name on your own profile
+    chooses which; it shows at once and is kept for when you have it again.
+    Without a pick: First Place, then the stones in order. Turning First
+    Place's effect off lets your stone show.
+  - `shared/stoneNames/config.js`, `components/stoneNames/` (from
+    `shared/prototype/Infinity Stone Username Effects.html`); stone holders
+    and picks come with `GET /api/first-place`, and `PUT
+    /api/first-place/name-effect` saves a pick (`nameEffect` on accounts).
 - Box Office Crash on the Notifications page: a cash-out at 10x or more is
   big news for every member (in every filter, glowing); any other round,
   win or lose, goes to the player's followers, with the multiplier and how

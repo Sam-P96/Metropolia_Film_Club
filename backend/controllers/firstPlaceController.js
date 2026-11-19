@@ -1,7 +1,8 @@
-const { FirstPlaceError, firstPlaceView, saveFirstPlaceFx } = require("../utils/firstPlace");
+const { FirstPlaceError, firstPlaceView, saveFirstPlaceFx, saveNameEffect } = require("../utils/firstPlace");
 
 // First Place (routes/firstPlaceRouter.js): who's #1 on each ranking, and
-// their name effect's settings.
+// their name effect's settings; who holds each Infinity Stone; and which
+// name effect each of them shows.
 
 async function handle(res, work) {
     try {
@@ -12,11 +13,15 @@ async function handle(res, work) {
     }
 }
 
-// For anyone: { titles: { pp, critics, controversial, level }, settings: { [userId]: fx } }.
+// For anyone: { titles: { pp, critics, controversial, level }, settings: { [userId]: fx },
+// stones: { space, mind, reality, power, time, soul }, chosen: { [userId]: effect } }.
 const getFirstPlace = (req, res) => handle(res, async () => res.json(await firstPlaceView()));
 
 // A holder of any title saving their effect settings: { settings }.
 const putFirstPlaceSettings = (req, res) =>
     handle(res, async () => res.json({ settings: await saveFirstPlaceFx(req.user._id, req.body) }));
 
-module.exports = { getFirstPlace, putFirstPlaceSettings };
+// A member picking which of their name effects shows: { effect }.
+const putNameEffect = (req, res) => handle(res, async () => res.json({ effect: await saveNameEffect(req.user._id, req.body?.effect) }));
+
+module.exports = { getFirstPlace, putFirstPlaceSettings, putNameEffect };

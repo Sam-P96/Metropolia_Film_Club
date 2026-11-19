@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { cosmeticById, lookOf } from '../../../../shared/cosmetics/catalogue.js'
 import FirstPlaceName from '../firstPlace/FirstPlaceName'
-import { useFirstPlace } from '../firstPlace/firstPlaceStore'
+import { useNameEffect } from '../firstPlace/firstPlaceStore'
+import StoneName from '../stoneNames/StoneName'
+import { FIRST_PLACE_EFFECT } from '../../../../shared/stoneNames/config.js'
 import { attachParticles } from './particleEngine'
 import { useCosmeticsStill } from './stillCosmetics'
 
@@ -14,14 +16,17 @@ const colourVars = (colors) => Object.fromEntries(colors.map((color, i) => [`--c
 // the style has them, go on a canvas over it (particleEngine.js).
 //
 // With `userId` (leaderboards, the Resonance list, review cards and
-// profiles), a member who holds a First Place title and has its effect on
-// gets that instead (components/firstPlace/): it only takes the name
-// style's place, which comes back when they lose the title or turn it off.
-// The shop's own previews leave userId out, so they always show the item.
+// profiles), a member with a name effect gets that instead: the First
+// Place effect while they hold a title with it on (components/firstPlace/),
+// or an Infinity Stone's while they hold one (components/stoneNames/), the
+// one they picked on their profile if they have more than one
+// (shared/stoneNames/config.js). It only takes the name style's place,
+// which comes back when they lose it. The shop's own previews leave userId
+// out, so they always show the item.
 export default function StyledUsername({ name, styleId, userId }) {
-  const firstPlace = useFirstPlace(userId)
-  const crowned = Boolean(firstPlace?.settings.enabled)
-  const item = crowned ? null : cosmeticById(styleId)
+  const effects = useNameEffect(userId)
+  const effect = effects?.effect ?? null
+  const item = effect ? null : cosmeticById(styleId)
   const look = item?.type === 'name' ? lookOf(item) : null
   const still = useCosmeticsStill()
   const wrap = useRef(null)
@@ -41,7 +46,8 @@ export default function StyledUsername({ name, styleId, userId }) {
     })
   }, [particles, colours, name])
 
-  if (crowned) return <FirstPlaceName name={name} settings={firstPlace.settings} titles={firstPlace.titles} />
+  if (effect === FIRST_PLACE_EFFECT) return <FirstPlaceName name={name} settings={effects.firstPlace.settings} titles={effects.firstPlace.titles} />
+  if (effect) return <StoneName name={name} stone={effect} />
   if (!look) return name
 
   return (

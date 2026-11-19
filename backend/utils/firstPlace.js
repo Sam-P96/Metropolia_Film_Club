@@ -1,8 +1,10 @@
 const User = require("../models/userModel");
+const StealItem = require("../models/stealItemModel");
 const { leaderboardStages } = require("./wallet");
 const { rankCritics, everyCritic } = require("./critics");
 const { levelOf, xpOf } = require("./level");
 const { STONE_IDS, firstPlaceFxOf, firstPlaceFxProblem } = require("../../shared/firstPlace/config.js");
+const { FIRST_PLACE_EFFECT, STONE_NAMES, STONE_NAME_IDS, isNameEffect, stoneOfItem } = require("../../shared/stoneNames/config.js");
 
 // First Place: whoever is #1 on a ranking gets the First Place name effect
 // (frontend/src/components/firstPlace/). Each title is one entry here; to
@@ -82,18 +84,46 @@ function getFirstPlaceHolders() {
     return holders;
 }
 
+// Who holds each Infinity Stone in Steal and Defend, for the stones' name
+// effects (shared/stoneNames/config.js): { space, mind, reality, power,
+// time, soul }, each a member id string or null. A stone up for sale or
+// held in a trade offer is still theirs. Kept as long as the titles.
+let cachedStones = null;
+
+function getStoneHolders() {
+    if (cachedStones && Date.now() - cachedStones.at < CACHE_MS) return cachedStones.holders;
+
+    const holders = StealItem.find({ unique: true }).select("key owner").lean().then((items) => {
+        const found = Object.fromEntries(STONE_NAME_IDS.map((id) => [id, null]));
+        for (const item of items) {
+            const stone = stoneOfItem(item.key);
+            if (stone && item.owner) found[stone] = String(item.owner);
+        }
+        return found;
+    });
+    cachedStones = { at: Date.now(), holders };
+    holders.catch(() => {
+        if (cachedStones?.holders === holders) cachedStones = null;
+    });
+    return holders;
+}
+
 // Forget the kept holders, so the next ask works them out again (tests).
 function forgetFirstPlaceHolders() {
     cached = null;
+    cachedStones = null;
 }
 
 // GET /api/first-place: every title with its holder ({ userId, username,
 // label }, or null), and the effect settings of each holder, keyed by id
-// (theirs, or the defaults if they've never saved any).
+// (theirs, or the defaults if they've never saved any). Then the stones:
+// each one's holder's id (or null), and `chosen`, the name effect each
+// holder of a title or a stone has picked (null if none).
 async function firstPlaceView() {
-    const holders = await getFirstPlaceHolders();
-    const ids = [...new Set(Object.values(holders).filter(Boolean))];
-    const users = ids.length ? await User.find({ _id: { $in: ids } }).select("username firstPlaceFx").lean() : [];
+    const [holders, stoneHolders] = await Promise.all([getFirstPlaceHolders(), getStoneHolders()]);
+    const titleIds = new Set(Object.values(holders).filter(Boolean));
+    const ids = [...new Set([...titleIds, ...Object.values(stoneHolders).filter(Boolean)])];
+    const users = ids.length ? await User.find({ _id: { $in: ids } }).select("username firstPlaceFx nameEffect").lean() : [];
     const byId = new Map(users.map((user) => [String(user._id), user]));
 
     const titles = Object.fromEntries(
@@ -102,9 +132,14 @@ async function firstPlaceView() {
             return [title.id, user ? { userId: String(user._id), username: user.username, label: title.label } : null];
         })
     );
-    const settings = Object.fromEntries(users.map((user) => [String(user._id), firstPlaceFxOf(user.firstPlaceFx)]));
+    const settings = Object.fromEntries(
+        users.filter((user) => titleIds.has(String(user._id))).map((user) => [String(user._id), firstPlaceFxOf(user.firstPlaceFx)])
+    );
+    // A stone whose holder's account has gone shows on nobody.
+    const stones = Object.fromEntries(STONE_NAME_IDS.map((id) => [id, byId.has(stoneHolders[id]) ? stoneHolders[id] : null]));
+    const chosen = Object.fromEntries(users.map((user) => [String(user._id), isNameEffect(user.nameEffect) ? user.nameEffect : null]));
 
-    return { titles, settings };
+    return { titles, settings, stones, chosen };
 }
 
 class FirstPlaceError extends Error {
@@ -136,4 +171,32 @@ async function saveFirstPlaceFx(userId, fx) {
     return firstPlaceFxOf(saved);
 }
 
-module.exports = { TITLES, FirstPlaceError, getFirstPlaceHolders, forgetFirstPlaceHolders, firstPlaceView, saveFirstPlaceFx };
+// Saves which name effect `userId` shows (shared/stoneNames/config.js):
+// First Place, only while they hold a title, or a stone, only while they
+// hold it. Resolves to the effect saved.
+async function saveNameEffect(userId, effect) {
+    if (!isNameEffect(effect)) throw new FirstPlaceError("Pick First Place or one of the six stones.");
+
+    if (effect === FIRST_PLACE_EFFECT) {
+        const holders = await getFirstPlaceHolders();
+        if (!Object.values(holders).includes(String(userId))) {
+            throw new FirstPlaceError("Only a member in first place can show the First Place effect.", 403);
+        }
+    } else if (!(await StealItem.exists({ unique: true, key: STONE_NAMES[effect].item, owner: userId }))) {
+        throw new FirstPlaceError(`You don't hold the ${STONE_NAMES[effect].name} any more.`, 403);
+    }
+
+    await User.updateOne({ _id: userId }, { $set: { nameEffect: effect } });
+    return effect;
+}
+
+module.exports = {
+    TITLES,
+    FirstPlaceError,
+    getFirstPlaceHolders,
+    getStoneHolders,
+    forgetFirstPlaceHolders,
+    firstPlaceView,
+    saveFirstPlaceFx,
+    saveNameEffect,
+};

@@ -3,7 +3,7 @@ import BannerStrip from '../profile/BannerStrip'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import StyledUsername from '../cosmetics/StyledUsername'
-import { useFirstPlaceShown } from '../firstPlace/firstPlaceStore'
+import { useNameEffectShown } from '../firstPlace/firstPlaceStore'
 
 // The corners of the list's first and last rows. The lists don't hide their
 // overflow (that would cut off the particles of the cosmetics in their top
@@ -28,8 +28,8 @@ const EDGES = {
 // moves anything. `resonancePercent` shows the Resonance icon for a
 // made-up member (the developer test tool). The list it's in is bg-list.
 export default function LeaderboardRow({ user, position, subtitle, score, edge = null, cosmetics = user.cosmetics, resonancePercent }) {
-  const firstPlace = useFirstPlaceShown(user._id)
-  const styledName = Boolean(cosmetics?.name) || firstPlace
+  const nameEffect = useNameEffectShown(user._id)
+  const styledName = Boolean(cosmetics?.name) || nameEffect
   const styled = styledName || Boolean(cosmetics?.border)
   const corners = EDGES[edge] ?? { row: '', banner: '' }
 

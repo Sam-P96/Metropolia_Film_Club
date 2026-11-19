@@ -5,6 +5,7 @@ import FollowButton from './FollowButton'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledUsername from '../cosmetics/StyledUsername'
 import InfinityButton from '../firstPlace/InfinityButton'
+import NameEffectPicker from '../stoneNames/NameEffectPicker'
 import SettingRow from './SettingRow'
 import { deleteUser, setBans } from '../../services/users'
 import { BAN_RIGHTS, lostRights } from '../../utils/bans'
@@ -151,8 +152,9 @@ function BanPanel({ profileUser, onChange }) {
 // `adminLink`: the name links to /admin, the admin panel (for admins, on
 // their own profile).
 // The name wears their Black Market name style (profileUser.cosmetics), or
-// the First Place effect if they hold a title; then, on their own profile,
-// the ∞ that opens its editor. The developer test tool passes made-up
+// a name effect: First Place's if they hold a title, an Infinity Stone's if
+// they hold one. On their own profile, the ∞ that opens First Place's
+// editor, and, with more than one name effect, the picker for which shows. The developer test tool passes made-up
 // `cosmetics` and `resonancePercent`.
 function ProfileHeading({ name, profileUser, isOwner, onChange, adminLink = false, cosmetics = profileUser.cosmetics, resonancePercent }) {
   const [banning, setBanning] = useState(false)
@@ -199,6 +201,8 @@ function ProfileHeading({ name, profileUser, isOwner, onChange, adminLink = fals
           </span>
         )}
       </div>
+
+      {isOwner && <NameEffectPicker userId={profileUser._id} />}
     </>
   )
 }

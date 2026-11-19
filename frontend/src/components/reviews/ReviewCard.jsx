@@ -10,7 +10,7 @@ import { RANK_TITLES, rankRing } from '../../utils/rankRings'
 import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import StyledUsername from '../cosmetics/StyledUsername'
-import { useFirstPlaceShown } from '../firstPlace/firstPlaceStore'
+import { useNameEffectShown } from '../firstPlace/firstPlaceStore'
 import CardShine from '../CardShine'
 import useSoulResonance from '../../hooks/useSoulResonance'
 import useFriends from '../../hooks/useFriends'
@@ -31,9 +31,9 @@ function ReviewCard({ review, onVoteChange, showLevel = false, solid = false, co
   const friend = useFriends().has(String(user?._id))
   const glow = previewGlow !== undefined ? (previewGlow === 'none' ? null : previewGlow) : soul ? 'soul' : friend ? 'friend' : null
   const cosmetics = previewCosmetics ?? user?.cosmetics
-  // The First Place effect, in place of their name style, if they hold a title.
-  const firstPlace = useFirstPlaceShown(user?._id)
-  const styledName = Boolean(cosmetics?.name) || firstPlace
+  // A name effect (First Place's or an Infinity Stone's), in place of their name style.
+  const nameEffect = useNameEffectShown(user?._id)
+  const styledName = Boolean(cosmetics?.name) || nameEffect
   // A card with cosmetics (or First Place's flares) doesn't hide its
   // overflow, so they can float past its edge; its poster and banner round
   // their own corners.
