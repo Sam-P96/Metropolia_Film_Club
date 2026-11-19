@@ -22,7 +22,7 @@ import StealNotice from '../steal/StealNotice'
 import PokerNotice from '../poker/PokerNotice'
 import LoanNotice from '../loanShark/LoanNotice'
 import SiteEventNotice from './SiteEventNotice'
-import { bannerMedia } from '../../utils/bannerStyle'
+import { useBannerMedia } from '../../hooks/useBannerMedia'
 import BannerFill from '../profile/BannerFill'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
 import { formatEventDate, formatEventTime } from '../../utils/eventDates'
@@ -229,7 +229,8 @@ function BannerBackdrop({ user, fadeWhenTall = false }) {
   // Until it's worked out, or if the host won't let us read the picture,
   // the banner colour they picked. From the server's small copy of the
   // picture once there is one: ours to read, and quicker.
-  const dominant = useDominantColor(fades ? (bannerMedia(banner)?.poster ?? banner.imageUrl) : null)
+  const { media } = useBannerMedia(banner)
+  const dominant = useDominantColor(fades ? (media?.poster ?? banner.imageUrl) : null)
 
   return (
     <>

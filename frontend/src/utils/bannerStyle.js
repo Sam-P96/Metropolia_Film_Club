@@ -18,13 +18,14 @@ export function bannerMedia(banner) {
 // What a banner shows: its picture, sized to cover the layer, or its colour.
 // The picture always covers the whole banner, and its position (percentages
 // of how far it can move) can only take it as far as its own edges, so it
-// never leaves a gap. The server's small copy of the picture, once there is
-// one, in place of the original.
-export function bannerFillStyle(banner) {
+// never leaves a gap. The server's small copy of the picture (`media`,
+// bannerMedia's, or null when it's missing: hooks/useBannerMedia.js), once
+// there is one, in place of the original.
+export function bannerFillStyle(banner, media = bannerMedia(banner)) {
   if (banner.type === 'image' && banner.imageUrl) {
     const { x, y } = bannerPosition(banner)
     return {
-      backgroundImage: `url(${bannerMedia(banner)?.poster ?? banner.imageUrl})`,
+      backgroundImage: `url(${media?.poster ?? banner.imageUrl})`,
       backgroundSize: 'cover',
       backgroundPosition: `${x}% ${y}%`,
     }

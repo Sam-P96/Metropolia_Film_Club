@@ -15,12 +15,13 @@ function keepMuted(video) {
 //
 // Like the GIFs it replaces, it needs `relative` (or similar) on the box it
 // fills. Anyone who has asked their system for reduced motion gets the
-// poster, standing still, and the video isn't downloaded at all.
-function LoopVideo({ src, poster, className = '', style }) {
+// poster, standing still, and the video isn't downloaded at all. `onError`
+// hears if the video (or that poster) can't be loaded.
+function LoopVideo({ src, poster, className = '', style, onError }) {
   const still = useReducedMotion()
   const classes = `absolute inset-0 h-full w-full object-cover ${className}`
 
-  if (still) return <img src={poster} alt="" aria-hidden="true" className={classes} style={style} />
+  if (still) return <img src={poster} alt="" aria-hidden="true" className={classes} style={style} onError={onError} />
 
   return (
     <video
@@ -32,6 +33,7 @@ function LoopVideo({ src, poster, className = '', style }) {
       playsInline
       preload="auto"
       poster={poster}
+      onError={onError}
       aria-hidden="true"
       className={classes}
       style={style}
