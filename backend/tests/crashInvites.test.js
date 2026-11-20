@@ -79,12 +79,14 @@ describe("Box Office Crash on Notifications", { skip: !uri ? "set MONGO_TEST_URI
     }
     const befriend = (a, b) => Follow.create([{ follower: a._id, following: b._id }, { follower: b._id, following: a._id }]);
 
-    test("every open room is at the top of everyone's Notifications, with every filter, until everyone has left it", async () => {
+    test("every open room is at the top of everyone's Notifications, with every filter but Events, until everyone has left it", async () => {
         const [host, watcher, stranger] = [await member(), await member(), await member()];
         const { id } = await rooms.create(idOf(host));
         await rooms.join(idOf(watcher), id, { spectate: true });
 
-        for (const filter of ["all", "events", "reviews", "cuts", "games"]) {
+        // Events is strictly events.
+        assert.deepEqual((await get(stranger, "/feed?filter=events")).crash, []);
+        for (const filter of ["all", "reviews", "cuts", "games"]) {
             const page = await get(stranger, `/feed?filter=${filter}`);
             assert.equal(page.crash.length, 1, filter);
             const [room] = page.crash;

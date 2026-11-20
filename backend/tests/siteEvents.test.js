@@ -115,7 +115,8 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
             assert.deepEqual(types, ["blackFriday", "doublePrizes", "doublePrizes"]);
         }
 
-        // And they show on the Notifications page, in every filter.
+        // And they show on the Notifications page, in every filter but Events
+        // (strictly events).
         const app = express();
         app.use(express.json());
         app.use("/api/feed", require("../routes/feedRouter"));

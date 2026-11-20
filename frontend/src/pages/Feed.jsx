@@ -50,8 +50,8 @@ function GifBackdrop() {
 
 // The toggle at the top: which notifications to show (the server sorts them:
 // FEED_FILTERS in backend/controllers/feedController.js), what each one
-// says it shows, and what it says when there's nothing. Every one shows club
-// events and big news.
+// says it shows, and what it says when there's nothing. Reviews, Cuts and
+// Games show club events and big news too; Events is strictly events.
 const FILTERS = [
   {
     value: 'all',
@@ -63,7 +63,7 @@ const FILTERS = [
   {
     value: 'events',
     label: 'Events',
-    about: "New club events and member screenings, plus the big news: what's trending or viral, jackpots, Double or Nothing wins, Kino Kasino triplings and Steal and Defend Critical Hits. Open Box Office Crash rooms show at the top with every filter.",
+    about: "New club events and member screenings (promoted ones at the very top until you've seen them), and nothing else.",
     empty: 'No events yet.',
   },
   {
@@ -103,7 +103,8 @@ const withoutCut = (cutId) => (previous) => {
 // follow, and trending reviews. The newest 100, 10 at a time. Above it all,
 // the box for posting a cut of their own. From the top: for moderators and
 // admins, "Reset Locally" password reset requests and open reports; then
-// every open Box Office Crash room, with every filter (kept live); promoted
+// every open Box Office Crash room, with every filter but Events (kept
+// live); promoted
 // events they haven't seen yet; then the
 // Kino Poker table while members are playing, and the Farkle games they're
 // playing; then jackpots they haven't seen yet; then everything else as
@@ -149,8 +150,11 @@ function Feed() {
   const jackpots = feed.data?.jackpots ?? []
   const upTop = new Set([...promoted, ...jackpots].map((item) => item._id))
   // The open Box Office Crash rooms, kept live, under the moderators' and
-  // admins' own items, with every filter.
-  const crashRooms = useCrashLobby(feed.data?.crash)
+  // admins' own items, with every filter but Events (strictly events). The
+  // lobby keeps sending rooms whatever the server put on the page, so
+  // they're hidden here too.
+  const liveCrashRooms = useCrashLobby(feed.data?.crash)
+  const crashRooms = filter === 'events' ? [] : liveCrashRooms
   const items = (feed.data?.items ?? []).filter((item) => !upTop.has(item._id))
 
   // Once the page is in, everything on it is seen: up to the moment the

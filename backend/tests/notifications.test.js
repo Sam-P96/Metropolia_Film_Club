@@ -234,7 +234,7 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         }
     }
 
-    test("the filters: each shows its own kind, and all of them show events and big news", async () => {
+    test("the filters: each shows its own kind; Reviews, Cuts and Games show events and big news too, Events is strictly events", async () => {
         const Review = require("../models/reviewModel");
         const Cut = require("../models/cutModel");
         const Event = require("../models/eventModel");
@@ -279,7 +279,12 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         const expect = (names) => [...new Set(names)].sort();
         assert.deepEqual(await shown(user), expect(Object.keys(kinds)));
         assert.deepEqual(await shown(user, "all"), expect(Object.keys(kinds)));
-        assert.deepEqual(await shown(user, "events"), expect(big));
+        assert.deepEqual(await shown(user, "events"), ["event"]);
+        // Nor any of the jackpots up top: they're with every other filter.
+        assert.deepEqual((await call(user, "GET", "/?filter=events")).body.jackpots, []);
+        for (const filter of ["all", "reviews", "cuts", "games"]) {
+            assert.deepEqual((await call(user, "GET", `/?filter=${filter}`)).body.jackpots.map((item) => item.type), ["scratchJackpot"], filter);
+        }
         assert.deepEqual(await shown(user, "reviews"), expect(["like", "trending", "pvp", ...big]));
         assert.deepEqual(await shown(user, "cuts"), expect(["cut", ...big]));
         assert.deepEqual(await shown(user, "games"), expect(["payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", ...big]));
@@ -328,6 +333,26 @@ describe("unread notifications", { skip: !uri ? "set MONGO_TEST_URI to run these
         assert.equal(String(win.actors[0]._id), String(winner._id));
         assert.ok(await shown("games"));
         assert.equal(await shown("reviews"), undefined);
+    });
+
+    test("Forrest Bounce shows with All and Games only: its big wins and site records too, never with Events, Reviews or Cuts", async () => {
+        const [player, reader] = [await member(), await member()];
+        const FORREST = ["forrestBest", "forrestBigWin", "forrestCashOut", "forrestRecord"];
+        await Notification.create(
+            FORREST.map((type) => ({
+                recipient: reader._id,
+                type,
+                actors: [player._id],
+                amount: 60,
+                forrest: { entry: 10, score: 300, fruit: 120, level: 3, net: 50, previous: 80 },
+            }))
+        );
+
+        const forrestIn = async (filter) =>
+            (await call(reader, "GET", `/?filter=${filter}`)).body.items.map((item) => item.type).filter((type) => type.startsWith("forrest")).sort();
+        assert.deepEqual(await forrestIn("all"), FORREST);
+        assert.deepEqual(await forrestIn("games"), FORREST);
+        for (const filter of ["events", "reviews", "cuts"]) assert.deepEqual(await forrestIn(filter), [], filter);
     });
 
     test("while members are playing Kino Poker, the page shows the table at the top, with a way in", async () => {

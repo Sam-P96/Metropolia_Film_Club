@@ -694,6 +694,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   did: 99% to 115%, and 95% / 110% to 120% in its happy hour (new tables
   from `scripts/tune-slots.js`). Old spins with a Clapperboard still show
   it. The machine also has a new hidden rule (`games/slots/luck.js`).
+- The Notifications page's Events filter is strictly events: club events
+  and member screenings, with promoted events still at the top. The big news (trending
+  reviews, viral cuts, jackpots, wins), Box Office Crash rooms and the
+  Black Friday and Double Prize Weekend notices no longer show there.
+  Forrest Bounce, its big wins and site records included, shows only under
+  All and Games, no longer under Events, Reviews or Cuts.
 - Kino Casino (the Slot Machine) pays back more: from 99% for the richest
   active player to 115% for the poorest (was 98.5% to 105%). In its happy
   hour, the richest gets 95% and everyone else 110% to 120%. New weight
