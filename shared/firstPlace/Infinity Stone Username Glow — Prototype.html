@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infinity Stone Username Glow — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   STONE NAME EFFECT  (the part you port to the site)
+   ===================================================================== */
+.sn{
+  --sn-pad: .8em;                /* room for the blur so the mask doesn't clip it */
+  --glow: var(--glow-user, 1);   /* glow strength multiplier (0–2) */
+  --flare: var(--flare-user, 1); /* flare length multiplier  (0–2) */
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: baseline;
+  line-height: inherit;
+}
+.sn--plain{ display:inline; }
+
+/* every layer shares the same font/size/line, stacked on top of each other */
+.sn-base, .sn-lit, .sn-glow, .sn-sheen{
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-repeat: no-repeat;
+}
+
+/* 1) BASE — the full 6-colour gradient, muted (shows the "empty slots") */
+.sn-base{
+  position: relative;
+  background-image: var(--sn-grad);
+  opacity: .9;
+}
+
+/* 2) GLOW — blurred copies of the bright gradient, masked to owned parts */
+.sn-glow{
+  position: absolute;
+  inset: calc(-1 * var(--sn-pad));
+  padding: var(--sn-pad);
+  background-image: var(--sn-grad-glow);
+  background-origin: content-box;
+  -webkit-mask-image: var(--m);
+          mask-image: var(--m);
+  pointer-events: none;
+}
+/* one pulsing wide glow per owned stone, timed with that stone's flare */
+.sn-glow--pulse{
+  filter: blur(.32em) saturate(1.4) brightness(1.2);
+  opacity: min(1, calc(.9 * var(--glow)));
+  animation: sn-breathe var(--dur) ease-in-out infinite;
+  animation-delay: var(--d);
+}
+/* tight steady glow over all owned parts */
+.sn-glow--mid{
+  filter: blur(.08em) saturate(1.3);
+  opacity: min(1, calc(.7 * var(--glow)));
+}
+
+/* 3) LIT — crisp, bright text for the owned parts, with a hot white rim */
+.sn-lit{
+  position: absolute;
+  inset: 0;
+  background-image: var(--sn-grad-lit);
+  -webkit-mask-image: var(--sn-mask);
+          mask-image: var(--sn-mask);
+  filter: drop-shadow(0 0 .05em rgba(255,255,255,.55));
+  pointer-events: none;
+}
+
+/* 4) FLARES — one vertical lens flare per owned stone, centred on its colour */
+.sn-flares{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sn-flare{
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  top: 52%;
+  width: 0; height: 0;
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter;
+}
+/* thin hot streak */
+.sn-flare::before{
+  content: "";
+  position: absolute;
+  left: 0; top: 0;
+  width: .10em;
+  height: calc(3.4em * var(--flare));
+  border-radius: 50%;
+  background: linear-gradient(to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--c) 55%, transparent) 18%,
+      color-mix(in srgb, var(--c) 50%, #fff) 36%,
+      color-mix(in srgb, var(--c) 70%, transparent) 50%,
+      color-mix(in srgb, var(--c) 50%, #fff) 64%,
+      color-mix(in srgb, var(--c) 55%, transparent) 82%,
+      transparent 100%);
+  filter: blur(.015em);
+  transform: translate(-50%, -50%);
+  animation: sn-streak var(--dur) ease-in-out infinite;
+  animation-delay: var(--d);
+}
+/* soft coloured haze around the streak */
+.sn-flare > b{
+  position: absolute;
+  left: 0; top: 0;
+  width: .55em;
+  height: calc(2.5em * var(--flare));
+  border-radius: 50%;
+  background: linear-gradient(to bottom, transparent, var(--c) 50%, transparent);
+  filter: blur(.16em);
+  opacity: .65;
+  transform: translate(-50%, -50%);
+  animation: sn-haze var(--dur) ease-in-out infinite;
+  animation-delay: var(--d);
+}
+/* bright core where the streak crosses the text */
+.sn-flare::after{
+  content: "";
+  position: absolute;
+  left: 0; top: 0;
+  width: .6em; height: .6em;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+      rgba(255,255,255,.85) 0 6%,
+      color-mix(in srgb, var(--c) 55%, transparent) 22%,
+      color-mix(in srgb, var(--c) 25%, transparent) 45%,
+      transparent 70%);
+  transform: translate(-50%, -50%);
+  animation: sn-core var(--dur) ease-in-out infinite;
+  animation-delay: var(--d);
+}
+
+/* 5) INFINITY (all six) — a white sheen sweeps across the whole name */
+.sn-sheen{
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255,255,255,.95) 50%, transparent 62%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: sn-sheen 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sn-breathe{
+  0%,100%{ opacity: min(1, calc(.6 * var(--glow))); }
+  50%    { opacity: min(1, calc(1.0 * var(--glow))); }
+}
+@keyframes sn-streak{
+  0%,100%{ transform: translate(-50%,-50%) scaleY(.8);  opacity: .75; }
+  45%    { transform: translate(-50%,-50%) scaleY(1.12); opacity: 1;   }
+  62%    { transform: translate(-50%,-50%) scaleY(1.0);  opacity: .55; }
+  66%    { transform: translate(-50%,-50%) scaleY(1.18); opacity: 1;   }
+}
+@keyframes sn-haze{
+  0%,100%{ transform: translate(-50%,-50%) scaleY(.85); opacity: .45; }
+  50%    { transform: translate(-50%,-50%) scaleY(1.1);  opacity: .75; }
+}
+@keyframes sn-core{
+  0%,100%{ transform: translate(-50%,-50%) scale(.8); opacity: .55; }
+  50%    { transform: translate(-50%,-50%) scale(1.1); opacity: .9;  }
+}
+@keyframes sn-sheen{
+  0%  { background-position: 100% 0; }
+  55% { background-position: 0% 0; }
+  100%{ background-position: 0% 0; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .sn *, .sn *::before, .sn *::after{ animation: none !important; }
+}
+
+/* =====================================================================
+   DEMO PAGE (not part of the effect)
+   ===================================================================== */
+*{ box-sizing: border-box; }
+html,body{ margin:0; }
+body{
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 50% -200px, #1b1734 0%, #0b0b12 60%) fixed, #0b0b12;
+  color: #e9e8f2;
+  line-height: 1.5;
+}
+.wrap{ max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+header h1{ font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+header p{ margin: 0; color: #a3a1b8; font-size: 15px; }
+.tag{ display:inline-block; font-size: 11px; font-weight:700; letter-spacing:.08em; text-transform: uppercase;
+      color:#c9b6ff; background:#2a2147; border:1px solid #43367a; padding:2px 8px; border-radius: 999px; margin-bottom: 10px; }
+
+.card{
+  background: #13131d;
+  border: 1px solid #23233a;
+  border-radius: 16px;
+  padding: 20px;
+}
+h2{ font-size: 14px; text-transform: uppercase; letter-spacing: .1em; color: #8d8aa8; margin: 36px 0 12px; font-weight: 700; }
+
+/* playground */
+.stage{
+  display: grid; place-items: center;
+  min-height: 220px;
+  border-radius: 12px;
+  background: #07070c;
+  border: 1px solid #1d1d2e;
+  margin-bottom: 18px;
+  overflow: hidden;
+  padding: 40px 16px;
+}
+.stage .name{ font-weight: 700; letter-spacing: .01em; }
+
+.controls{ display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px 28px; }
+@media (max-width: 760px){ .controls{ grid-template-columns: 1fr; } }
+label.ctl, .ctl{ display:block; font-size: 12px; font-weight: 600; color:#a3a1b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.ctl-row{ display:flex; align-items:center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.ctl-row .ctl{ margin: 0; }
+.hint{ font-size: 12px; color:#77748f; margin: 8px 0 0; }
+input[type=text]{
+  width: 100%; font: inherit; font-size: 15px; color: #fff;
+  background: #0b0b12; border: 1px solid #2c2c46; border-radius: 10px; padding: 10px 12px;
+}
+input[type=text]:focus, input[type=number]:focus{ outline: 2px solid #6c56d9; outline-offset: 1px; }
+input[type=range]{ width: 100%; accent-color: #8b6cff; }
+.range-row{ display:flex; align-items:center; gap: 10px; }
+.range-row output{ min-width: 46px; text-align: right; font-variant-numeric: tabular-nums; color:#cfcde0; font-size: 13px; }
+
+/* stone cards: click to toggle, drag (or arrows) to reorder */
+.stones{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+@media (max-width: 520px){ .stones{ grid-template-columns: repeat(3, 1fr); } }
+.stone-card{
+  --c: #888;
+  position: relative;
+  display:flex; flex-direction: column;
+  background: #0b0b12; border: 1px solid #26263c; border-radius: 12px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
+  cursor: grab;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.stone-card.dragging{
+  z-index: 10; cursor: grabbing;
+  box-shadow: 0 12px 30px rgba(0,0,0,.6), 0 0 0 1px var(--c);
+  transition: none;
+}
+.stone-card .pos{
+  position:absolute; top: 5px; left: 7px;
+  font-size: 10px; font-weight: 700; color:#5d5a78; font-variant-numeric: tabular-nums;
+}
+.stone-toggle{
+  display:flex; flex-direction: column; align-items:center; gap: 6px;
+  font: inherit; font-size: 12px; font-weight: 600; color: #8d8aa8;
+  background: none; border: 0; padding: 12px 4px 8px; cursor: inherit; width: 100%;
+}
+.stone-toggle:focus-visible{ outline: 2px solid var(--c); outline-offset: -2px; border-radius: 10px; }
+.stone-toggle .gem{
+  width: 22px; height: 26px;
+  clip-path: polygon(50% 0, 100% 30%, 82% 100%, 18% 100%, 0 30%);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 35%, #fff), var(--c) 45%, color-mix(in srgb, var(--c) 55%, #000));
+  opacity: .3; filter: saturate(.4);
+  transition: opacity .15s, filter .15s;
+}
+.stone-card.on{
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 12%, #0b0b12);
+  box-shadow: 0 0 0 1px var(--c) inset, 0 0 18px -4px var(--c);
+}
+.stone-card.on .stone-toggle{ color:#fff; }
+.stone-card.on .gem{ opacity: 1; filter: drop-shadow(0 0 6px var(--c)); }
+.mv-row{ display:flex; border-top: 1px solid #1f1f31; }
+.mv{
+  flex: 1; font: inherit; font-size: 13px; line-height: 1; color:#8d8aa8;
+  background: none; border: 0; padding: 6px 0; cursor: pointer;
+}
+.mv + .mv{ border-left: 1px solid #1f1f31; }
+.mv:hover:not(:disabled){ color:#fff; background: #1a1a29; }
+.mv:disabled{ opacity: .2; cursor: default; }
+
+.presets{ display:flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btn{
+  font: inherit; font-size: 13px; font-weight: 600; color: #e9e8f2;
+  background: #1d1d2e; border: 1px solid #2c2c46; border-radius: 999px; padding: 6px 14px; cursor: pointer;
+}
+.btn:hover{ background:#26263c; }
+.btn.small{ font-size: 12px; padding: 4px 11px; }
+.btn.primary{ background:#5a45c9; border-color:#6c56d9; }
+.btn.primary:hover{ background:#6a54dc; }
+
+/* timing */
+.timing{ margin-top: 18px; padding-top: 16px; border-top: 1px solid #1f1f31; }
+.timing-row{ display:flex; align-items:center; gap: 14px; flex-wrap: wrap; }
+.check{ display:inline-flex; align-items:center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.check input{ width: 18px; height: 18px; accent-color: #8b6cff; margin: 0; }
+.intervals{
+  margin-top: 12px; padding: 14px; border-radius: 12px;
+  background:#0b0b12; border:1px solid #26263c;
+}
+.intervals[hidden]{ display:none; }
+.iv-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px 14px; }
+@media (max-width: 520px){ .iv-grid{ grid-template-columns: repeat(2, 1fr); } }
+.iv{ display:flex; align-items:center; gap: 8px; font-size: 13px; color:#c8c6da; }
+.iv i{ width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.iv span.n{ flex: 1; }
+.iv input{
+  width: 64px; font: inherit; font-size: 13px; color:#fff; text-align: right;
+  background:#13131d; border:1px solid #2c2c46; border-radius: 8px; padding: 5px 7px;
+}
+.iv input:invalid{ border-color:#c94545; }
+.iv em{ font-style: normal; color:#77748f; font-size: 12px; }
+.iv-foot{ display:flex; justify-content: space-between; align-items:center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+/* in-context mocks */
+.ctx{ display:grid; grid-template-columns: 1.15fr 1fr; gap: 18px; }
+@media (max-width: 820px){ .ctx{ grid-template-columns: 1fr; } }
+
+.lb{ list-style:none; margin:0; padding:0; }
+.lb li{
+  display:grid; grid-template-columns: 34px 28px 1fr auto; align-items:center; gap: 10px;
+  padding: 9px 10px; border-radius: 10px; font-size: 14px;
+}
+.lb li:nth-child(odd){ background: #171724; }
+.lb li.me{ background: #1d1830; box-shadow: 0 0 0 1px #3a2f66 inset; }
+.lb .rank{ color:#77748f; font-weight:700; font-variant-numeric: tabular-nums; text-align:center; }
+.lb .av{ width:28px; height:28px; border-radius:50%; background: linear-gradient(135deg,#2c2c46,#1a1a2a); display:grid; place-items:center; font-size: 12px; color:#a3a1b8; font-weight:700; }
+.lb .user{ font-weight:600; min-width:0; }
+.lb .you{ font-size: 10px; font-weight: 700; color:#a993ff; margin-left: 6px; text-transform: uppercase; letter-spacing: .06em; }
+.lb .pts{ color:#bcb9d2; font-variant-numeric: tabular-nums; font-size: 13px; }
+.lb .pts b{ color:#7ee08f; font-weight:700; }
+
+.review{ display:flex; flex-direction:column; gap: 10px; }
+.review .head{ display:flex; align-items:center; gap: 10px; }
+.review .av{ width:36px; height:36px; border-radius:50%; background: linear-gradient(135deg,#3b2f6b,#1a1a2a); display:grid; place-items:center; font-weight:800; color:#d8ceff; }
+.review .meta{ font-size: 12px; color:#77748f; }
+.review .user{ font-size: 14px; font-weight: 600; }
+.review .film{ font-weight: 700; font-size: 16px; margin: 0; }
+.stars{ color:#ffd21f; letter-spacing: 2px; font-size: 14px; }
+.review p{ margin:0; color:#c8c6da; font-size: 14px; }
+
+.profile{ margin-top: 18px; display:flex; align-items:center; gap: 16px; padding: 22px 20px; border-radius: 16px;
+  background: linear-gradient(180deg, #1c1736 0%, #13131d 100%); border:1px solid #23233a; }
+.profile .av{ width:64px; height:64px; border-radius:50%; background: linear-gradient(135deg,#4a3a8a,#1a1a2a); display:grid; place-items:center; font-weight:800; font-size: 22px; color:#e5dcff; flex: none; }
+.profile .user{ font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+.profile .meta{ color:#8d8aa8; font-size: 13px; }
+
+/* notes */
+.notes{ display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.notes > *{ min-width: 0; }
+@media (max-width: 820px){ .notes{ grid-template-columns: 1fr; } }
+.notes ol, .notes ul{ margin: 0; padding-left: 20px; color:#c8c6da; font-size: 14px; }
+.notes li{ margin: 4px 0; }
+.legend{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+.legend div{ display:flex; align-items:center; gap: 8px; font-size: 13px; color:#c8c6da; }
+.legend i{ width: 12px; height: 12px; border-radius: 3px; display:inline-block; }
+pre{
+  margin: 0; background:#07070c; border:1px solid #1d1d2e; border-radius: 12px; padding: 14px;
+  overflow:auto; font-size: 12.5px; line-height: 1.55; color:#d6d3ea;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.code-head{ display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; }
+.code-head span{ font-size: 13px; color:#a3a1b8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="tag">Kino Kaveri · VFX prototype</span>
+    <h1>Infinity Stone username glow</h1>
+    <p>Each stone owns one sixth of the name. Owned stones light up their slice with a strong glow and a vertical lens flare. Collect all six and a sheen sweeps the whole name.</p>
+  </header>
+
+  <!-- PLAYGROUND -->
+  <h2>Playground — your name</h2>
+  <section class="card">
+    <div class="stage" id="stage">
+      <span class="name" id="previewName"></span>
+    </div>
+
+    <div class="controls">
+      <div>
+        <div class="ctl-row">
+          <span class="ctl">Stones · order across the name</span>
+          <button class="btn small" id="orderReset">Set to default</button>
+        </div>
+        <div class="stones" id="stoneCards"></div>
+        <p class="hint">Click a stone to toggle it. Drag it (or use ‹ ›) to change where its colour sits in the name.</p>
+        <div class="presets">
+          <button class="btn" data-preset="none">None</button>
+          <button class="btn" data-preset="one">Random 1</button>
+          <button class="btn" data-preset="random">Random mix</button>
+          <button class="btn" data-preset="all">All 6 ∞</button>
+        </div>
+
+        <div class="timing">
+          <span class="ctl">Flare &amp; glow timing</span>
+          <div class="timing-row">
+            <label class="check"><input type="checkbox" id="randomChk"> Random</label>
+            <button class="btn" id="ivToggle" aria-expanded="false" aria-controls="ivPanel">Change intervals</button>
+          </div>
+          <p class="hint" id="timingHint"></p>
+
+          <div class="intervals" id="ivPanel" hidden>
+            <div class="iv-grid" id="ivGrid"></div>
+            <div class="iv-foot">
+              <span class="hint" style="margin:0">Seconds per pulse (0.3–20). Lower = faster.</span>
+              <span style="display:flex;gap:8px">
+                <button class="btn small" id="ivReset">Set to default</button>
+                <button class="btn small primary" id="ivDone">Done</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="ctl" for="nameInput">Test username</label>
+        <input type="text" id="nameInput" value="KinoKaveri" maxlength="40" spellcheck="false">
+
+        <div style="height:14px"></div>
+        <label class="ctl" for="sizeRange">Preview size</label>
+        <div class="range-row"><input type="range" id="sizeRange" min="12" max="96" value="64"><output id="sizeOut">64px</output></div>
+
+        <label class="ctl" for="glowRange" style="margin-top:10px">Glow strength (dev tuning)</label>
+        <div class="range-row"><input type="range" id="glowRange" min="0" max="2" step="0.05" value="1"><output id="glowOut">1.00</output></div>
+
+        <label class="ctl" for="flareRange" style="margin-top:10px">Flare length (dev tuning)</label>
+        <div class="range-row"><input type="range" id="flareRange" min="0" max="2" step="0.05" value="1"><output id="flareOut">1.00</output></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IN CONTEXT -->
+  <h2>In context (real sizes)</h2>
+  <div class="ctx">
+    <section class="card">
+      <div style="font-weight:700;margin-bottom:10px">PP Leaderboard</div>
+      <ol class="lb" id="leaderboard"></ol>
+    </section>
+
+    <section class="card review">
+      <div class="head">
+        <div class="av" data-you-initial>K</div>
+        <div>
+          <div class="user"><span data-you></span></div>
+          <div class="meta">reviewed 2 days ago</div>
+        </div>
+      </div>
+      <p class="film">Avengers: Infinity War</p>
+      <div class="stars">★★★★½</div>
+      <p>Came for the snap, stayed for the found-family chaos. Would watch with the club again just to hear everyone gasp at the ending.</p>
+      <div style="border-top:1px solid #23233a;padding-top:10px;font-size:13px;color:#8d8aa8">
+        Liked by <span class="stone-name" data-stones="mind">popcorn_goblin</span>,
+        <span class="stone-name" data-stones="">reelquiet</span> and
+        <span class="stone-name" data-stones="power,space,time,mind,soul,reality" data-random="true">KingLoanShark</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="profile">
+    <div class="av" data-you-initial>K</div>
+    <div>
+      <div class="user"><span data-you></span></div>
+      <div class="meta">Profile header · your settings</div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <h2>How it works</h2>
+  <div class="notes">
+    <section class="card">
+      <div style="font-weight:700;margin-bottom:8px">Layer stack (per name)</div>
+      <ol>
+        <li><b>Base</b> — the full 6-colour gradient, muted, so the empty "slots" are visible.</li>
+        <li><b>Glow</b> — one pulsing blurred glow per owned stone (same timing as its flare) + one steady tight glow.</li>
+        <li><b>Lit</b> — crisp bright text on owned slices, with a thin white rim.</li>
+        <li><b>Flares</b> — one vertical streak + haze + core per owned stone, centred on its slice.</li>
+        <li><b>Sheen</b> — only when all 6 are owned.</li>
+      </ol>
+      <div class="ctl" style="margin-top:14px">Your current order</div>
+      <div class="legend" id="legend" style="margin-top:4px"></div>
+      <ul style="margin-top:12px">
+        <li>0 stones → plain name, no effect.</li>
+        <li>Order, intervals and Random are per user: your rows use your settings, other members keep theirs (KingLoanShark in the likes line uses Random).</li>
+        <li>Wave mode: each flare starts a little after the one to its left. With different intervals per stone they drift apart over time.</li>
+        <li>Random mode: every flare gets a random start and a ±30% wobble on its interval, rerolled each time the name is drawn.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="code-head"><span>Usage</span><button class="btn" id="copyBtn">Copy</button></div>
+<pre id="usage"></pre>
+    </section>
+  </div>
+
+</div>
+
+<script>
+/* =====================================================================
+   StoneName — builds the layered name. No inventory logic here:
+   pass in the stone ids the user owns + their personal settings.
+   ===================================================================== */
+const StoneName = (() => {
+  const STONES = {
+    power:   { name: 'Power',   color: '#a23bff' },
+    space:   { name: 'Space',   color: '#2f7bff' },
+    time:    { name: 'Time',    color: '#1fe07a' },
+    mind:    { name: 'Mind',    color: '#ffd21f' },
+    soul:    { name: 'Soul',    color: '#ff8a1f' },
+    reality: { name: 'Reality', color: '#ff2a2a' },
+  };
+  const DEFAULT_ORDER = ['power', 'space', 'time', 'mind', 'soul', 'reality'];
+  const DEFAULT_INTERVAL = 2.8;   // seconds per flare/glow pulse
+  const MIN_IV = 0.3, MAX_IV = 20;
+  const WAVE_STEP = 0.14;         // seconds between neighbouring flares in wave mode
+  const N = 6;
+  const FEATHER = (1 / N) * 0.18; // soft edge between lit and unlit slices
+
+  const pct = f => (f * 100).toFixed(3) + '%';
+  const clampIv = v => Math.min(MAX_IV, Math.max(MIN_IV, Number(v)));
+
+  // Clean up user settings so bad data can never break a name.
+  function normalize(opts = {}) {
+    let order = Array.isArray(opts.order) ? opts.order.filter(id => STONES[id]) : [];
+    order = [...new Set(order)];
+    DEFAULT_ORDER.forEach(id => { if (!order.includes(id)) order.push(id); });
+    const intervals = {};
+    DEFAULT_ORDER.forEach(id => {
+      const v = Number(opts.intervals?.[id]);
+      intervals[id] = Number.isFinite(v) && v > 0 ? clampIv(v) : DEFAULT_INTERVAL;
+    });
+    return { order, intervals, random: !!opts.random };
+  }
+
+  // Colour stops sit at the centre of each slice.
+  // mix = % of stone colour kept when blending toward `toward` (0 = pure colour)
+  const gradient = (order, mix, toward) => 'linear-gradient(90deg, ' + order.map((id, i) => {
+    const c = mix ? `color-mix(in srgb, ${STONES[id].color} ${mix}%, ${toward})` : STONES[id].color;
+    return `${c} ${pct((i + 0.5) / N)}`;
+  }).join(', ') + ')';
+
+  // Horizontal alpha mask: opaque over `on` slices, transparent elsewhere.
+  // `pad` lets the glow layers be bigger than the text (so blur isn't clipped)
+  // while the slices still line up with the letters.
+  function mask(on, pad) {
+    const pos = f => pad
+      ? `calc(${pad} + (100% - 2 * ${pad}) * ${f.toFixed(4)})`
+      : pct(f);
+    const stops = [];
+    for (let i = 0; i < N; i++) {
+      const col = on[i] ? '#000' : 'transparent';
+      const start = i === 0     ? '0%'   : pos(i / N + FEATHER);
+      const end   = i === N - 1 ? '100%' : pos((i + 1) / N - FEATHER);
+      stops.push(`${col} ${start}`, `${col} ${end}`);
+    }
+    return `linear-gradient(90deg, ${stops.join(', ')})`;
+  }
+
+  const layer = (cls, text) => {
+    const s = document.createElement('span');
+    s.className = cls;
+    s.textContent = text;
+    s.setAttribute('aria-hidden', 'true');
+    return s;
+  };
+
+  // Timing for each owned stone: { dur, delay } in seconds.
+  function timings(order, owned, cfg) {
+    const out = {};
+    order.forEach((id, pos) => {
+      if (!owned[pos]) return;
+      const base = cfg.intervals[id];
+      if (cfg.random) {
+        const dur = base * (0.7 + Math.random() * 0.6);
+        out[id] = { dur, delay: -Math.random() * dur };
+      } else {
+        // left-to-right wave; negative offset so it's already running on load
+        out[id] = { dur: base, delay: pos * WAVE_STEP - base };
+      }
+    });
+    return out;
+  }
+
+  /**
+   * render(el, stoneIds, { order, intervals, random })
+   *  stoneIds  – ids the user owns, e.g. ['space','time']
+   *  order     – the 6 ids left→right across the name (default DEFAULT_ORDER)
+   *  intervals – { id: seconds } per stone (default 2.8 each)
+   *  random    – true = random timing, false = left-to-right wave
+   */
+  function render(el, stoneIds, opts) {
+    const cfg = normalize(opts);
+    const name = el.dataset.name ?? el.textContent.trim();
+    el.dataset.name = name;
+    const ids = (stoneIds || []).map(x => String(x).trim().toLowerCase()).filter(id => STONES[id]);
+    const owned = cfg.order.map(id => ids.includes(id));   // by position
+    const count = owned.filter(Boolean).length;
+
+    el.replaceChildren();
+    el.classList.remove('sn', 'sn--plain', 'sn--infinity');
+    el.removeAttribute('title');
+
+    if (count === 0) {
+      el.classList.add('sn--plain');
+      el.textContent = name;
+      return;
+    }
+
+    el.classList.add('sn');
+    if (count === N) el.classList.add('sn--infinity');
+    el.title = 'Infinity Stones: ' + cfg.order.filter((_, i) => owned[i]).map(id => STONES[id].name).join(', ');
+
+    el.style.setProperty('--sn-grad',      gradient(cfg.order, 38, '#8f8ca6'));
+    el.style.setProperty('--sn-grad-lit',  gradient(cfg.order, 72, '#fff'));
+    el.style.setProperty('--sn-grad-glow', gradient(cfg.order, 0));
+    el.style.setProperty('--sn-mask', mask(owned, 0));
+
+    const t = timings(cfg.order, owned, cfg);
+    const pulses = [], flares = document.createElement('span');
+    flares.className = 'sn-flares';
+    flares.setAttribute('aria-hidden', 'true');
+
+    cfg.order.forEach((id, pos) => {
+      if (!owned[pos]) return;
+      const { dur, delay } = t[id];
+      const vars = s => {
+        s.style.setProperty('--dur', dur.toFixed(3) + 's');
+        s.style.setProperty('--d', delay.toFixed(3) + 's');
+      };
+      // pulsing glow for just this slice
+      const g = layer('sn-glow sn-glow--pulse', name);
+      g.style.setProperty('--m', mask(owned.map((_, i) => i === pos), 'var(--sn-pad)'));
+      vars(g);
+      pulses.push(g);
+      // flare
+      const f = document.createElement('i');
+      f.className = 'sn-flare';
+      f.style.setProperty('--x', ((pos + 0.5) / N).toFixed(4));
+      f.style.setProperty('--c', STONES[id].color);
+      vars(f);
+      f.append(document.createElement('b'));
+      flares.append(f);
+    });
+
+    const mid = layer('sn-glow sn-glow--mid', name);
+    mid.style.setProperty('--m', mask(owned, 'var(--sn-pad)'));
+
+    const base = document.createElement('span');
+    base.className = 'sn-base';
+    base.textContent = name;
+
+    el.append(...pulses, mid, base, layer('sn-lit', name));
+    if (count === N) el.append(layer('sn-sheen', name));
+    el.append(flares);
+  }
+
+  // Reads data-stones, and optional data-order / data-random / data-intervals
+  // ("power:2.8,space:1.5") from each .stone-name element.
+  function upgradeAll(root = document) {
+    root.querySelectorAll('.stone-name').forEach(el => {
+      const intervals = {};
+      (el.dataset.intervals || '').split(',').forEach(p => {
+        const [k, v] = p.split(':'); if (k && v) intervals[k.trim()] = v;
+      });
+      render(el, (el.dataset.stones || '').split(','), {
+        order: el.dataset.order ? el.dataset.order.split(',').map(s => s.trim()) : undefined,
+        intervals,
+        random: el.dataset.random === 'true',
+      });
+    });
+  }
+
+  return { STONES, DEFAULT_ORDER, DEFAULT_INTERVAL, MIN_IV, MAX_IV, normalize, render, upgradeAll };
+})();
+
+/* =====================================================================
+   Demo wiring
+   ===================================================================== */
+const SAVE_KEY = 'kk-stone-name-proto-v2';
+const S = StoneName;
+
+const state = (() => {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); } catch {}
+  const cfg = S.normalize(saved);
+  return {
+    name: typeof saved.name === 'string' && saved.name ? saved.name : 'KinoKaveri',
+    stones: new Set(Array.isArray(saved.stones) ? saved.stones.filter(id => S.STONES[id]) : ['space', 'mind']),
+    order: cfg.order,
+    intervals: cfg.intervals,
+    random: cfg.random,
+  };
+})();
+
+function save() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      name: state.name, stones: [...state.stones],
+      order: state.order, intervals: state.intervals, random: state.random,
+    }));
+  } catch {}
+}
+const myOpts = () => ({ order: state.order, intervals: state.intervals, random: state.random });
+
+const preview = document.getElementById('previewName');
+const nameInput = document.getElementById('nameInput');
+nameInput.value = state.name;
+
+/* ---- render everything that shows "your" name ---- */
+function renderMine() {
+  const opts = myOpts();
+  preview.dataset.name = state.name;
+  S.render(preview, [...state.stones], opts);
+  document.querySelectorAll('[data-you]').forEach(el => {
+    el.dataset.name = state.name;
+    S.render(el, [...state.stones], opts);
+  });
+  document.querySelectorAll('[data-you-initial]').forEach(el => el.textContent = state.name[0]?.toUpperCase() || '?');
+  renderLegend();
+  renderUsage();
+  document.getElementById('timingHint').textContent = state.random
+    ? 'Random: flares and glows pulse out of sync, each around its own interval.'
+    : 'Wave: flares and glows pulse from left to right, each at its own interval.';
+  save();
+}
+
+/* ---- stone cards (toggle + reorder) ---- */
+const cardsWrap = document.getElementById('stoneCards');
+
+function buildCards(focusSel) {
+  cardsWrap.replaceChildren();
+  state.order.forEach((id, i) => {
+    const s = S.STONES[id];
+    const card = document.createElement('div');
+    card.className = 'stone-card' + (state.stones.has(id) ? ' on' : '');
+    card.dataset.id = id;
+    card.style.setProperty('--c', s.color);
+    card.innerHTML = `
+      <span class="pos">${i + 1}</span>
+      <button class="stone-toggle" aria-pressed="${state.stones.has(id)}"><span class="gem"></span>${s.name}</button>
+      <div class="mv-row">
+        <button class="mv" data-dir="-1" aria-label="Move ${s.name} left" ${i === 0 ? 'disabled' : ''}>‹</button>
+        <button class="mv" data-dir="1" aria-label="Move ${s.name} right" ${i === 5 ? 'disabled' : ''}>›</button>
+      </div>`;
+    cardsWrap.append(card);
+  });
+  if (focusSel) cardsWrap.querySelector(focusSel)?.focus();
+}
+
+function syncCardStates() {
+  cardsWrap.querySelectorAll('.stone-card').forEach(c => {
+    const on = state.stones.has(c.dataset.id);
+    c.classList.toggle('on', on);
+    c.querySelector('.stone-toggle').setAttribute('aria-pressed', on);
+  });
+}
+
+function setOrder(order, focusSel) {
+  state.order = order;
+  buildCards(focusSel);
+  buildIntervals();
+  renderMine();
+}
+
+let suppressClick = false;
+cardsWrap.addEventListener('click', e => {
+  const mv = e.target.closest('.mv');
+  const card = e.target.closest('.stone-card');
+  if (!card) return;
+  if (mv) {
+    const i = state.order.indexOf(card.dataset.id), j = i + Number(mv.dataset.dir);
+    if (j < 0 || j > 5) return;
+    const order = [...state.order];
+    [order[i], order[j]] = [order[j], order[i]];
+    setOrder(order, `.stone-card[data-id="${card.dataset.id}"] .mv[data-dir="${mv.dataset.dir}"]`);
+    return;
+  }
+  if (suppressClick || !e.target.closest('.stone-toggle')) return;
+  const id = card.dataset.id;
+  state.stones.has(id) ? state.stones.delete(id) : state.stones.add(id);
+  syncCardStates();
+  renderMine();
+});
+
+/* drag to reorder (pointer events: works for mouse and touch) */
+let drag = null;
+cardsWrap.addEventListener('pointerdown', e => {
+  const card = e.target.closest('.stone-card');
+  if (!card || e.target.closest('.mv') || e.button !== 0) return;
+  const r = card.getBoundingClientRect();
+  drag = { card, sx: e.clientX, sy: e.clientY, gx: e.clientX - r.left, gy: e.clientY - r.top, moved: false };
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.moved) {
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+    drag.moved = true;
+    drag.card.classList.add('dragging');
+  }
+  e.preventDefault();
+  const cards = [...cardsWrap.children];
+  const over = cards.find(c => {
+    if (c === drag.card) return false;
+    const r = c.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  });
+  if (over) {
+    const bi = cards.indexOf(drag.card), ti = cards.indexOf(over);
+    cardsWrap.insertBefore(drag.card, bi < ti ? over.nextSibling : over);
+    // live-preview the new order on the name while dragging
+    state.order = [...cardsWrap.children].map(c => c.dataset.id);
+    renderMine();
+  }
+  drag.card.style.transform = 'none';
+  const r = drag.card.getBoundingClientRect();
+  drag.card.style.transform = `translate(${e.clientX - drag.gx - r.left}px, ${e.clientY - drag.gy - r.top}px)`;
+});
+function endDrag() {
+  if (!drag) return;
+  if (drag.moved) {
+    drag.card.classList.remove('dragging');
+    drag.card.style.transform = '';
+    suppressClick = true;
+    setTimeout(() => suppressClick = false, 0);
+    setOrder([...cardsWrap.children].map(c => c.dataset.id));
+  }
+  drag = null;
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+
+document.getElementById('orderReset').addEventListener('click', () => setOrder([...S.DEFAULT_ORDER]));
+
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  const ids = S.DEFAULT_ORDER;
+  state.stones.clear();
+  if (b.dataset.preset === 'all') ids.forEach(id => state.stones.add(id));
+  if (b.dataset.preset === 'one') state.stones.add(ids[Math.floor(Math.random() * ids.length)]);
+  if (b.dataset.preset === 'random') {
+    ids.forEach(id => Math.random() < .5 && state.stones.add(id));
+    if (!state.stones.size) state.stones.add('time');
+  }
+  syncCardStates();
+  renderMine();
+}));
+
+/* ---- timing: Random + intervals ---- */
+const randomChk = document.getElementById('randomChk');
+randomChk.checked = state.random;
+randomChk.addEventListener('change', () => { state.random = randomChk.checked; renderMine(); });
+
+const ivPanel = document.getElementById('ivPanel');
+const ivToggle = document.getElementById('ivToggle');
+const ivGrid = document.getElementById('ivGrid');
+
+function buildIntervals() {
+  ivGrid.replaceChildren();
+  state.order.forEach(id => {
+    const s = S.STONES[id];
+    const row = document.createElement('label');
+    row.className = 'iv';
+    row.innerHTML = `<i style="background:${s.color};box-shadow:0 0 6px ${s.color}"></i><span class="n">${s.name}</span>
+      <input type="number" inputmode="decimal" min="${S.MIN_IV}" max="${S.MAX_IV}" step="0.1" value="${state.intervals[id]}" data-id="${id}"><em>s</em>`;
+    ivGrid.append(row);
+  });
+}
+ivGrid.addEventListener('input', e => {
+  const inp = e.target.closest('input'); if (!inp) return;
+  const v = parseFloat(inp.value);
+  if (!Number.isFinite(v) || v < S.MIN_IV || v > S.MAX_IV) return; // wait for a valid number
+  state.intervals[inp.dataset.id] = v;
+  renderMine();
+});
+ivGrid.addEventListener('change', e => {   // on blur: snap bad values back into range
+  const inp = e.target.closest('input'); if (!inp) return;
+  let v = parseFloat(inp.value);
+  if (!Number.isFinite(v)) v = state.intervals[inp.dataset.id];
+  v = Math.min(S.MAX_IV, Math.max(S.MIN_IV, v));
+  inp.value = v;
+  state.intervals[inp.dataset.id] = v;
+  renderMine();
+});
+function setPanel(open) {
+  ivPanel.hidden = !open;
+  ivToggle.setAttribute('aria-expanded', open);
+  if (open) ivGrid.querySelector('input')?.focus();
+}
+ivToggle.addEventListener('click', () => setPanel(ivPanel.hidden));
+document.getElementById('ivDone').addEventListener('click', () => { setPanel(false); ivToggle.focus(); });
+document.getElementById('ivReset').addEventListener('click', () => {
+  S.DEFAULT_ORDER.forEach(id => state.intervals[id] = S.DEFAULT_INTERVAL);
+  buildIntervals();
+  renderMine();
+});
+
+/* ---- name + dev sliders ---- */
+nameInput.addEventListener('input', () => { state.name = nameInput.value.trim() || 'KinoKaveri'; renderMine(); });
+
+function bindRange(id, outId, fn) {
+  const r = document.getElementById(id), o = document.getElementById(outId);
+  const apply = () => { o.textContent = fn(r.value); };
+  r.addEventListener('input', apply); apply();
+}
+const root = document.documentElement.style;
+bindRange('sizeRange', 'sizeOut', v => { preview.style.fontSize = v + 'px'; return v + 'px'; });
+bindRange('glowRange', 'glowOut', v => { root.setProperty('--glow-user', v); return (+v).toFixed(2); });
+bindRange('flareRange', 'flareOut', v => { root.setProperty('--flare-user', v); return (+v).toFixed(2); });
+
+/* ---- legend + usage snippet reflect your settings ---- */
+function renderLegend() {
+  const legend = document.getElementById('legend');
+  legend.replaceChildren();
+  state.order.forEach((id, i) => {
+    const s = S.STONES[id];
+    const d = document.createElement('div');
+    d.innerHTML = `<i style="background:${s.color};box-shadow:0 0 8px ${s.color}"></i>${i + 1}. ${s.name} · ${state.intervals[id]}s`;
+    legend.append(d);
+  });
+}
+function renderUsage() {
+  const iv = state.order.map(id => `${id}: ${state.intervals[id]}`).join(', ');
+  document.getElementById('usage').textContent =
+`// one user's name (settings come from their profile)
+StoneName.render(el, ${JSON.stringify([...state.stones])}, {
+  order: ${JSON.stringify(state.order)},
+  intervals: { ${iv} },
+  random: ${state.random},
+});
+
+// or markup + auto-upgrade
+<span class="stone-name"
+      data-stones="${[...state.stones].join(',')}"
+      data-order="${state.order.join(',')}"
+      data-intervals="${state.order.map(id => id + ':' + state.intervals[id]).join(',')}"
+      data-random="${state.random}">${state.name}</span>
+StoneName.upgradeAll();
+
+// all options are optional; defaults:
+// order power,space,time,mind,soul,reality · 2.8s each · wave`;
+}
+
+/* ---- leaderboard mock (row #4 is you) ---- */
+const members = [
+  ['KingLoanShark',   'power,space,time,mind,soul,reality', 4120, 'true'],
+  ['ThanosWasRight',  'power,space,mind,soul,reality',      2875],
+  ['NoirDetective',   'power,time,reality',                 1940],
+  null, // you
+  ['Kaveri',          'space,soul',                         1388],
+  ['subtitle_enjoyer','time',                                980],
+  ['popcorn_goblin',  'mind',                                744],
+  ['FinalGirl1978',   'mind,soul',                           610],
+  ['reelquiet',       '',                                    402],
+];
+const lb = document.getElementById('leaderboard');
+members.forEach((m, i) => {
+  const li = document.createElement('li');
+  if (!m) {
+    li.className = 'me';
+    li.innerHTML = `<span class="rank">#${i + 1}</span><span class="av" data-you-initial></span>
+      <span class="user"><span data-you></span><span class="you">you</span></span>
+      <span class="pts"><b>1,512</b> PP</span>`;
+  } else {
+    const [n, st, pts, rnd] = m;
+    li.innerHTML = `<span class="rank">#${i + 1}</span><span class="av">${n[0]}</span>
+      <span class="user"><span class="stone-name" data-stones="${st}" ${rnd ? 'data-random="true"' : ''}>${n}</span></span>
+      <span class="pts"><b>${pts.toLocaleString('en-US')}</b> PP</span>`;
+  }
+  lb.append(li);
+});
+
+/* ---- init ---- */
+buildCards();
+buildIntervals();
+S.upgradeAll();
+renderMine();
+
+document.getElementById('copyBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  try {
+    await navigator.clipboard.writeText(document.getElementById('usage').textContent);
+    btn.textContent = 'Copied';
+  } catch { btn.textContent = 'Select & copy manually'; }
+  setTimeout(() => btn.textContent = 'Copy', 1600);
+});
+</script>
+</body>
+</html>

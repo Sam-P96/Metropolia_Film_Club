@@ -1,4 +1,4 @@
-import clankerPfp from '../assets/SECRETpfp/Clanker_pfp.png'
+import clankerPfp from '../assets/SECRETpfp/Clanker_pfp2.png'
 
 // Clanker's picture, wherever it plays: Kino Farkle and Infinite Gomoku.
 export const CLANKER_PICTURE = clankerPfp
