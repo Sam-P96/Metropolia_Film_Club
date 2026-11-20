@@ -9,10 +9,10 @@ import {
   VIEW_CHANGE,
   YOU_COLOUR,
   easedScale,
-  movedTheirs,
   oneDecimal,
   posterUrl,
-  shiftOf,
+  sharedOf,
+  shownStars,
   useViewProgress,
   whoIsWho,
 } from './tasteChart'
@@ -45,11 +45,11 @@ function biggestDisagreements(films, limit, view) {
 }
 
 // One film: its poster and title (to its page), then the two ratings on
-// the track (`mine`, and `theirs` as shown now), my dot and their ring
+// the track (`mine` and `theirs`, as shown now), my dot and their ring
 // joined by a line (a dot in a ring when they're the same), and the two
 // numbers. On a phone the title sits above the track. When the view
-// changes the ring glides along the track (the numbers counting with it),
-// and a row that changes place slides to it.
+// changes the dot and the ring glide along the track (the numbers counting
+// with them), and a row that changes place slides to it.
 function Row({ film, mine, theirs, scale, names, still }) {
   const poster = posterUrl(film.posterPath)
   const xOf = (stars) => TRACK.inset + scale.share(stars) * (TRACK.width - 2 * TRACK.inset)
@@ -128,8 +128,8 @@ function Section({ title, rows, scale, names, empty, still }) {
 // getResonanceWith), `theirName` the other member's name. `view` is
 // DIFFERENCE (the star ratings as given, ranked by how far apart they
 // are; the default) or TRUE_DIFFERENCE (ranked by the true difference,
-// theirs moved by the gap between the two `averages`, the comparison's);
-// changing it, everything glides into place. `myName` is only for a
+// both on the scale they share, from the two `averages`, the
+// comparison's); changing it, everything glides into place. `myName` is only for a
 // /SECRETresonance pair, in place of "You".
 export default function TasteDumbbell({ films, theirName, limit = 5, myName, view = DIFFERENCE, averages }) {
   const progress = useViewProgress(view)
@@ -145,16 +145,17 @@ export default function TasteDumbbell({ films, theirName, limit = 5, myName, vie
     )
   }
 
-  const shift = shiftOf(averages)
-  const theirsAt = (film, at) => movedTheirs(film.mine.rating, film.theirs.rating, at, shift)
+  const shared = sharedOf(averages)
+  const mineAt = (film, at) => shownStars(film.mine.rating, averages?.mine, shared, at)
+  const theirsAt = (film, at) => shownStars(film.theirs.rating, averages?.theirs, shared, at)
   // One scale for every row, from every film, so the tracks line up and
-  // stay put as rows come and go.
+  // stay put as rows come and go (0.5 to 5: the shared scale never goes past).
   const scale = easedScale(
     films.flatMap((film) => [film.mine.rating, film.theirs.rating]),
-    films.flatMap((film) => [film.mine.rating, theirsAt(film, 1)]),
+    films.flatMap((film) => [mineAt(film, 1), theirsAt(film, 1)]),
     progress
   )
-  const rowsOf = (list) => list.map((film) => ({ film, mine: film.mine.rating, theirs: theirsAt(film, progress) }))
+  const rowsOf = (list) => list.map((film) => ({ film, mine: mineAt(film, progress), theirs: theirsAt(film, progress) }))
 
   return (
     <TasteCard title="Agree and disagree" legend={legend}>

@@ -8,8 +8,8 @@ import {
   easedScale,
   filmCount,
   oneDecimal,
-  shiftOf,
-  signedStars,
+  sharedOf,
+  shownStars,
   useChartTip,
   useViewProgress,
   whoIsWho,
@@ -51,8 +51,8 @@ function topGenres(genres) {
 // than three. A corner shows its numbers on hover, or on a tap. `genres`
 // is the comparison's genres (services/resonance.js getResonanceWith),
 // `theirName` the other member's name. `view` is DIFFERENCE (the averages
-// as they are, the default) or TRUE_DIFFERENCE (theirs moved by the gap
-// between the two overall `averages`, the comparison's, as the true
+// as they are, the default) or TRUE_DIFFERENCE (both on the scale they
+// share, from the two overall `averages`, the comparison's, as the true
 // difference counts them). `myName` is only for a /SECRETresonance pair,
 // in place of "You".
 export default function TasteRadar({ genres, theirName, myName, view = DIFFERENCE, averages }) {
@@ -63,14 +63,15 @@ export default function TasteRadar({ genres, theirName, myName, view = DIFFERENC
   if (!genres || genres.length < FEWEST_GENRES) return null
 
   const moved = view === TRUE_DIFFERENCE
-  const shift = shiftOf(averages)
-  // Theirs `progress` of the way to moved, so the dashed shape eases there.
+  const shared = sharedOf(averages)
+  // Both `progress` of the way onto the shared scale, so the shapes ease there.
   const top = topGenres(genres)
-  const shown = top.map((entry) => ({ ...entry, mineShown: entry.mine.average, theirsShown: entry.theirs.average + progress * shift }))
+  const at = (entry, side, amount) => shownStars(entry[side].average, averages?.[side], shared, amount)
+  const shown = top.map((entry) => ({ ...entry, mineShown: at(entry, 'mine', progress), theirsShown: at(entry, 'theirs', progress) }))
   const count = shown.length
   const scale = easedScale(
     top.flatMap((entry) => [entry.mine.average, entry.theirs.average]),
-    top.flatMap((entry) => [entry.mine.average, entry.theirs.average + shift]),
+    top.flatMap((entry) => [at(entry, 'mine', 1), at(entry, 'theirs', 1)]),
     progress
   )
   // Every whole star either scale rings, each shown while it's on the scale.
@@ -91,7 +92,7 @@ export default function TasteRadar({ genres, theirName, myName, view = DIFFERENC
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="block h-auto w-full select-none"
           role="group"
-          aria-label={`Radar chart of average star ratings by genre for ${names.both}${moved ? `, ${theirName}'s moved ${signedStars(shift)} stars onto ${names.my} average (the true difference)` : ''}, from ${oneDecimal(scale.min)} in the middle to ${oneDecimal(scale.max)} at the edge. ${summary}.`}
+          aria-label={`Radar chart of average star ratings by genre for ${names.both}${moved ? ', both on the scale they share (the true difference)' : ''}, from ${oneDecimal(scale.min)} in the middle to ${oneDecimal(scale.max)} at the edge. ${summary}.`}
         >
           {/* The rings, at every whole star, and their numbers up the top spoke. */}
           {rings.map((stars) => (
@@ -192,7 +193,7 @@ export default function TasteRadar({ genres, theirName, myName, view = DIFFERENC
             </p>
             {moved && (
               <p className="mt-1 text-white/50 tabular-nums">
-                {names.theirs} as given: {oneDecimal(shown[active].theirs.average)}
+                As given: {names.mine} {oneDecimal(shown[active].mine.average)} / {names.theirs} {oneDecimal(shown[active].theirs.average)}
               </p>
             )}
           </ChartTip>

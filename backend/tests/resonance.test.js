@@ -28,7 +28,8 @@ const {
     resonanceBetween,
     suggestionCount,
 } = require("../utils/resonance");
-const { resonanceTier } = require("../../shared/resonance.js");
+const { RESONANCE_TIERS, resonanceTier } = require("../../shared/resonance.js");
+const { onSharedScale, sharedAverage, trueGap } = require("../../shared/resonanceScale.js");
 
 // A rated film, with no genres, year or age rating unless given.
 function film(tmdbId, rating, extra = {}) {
@@ -58,29 +59,58 @@ describe("Resonance scoring", () => {
     });
 
     test("the curve: a small gap costs little, a big one a lot, and RATING_SPREAD or more is nothing alike", () => {
-        // alike(gap), as similarity(0, gap): 1 - (gap / 2.75)².
+        // alike(gap), as similarity(0, gap): 1 - (gap / 2)².
+        assert.equal(RATING_SPREAD, 2);
         const alikeAt = (gap) => similarity(0, gap);
         assert.equal(alikeAt(0), 1);
-        // 0.4 / 2.75 = 8/55, 1 / 2.75 = 4/11, 2 / 2.75 = 8/11.
-        close(alikeAt(0.4), 1 - 64 / 3025);
-        close(alikeAt(1), 1 - 16 / 121);
-        close(alikeAt(2), 1 - 64 / 121);
-        assert.deepEqual([0.4, 1, 2].map((gap) => Number(alikeAt(gap).toFixed(4))), [0.9788, 0.8678, 0.4711]);
-        for (const gap of [2.75, 3, 4.5]) assert.equal(alikeAt(gap), 0, `${gap} apart`);
+        close(alikeAt(0.4), 1 - 0.2 ** 2);
+        close(alikeAt(1), 1 - 0.5 ** 2);
+        close(alikeAt(1.5), 1 - 0.75 ** 2);
+        assert.deepEqual([0.4, 1, 1.5].map((gap) => Number(alikeAt(gap).toFixed(4))), [0.96, 0.75, 0.4375]);
+        for (const gap of [2, 2.75, 4.5]) assert.equal(alikeAt(gap), 0, `${gap} apart`);
         // Either way round.
         assert.equal(similarity(1, 0), alikeAt(1));
     });
 
-    test("both loving a film: 5 from a member who averages 3.0 against 4 from one who averages 3.4 is 1.4 apart, 74%", () => {
+    test("both loving a film: 5 from a member who averages 3.0 against 4 from one who averages 3.4 is 1.125 apart, 68%", () => {
         const a = tasteOf([film(1, 5), film(2, 2), film(3, 2)]);
         const b = tasteOf([film(1, 4), film(2, 3), film(3, 3), film(4, 3.5), film(5, 3.5)]);
         close(a.average, 3);
         close(b.average, 3.4);
 
-        // +2.0 against +0.6: 1.4 apart, 1 - (1.4 / 2.75)² = 1 - (28/55)².
-        close(filmGap(a.byFilm.get(1), b.byFilm.get(1)), 1.4);
-        close(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)), 1 - 784 / 3025);
-        assert.equal(Number(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)).toFixed(4)), 0.7408);
+        // On the shared scale (both averages at 3.2): the 5 stays 5, and the
+        // 4, 0.6 of the way from 3.4 to 5, is 0.6 of the way from 3.2 to 5:
+        // 3.875. 1.125 apart: 1 - (1.125 / 2)² = 1 - (9/16)² = 175/256.
+        close(filmGap(a.byFilm.get(1), b.byFilm.get(1)), 1.125);
+        close(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)), 175 / 256);
+        assert.equal(Number(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)).toFixed(4)), 0.6836);
+    });
+
+    test("the shared scale: half a star and 5 never move, each average goes to the middle of the two, and nothing lands past either end", () => {
+        const shared = sharedAverage(2, 4.5);
+        assert.equal(shared, 3.25);
+        // The ends stay the ends, however generous or harsh.
+        for (const average of [1, 2, 3.25, 4.5, 4.9]) {
+            assert.equal(onSharedScale(0.5, average, shared), 0.5);
+            assert.equal(onSharedScale(5, average, shared), 5);
+        }
+        // Each one's average lands on the middle.
+        assert.equal(onSharedScale(2, 2, shared), 3.25);
+        assert.equal(onSharedScale(4.5, 4.5, shared), 3.25);
+        // In between, in proportion: 1.25, halfway from 0.5 to the average of
+        // 2, is halfway from 0.5 to 3.25; 4.75, halfway from 4.5 to 5, is
+        // halfway from 3.25 to 5.
+        close(onSharedScale(1.25, 2, shared), 1.875);
+        close(onSharedScale(4.75, 4.5, shared), 4.125);
+        // Every rating, from every average: never past the ends.
+        for (let average = 0.75; average < 5; average += 0.25) {
+            for (let rating = 0.5; rating <= 5; rating += 0.5) {
+                const placed = onSharedScale(rating, average, sharedAverage(average, 5.5 - average));
+                assert.ok(placed >= 0.5 && placed <= 5, `${rating} from an average of ${average}: ${placed}`);
+            }
+        }
+        // The same either way round.
+        close(trueGap(4, 3.1, 2.5, 2.2), trueGap(2.5, 2.2, 4, 3.1));
     });
 
     test("both at 5, or both at 0.5, is still 1 however far apart their averages are", () => {
@@ -118,18 +148,25 @@ describe("Resonance scoring", () => {
         close(moviesFactor(tasteOf(fifteen), tasteOf(fifteen)).factor, 1);
     });
 
-    test("a harsh and a generous rater with the same taste match in full", () => {
+    test("a harsh and a generous rater with the same taste come out far closer than their ratings as given, but a 3.5 isn't a 5", () => {
         const genres = (index) => ({ genres: [["Drama"], ["Comedy"], ["Horror"]][index % 3] });
         const generous = films(12, (index) => 2 + (index % 7) * 0.5, genres);
         const harsh = films(12, (index) => 0.5 + (index % 7) * 0.5, genres);
         const a = tasteOf(generous);
         const b = tasteOf(harsh);
 
-        // 1.5 stars apart on every film, but the same above and below their usual.
-        close(moviesFactor(a, b).factor, 1);
-        close(genreRatingFactor(a, b), 1);
-        assert.equal(resonanceBetween(a, b).movies, 100);
-        assert.equal(resonanceBetween(a, b).genre, 100);
+        // 1.5 stars apart on every film as given: a 44% match on them.
+        const asGiven = [...a.byFilm.values()].reduce((sum, entry) => sum + similarity(entry.rating, b.byFilm.get(entry.tmdbId).rating), 0) / 12;
+        close(asGiven, 0.4375);
+        // The same above and below their usual, so far closer. But the harsh
+        // one never goes past 3.5, so their top film isn't a 5 to them the
+        // way it is to the generous one: that one's still apart.
+        const movies = moviesFactor(a, b).factor;
+        assert.ok(movies > 0.85 && movies < 1, String(movies));
+        assert.ok(filmGap(a.byFilm.get(7), b.byFilm.get(7)) > 1, "a 5 against a 3.5");
+        assert.ok(genreRatingFactor(a, b) > 0.95, String(genreRatingFactor(a, b)));
+        assert.equal(resonanceBetween(a, b).movies, 88);
+        assert.equal(resonanceBetween(a, b).genre, 99);
     });
 
     test("the same top or bottom rating is no gap, however generous or harsh the two usually are", () => {
@@ -141,16 +178,17 @@ describe("Resonance scoring", () => {
         assert.equal(gap(1), 0);
         assert.equal(gap(2), 0);
         assert.equal(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)), 1);
-        close(gap(3), 2.25);
-        // 2.25 / 2.75 = 9/11 apart: 1 - (9/11)² = 40/121.
-        close(filmSimilarity(a.byFilm.get(3), b.byFilm.get(3)), 40 / 121);
-        // The same rating mid-scale still means more from the harsher one.
-        close(gap(4), 0.75);
-        // 0.75 / 2.75 = 3/11 apart: 1 - (3/11)² = 112/121.
-        close(filmSimilarity(a.byFilm.get(4), b.byFilm.get(4)), 112 / 121);
+        // On the shared scale (both averages at 2.75): A's 4 is 3.8 and B's 1
+        // is 1.1, 2.7 apart: past RATING_SPREAD, nothing alike.
+        close(gap(3), 2.7);
+        assert.equal(filmSimilarity(a.byFilm.get(3), b.byFilm.get(3)), 0);
+        // The same rating mid-scale still means more from the harsher one:
+        // A's 3 is 18.5/7, B's 3 is 23/7, 9/14 apart: 1 - (9/28)² = 703/784.
+        close(gap(4), 9 / 14);
+        close(filmSimilarity(a.byFilm.get(4), b.byFilm.get(4)), 703 / 784);
 
         // And the Movies factor counts them that way (4 shared films: 40%).
-        close(moviesFactor(a, b).factor, ((1 + 1 + 40 / 121 + 112 / 121) / 4) * 0.4);
+        close(moviesFactor(a, b).factor, ((1 + 1 + 0 + 703 / 784) / 4) * 0.4);
     });
 
     test("opposite tastes score low on the movies factor", () => {
@@ -209,11 +247,15 @@ describe("Resonance scoring", () => {
         const average = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
         const meanA = average([5, 5, 3, 3, 3, 1]);
         const meanB = average([1, 1, 3, 3, 3, 5, 5]);
-        // Drama: A's +5/3 against B's -2, 11/3 apart: past RATING_SPREAD, 0.
-        assert.equal(similarity(5 - meanA, 1 - meanB), 0);
-        // Comedy: A's -1/3 against B's 0, 1/3 apart: 1 - (4/33)² = 1073/1089.
-        close(similarity(3 - meanA, 3 - meanB), 1073 / 1089);
-        close(genreRatingFactor(a, b), (0 * 4 + (1073 / 1089) * 6) / 10);
+        // Each genre's average star rating, on the shared scale (both
+        // averages at 19/6). Drama: A's 5 stays 5, B's 1 is about 1.03, far
+        // past RATING_SPREAD: 0. Comedy: A's 3 is 48.5/17, B's 3 (their
+        // average) is 19/6, 16/51 apart: 1 - (8/51)² = 2537/2601.
+        const shared = sharedAverage(meanA, meanB);
+        close(shared, 19 / 6);
+        assert.equal(similarity(onSharedScale(5, meanA, shared), onSharedScale(1, meanB, shared)), 0);
+        close(similarity(onSharedScale(3, meanA, shared), onSharedScale(3, meanB, shared)), 2537 / 2601);
+        close(genreRatingFactor(a, b), (0 * 4 + (2537 / 2601) * 6) / 10);
 
         // Nothing comparable.
         assert.equal(genreRatingFactor(tasteOf([film(1, 4, { genres: ["Drama"] })]), a), 0);
@@ -265,9 +307,10 @@ describe("Resonance scoring", () => {
     });
 
     test("the tiers, and Dissonance shown the other way round", () => {
+        assert.equal(RESONANCE_TIERS.soul, 85);
         assert.deepEqual(resonanceTier(100), { key: "soul", label: "Soul Resonance", shown: 100 });
-        assert.deepEqual(resonanceTier(80), { key: "soul", label: "Soul Resonance", shown: 80 });
-        assert.deepEqual(resonanceTier(79), { key: "resonance", label: "Resonance", shown: 79 });
+        assert.deepEqual(resonanceTier(85), { key: "soul", label: "Soul Resonance", shown: 85 });
+        assert.deepEqual(resonanceTier(84), { key: "resonance", label: "Resonance", shown: 84 });
         assert.deepEqual(resonanceTier(50), { key: "resonance", label: "Resonance", shown: 50 });
         assert.deepEqual(resonanceTier(49), { key: "dissonance", label: "Dissonance", shown: 51 });
         assert.deepEqual(resonanceTier(40), { key: "dissonance", label: "Dissonance", shown: 60 });
@@ -743,16 +786,18 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(body.match.percent, 90);
         assert.deepEqual(body.films.map((entry) => entry.tmdbId), [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
         // Each one's average, of all their rated films (mine 56.5 / 20,
-        // theirs 62 / 20), and each film's true difference: the ratings
-        // against those, and how alike that makes them, as the Movies
-        // factor counts it.
+        // theirs 62 / 20), and each film's true difference: the two ratings
+        // on the scale they share, and how alike that makes them, as the
+        // Movies factor counts it.
         close(body.averages.mine, 2.825);
         close(body.averages.theirs, 3.1);
         const twelve = body.films.find((entry) => entry.tmdbId === 12);
-        close(twelve.trueDifference, Math.abs(2 - 2.825 - (3 - 3.1)));
-        // 0.725 apart: 1 - (0.725 / 2.75)² = 1 - (29/110)², 93%.
-        close(twelve.trueDifference, 0.725);
-        assert.equal(twelve.similarity, 93);
+        close(twelve.trueDifference, trueGap(2, 2.825, 3, 3.1));
+        // On the shared scale (both averages at 2.9625): my 2 is
+        // 0.5 + 1.5 × 2.4625 / 2.325, their 3 is 0.5 + 2.5 × 2.4625 / 2.6,
+        // about 0.78 apart: 1 - (0.78 / 2)², 85%.
+        close(twelve.trueDifference, 0.5 + (2.5 * 2.4625) / 2.6 - (0.5 + (1.5 * 2.4625) / 2.325));
+        assert.equal(twelve.similarity, 85);
         assert.deepEqual(twelve, {
             tmdbId: 12,
             title: "Film 12",
