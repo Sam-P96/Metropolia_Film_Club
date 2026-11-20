@@ -31,7 +31,8 @@ const PAGE_SIZE = 10;
 
 // The filters at the top of Notifications, and the notifications each one
 // shows. "all" (or anything not listed here) shows everything.
-//   events   club events and member screenings, and nothing else: none of
+//   events   club events and member screenings, and members they follow
+//            going to one or interested in it, and nothing else: none of
 //            the big news below (feedQuery), no jackpots or Crash rooms
 //            up top (getFeed)
 //   reviews  votes on their reviews, replies, new reviews from members they
@@ -44,7 +45,7 @@ const PAGE_SIZE = 10;
 //            and gifts (points are only for games)
 // New followers are only in "all".
 const FEED_FILTERS = {
-    events: ["event"],
+    events: ["event", ...Object.values(Notification.EVENT_RSVP_TYPES)],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
     games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES],
@@ -200,6 +201,13 @@ async function hydrate(rows, viewer) {
         if (row.type === "event") {
             const event = eventById.get(String(row.event));
             return event ? [{ _id: row._id, type: row.type, at: row.at, event, actors: members }] : [];
+        }
+
+        // A member they follow going to an event, or interested in it. Gone
+        // if the event is, or the member left.
+        if (Object.values(Notification.EVENT_RSVP_TYPES).includes(row.type)) {
+            const event = eventById.get(String(row.event));
+            return event && members.length > 0 ? [{ _id: row._id, type: row.type, at: row.at, event, actors: members }] : [];
         }
 
         if (row.type === "payout" || row.type === "quizStreak") {

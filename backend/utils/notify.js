@@ -16,7 +16,7 @@ const VIRAL_LIKES = 5;
 
 const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
-    "review", "trending", "reply", "follow", "pvp", "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
+    "review", "trending", "reply", "follow", "pvp", ...Object.values(Notification.EVENT_RSVP_TYPES), "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
     "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES,
 ];
@@ -205,6 +205,46 @@ async function noteRepostedEvent(event) {
 
 function forgetEvent(eventId) {
     return Notification.deleteMany({ event: eventId });
+}
+
+// Who hears about `userId` going to or being interested in an event: their
+// followers, as far as their profile's privacy setting lets them see it (the
+// rule in controllers/userControllers.js): every follower for a public
+// profile, only friends (followers they follow back) for "friends", nobody
+// for a private one, which event pages don't name either.
+async function rsvpAudience(userId) {
+    const member = await User.findById(userId).select("privacy").lean();
+    const privacy = member?.privacy ?? "public";
+    if (!member || privacy === "private") return [];
+
+    const followers = await Follow.find({ following: userId }).distinct("follower");
+    if (privacy === "public") return followers;
+
+    const followedBack = new Set(
+        (await Follow.find({ follower: userId, following: { $in: followers } }).distinct("following")).map(String)
+    );
+    return followers.filter((id) => followedBack.has(String(id)));
+}
+
+// `userId` pressed Attend or Interested on `eventId` (`rsvp`: "attending",
+// "interested", or null for neither). Their followers hear (rsvpAudience),
+// in place of whatever they'd heard from them about it before, so changing
+// their mind never piles them up, and null quietly takes it back.
+async function noteEventRsvp(eventId, userId, rsvp) {
+    await forgetEventRsvp(eventId, userId);
+
+    if (!Object.hasOwn(Notification.EVENT_RSVP_TYPES, rsvp ?? "")) return;
+    const type = Notification.EVENT_RSVP_TYPES[rsvp];
+
+    await sendToEach(await rsvpAudience(userId), { type, event: eventId, actors: [userId] });
+}
+
+function forgetEventRsvp(eventId, userId) {
+    return Notification.deleteMany({
+        type: { $in: Object.values(Notification.EVENT_RSVP_TYPES) },
+        event: eventId,
+        actors: userId,
+    });
 }
 
 // A member posted a cut: it goes to everyone who follows them, and to them,
@@ -744,6 +784,7 @@ module.exports = {
     noteEnabledPvp,
     forgetPvp,
     forgetEvent,
+    noteEventRsvp,
     forgetReview,
     forgetComment,
     noteNewCut,
