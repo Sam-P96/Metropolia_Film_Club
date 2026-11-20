@@ -154,6 +154,11 @@ function App() {
             <Route path="/SECRETresonance" element={
               isAuthenticated ? (<SecretResonance />) : (<Navigate to="/login" state={{ from: '/SECRETresonance' }} />)
             } />
+            {/* Any two members' ratings side by side, from a pair's score
+                on /SECRETresonance (moderators and admins: the server checks). */}
+            <Route path="/SECRETresonance/:userA/:userB" element={
+              isAuthenticated ? (<ResonanceCompare />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
             {/* Every SECRET page, for admins (the admin panel lists them
                 too). Anyone else sees nothing. */}
             {/* The admin panel, for admins (the server checks): an admin's

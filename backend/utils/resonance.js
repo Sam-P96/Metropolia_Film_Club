@@ -28,6 +28,11 @@ const WEIGHTS = {
 // (5 - 0.5 = 4.5), so a big disagreement already counts as none.
 const RATING_SPREAD = 2.75;
 
+// How the gap is curved before it's taken off: 1 is a straight line
+// (every star costs the same), 2 makes small gaps cost little and big
+// gaps cost a lot.
+const GAP_CURVE = 2;
+
 // The ends of the rating scale. The same top or bottom rating is no gap at
 // all, however generous or harsh the two usually are: neither could have
 // gone any further, so their averages don't come into it (filmGap).
@@ -61,7 +66,7 @@ const TOP_SHARED = 3;
 // instead of showing old scores until 04:00.
 const SCORING_VERSION = crypto
     .createHash("sha1")
-    .update(JSON.stringify([WEIGHTS, RATING_SPREAD, [...SCALE_ENDS], FULL_CONFIDENCE_AT, MIN_GENRE_FILMS, [...AGE_RATINGS], MIN_RATED, TOP_SHARED]))
+    .update(JSON.stringify([WEIGHTS, RATING_SPREAD, GAP_CURVE, [...SCALE_ENDS], FULL_CONFIDENCE_AT, MIN_GENRE_FILMS, [...AGE_RATINGS], MIN_RATED, TOP_SHARED]))
     .digest("hex")
     .slice(0, 12);
 
@@ -69,9 +74,12 @@ const SCORING_VERSION = crypto
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
-// How alike two ratings `gap` stars apart are: 1 for no gap, 0 for as far
-// apart as ratings go.
-const alike = (gap) => clamp01(1 - gap / RATING_SPREAD);
+// How alike two ratings `gap` stars apart are: 1 for no gap, 0 at
+// RATING_SPREAD apart or more, and curved in between. The gap, as a share
+// of RATING_SPREAD, is raised to GAP_CURVE before it's taken off, so a
+// small gap costs little and a big one a lot: with a curve of 2, half a
+// star apart is still 97%, a star 87%, two stars 47%.
+const alike = (gap) => clamp01(1 - (gap / RATING_SPREAD) ** GAP_CURVE);
 
 // How alike two ratings are: 1 for the same, 0 for as far apart as
 // ratings go.
@@ -268,6 +276,8 @@ module.exports = {
     MIN_RATED,
     SUGGEST_FROM,
     RATING_SPREAD,
+    GAP_CURVE,
+    MIN_GENRE_FILMS,
     similarity,
     filmGap,
     filmSimilarity,

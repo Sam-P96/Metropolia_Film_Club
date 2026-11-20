@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import PillToggle from '../components/PillToggle'
 import MemberAvatar from '../components/profile/MemberAvatar'
+import DarkerBackdrop from '../components/resonance/DarkerBackdrop'
 import usePagedList from '../hooks/usePagedList'
 import { refreshSoulResonance } from '../hooks/useSoulResonance'
 import { getEveryonesResonance, updateResonanceNow } from '../services/resonance'
@@ -14,6 +15,9 @@ const MINIMUMS = [
   { value: '20', label: '20 ratings' },
   { value: 'any', label: 'Any ratings' },
 ]
+
+// How long typing a name has to pause before the list is searched.
+const SEARCH_DELAY_MS = 250
 
 // All five factors, which members never see.
 const FACTORS = [
@@ -117,12 +121,22 @@ function UpdateNow({ updatedAt }) {
 // of members, worked out now with the current weights rather than last
 // night's, whatever their settings and privacy, with all five factors. "20
 // ratings" is the members Resonance is worked out for; "Any ratings" is
-// everyone who has rated a film. Pick a member to see only theirs.
+// everyone who has rated a film. Pick a member to see only theirs, or type
+// a name (any part of it, any case) to see every pair with someone called
+// that, them first; both together is that member's pairs with them.
 // "Update Resonance now" works out what members see early.
 function SecretResonance() {
   const [min, setMin] = useState('20')
   const [member, setMember] = useState('')
-  const list = usePagedList((offset) => getEveryonesResonance({ min, member, offset }), [min, member], 'pairs')
+  // What's typed, and what's searched for once typing pauses.
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  const list = usePagedList((offset) => getEveryonesResonance({ min, member, search, offset }), [min, member, search], 'pairs')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [query])
 
   const members = list.data?.members ?? []
   const byId = Object.fromEntries(members.map((entry) => [entry._id, entry]))
@@ -130,6 +144,8 @@ function SecretResonance() {
 
   return (
     <section className="text-white">
+      {/* The same darker background as the pair pages it links to. */}
+      <DarkerBackdrop />
       <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
         <h1 className="text-4xl font-bold sm:text-5xl">
           Everyone's <span className="text-brand-gold">Resonance</span>
@@ -171,10 +187,21 @@ function SecretResonance() {
             ))}
           </select>
 
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Type a member's name"
+            aria-label="Pairs with a member called"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full max-w-xs rounded-md border border-white/15 bg-ink/60 px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-brand-gold/60 sm:w-64"
+          />
+
           {list.data && (
             <p className="text-sm text-white/50">
-              {list.data.total} {list.data.total === 1 ? 'pair' : 'pairs'} · {members.length}{' '}
-              {members.length === 1 ? 'member' : 'members'}
+              {list.data.total} {list.data.total === 1 ? 'pair' : 'pairs'}
+              {search ? ` with “${search}”` : ''} · {members.length} {members.length === 1 ? 'member' : 'members'}
             </p>
           )}
         </div>
@@ -188,7 +215,9 @@ function SecretResonance() {
               : "Couldn't load it. Try refreshing the page."}
           </p>
         ) : pairs.length === 0 ? (
-          <p className="mt-8 text-white/60">No pairs yet: it needs two members who have rated films.</p>
+          <p className="mt-8 text-white/60">
+            {search ? `No pairs with anyone called “${search}” here.` : 'No pairs yet: it needs two members who have rated films.'}
+          </p>
         ) : (
           <ol className="mt-6 divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
             {pairs.map((pair, index) => {
@@ -203,9 +232,14 @@ function SecretResonance() {
                   </span>
                   <Person user={pair.b} info={byId[pair.b._id]} />
 
-                  <p className={`ml-auto shrink-0 text-sm font-semibold tabular-nums ${TIER_COLOURS[tier.key]}`}>
+                  {/* Their ratings side by side. */}
+                  <Link
+                    to={`/SECRETresonance/${pair.a._id}/${pair.b._id}`}
+                    title={`Compare ${pair.a.username}'s and ${pair.b.username}'s ratings`}
+                    className={`ml-auto shrink-0 rounded-sm text-sm font-semibold tabular-nums decoration-2 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${TIER_COLOURS[tier.key]}`}
+                  >
                     {tier.label}: {tier.shown}%
-                  </p>
+                  </Link>
 
                   <p className="w-full text-xs text-white/50 tabular-nums sm:pl-11">
                     {FACTORS.map(([key, label]) => `${label} ${pair.factors[key]}%`).join(' · ')} · {pair.sharedCount}{' '}

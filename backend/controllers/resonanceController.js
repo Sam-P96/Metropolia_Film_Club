@@ -1,7 +1,7 @@
 const { parseOffset } = require("../utils/paging");
 const mongoose = require("mongoose");
 const { MIN_RATED } = require("../utils/resonance");
-const { standingOf, suggestionsFor, rankingFor, soulMapFor, comparisonWith, everyonesResonance, lastSweep } = require("../utils/resonanceStore");
+const { standingOf, suggestionsFor, rankingFor, soulMapFor, comparisonWith, everyonesResonance, pairComparison, lastSweep } = require("../utils/resonanceStore");
 const { runSweep } = require("../jobs/resonanceSweep");
 
 // Resonance, for the logged-in member (utils/resonanceStore.js applies
@@ -32,7 +32,8 @@ async function getSoulResonance(req, res) {
     res.json(await soulMapFor(req.user._id));
 }
 
-// Their ratings side by side with another member's: { match, films }
+// Their ratings side by side with another member's: { match, averages,
+// films, genres }
 // (resonanceStore comparisonWith). 404 unless they have a Resonance with
 // that member that they may see.
 async function getComparison(req, res) {
@@ -48,22 +49,40 @@ async function getComparison(req, res) {
 
 // /SECRETresonance, moderators and admins only: every pair, ?min=20
 // (members with enough rated films, the default) or ?min=any (anyone who
-// has rated something), ?member=<id> for one member's, a page at a time
-// from ?offset. With `updatedAt`, when members' stored Resonance was last
-// worked out (null if nothing's stored).
+// has rated something), ?member=<id> for one member's, ?q= for pairs with
+// a member whose name has it in it, a page at a time from ?offset. With
+// `updatedAt`, when members' stored Resonance was last worked out (null
+// if nothing's stored).
 async function getEveryonesResonance(req, res) {
     const memberId = mongoose.isValidObjectId(req.query.member) ? String(req.query.member) : null;
+    const search = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
 
     const [everyone, last] = await Promise.all([
         everyonesResonance({
             minRated: req.query.min === "any" ? 1 : MIN_RATED,
             memberId,
+            search,
             offset: parseOffset(req.query.offset),
         }),
         lastSweep(),
     ]);
 
     res.json({ ...everyone, updatedAt: last?.at ?? null });
+}
+
+// /SECRETresonance's pairs, moderators and admins only: any two members'
+// ratings side by side, the first's as `mine` (resonanceStore
+// pairComparison). 404 if either isn't there.
+async function getPairComparison(req, res) {
+    const { userA, userB } = req.params;
+    const valid = mongoose.isValidObjectId(userA) && mongoose.isValidObjectId(userB);
+    const comparison = valid ? await pairComparison(userA, userB) : null;
+
+    if (!comparison) {
+        return res.status(404).json({ error: "There's no such pair of members." });
+    }
+
+    res.json(comparison);
 }
 
 // /SECRETresonance's "Update Resonance now", moderators and admins only:
@@ -80,4 +99,13 @@ async function updateResonanceNow(req, res) {
     res.json({ members: result.members, pairs: result.pairs, updatedAt: result.at });
 }
 
-module.exports = { getMyResonance, getSuggestions, getRanking, getSoulResonance, getComparison, getEveryonesResonance, updateResonanceNow };
+module.exports = {
+    getMyResonance,
+    getSuggestions,
+    getRanking,
+    getSoulResonance,
+    getComparison,
+    getEveryonesResonance,
+    getPairComparison,
+    updateResonanceNow,
+};

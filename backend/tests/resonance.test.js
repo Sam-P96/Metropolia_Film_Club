@@ -13,6 +13,7 @@ const {
     WEIGHTS,
     SCORING_VERSION,
     RATING_SPREAD,
+    GAP_CURVE,
     similarity,
     filmGap,
     filmSimilarity,
@@ -46,12 +47,52 @@ describe("Resonance scoring", () => {
         close(Object.values(WEIGHTS).reduce((sum, weight) => sum + weight, 0), 1);
     });
 
-    test("similarity is 1 for the same rating, 0 at RATING_SPREAD apart, a straight line between, and never below 0", () => {
+    test("similarity is 1 for the same rating, 0 at RATING_SPREAD apart, curved between (1 - (gap / RATING_SPREAD)²), and never below 0", () => {
+        assert.equal(GAP_CURVE, 2);
         assert.equal(similarity(1.5, 1.5), 1);
-        close(similarity(-1, -1 + RATING_SPREAD / 2), 0.5);
-        close(similarity(2, 2 + RATING_SPREAD / 4), 0.75);
+        // Half of RATING_SPREAD apart: 1 - 0.5² = 0.75. A quarter: 1 - 0.25² = 0.9375.
+        close(similarity(-1, -1 + RATING_SPREAD / 2), 0.75);
+        close(similarity(2, 2 + RATING_SPREAD / 4), 0.9375);
         assert.equal(similarity(-RATING_SPREAD / 2, RATING_SPREAD / 2), 0);
         assert.equal(similarity(-3, 3), 0);
+    });
+
+    test("the curve: a small gap costs little, a big one a lot, and RATING_SPREAD or more is nothing alike", () => {
+        // alike(gap), as similarity(0, gap): 1 - (gap / 2.75)².
+        const alikeAt = (gap) => similarity(0, gap);
+        assert.equal(alikeAt(0), 1);
+        // 0.4 / 2.75 = 8/55, 1 / 2.75 = 4/11, 2 / 2.75 = 8/11.
+        close(alikeAt(0.4), 1 - 64 / 3025);
+        close(alikeAt(1), 1 - 16 / 121);
+        close(alikeAt(2), 1 - 64 / 121);
+        assert.deepEqual([0.4, 1, 2].map((gap) => Number(alikeAt(gap).toFixed(4))), [0.9788, 0.8678, 0.4711]);
+        for (const gap of [2.75, 3, 4.5]) assert.equal(alikeAt(gap), 0, `${gap} apart`);
+        // Either way round.
+        assert.equal(similarity(1, 0), alikeAt(1));
+    });
+
+    test("both loving a film: 5 from a member who averages 3.0 against 4 from one who averages 3.4 is 1.4 apart, 74%", () => {
+        const a = tasteOf([film(1, 5), film(2, 2), film(3, 2)]);
+        const b = tasteOf([film(1, 4), film(2, 3), film(3, 3), film(4, 3.5), film(5, 3.5)]);
+        close(a.average, 3);
+        close(b.average, 3.4);
+
+        // +2.0 against +0.6: 1.4 apart, 1 - (1.4 / 2.75)² = 1 - (28/55)².
+        close(filmGap(a.byFilm.get(1), b.byFilm.get(1)), 1.4);
+        close(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)), 1 - 784 / 3025);
+        assert.equal(Number(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)).toFixed(4)), 0.7408);
+    });
+
+    test("both at 5, or both at 0.5, is still 1 however far apart their averages are", () => {
+        // Averages 3 and 3.875.
+        const a = tasteOf([film(1, 5), film(2, 0.5), film(3, 3.5)]);
+        const b = tasteOf([film(1, 5), film(2, 0.5), film(3, 5), film(4, 5)]);
+        close(b.average - a.average, 0.875);
+
+        for (const tmdbId of [1, 2]) {
+            assert.equal(filmGap(a.byFilm.get(tmdbId), b.byFilm.get(tmdbId)), 0);
+            assert.equal(filmSimilarity(a.byFilm.get(tmdbId), b.byFilm.get(tmdbId)), 1);
+        }
     });
 
     test("no shared films: the movies factor is 0, and there's nothing for the card", () => {
@@ -101,12 +142,15 @@ describe("Resonance scoring", () => {
         assert.equal(gap(2), 0);
         assert.equal(filmSimilarity(a.byFilm.get(1), b.byFilm.get(1)), 1);
         close(gap(3), 2.25);
+        // 2.25 / 2.75 = 9/11 apart: 1 - (9/11)² = 40/121.
+        close(filmSimilarity(a.byFilm.get(3), b.byFilm.get(3)), 40 / 121);
         // The same rating mid-scale still means more from the harsher one.
         close(gap(4), 0.75);
-        close(filmSimilarity(a.byFilm.get(4), b.byFilm.get(4)), similarity(0, 0.75));
+        // 0.75 / 2.75 = 3/11 apart: 1 - (3/11)² = 112/121.
+        close(filmSimilarity(a.byFilm.get(4), b.byFilm.get(4)), 112 / 121);
 
         // And the Movies factor counts them that way (4 shared films: 40%).
-        close(moviesFactor(a, b).factor, ((1 + 1 + similarity(0, 2.25) + similarity(0, 0.75)) / 4) * 0.4);
+        close(moviesFactor(a, b).factor, ((1 + 1 + 40 / 121 + 112 / 121) / 4) * 0.4);
     });
 
     test("opposite tastes score low on the movies factor", () => {
@@ -165,9 +209,11 @@ describe("Resonance scoring", () => {
         const average = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
         const meanA = average([5, 5, 3, 3, 3, 1]);
         const meanB = average([1, 1, 3, 3, 3, 5, 5]);
-        const drama = similarity(5 - meanA, 1 - meanB);
-        const comedy = similarity(3 - meanA, 3 - meanB);
-        close(genreRatingFactor(a, b), (drama * 4 + comedy * 6) / 10);
+        // Drama: A's +5/3 against B's -2, 11/3 apart: past RATING_SPREAD, 0.
+        assert.equal(similarity(5 - meanA, 1 - meanB), 0);
+        // Comedy: A's -1/3 against B's 0, 1/3 apart: 1 - (4/33)² = 1073/1089.
+        close(similarity(3 - meanA, 3 - meanB), 1073 / 1089);
+        close(genreRatingFactor(a, b), (0 * 4 + (1073 / 1089) * 6) / 10);
 
         // Nothing comparable.
         assert.equal(genreRatingFactor(tasteOf([film(1, 4, { genres: ["Drama"] })]), a), 0);
@@ -577,10 +623,59 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(theirs.total, 2);
         assert.ok(theirs.pairs.every((entry) => String(entry.a._id) === String(few._id)));
 
+        // Pairs with someone whose name has it in it, any case, them first.
+        const named = (await call(admin, `/resonance/all?min=any&q=${few.username.toUpperCase()}`)).body;
+        assert.equal(named.total, 2);
+        assert.ok(named.pairs.every((entry) => entry.a.username === few.username));
+        assert.equal(named.members.length, 3, "everyone's still counted");
+        // A member and a name: that member's pair with them.
+        const between = (await call(admin, `/resonance/all?min=any&member=${admin._id}&q=${few.username}`)).body;
+        assert.deepEqual(between.pairs.map((entry) => [entry.a.username, entry.b.username]), [[admin.username, few.username]]);
+        assert.equal((await call(admin, "/resonance/all?min=any&q=nobody-by-this-name")).body.total, 0);
+
         // Moderators too, and nobody else.
         assert.equal((await call(await member(0, { role: "moderator" }), "/resonance/all")).status, 200);
         assert.equal((await call(few, "/resonance/all")).status, 403);
         assert.equal((await call(null, "/resonance/all")).status, 401);
+    });
+
+    test("/SECRETresonance's pairs: any two members' ratings side by side, with the score the list shows, moderators and admins only", async () => {
+        await clear();
+        const Review = require("../models/reviewModel");
+        await Review.deleteMany({});
+        const admin = await member(0, { role: "admin" });
+        // Films 1 to 20, rated 1 to 5 in turn; and films 11 to 30, all at 3.
+        const first = await member(20, { privacy: "private", resonance: false }, (index) => 1 + (index % 9) * 0.5);
+        const second = await member(0);
+        await FilmLog.insertMany(films(20, () => 3, (index) => ({ genres: ["Drama"], year: 2010 + index }), 11).map((entry) => ({ ...entry, user: second._id, status: "completed" })));
+        const theirs = await Review.create({ user: second._id, tmdbId: 12, filmTitle: "Film 12", text: "Seen it." });
+
+        const { status, body } = await call(admin, `/resonance/all/${first._id}/${second._id}`);
+        assert.equal(status, 200);
+        assert.equal(body.first.username, first.username);
+        assert.equal(body.match.user.username, second.username);
+        // The score the /SECRETresonance list shows for them.
+        const listed = (await call(admin, `/resonance/all?member=${first._id}`)).body.pairs.find((entry) => entry.b.username === second.username);
+        assert.equal(body.match.percent, listed.percent);
+        assert.equal(body.match.sharedCount, 10);
+        close(body.averages.mine, 2.825);
+        close(body.averages.theirs, 3);
+        assert.deepEqual(body.films.map((entry) => entry.tmdbId), [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+        assert.deepEqual(body.films.find((entry) => entry.tmdbId === 12).theirs, { rating: 3, reviewId: String(theirs._id) });
+
+        // The other way round: mine and theirs swap.
+        const back = (await call(admin, `/resonance/all/${second._id}/${first._id}`)).body;
+        assert.equal(back.first.username, second.username);
+        assert.equal(back.match.percent, body.match.percent);
+        assert.deepEqual(back.films.find((entry) => entry.tmdbId === 12).mine, { rating: 3, reviewId: String(theirs._id) });
+
+        // Moderators too, and nobody else; no such pair is a 404.
+        assert.equal((await call(await member(0, { role: "moderator" }), `/resonance/all/${first._id}/${second._id}`)).status, 200);
+        assert.equal((await call(first, `/resonance/all/${first._id}/${second._id}`)).status, 403);
+        assert.equal((await call(null, `/resonance/all/${first._id}/${second._id}`)).status, 401);
+        assert.equal((await call(admin, `/resonance/all/${first._id}/${first._id}`)).status, 404);
+        assert.equal((await call(admin, `/resonance/all/${first._id}/nonsense`)).status, 404);
+        assert.equal((await call(admin, `/resonance/all/${first._id}/${new mongoose.Types.ObjectId()}`)).status, 404);
     });
 
     test("/SECRETresonance's Update Resonance now: moderators and admins store everyone's straight away", async () => {
@@ -655,7 +750,9 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         close(body.averages.theirs, 3.1);
         const twelve = body.films.find((entry) => entry.tmdbId === 12);
         close(twelve.trueDifference, Math.abs(2 - 2.825 - (3 - 3.1)));
-        assert.equal(twelve.similarity, Math.round(similarity(2 - 2.825, 3 - 3.1) * 100));
+        // 0.725 apart: 1 - (0.725 / 2.75)² = 1 - (29/110)², 93%.
+        close(twelve.trueDifference, 0.725);
+        assert.equal(twelve.similarity, 93);
         assert.deepEqual(twelve, {
             tmdbId: 12,
             title: "Film 12",
@@ -691,6 +788,60 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal((await call(me, `/resonance/with/${me._id}`)).status, 404);
         assert.equal((await call(me, "/resonance/with/nonsense")).status, 404);
         assert.equal((await call(null, `/resonance/with/${stranger._id}`)).status, 401);
+    });
+
+    test("comparing ratings: the genres both rated 2+ films in, each one's average star rating there from all their films, most films first", async () => {
+        await clear();
+        const me = await member(0);
+        const other = await member(0);
+        const admin = await member(0, { role: "admin" });
+        const log = (user, tmdbId, rating, genres = []) => ({ ...film(tmdbId, rating, { genres }), user: user._id, status: "completed" });
+        await FilmLog.insertMany([
+            // Drama: 6 rated, 4 on average (films 3 to 6 only mine).
+            ...[5, 4, 4, 3, 5, 3].map((rating, index) => log(me, 1 + index, rating, ["Drama"])),
+            // Comedy: 4 of mine, but only 1 of theirs: left out.
+            ...[2, 3, 2, 3].map((rating, index) => log(me, 7 + index, rating, ["Comedy"])),
+            // Horror: only 1 of mine: left out.
+            log(me, 11, 1, ["Horror"]),
+            // Action (and Drama, for film 12): 2 each.
+            log(me, 12, 4, ["Action", "Drama"]),
+            log(me, 13, 5, ["Action"]),
+            // No genre, to make 20.
+            ...Array.from({ length: 7 }, (_, index) => log(me, 14 + index, 3)),
+            // Theirs: Drama 3, 4 and 2 (film 50 only theirs), one Comedy, two Horror.
+            log(other, 1, 3, ["Drama"]),
+            log(other, 2, 4, ["Drama"]),
+            log(other, 50, 2, ["Drama"]),
+            log(other, 7, 5, ["Comedy"]),
+            log(other, 11, 2, ["Horror"]),
+            log(other, 51, 2, ["Horror"]),
+            log(other, 12, 1, ["Action"]),
+            log(other, 52, 2.5, ["Action"]),
+            ...Array.from({ length: 12 }, (_, index) => log(other, 60 + index, 3)),
+        ]);
+        await pair(me, other, 70);
+
+        const { status, body } = await call(me, `/resonance/with/${other._id}`);
+        assert.equal(status, 200);
+        assert.deepEqual(body.genres.map((entry) => entry.genre), ["Drama", "Action"]);
+        const [drama, action] = body.genres;
+        // Drama: mine 5, 4, 4, 3, 5, 3 and 4 (film 12): 28 / 7.
+        close(drama.mine.average, 4);
+        assert.equal(drama.mine.count, 7);
+        close(drama.theirs.average, 3);
+        assert.equal(drama.theirs.count, 3);
+        assert.deepEqual(action, { genre: "Action", mine: { average: 4.5, count: 2 }, theirs: { average: 1.75, count: 2 } });
+
+        // From their side, mine and theirs swap.
+        const back = (await call(other, `/resonance/with/${me._id}`)).body;
+        assert.deepEqual(back.genres.find((entry) => entry.genre === "Action"), { genre: "Action", mine: { average: 1.75, count: 2 }, theirs: { average: 4.5, count: 2 } });
+
+        // /SECRETresonance's pair page has them too.
+        assert.deepEqual((await call(admin, `/resonance/all/${me._id}/${other._id}`)).body.genres, body.genres);
+
+        // The same rules as before: nothing for a member they may not see.
+        await User.updateOne({ _id: other._id }, { privacy: "private" });
+        assert.equal((await call(me, `/resonance/with/${other._id}`)).status, 404);
     });
 
     test("their matches are in their data download, and go with their account", async () => {

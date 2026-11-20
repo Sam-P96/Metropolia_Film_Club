@@ -1,12 +1,19 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import PillToggle from '../components/PillToggle'
 import MemberAvatar from '../components/profile/MemberAvatar'
+import DarkerBackdrop from '../components/resonance/DarkerBackdrop'
 import ResonanceIcon, { ResonanceMark } from '../components/resonance/ResonanceIcon'
+import TasteDumbbell from '../components/resonance/TasteDumbbell'
+import TasteRadar from '../components/resonance/TasteRadar'
+import TasteScatter from '../components/resonance/TasteScatter'
+import { SteadyText } from '../components/resonance/TasteParts'
+import { DIFFERENCE, RATING_VIEWS, TRUE_DIFFERENCE, shiftOf, signedStars } from '../components/resonance/tasteChart'
 import StarRating from '../components/reviews/StarRating'
 import SortHeader from '../components/SortHeader'
 import useApi from '../hooks/useApi'
-import { getResonanceWith } from '../services/resonance'
+import { getPairComparison, getResonanceWith } from '../services/resonance'
 import { TIER_COLOURS } from '../utils/resonance'
 import { RESONANCE_TIERS, resonanceTier } from '../../../shared/resonance.js'
 
@@ -119,9 +126,18 @@ function Poster({ film }) {
 // counts them (the true difference). Only for someone they have a
 // Resonance with and may see (the server checks). On a phone the number
 // and poster columns go, and the table scrolls sideways if it must.
+//
+// At /SECRETresonance/:userA/:userB, from a pair's score there (moderators
+// and admins: the server checks), it's any two members instead: userA's
+// ratings where yours would be, and the score worked out now, as that
+// list has it.
 function ResonanceCompare() {
-  const { userId } = useParams()
-  const { data, error, loading } = useApi(() => getResonanceWith(userId), [userId])
+  const { userId, userA, userB } = useParams()
+  const pair = Boolean(userA && userB)
+  const { data, error, loading } = useApi(
+    () => (pair ? getPairComparison(userA, userB) : getResonanceWith(userId)),
+    [userId, userA, userB]
+  )
   const [sortBy, setSortBy] = useState('title')
   const [sortDir, setSortDir] = useState('asc')
 
@@ -139,14 +155,14 @@ function ResonanceCompare() {
     content = <p className="text-sm text-white/40">Loading…</p>
   } else if (!data) {
     const missing = error?.status === 404
+    const notAllowed = pair && error?.status === 403
+    let explanation = 'Something went wrong on our end. Try refreshing the page.'
+    if (notAllowed) explanation = 'This page is for moderators and admins.'
+    else if (missing) explanation = pair ? "One of these members isn't here any more." : 'You can compare your ratings with anyone you have a Resonance with.'
     content = (
       <Notice>
-        <p className="font-medium">{missing ? 'Nothing to compare' : "Couldn't load this"}</p>
-        <p className="mt-1 text-sm text-white/60">
-          {missing
-            ? 'You can compare your ratings with anyone you have a Resonance with.'
-            : 'Something went wrong on our end. Try refreshing the page.'}
-        </p>
+        <p className="font-medium">{missing || notAllowed ? 'Nothing to compare' : "Couldn't load this"}</p>
+        <p className="mt-1 text-sm text-white/60">{explanation}</p>
       </Notice>
     )
   } else {
@@ -155,9 +171,13 @@ function ResonanceCompare() {
 
   return (
     <section className="text-white">
+      <DarkerBackdrop />
       <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
-        <Link to="/resonance" className="text-sm font-medium text-brand-gold transition-colors hover:text-white">
-          ← Your Resonance
+        <Link
+          to={pair ? '/SECRETresonance' : '/resonance'}
+          className="text-sm font-medium text-brand-gold transition-colors hover:text-white"
+        >
+          {pair ? "← Everyone's Resonance" : '← Your Resonance'}
         </Link>
         <div className="mt-3">{content}</div>
       </div>
@@ -165,27 +185,52 @@ function ResonanceCompare() {
   )
 }
 
-// The page once it's loaded: who it's with and the score, then the table.
-function Comparison({ match, averages, films, sortBy, sortDir, onSort }) {
+// The page once it's loaded: who it's with and the score, the taste charts
+// (every rating, by genre, and where they agree and disagree most), then
+// the table. `first` is the first member of a /SECRETresonance pair, whose
+// ratings are `mine`; without it, `mine` are the logged-in member's.
+function Comparison({ first = null, match, averages, films, genres = [], sortBy, sortDir, onSort }) {
+  // The charts: the ratings as given (Difference) or the true difference.
+  const [view, setView] = useState(DIFFERENCE)
   const { user } = match
   const tier = resonanceTier(match.percent)
   const sorted = sortFilms(films, sortBy, sortDir)
   const header = { sortBy, sortDir, onSort }
   const cell = 'px-3 py-3 sm:px-4'
+  const profileLink = (member) => (
+    <Link to={`/users/${member._id}`} className="transition-colors hover:text-brand-gold">
+      {member.username}
+    </Link>
+  )
 
   return (
     <>
       <div className="flex items-center gap-4">
-        <MemberAvatar user={user} size="lg" />
+        {first ? (
+          <div className="flex shrink-0 -space-x-3">
+            <MemberAvatar user={first} size="lg" />
+            <MemberAvatar user={user} size="lg" />
+          </div>
+        ) : (
+          <MemberAvatar user={user} size="lg" />
+        )}
         <div className="min-w-0">
           <h1 className="flex min-w-0 items-center gap-2 text-3xl font-bold sm:text-4xl">
-            <span className="truncate">
-              <span className="font-normal text-white/40">You and </span>
-              <Link to={`/users/${user._id}`} className="transition-colors hover:text-brand-gold">
-                {user.username}
-              </Link>
-            </span>
-            <ResonanceIcon userId={user._id} />
+            {first ? (
+              <span className="truncate">
+                {profileLink(first)}
+                <span className="font-normal text-white/40"> and </span>
+                {profileLink(user)}
+              </span>
+            ) : (
+              <>
+                <span className="truncate">
+                  <span className="font-normal text-white/40">You and </span>
+                  {profileLink(user)}
+                </span>
+                <ResonanceIcon userId={user._id} />
+              </>
+            )}
           </h1>
           <p className={`mt-1 flex items-center gap-2 text-lg font-bold ${TIER_COLOURS[tier.key]}`}>
             {tier.label}: {tier.shown}%
@@ -198,22 +243,52 @@ function Comparison({ match, averages, films, sortBy, sortDir, onSort }) {
 
       {films.length === 0 ? (
         <Notice>
-          <p className="font-medium">You haven't rated any of the same films yet.</p>
-          <p className="mt-1 text-sm text-white/60">Your Resonance comes from the genres and ratings you share, too.</p>
+          <p className="font-medium">{first ? "They haven't" : "You haven't"} rated any of the same films yet.</p>
+          <p className="mt-1 text-sm text-white/60">
+            {first ? 'Their' : 'Your'} Resonance comes from the genres and ratings {first ? 'they' : 'you'} share, too.
+          </p>
         </Notice>
       ) : (
         <>
           <div className="mb-6 max-w-2xl space-y-2 text-white/60">
+            {first ? (
+              <p>
+                The {films.length} {films.length === 1 ? 'film' : 'films'} they've both rated, side by side, and
+                their Resonance worked out now with the current weights, as Everyone's Resonance has it.
+              </p>
+            ) : (
+              <p>
+                The {films.length} {films.length === 1 ? 'film' : 'films'} you've both rated, side by side. Your
+                Resonance is worked out again every night, so it may not count today's ratings yet.
+              </p>
+            )}
             <p>
-              The {films.length} {films.length === 1 ? 'film' : 'films'} you've both rated, side by side. Your
-              Resonance is worked out again every night, so it may not count today's ratings yet.
+              The true difference is the one Resonance counts: each rating against its rater's average (
+              {first ? `${first.username}'s` : 'yours'} is {stars(averages.mine)}, {user.username}'s{' '}
+              {stars(averages.theirs)}), so a generous rater and a harsh one who feel the same about a film come
+              out the same. Both giving a film 5 stars, or both half a star, is always the same: neither of{' '}
+              {first ? 'them' : 'you'} could go any further.
             </p>
-            <p>
-              The true difference is the one Resonance counts: each rating against its rater's average (yours
-              is {stars(averages.mine)}, {user.username}'s {stars(averages.theirs)}), so a generous rater and
-              a harsh one who feel the same about a film come out the same. Both giving a film 5 stars, or
-              both half a star, is always the same: neither of you could go any further.
-            </p>
+          </div>
+
+          <div className="mb-8 space-y-6">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <PillToggle options={RATING_VIEWS} value={view} onChange={setView} label="Charts show" />
+              {/* Both notes take the same room, so toggling never moves the charts. */}
+              <SteadyText
+                className="min-w-0 flex-1 basis-64 text-xs text-white/55"
+                shown={view}
+                texts={{
+                  [DIFFERENCE]: 'The star ratings as given.',
+                  [TRUE_DIFFERENCE]: `${user.username}'s ratings moved ${signedStars(shiftOf(averages))} stars onto ${first ? `${first.username}'s` : 'your'} average, so how far apart two ratings sit is the true difference. Both at 5, or both at half a star, stay the same.`,
+                }}
+              />
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <TasteScatter films={films} theirName={user.username} myName={first?.username} view={view} averages={averages} />
+              <TasteRadar genres={genres} theirName={user.username} myName={first?.username} view={view} averages={averages} />
+            </div>
+            <TasteDumbbell films={films} theirName={user.username} myName={first?.username} view={view} averages={averages} />
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
@@ -227,7 +302,12 @@ function Comparison({ match, averages, films, sortBy, sortDir, onSort }) {
                     <span className="sr-only">Poster</span>
                   </th>
                   <SortHeader label="Title" column="title" {...header} className={cell} />
-                  <SortHeader label="You" column="mine" {...header} className={`w-32 ${cell}`} />
+                  <SortHeader
+                    label={first ? <span className="max-w-28 truncate">{first.username}</span> : 'You'}
+                    column="mine"
+                    {...header}
+                    className={`w-32 ${cell}`}
+                  />
                   <SortHeader
                     label={<span className="max-w-28 truncate">{user.username}</span>}
                     column="theirs"

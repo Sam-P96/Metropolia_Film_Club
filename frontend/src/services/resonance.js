@@ -25,26 +25,40 @@ export function getResonanceRanking(side, offset = 0, search = '') {
 
 // The comparison page: the logged-in member's match with `userId`, as the
 // card has it, each one's average rating, and every film both have rated,
-// A to Z: { match, averages: { mine, theirs }, films }, each film
+// A to Z: { match, averages: { mine, theirs }, films, genres }, each film
 // { tmdbId, title, year, posterPath, mine, theirs, trueDifference,
 // similarity }, where mine and theirs are { rating, reviewId (or null) },
 // trueDifference is how far apart the ratings are as Resonance counts them
 // (each against its rater's average, but none for the same top or bottom
 // rating), in stars, and similarity how alike that makes them, 0 to 100.
-// Fails with a 404 when they have no Resonance with that member they may
-// see.
+// `genres` is each genre both have rated 2+ films in, the most films
+// first: { genre, mine: { average, count }, theirs: { average, count } },
+// the averages of their star ratings there, all their films, not only the
+// shared ones. Fails with a 404 when they have no Resonance with that
+// member they may see.
 export function getResonanceWith(userId) {
   return api(`/resonance/with/${userId}`)
 }
 
 // /SECRETresonance, moderators and admins only: every pair, a page at a
-// time. `min` is '20' or 'any'; `member` an id to see only theirs, or ''.
+// time. `min` is '20' or 'any'; `member` an id to see only theirs, or '';
+// `search` some of a name, for only the pairs with someone called that.
 // Resolves to { members, pairs, total, hasMore, next, updatedAt }, where
 // `updatedAt` is when members' stored Resonance was last worked out.
-export function getEveryonesResonance({ min, member, offset = 0 }) {
+export function getEveryonesResonance({ min, member, search, offset = 0 }) {
   const params = new URLSearchParams({ min, offset })
   if (member) params.set('member', member)
+  if (search) params.set('q', search)
   return api(`/resonance/all?${params}`)
+}
+
+// /SECRETresonance's pairs, moderators and admins only: `firstId`'s and
+// `secondId`'s ratings side by side, shaped like getResonanceWith (the
+// first's ratings as `mine`) with `first`, the first member, and the
+// match worked out now, as the list has it. Fails with a 404 when there's
+// no such pair.
+export function getPairComparison(firstId, secondId) {
+  return api(`/resonance/all/${firstId}/${secondId}`)
 }
 
 // /SECRETresonance's "Update Resonance now", moderators and admins only:
