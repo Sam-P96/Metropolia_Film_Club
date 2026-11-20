@@ -74,8 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with reduce motion on. You in the site's gold,
   them in Soul Resonance blue, a legend on each; plain SVG, scaling to a
   phone with no sideways scrolling (`components/resonance/Taste*.jsx`,
-  `tasteChart.js`). The comparison pages sit on the site's background made
-  40% darker, from under the nav bar down (the nav bar as it always is).
+  `tasteChart.js`). The comparison pages sit on a darker background, a
+  black layer at 30% over the site's own, from under the nav bar down (the
+  nav bar as it always is).
   The comparison now has
   `genres`: each genre both have rated 2+ films in, with each one's
   average star rating there from all their films.

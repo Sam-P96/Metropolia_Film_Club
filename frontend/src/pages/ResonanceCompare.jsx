@@ -1,6 +1,5 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { motion } from 'motion/react'
 
 import PillToggle from '../components/PillToggle'
 import MemberAvatar from '../components/profile/MemberAvatar'
@@ -44,12 +43,11 @@ function sortFilms(films, sortBy, sortDir) {
   return [...films].sort((a, b) => sign * (value ? value(a) - value(b) : byTitle(a, b)) || byTitle(a, b))
 }
 
-// The comparison pages sit on the site's background made 40% darker: a
-// black layer at 40% over it, fixed behind the page like the games'
-// backdrops (components/GameBackdrop.jsx), running on past the bottom on a
-// phone, and fading in as the page opens. It starts at the nav bar's
-// bottom edge (measured, never touched), so the see-through nav bar looks
-// just as it does on every other page.
+// The comparison pages sit on a darker background: a black layer at 30%
+// over the site's own, fixed behind the page like the games' backdrops
+// (components/GameBackdrop.jsx) and running on past the bottom on a
+// phone. It starts at the nav bar's bottom edge (measured, never touched),
+// so the see-through nav bar looks just as it does on every other page.
 function DarkerBackdrop() {
   const [top, setTop] = useState(0)
 
@@ -64,12 +62,9 @@ function DarkerBackdrop() {
   }, [])
 
   return (
-    <motion.div
+    <div
       aria-hidden="true"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8, ease: 'easeInOut' }}
-      className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 bg-black/40 max-lg:-bottom-[10%]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 bg-black/30 max-lg:-bottom-[10%]"
       style={{ top }}
     />
   )
