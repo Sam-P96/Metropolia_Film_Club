@@ -71,7 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an end), and the dumbbell ranks by that instead. You in the site's gold,
   them in Soul Resonance blue, a legend on each; plain SVG, scaling to a
   phone with no sideways scrolling (`components/resonance/Taste*.jsx`,
-  `tasteChart.js`). The comparison now has
+  `tasteChart.js`). The comparison pages sit on the site's background made
+  40% darker, from under the nav bar down (the nav bar as it always is).
+  The comparison now has
   `genres`: each genre both have rated 2+ films in, with each one's
   average star rating there from all their films.
 - /SECRETresonance: a box to type a name (any part, any case) for every
