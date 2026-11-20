@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { animate, useReducedMotion } from 'motion/react'
+import { onSharedScale, sharedAverage } from '../../../../shared/resonanceScale.js'
 
 // What the taste charts (TasteScatter, TasteDumbbell, TasteRadar) share:
 // whose colour is whose, the star scale, how numbers are shown, and the
@@ -20,18 +21,16 @@ export const MAX_STARS = 5
 // number without the ".0" ("4").
 export const oneDecimal = (value) => String(Math.round(value * 10) / 10)
 
-// "+0.4", "-0.3", "0": how far their ratings move, to one place.
-export const signedStars = (value) => {
-  const rounded = Math.round(value * 10) / 10
-  return rounded > 0 ? `+${rounded}` : String(rounded)
-}
+// "Your" -> "Your", "alice's" -> "Alice's": for the start of a sentence.
+export const sentenceStart = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 
 // The two ways the charts show ratings, like the comparison table's two
-// columns. Difference: the star ratings as given. True difference: the
-// other member's ratings moved by the gap between the two averages, onto
-// the first member's (yours), so how far apart two ratings sit is the true
-// difference Resonance counts; the same top or bottom rating from both
-// stays the same, as it does there.
+// columns. Difference: the star ratings as given. True difference: both
+// members' ratings on the scale they share (shared/resonanceScale.js),
+// exactly as Resonance counts them: half a star and 5 never move, each
+// one's average goes to the middle of the two, and everything in between
+// stretches or squeezes to fit. So how far apart two ratings sit is the
+// true difference, and nothing ever lands past either end.
 export const DIFFERENCE = 'difference'
 export const TRUE_DIFFERENCE = 'true'
 export const RATING_VIEWS = [
@@ -39,9 +38,9 @@ export const RATING_VIEWS = [
   { value: TRUE_DIFFERENCE, label: 'True difference' },
 ]
 
-// How far the other member's ratings move in the true difference: the gap
-// between the averages (the comparison's `averages`, { mine, theirs }).
-export const shiftOf = (averages) => (averages ? averages.mine - averages.theirs : 0)
+// Where both members' averages go in the true difference: the middle of the
+// two (the comparison's `averages`, { mine, theirs }), or null without them.
+export const sharedOf = (averages) => (averages ? sharedAverage(averages.mine, averages.theirs) : null)
 
 // How long the charts take to move between the two views, and how they ease.
 export const VIEW_CHANGE = { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
@@ -71,12 +70,13 @@ export function useViewProgress(view) {
   return progress
 }
 
-// Their rating of a film as a chart shows it, next to mine, `progress` of
-// the way into True difference: as given at 0, moved by `shift` at 1. The
-// same top or bottom rating from both never moves.
-export function movedTheirs(mine, theirs, progress, shift) {
-  if (mine === theirs && (mine === MIN_STARS || mine === MAX_STARS)) return theirs
-  return theirs + progress * shift
+// A rating as a chart shows it, `progress` of the way into True difference:
+// as given at 0, on the shared scale at 1 (`average` its giver's, `shared`
+// sharedOf the two). Half a star and 5 never move. Without `shared`, as
+// given.
+export function shownStars(rating, average, shared, progress) {
+  if (shared == null) return rating
+  return rating + progress * (onSharedScale(rating, average, shared) - rating)
 }
 
 // The star scale a chart draws on: 0.5 to 5, or wider, by half stars, if

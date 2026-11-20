@@ -9,11 +9,11 @@ import {
   YOU_COLOUR,
   easedScale,
   filmCount,
-  movedTheirs,
   oneDecimal,
   posterUrl,
-  shiftOf,
-  signedStars,
+  sentenceStart,
+  sharedOf,
+  shownStars,
   useChartTip,
   useViewProgress,
   whoIsWho,
@@ -42,7 +42,7 @@ function spotsOf(films) {
   const spots = new Map()
   for (const film of films) {
     const key = `${film.mine.rating}|${film.theirs.rating}`
-    if (!spots.has(key)) spots.set(key, { key, mine: film.mine.rating, given: film.theirs.rating, films: [] })
+    if (!spots.has(key)) spots.set(key, { key, given: { mine: film.mine.rating, theirs: film.theirs.rating }, films: [] })
     spots.get(key).films.push(film)
   }
   return [...spots.values()]
@@ -62,9 +62,9 @@ const colourOf = (mine, theirs) => (theirs - mine > SAME ? THEM_COLOUR : mine - 
 // `films` is the comparison's films (services/resonance.js
 // getResonanceWith), `theirName` the other member's name. `view` is
 // DIFFERENCE (the star ratings as given, the default) or TRUE_DIFFERENCE
-// (theirs moved by the gap between the two `averages`, the comparison's,
-// so the distance from the line is the true difference); changing it, the
-// dots glide to their new places. `myName` is only for a /SECRETresonance
+// (both on the scale they share, from the two `averages`, the
+// comparison's, so the distance from the line is the true difference);
+// changing it, the dots glide to their new places. `myName` is only for a /SECRETresonance
 // pair, in place of "You".
 export default function TasteScatter({ films, theirName, myName, view = DIFFERENCE, averages }) {
   const { tip, tipTarget } = useChartTip()
@@ -82,17 +82,19 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
   }
 
   const moved = view === TRUE_DIFFERENCE
-  const shift = shiftOf(averages)
-  const theirsAt = (mine, given, at) => movedTheirs(mine, given, at, shift)
+  const shared = sharedOf(averages)
+  const mineAt = (rating, at) => shownStars(rating, averages?.mine, shared, at)
+  const theirsAt = (rating, at) => shownStars(rating, averages?.theirs, shared, at)
+  // On the shared scale nothing goes past either end, so this stays 0.5 to 5.
   const scale = easedScale(
     films.flatMap((film) => [film.mine.rating, film.theirs.rating]),
-    films.flatMap((film) => [film.mine.rating, theirsAt(film.mine.rating, film.theirs.rating, 1)]),
+    films.flatMap((film) => [mineAt(film.mine.rating, 1), theirsAt(film.theirs.rating, 1)]),
     progress
   )
   const xOf = (stars) => PAD.left + scale.share(stars) * PLOT
   const yOf = (stars) => PAD.top + (1 - scale.share(stars)) * PLOT
 
-  const spots = spotsOf(films).map((spot) => ({ ...spot, theirs: theirsAt(spot.mine, spot.given, progress) }))
+  const spots = spotsOf(films).map((spot) => ({ ...spot, mine: mineAt(spot.given.mine, progress), theirs: theirsAt(spot.given.theirs, progress) }))
   const shown = spots.find((spot) => spot.key === tip)
   const band = [
     [scale.min, scale.min + 0.5],
@@ -104,7 +106,7 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
   ]
     .map(([mine, theirs]) => `${xOf(mine)},${yOf(theirs)}`)
     .join(' ')
-  const movedBy = `${theirName}'s ratings moved ${signedStars(shift)} stars onto ${names.my} average`
+  const onShared = shared == null ? '' : `${sentenceStart(names.my)} usual rating and ${theirName}'s both at ${oneDecimal(shared)}, half a star and 5 where they are`
 
   return (
     <TasteCard title="Every rating" legend={legend}>
@@ -113,7 +115,7 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           className="block h-auto w-full select-none"
           role="group"
-          aria-label={`Scatter chart of the ${filmCount(films.length)} ${names.both} have both rated: ${names.my} star rating across, ${theirName}'s up${moved ? `, ${movedBy} (the true difference)` : ''}. Films above the diagonal ${theirName} rated higher, below it ${names.me} did.`}
+          aria-label={`Scatter chart of the ${filmCount(films.length)} ${names.both} have both rated: ${names.my} star rating across, ${theirName}'s up${moved ? `, both on the scale they share (the true difference)` : ''}. Films above the diagonal ${theirName} rated higher, below it ${names.me} did.`}
         >
           <defs>
             <clipPath id={clipId}>
@@ -173,8 +175,7 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
             fill={THEM_COLOUR}
             transform={`rotate(-90 12 ${PAD.top + PLOT / 2})`}
           >
-            {theirName}
-            {moved ? ` (${signedStars(shift)})` : ''} →
+            {theirName} →
           </text>
 
           {/* One dot a spot. */}
@@ -235,8 +236,9 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
                     <span className="block truncate font-medium">{film.title}</span>
                     <span className="text-white/50">
                       {film.year}
-                      {/* Moved, what they actually gave it. */}
-                      {moved && `${film.year ? ' · ' : ''}${names.theirs} gave ${oneDecimal(film.theirs.rating)}`}
+                      {/* On the shared scale, what they actually gave it. */}
+                      {moved &&
+                        `${film.year ? ' · ' : ''}${names.mine} gave ${oneDecimal(film.mine.rating)}, ${names.theirs} ${oneDecimal(film.theirs.rating)}`}
                     </span>
                   </span>
                 </li>
@@ -254,7 +256,7 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
         shown={view}
         texts={{
           [DIFFERENCE]: `Above the line: ${theirName} liked it more. Below: ${names.me} did.`,
-          [TRUE_DIFFERENCE]: `${movedBy}. Above the line: ${theirName} liked it more. Below: ${names.me} did.`,
+          [TRUE_DIFFERENCE]: `${onShared}. Above the line: ${theirName} liked it more. Below: ${names.me} did.`,
         }}
       />
     </TasteCard>

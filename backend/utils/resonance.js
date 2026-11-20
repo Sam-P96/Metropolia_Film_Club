@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { HIGHEST, LOWEST, onSharedScale, sharedAverage, trueGap } = require("../../shared/resonanceScale.js");
 
 // Resonance: a 0 to 100% match between two members' taste in films, from
 // the films they've rated (completed film log entries with a rating). Five
@@ -33,10 +34,11 @@ const RATING_SPREAD = 2;
 // gaps cost a lot.
 const GAP_CURVE = 2;
 
-// The ends of the rating scale. The same top or bottom rating is no gap at
-// all, however generous or harsh the two usually are: neither could have
-// gone any further, so their averages don't come into it (filmGap).
-const SCALE_ENDS = new Set([0.5, 5]);
+// How the true difference is worked out (shared/resonanceScale.js): both
+// ratings on one shared scale, half a star and 5 never moving, each
+// member's average moved to the middle of the two. Named here so it's part
+// of the scoring fingerprint below.
+const TRUE_DIFFERENCE = { scale: [LOWEST, HIGHEST], averages: "to the middle of the two" };
 
 // Shared films for the movies factor to count in full. Fewer scale it
 // down: 8 shared films count for 80%.
@@ -66,7 +68,7 @@ const TOP_SHARED = 3;
 // instead of showing old scores until 04:00.
 const SCORING_VERSION = crypto
     .createHash("sha1")
-    .update(JSON.stringify([WEIGHTS, RATING_SPREAD, GAP_CURVE, [...SCALE_ENDS], FULL_CONFIDENCE_AT, MIN_GENRE_FILMS, [...AGE_RATINGS], MIN_RATED, TOP_SHARED]))
+    .update(JSON.stringify([WEIGHTS, RATING_SPREAD, GAP_CURVE, TRUE_DIFFERENCE, FULL_CONFIDENCE_AT, MIN_GENRE_FILMS, [...AGE_RATINGS], MIN_RATED, TOP_SHARED]))
     .digest("hex")
     .slice(0, 12);
 
@@ -90,13 +92,13 @@ function similarity(a, b, curve = GAP_CURVE) {
 }
 
 // How far apart two members' ratings of one film are, in stars, from their
-// tasteOf() entries for it: the gap between their adjusted ratings, except
-// that the same rating at an end of the scale (SCALE_ENDS) is no gap at
-// all. A 5 from both is the most either could give, even when one usually
-// rates a star higher.
+// tasteOf() entries for it: the true difference (shared/resonanceScale.js),
+// both ratings on the scale they share, where half a star and 5 never move
+// and each one's average sits in the middle of the two. So a 5 is a 5 and
+// half a star is half a star whoever gives it, and the same top or bottom
+// rating from both is no gap at all.
 function filmGap(a, b) {
-    if (a.rating === b.rating && SCALE_ENDS.has(a.rating)) return 0;
-    return Math.abs(a.adjusted - b.adjusted);
+    return trueGap(a.rating, a.average, b.rating, b.average);
 }
 
 // How alike two members' ratings of one film are (filmGap): 1 for no gap,
@@ -137,11 +139,11 @@ const decadeOf = (film) => (Number.isFinite(film.year) && film.year > 0 ? [Math.
 const ageRatingOf = (film) => (AGE_RATINGS.has(film.certification) ? [film.certification] : []);
 
 // One member's rated films, worked out once for all their pairs: their
-// average rating, each film's rating against it ("adjusted": +1 is a star
-// above what they usually give, so a harsh and a generous rater with the
-// same taste come out the same), the adjusted ratings by genre, and their
-// genre, decade and age rating shares. `films` is [{ tmdbId, title,
-// posterPath, rating, genres, year, certification }].
+// average rating, each film with its rating against it ("adjusted": +1 is a
+// star above what they usually give) and the average itself (for filmGap's
+// shared scale), the adjusted ratings by genre, and their genre, decade and
+// age rating shares. `films` is [{ tmdbId, title, posterPath, rating,
+// genres, year, certification }].
 function tasteOf(films) {
     const rated = films.filter((film) => typeof film.rating === "number");
     const average = rated.length ? rated.reduce((sum, film) => sum + film.rating, 0) / rated.length : 0;
@@ -152,7 +154,7 @@ function tasteOf(films) {
 
     for (const film of rated) {
         const adjusted = film.rating - average;
-        byFilm.set(film.tmdbId, { ...film, adjusted });
+        byFilm.set(film.tmdbId, { ...film, adjusted, average });
 
         for (const genre of new Set(genresOf(film))) {
             const entry = byGenre.get(genre) ?? { total: 0, count: 0 };
@@ -192,11 +194,12 @@ function moviesFactor(a, b, curve = GAP_CURVE) {
     return { factor: match * confidence, shared };
 }
 
-// Genre + Ratings: how alike their average adjusted rating is in each genre
-// both have rated enough films in, counting a genre more the more films
-// they've rated in it between them. 0 with no genre to compare. `curve` as
-// alike's.
+// Genre + Ratings: how alike their average rating is in each genre both
+// have rated enough films in, each on the scale they share (as filmGap's),
+// counting a genre more the more films they've rated in it between them.
+// 0 with no genre to compare. `curve` as alike's.
 function genreRatingFactor(a, b, curve = GAP_CURVE) {
+    const shared = sharedAverage(a.average, b.average);
     let weighted = 0;
     let weights = 0;
 
@@ -205,7 +208,11 @@ function genreRatingFactor(a, b, curve = GAP_CURVE) {
         if (!theirs || mine.count < MIN_GENRE_FILMS || theirs.count < MIN_GENRE_FILMS) continue;
 
         const weight = mine.count + theirs.count;
-        weighted += similarity(mine.total / mine.count, theirs.total / theirs.count, curve) * weight;
+        // Each one's average star rating in the genre (their adjusted average
+        // there, plus their usual), on the shared scale.
+        const myStars = onSharedScale(mine.total / mine.count + a.average, a.average, shared);
+        const theirStars = onSharedScale(theirs.total / theirs.count + b.average, b.average, shared);
+        weighted += similarity(myStars, theirStars, curve) * weight;
         weights += weight;
     }
 

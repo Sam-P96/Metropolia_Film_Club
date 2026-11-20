@@ -64,11 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the most ratings between them (theirs dashed), and the films you
   agree on most and disagree on most (by how far apart the ratings are), each as two
   dots on a 0.5 to 5 track. A Difference / True difference toggle switches
-  all three between the ratings as given and the true difference: the
-  other member's ratings moved by the gap between your averages, so how far
-  apart two ratings sit is what Resonance counts (both at 5, or both at
-  half a star, stay the same; the scale widens if a moved rating goes past
-  an end), and the dumbbell ranks by that instead. Switching, everything
+  all three between the ratings as given and the true difference: both
+  members' ratings on the scale they share (half a star and 5 never move,
+  each average goes to the middle of the two), so how far apart two ratings
+  sit is what Resonance counts and nothing goes past 0.5 or 5, and the
+  dumbbell ranks by that instead. Switching, everything
   glides into place over 0.6s (dots, rings, the dashed shape and the
   scales, and dumbbell rows sliding to their new rank), or switches at once
   with reduce motion on. You in the site's gold,
@@ -676,6 +676,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were (no loading page one again and clicking "Load more" back down). The
   last list on show is kept for the browser tab; arriving any other way, or
   changing the search, loads afresh.
+- Resonance's true difference puts both members' ratings on a scale they
+  share (`shared/resonanceScale.js`): half a star and 5 never move, each
+  one's average goes to the middle of the two, and the ratings in between
+  stretch or squeeze to fit. It used to slide one member's ratings by the
+  gap between the averages, so a half star could count as below 0 and a 5
+  as above 5 or below it; now a 5 is a 5 and half a star is half a star
+  whoever gives it, the same top or bottom rating from both is no gap at
+  all without a special rule, and nothing lands past either end. The Movies
+  factor, the Genre factor, the comparison table's True difference and the
+  taste charts all count it this way. A change of scoring: restarting the
+  server works everyone out again.
 - Kino Kasino has six symbols: the Clapperboard is gone. With fewer symbols
   lines match more often, so every prize is lower (3 Tickets now pay 0.6x
   the bet and 3 Popcorns 0.7x, softening a losing spin; the jackpot is

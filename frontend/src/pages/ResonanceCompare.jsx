@@ -9,7 +9,7 @@ import TasteDumbbell from '../components/resonance/TasteDumbbell'
 import TasteRadar from '../components/resonance/TasteRadar'
 import TasteScatter from '../components/resonance/TasteScatter'
 import { SteadyText } from '../components/resonance/TasteParts'
-import { DIFFERENCE, RATING_VIEWS, TRUE_DIFFERENCE, shiftOf, signedStars } from '../components/resonance/tasteChart'
+import { DIFFERENCE, RATING_VIEWS, TRUE_DIFFERENCE, sharedOf } from '../components/resonance/tasteChart'
 import StarRating from '../components/reviews/StarRating'
 import SortHeader from '../components/SortHeader'
 import useApi from '../hooks/useApi'
@@ -263,11 +263,13 @@ function Comparison({ first = null, match, averages, films, genres = [], sortBy,
               </p>
             )}
             <p>
-              The true difference is the one Resonance counts: each rating against its rater's average (
-              {first ? `${first.username}'s` : 'yours'} is {stars(averages.mine)}, {user.username}'s{' '}
-              {stars(averages.theirs)}), so a generous rater and a harsh one who feel the same about a film come
-              out the same. Both giving a film 5 stars, or both half a star, is always the same: neither of{' '}
-              {first ? 'them' : 'you'} could go any further.
+              The true difference is the one Resonance counts. Both ratings go on a scale{' '}
+              {first ? 'they' : 'you'} share: half a star and 5 stay where they are, as low and as high as anyone
+              can go, and each usual rating ({first ? `${first.username}'s` : 'yours'} {stars(averages.mine)},{' '}
+              {user.username}'s {stars(averages.theirs)}) moves to the middle, {stars(sharedOf(averages))}, with
+              everything in between stretching to fit. So a generous rater and a harsh one who feel the same about a
+              film come out close, and a 5 is always a 5: both giving a film 5 stars, or both half a star, is no
+              difference at all.
             </p>
           </div>
 
@@ -280,7 +282,7 @@ function Comparison({ first = null, match, averages, films, genres = [], sortBy,
                 shown={view}
                 texts={{
                   [DIFFERENCE]: 'The star ratings as given.',
-                  [TRUE_DIFFERENCE]: `${user.username}'s ratings moved ${signedStars(shiftOf(averages))} stars onto ${first ? `${first.username}'s` : 'your'} average, so how far apart two ratings sit is the true difference. Both at 5, or both at half a star, stay the same.`,
+                  [TRUE_DIFFERENCE]: `Both on the scale ${first ? 'they' : 'you'} share: ${first ? `${first.username}'s` : 'your'} usual rating and ${user.username}'s both at ${stars(sharedOf(averages))}, half a star and 5 where they are, so how far apart two ratings sit is the true difference.`,
                 }}
               />
             </div>
