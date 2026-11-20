@@ -1,8 +1,9 @@
-import { useLayoutEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import PillToggle from '../components/PillToggle'
 import MemberAvatar from '../components/profile/MemberAvatar'
+import DarkerBackdrop from '../components/resonance/DarkerBackdrop'
 import ResonanceIcon, { ResonanceMark } from '../components/resonance/ResonanceIcon'
 import TasteDumbbell from '../components/resonance/TasteDumbbell'
 import TasteRadar from '../components/resonance/TasteRadar'
@@ -41,33 +42,6 @@ function sortFilms(films, sortBy, sortDir) {
   const byTitle = (a, b) => a.title.localeCompare(b.title)
 
   return [...films].sort((a, b) => sign * (value ? value(a) - value(b) : byTitle(a, b)) || byTitle(a, b))
-}
-
-// The comparison pages sit on a darker background: a black layer at 30%
-// over the site's own, fixed behind the page like the games' backdrops
-// (components/GameBackdrop.jsx) and running on past the bottom on a
-// phone. It starts at the nav bar's bottom edge (measured, never touched),
-// so the see-through nav bar looks just as it does on every other page.
-function DarkerBackdrop() {
-  const [top, setTop] = useState(0)
-
-  useLayoutEffect(() => {
-    const nav = document.querySelector('nav')
-    if (!nav) return undefined
-    const measure = () => setTop(Math.round(nav.getBoundingClientRect().height))
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(nav)
-    return () => observer.disconnect()
-  }, [])
-
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 bg-black/30 max-lg:-bottom-[10%]"
-      style={{ top }}
-    />
-  )
 }
 
 // A message in place of the table.

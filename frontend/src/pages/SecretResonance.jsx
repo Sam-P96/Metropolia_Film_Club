@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import PillToggle from '../components/PillToggle'
 import MemberAvatar from '../components/profile/MemberAvatar'
+import DarkerBackdrop from '../components/resonance/DarkerBackdrop'
 import usePagedList from '../hooks/usePagedList'
 import { refreshSoulResonance } from '../hooks/useSoulResonance'
 import { getEveryonesResonance, updateResonanceNow } from '../services/resonance'
@@ -143,6 +144,8 @@ function SecretResonance() {
 
   return (
     <section className="text-white">
+      {/* The same darker background as the pair pages it links to. */}
+      <DarkerBackdrop />
       <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
         <h1 className="text-4xl font-bold sm:text-5xl">
           Everyone's <span className="text-brand-gold">Resonance</span>
