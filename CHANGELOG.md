@@ -266,6 +266,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page lists who's attending and who's interested
   (`PUT /api/events/:id/rsvp`). Members with a private profile are counted
   but not named.
+- Pressing Attend or Interested on an event tells the members who follow
+  you, on their Notifications page (under All and Events): "is going to" or
+  "is interested in" the event, on your banner, with when and where it is
+  and the event's picture. Changing your mind replaces it (so it never
+  piles up), pressing the same one again doesn't send it again, and taking
+  your RSVP back takes it back. It goes as far as your profile's privacy
+  lets it: every follower for a public profile, only friends for
+  friends-only, and nobody for a private one.
 - Member screenings: any member can host an event of their own, listed in a
   new Member screenings section on the club events page (and with every
   other event on the All events page). The member who made one can edit and delete it until
@@ -694,6 +702,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   did: 99% to 115%, and 95% / 110% to 120% in its happy hour (new tables
   from `scripts/tune-slots.js`). Old spins with a Clapperboard still show
   it. The machine also has a new hidden rule (`games/slots/luck.js`).
+- The Notifications page's Events filter is strictly events: club events,
+  member screenings, and the members you follow going to or interested in
+  one, with promoted events still at the top. The big news (trending
+  reviews, viral cuts, jackpots, wins), Box Office Crash rooms and the
+  Black Friday and Double Prize Weekend notices no longer show there.
+  Forrest Bounce, its big wins and site records included, shows only under
+  All and Games, no longer under Events, Reviews or Cuts.
 - Kino Casino (the Slot Machine) pays back more: from 99% for the richest
   active player to 115% for the poorest (was 98.5% to 105%). In its happy
   hour, the richest gets 95% and everyone else 110% to 120%. New weight

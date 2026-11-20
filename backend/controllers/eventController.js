@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Event = require("../models/eventModel");
 const {userSummary} = require("../utils/serialize");
 const {hasRole} = require("../middleware/auth");
-const {noteNewEvent, notePromotedEvent, noteRepostedEvent, forgetEvent} = require("../utils/notify");
+const {noteNewEvent, notePromotedEvent, noteRepostedEvent, forgetEvent, noteEventRsvp} = require("../utils/notify");
 
 const FIELDS = "title startsAt location description film gifUrl ticketUrl official createdBy";
 
@@ -106,7 +106,8 @@ async function getEvent(req, res) {
 // The Attend and Interested buttons. Picking one takes the member out of the
 // other; null takes them out of both. No longer attending also clears their
 // seat. Only for events that haven't happened yet. Doesn't touch updatedAt,
-// which means "last edited".
+// which means "last edited". A change tells the member's followers
+// (noteEventRsvp in utils/notify.js); pressing the same one again doesn't.
 async function setEventRsvp(req, res) {
     const {id} = req.params;
     const rsvp = req.body?.rsvp ?? null;
@@ -116,7 +117,7 @@ async function setEventRsvp(req, res) {
     }
 
     const event = mongoose.isValidObjectId(id)
-        ? await Event.findById(id).select("startsAt").lean()
+        ? await Event.findById(id).select("startsAt attending interested").lean()
         : null;
 
     if (!event) {
@@ -128,6 +129,10 @@ async function setEventRsvp(req, res) {
     }
 
     const me = req.user._id;
+    const isMe = (member) => String(member) === String(me);
+    const before = (event.attending ?? []).some(isMe)
+        ? "attending"
+        : (event.interested ?? []).some(isMe) ? "interested" : null;
     let update;
 
     if (rsvp === "attending") {
@@ -145,6 +150,8 @@ async function setEventRsvp(req, res) {
     if (!updated) {
         return res.status(404).json({error: "Event not found."});
     }
+
+    if (rsvp !== before) await noteEventRsvp(updated._id, me, rsvp);
 
     res.json(attendance(updated, req.user));
 }

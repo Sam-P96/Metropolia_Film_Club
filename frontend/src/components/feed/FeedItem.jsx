@@ -729,6 +729,69 @@ function EventNotice({ item, light }) {
   )
 }
 
+// What a member they follow said with the Attend and Interested buttons:
+// "going to" or "interested in" the event, and "was" once it's started.
+const RSVP_WORDS = {
+  eventAttending: { now: 'is going to', then: 'was going to', label: 'Going' },
+  eventInterested: { now: 'is interested in', then: 'was interested in', label: 'Interested' },
+}
+
+// A member you follow is going to an event, or interested in it: on their
+// banner, who and which event, when and where it is, and the event's
+// picture on the right. It shows the event as it is now, edits included.
+function RsvpNotice({ item }) {
+  const { event } = item
+  const goer = item.actors[0]
+  const words = RSVP_WORDS[item.type]
+  const eventLink = `/club_events/${event._id}`
+  const started = new Date(event.startsAt) <= new Date()
+
+  return (
+    <article className="relative isolate overflow-hidden rounded-2xl border border-white/10 shadow-xl shadow-black/40">
+      <BannerBackdrop user={goer} />
+
+      <div className="flex gap-5 p-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3 text-sm text-white/80">
+            <MemberAvatar user={goer} size="sm" />
+            <p className="min-w-0 wrap-break-word">
+              <NameLink user={goer} className={bannerNameClasses} /> {started ? words.then : words.now}{' '}
+              <Link to={eventLink} className={bannerNameClasses}>
+                {event.title}
+              </Link>
+            </p>
+          </div>
+
+          <div className="mt-3 inline-block max-w-full rounded-2xl rounded-tl-sm border border-white/10 bg-ink/70 px-4 py-3 text-sm text-white/85 backdrop-blur-sm">
+            <p className="text-xs font-semibold tracking-widest text-brand-gold uppercase">
+              {words.label} · {event.official ? 'Club event' : 'Member screening'}
+            </p>
+            <p className="mt-1 font-medium">
+              {formatEventDate(event.startsAt)} at {formatEventTime(event.startsAt)}
+            </p>
+            {event.location && <p className="wrap-break-word text-white/70">{event.location}</p>}
+          </div>
+
+          <p className="mt-3 text-xs text-white/50">
+            {timeAgo(item.at)} ·{' '}
+            <Link to={eventLink} className="font-medium text-brand-gold transition-colors hover:text-white">
+              See the event →
+            </Link>
+          </p>
+        </div>
+
+        {event.gifUrl && (
+          <Link to={eventLink} tabIndex={-1} aria-hidden="true" className="hidden shrink-0 self-center sm:block">
+            <div className="w-32 -skew-x-6 overflow-hidden rounded-xl border border-white/10 shadow-lg shadow-black/40">
+              <img src={event.gifUrl} alt="" loading="lazy" className="aspect-4/3 w-full skew-x-6 scale-115 object-cover" />
+            </div>
+          </Link>
+        )}
+      </div>
+    </article>
+  )
+}
+
 // How a member turning PvP on is announced, one picked at random for each
 // notification (the server stores which). Nods to films and games. The
 // server's PVP_LINES (backend/utils/notify.js) must match how many.
@@ -960,6 +1023,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'follow') return <FollowNotice item={item} />
   if (item.type === 'pvp') return <PvpNotice item={item} />
   if (item.type === 'event') return <EventNotice item={item} light={light} />
+  if (Object.hasOwn(RSVP_WORDS, item.type)) return <RsvpNotice item={item} />
   if (item.type === 'cut') return <CutNotice item={item} onDeleted={onCutDeleted} />
   if (item.type === 'cutReply') return <CutReplyNotice item={item} />
   if (item.type === 'payout') return <PayoutNotice item={item} light={light} />

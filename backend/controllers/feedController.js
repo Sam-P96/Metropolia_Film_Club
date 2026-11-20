@@ -31,7 +31,10 @@ const PAGE_SIZE = 10;
 
 // The filters at the top of Notifications, and the notifications each one
 // shows. "all" (or anything not listed here) shows everything.
-//   events   club events and member screenings
+//   events   club events and member screenings, and members they follow
+//            going to one or interested in it, and nothing else: none of
+//            the big news below (feedQuery), no jackpots or Crash rooms
+//            up top (getFeed)
 //   reviews  votes on their reviews, replies, new reviews from members they
 //            follow, trending reviews, and members turning PvP on (which
 //            decides who can dislike reviews)
@@ -42,16 +45,18 @@ const PAGE_SIZE = 10;
 //            and gifts (points are only for games)
 // New followers are only in "all".
 const FEED_FILTERS = {
-    events: [],
+    events: ["event", ...Object.values(Notification.EVENT_RSVP_TYPES)],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
     games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES],
 };
-// What every filter shows whatever else it leaves out: club events, and big
-// news (a trending review, a jackpot, a Double or Nothing win, someone
-// tripling their Slot Machine credits, a Steal and Defend Critical Hit, and
-// a viral cut, found by its cut in feedQuery).
-const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit", "quizWinner", "crashBigWin", "forrestBigWin", "forrestRecord", ...Notification.SITE_EVENT_TYPES];
+// What Reviews, Cuts and Games show whatever else they leave out: club
+// events, and big news (a trending review, a jackpot, a Double or Nothing
+// win, someone tripling their Slot Machine credits, a Steal and Defend
+// Critical Hit, and a viral cut, found by its cut in feedQuery). Events is
+// strictly events. Forrest Bounce, its big wins and site records too, is
+// only ever with All and Games.
+const ALWAYS = ["event", "trending", "scratchJackpot", "doubleWin", "slotTriple", "slotJackpot", "stealCrit", "quizWinner", "crashBigWin", ...Notification.SITE_EVENT_TYPES];
 
 // The jackpots, which wait just under the games until they've been seen.
 const JACKPOT_TYPES = ["scratchJackpot", "slotJackpot", "quizWinner"];
@@ -63,6 +68,8 @@ const filterOf = (asked) => (Object.hasOwn(FEED_FILTERS, asked) ? asked : "all")
 async function feedQuery(viewer, filter) {
     const mine = { recipient: viewer._id };
     if (filter === "all") return mine;
+    // Strictly events: none of the big news, no viral cuts.
+    if (filter === "events") return { ...mine, type: { $in: FEED_FILTERS.events } };
 
     // A viral cut is an ordinary cut notification about a cut that went viral.
     const viralCuts = await Cut.distinct("_id", { viralAt: { $ne: null } });
@@ -194,6 +201,13 @@ async function hydrate(rows, viewer) {
         if (row.type === "event") {
             const event = eventById.get(String(row.event));
             return event ? [{ _id: row._id, type: row.type, at: row.at, event, actors: members }] : [];
+        }
+
+        // A member they follow going to an event, or interested in it. Gone
+        // if the event is, or the member left.
+        if (Object.values(Notification.EVENT_RSVP_TYPES).includes(row.type)) {
+            const event = eventById.get(String(row.event));
+            return event && members.length > 0 ? [{ _id: row._id, type: row.type, at: row.at, event, actors: members }] : [];
         }
 
         if (row.type === "payout" || row.type === "quizStreak") {
@@ -498,12 +512,13 @@ const seenSince = (viewer) => viewer.notificationsSeenAt ?? new Date(0);
 //             liveFor), or null
 //   jackpots  jackpot notices they haven't seen yet, just under the games
 //             (they're in `items` too, in date order: the page leaves
-//             those out)
+//             those out); none with "events"
 //   seenAt    when they last opened the page (null if never), and `now`,
 //             for marking everything up to it seen (markSeen below)
-//   crash     the open Box Office Crash rooms, with every filter, at the
-//             very top under anything only moderators and admins get
-//             (games/crash/rooms.js lobbyView; the page keeps it live)
+//   crash     the open Box Office Crash rooms, with every filter but
+//             "events", at the very top under anything only moderators and
+//             admins get (games/crash/rooms.js lobbyView; the page keeps it
+//             live)
 // Moderators and admins also get `passwordResets` (whatever the filter: a
 // member is waiting on them, in person) and `reports`, with "all" and
 // "reviews": the open ones, above everything. In `items`, pinned notifications come first
@@ -535,8 +550,9 @@ async function getFeed(req, res) {
             gomoku: filter === "all" || filter === "games" ? await ongoingGomoku(req.user) : [],
             pool: filter === "all" || filter === "games" ? await ongoingPool(req.user) : [],
             poker: filter === "all" || filter === "games" ? (getPokerTable()?.liveFor(req.user._id) ?? null) : null,
-            jackpots: await unreadJackpots(req.user, seenSince(req.user)),
-            crash: getCrashRooms()?.lobbyView() ?? [],
+            // Events is strictly events: no jackpots or Crash rooms up top.
+            jackpots: filter === "events" ? [] : await unreadJackpots(req.user, seenSince(req.user)),
+            crash: filter === "events" ? [] : (getCrashRooms()?.lobbyView() ?? []),
             seenAt: req.user.notificationsSeenAt ?? null,
             now,
         }),

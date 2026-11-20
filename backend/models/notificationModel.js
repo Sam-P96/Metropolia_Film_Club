@@ -28,6 +28,9 @@ const KEEP_FOR_DAYS = 90;
 //                   whoever hadn't had it: those are `promoted`, and wait at
 //                   the top of Notifications until they've been seen.
 //                   No review.
+//   eventAttending  `actors[0]`, whom they follow, is going to `event`
+//   eventInterested `actors[0]`, whom they follow, is interested in `event`
+//                   (EVENT_RSVP_TYPES below)
 //   cut             `actors[0]` posted `cut`: to them and their followers,
 //                   and once it goes viral, to every member in place of
 //                   the one they had. No review.
@@ -167,6 +170,12 @@ const CRASH_TYPES = ["crashBigWin", "crashResult", "crashInvite"];
 // level, net (won or lost), previous (the best it beat) }.
 const FORREST_TYPES = ["forrestCashOut", "forrestBigWin", "forrestBest", "forrestRecord"];
 
+// The Attend and Interested buttons on an event's page (utils/notify.js
+// noteEventRsvp), by the RSVP each one is for: a member's followers hear
+// they're going or interested, in place of whatever they'd heard about that
+// event from them before. Taking the RSVP back takes it back. No review.
+const EVENT_RSVP_TYPES = { attending: "eventAttending", interested: "eventInterested" };
+
 const GAME_TYPES = [
     ...CRASH_TYPES,
     ...FORREST_TYPES,
@@ -183,7 +192,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES],
         required: true,
     },
     review: {
@@ -191,7 +200,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES].includes(this.type);
+            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -288,5 +297,6 @@ Notification.FORREST_TYPES = FORREST_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;
 Notification.SITE_EVENT_TYPES = SITE_EVENT_TYPES;
+Notification.EVENT_RSVP_TYPES = EVENT_RSVP_TYPES;
 
 module.exports = Notification;
