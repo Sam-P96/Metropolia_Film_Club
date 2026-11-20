@@ -277,6 +277,7 @@ module.exports = {
     SUGGEST_FROM,
     RATING_SPREAD,
     GAP_CURVE,
+    MIN_GENRE_FILMS,
     similarity,
     filmGap,
     filmSimilarity,

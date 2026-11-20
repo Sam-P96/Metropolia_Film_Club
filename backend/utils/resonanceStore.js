@@ -4,7 +4,7 @@ const Follow = require("../models/followModel");
 const Resonance = require("../models/resonanceModel");
 const Review = require("../models/reviewModel");
 const User = require("../models/userModel");
-const { MIN_RATED, SUGGEST_FROM, SCORING_VERSION, filmGap, filmSimilarity, tasteOf, resonanceBetween, suggestionCount } = require("./resonance");
+const { MIN_RATED, MIN_GENRE_FILMS, SUGGEST_FROM, SCORING_VERSION, filmGap, filmSimilarity, tasteOf, resonanceBetween, suggestionCount } = require("./resonance");
 const { RESONANCE_TIERS } = require("../../shared/resonance.js");
 const { MEMBER_FIELDS, userSummary } = require("./serialize");
 
@@ -281,8 +281,9 @@ async function soulMapFor(userId) {
 // (matchView), each one's average rating (`averages`: { mine, theirs }),
 // and every film both have rated, A to Z, each
 // { tmdbId, title, year, posterPath, mine, theirs, trueDifference,
-// similarity }. Mine and theirs are { rating, reviewId }, reviewId null
-// when there's no written review. `trueDifference` is how far apart the
+// similarity }, and `genres`, how each rates the genres both have rated
+// enough films in (genresBetween). Mine and theirs are { rating, reviewId },
+// reviewId null when there's no written review. `trueDifference` is how far apart the
 // two ratings are as Resonance counts them, in stars: each against that
 // member's average, but no gap for the same top or bottom rating
 // (utils/resonance.js filmGap). `similarity` is how alike that makes them,
@@ -298,22 +299,71 @@ async function comparisonWith(userId, otherId) {
     const me = toObjectId(userId);
     const them = match.other._id;
     const [mine, theirs] = await Promise.all([
-        FilmLog.find({ user: me, ...RATED }).select("tmdbId title year posterPath rating").lean(),
-        FilmLog.find({ user: them, ...RATED }).select("tmdbId rating").lean(),
+        FilmLog.find({ user: me, ...RATED }).select("tmdbId title year posterPath rating genres").lean(),
+        FilmLog.find({ user: them, ...RATED }).select("tmdbId rating genres").lean(),
     ]);
 
     // All their rated films, not just the shared ones, make each average.
     const myTaste = tasteOf(mine);
     const theirTaste = tasteOf(theirs);
+
+    return {
+        match: matchView(match),
+        averages: { mine: myTaste.average, theirs: theirTaste.average },
+        films: await sideBySide(me, them, myTaste, theirTaste),
+        genres: genresBetween(mine, theirs),
+    };
+}
+
+// Each genre in `logs` (rated films): Map of genre -> { total, count } of
+// the star ratings as given, a film counting once in each of its genres.
+function starsByGenre(logs) {
+    const byGenre = new Map();
+    for (const log of logs) {
+        for (const genre of new Set(log.genres ?? [])) {
+            const entry = byGenre.get(genre) ?? { total: 0, count: 0 };
+            entry.total += log.rating;
+            entry.count += 1;
+            byGenre.set(genre, entry);
+        }
+    }
+    return byGenre;
+}
+
+// How two members (`mine` and `theirs`, all their rated films, shared or
+// not) rate the genres both have rated MIN_GENRE_FILMS or more films in:
+// [{ genre, mine: { average, count }, theirs: { average, count } }], each
+// average the star ratings as given (not against their usual), the most
+// films between them first, then A to Z. For the taste charts.
+function genresBetween(mine, theirs) {
+    const myGenres = starsByGenre(mine);
+    const theirGenres = starsByGenre(theirs);
+    const genres = [];
+    for (const [genre, my] of myGenres) {
+        const their = theirGenres.get(genre);
+        if (!their || my.count < MIN_GENRE_FILMS || their.count < MIN_GENRE_FILMS) continue;
+        genres.push({
+            genre,
+            mine: { average: my.total / my.count, count: my.count },
+            theirs: { average: their.total / their.count, count: their.count },
+        });
+    }
+    return genres.sort((a, b) => b.mine.count + b.theirs.count - (a.mine.count + a.theirs.count) || a.genre.localeCompare(b.genre));
+}
+
+// Every film two members (`mine` and `theirs`, their ids) have both rated,
+// A to Z, from tasteOf() for each: { tmdbId, title, year, posterPath,
+// mine, theirs, trueDifference, similarity }, as comparisonWith describes.
+async function sideBySide(mine, theirs, myTaste, theirTaste) {
     const shared = [...myTaste.byFilm.values()].filter((log) => theirTaste.byFilm.has(log.tmdbId));
 
-    const reviews = await Review.find({ user: { $in: [me, them] }, tmdbId: { $in: shared.map((log) => log.tmdbId) } })
+    const reviews = await Review.find({ user: { $in: [mine, theirs] }, tmdbId: { $in: shared.map((log) => log.tmdbId) } })
         .select("user tmdbId")
         .lean();
     const reviewIds = new Map(reviews.map((review) => [`${review.user}:${review.tmdbId}`, review._id]));
     const reviewOf = (user, tmdbId) => reviewIds.get(`${user}:${tmdbId}`) ?? null;
 
-    const films = shared
+    return shared
         .map((log) => {
             const their = theirTaste.byFilm.get(log.tmdbId);
             return {
@@ -321,15 +371,46 @@ async function comparisonWith(userId, otherId) {
                 title: log.title,
                 year: log.year ?? null,
                 posterPath: log.posterPath ?? null,
-                mine: { rating: log.rating, reviewId: reviewOf(me, log.tmdbId) },
-                theirs: { rating: their.rating, reviewId: reviewOf(them, log.tmdbId) },
+                mine: { rating: log.rating, reviewId: reviewOf(mine, log.tmdbId) },
+                theirs: { rating: their.rating, reviewId: reviewOf(theirs, log.tmdbId) },
                 trueDifference: filmGap(log, their),
                 similarity: Math.round(filmSimilarity(log, their) * 100),
             };
         })
         .sort((x, y) => x.title.localeCompare(y.title));
+}
 
-    return { match: matchView(match), averages: { mine: myTaste.average, theirs: theirTaste.average }, films };
+// /SECRETresonance's pairs, for moderators and admins: any two members'
+// ratings side by side, whatever their settings and privacy, the same as
+// comparisonWith but with `first` (the first member, whose ratings are
+// `mine`) and the match worked out now with the current weights, as
+// everyonesResonance does, so it's the score that was clicked. null if
+// either member isn't there, or they're the same one.
+async function pairComparison(firstId, secondId) {
+    if (String(firstId) === String(secondId)) return null;
+    const [first, second] = await Promise.all([firstId, secondId].map((id) => User.findById(id).select(MEMBER_FIELDS).lean()));
+    if (!first || !second) return null;
+
+    const [firstLogs, secondLogs] = await Promise.all(
+        [first, second].map((user) =>
+            FilmLog.find({ user: user._id, ...RATED }).select("tmdbId title posterPath rating genres year certification").lean()
+        )
+    );
+    const firstTaste = tasteOf(firstLogs);
+    const secondTaste = tasteOf(secondLogs);
+    const { percent, movies, genre, sharedCount } = resonanceBetween(firstTaste, secondTaste);
+    const summary = (user) => {
+        const { _id, username, avatarUrl, reviewCardBanner, cosmetics } = userSummary(user);
+        return { _id, username, avatarUrl, reviewCardBanner, cosmetics };
+    };
+
+    return {
+        first: summary(first),
+        match: { user: summary(second), percent, movies, genre, sharedCount },
+        averages: { mine: firstTaste.average, theirs: secondTaste.average },
+        films: await sideBySide(first._id, second._id, firstTaste, secondTaste),
+        genres: genresBetween(firstLogs, secondLogs),
+    };
 }
 
 // How alike `userId`'s taste is to each member they may see a Resonance
@@ -358,9 +439,11 @@ async function resonanceOf(userId) {
 // the current weights (not the stored ones), whatever their settings and
 // privacy. `minRated` is how many rated films each needs (MIN_RATED, or 1
 // for anyone who has rated anything), `memberId` narrows it to one
-// member's pairs. All five factors, as percentages. A page at a time from
+// member's pairs, and `search` to pairs with a member whose name has it
+// in it, any case (both together: that member's pairs with someone by
+// that name). All five factors, as percentages. A page at a time from
 // `offset`, best match first, with everyone it counted for the filter.
-async function everyonesResonance({ minRated, memberId = null, offset = 0 }) {
+async function everyonesResonance({ minRated, memberId = null, search = "", offset = 0 }) {
     const logs = await FilmLog.find(RATED)
         .select("user tmdbId title posterPath rating genres year certification")
         .lean();
@@ -392,14 +475,19 @@ async function everyonesResonance({ minRated, memberId = null, offset = 0 }) {
     }));
 
     const toPercent = (value) => Math.round(value * 100);
+    const lookingFor = search.trim().toLowerCase();
+    const named = users.map((user) => Boolean(lookingFor) && user.username.toLowerCase().includes(lookingFor));
     const pairs = [];
     for (let a = 0; a < users.length; a++) {
         for (let b = a + 1; b < users.length; b++) {
             const [idA, idB] = [String(users[a]._id), String(users[b]._id)];
             if (memberId && idA !== memberId && idB !== memberId) continue;
+            if (lookingFor && !(memberId ? named[idA === memberId ? b : a] : named[a] || named[b])) continue;
 
-            // The member asked about first.
-            const [first, second] = idB === memberId ? [idB, idA] : [idA, idB];
+            // The member asked about first, or else the one whose name was
+            // searched for.
+            const bFirst = memberId ? idB === memberId : named[b] && !named[a];
+            const [first, second] = bFirst ? [idB, idA] : [idA, idB];
             const { percent, sharedCount, factors } = resonanceBetween(tastes.get(first), tastes.get(second));
             pairs.push({
                 a: summaries.get(first),
@@ -445,5 +533,6 @@ module.exports = {
     resonancePercents,
     resonanceOf,
     everyonesResonance,
+    pairComparison,
     forgetResonance,
 };

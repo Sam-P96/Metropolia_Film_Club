@@ -56,6 +56,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `shared/prototype/Infinity Stone Username Effects.html`); stone holders
     and picks come with `GET /api/first-place`, and `PUT
     /api/first-place/name-effect` saves a pick (`nameEffect` on accounts).
+- Taste charts on the Resonance comparison page (yours with a member, and
+  /SECRETresonance's for any pair): every rating as a scatter (your star
+  rating across, theirs up, films on the same spot as one bigger dot, the
+  same rating dashed and within half a star shaded; hover or tap a dot for
+  its films), a radar of each one's average star rating in the six genres
+  with the most ratings between them (theirs dashed), and the films you
+  agree on most and disagree on most (by how far apart the ratings are), each as two
+  dots on a 0.5 to 5 track. A Difference / True difference toggle switches
+  all three between the ratings as given and the true difference: the
+  other member's ratings moved by the gap between your averages, so how far
+  apart two ratings sit is what Resonance counts (both at 5, or both at
+  half a star, stay the same; the scale widens if a moved rating goes past
+  an end), and the dumbbell ranks by that instead. You in the site's gold,
+  them in Soul Resonance blue, a legend on each; plain SVG, scaling to a
+  phone with no sideways scrolling (`components/resonance/Taste*.jsx`,
+  `tasteChart.js`). The comparison now has
+  `genres`: each genre both have rated 2+ films in, with each one's
+  average star rating there from all their films.
+- /SECRETresonance: a box to type a name (any part, any case) for every
+  pair with that member, beside the dropdown, which still picks one
+  member's pairs (both together: that member's pair with them). Each
+  pair's score opens their ratings side by side
+  (`/SECRETresonance/:userA/:userB`, moderators and admins only), with the
+  score worked out now, as the list has it.
 - Box Office Crash on the Notifications page: a cash-out at 10x or more is
   big news for every member (in every filter, glowing); any other round,
   win or lose, goes to the player's followers, with the multiplier and how

@@ -22,6 +22,7 @@ const TITLES = [
   ['/SECRET', null],
   ['/SECRETpfp', null],
   ['/SECRETresonance', null],
+  ['/SECRETresonance/:userA/:userB', null],
   ['/SECRETloanshark', null],
   ['/members', 'Members'],
   ['/resonance', 'Resonance'],

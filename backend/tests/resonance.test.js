@@ -623,10 +623,59 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(theirs.total, 2);
         assert.ok(theirs.pairs.every((entry) => String(entry.a._id) === String(few._id)));
 
+        // Pairs with someone whose name has it in it, any case, them first.
+        const named = (await call(admin, `/resonance/all?min=any&q=${few.username.toUpperCase()}`)).body;
+        assert.equal(named.total, 2);
+        assert.ok(named.pairs.every((entry) => entry.a.username === few.username));
+        assert.equal(named.members.length, 3, "everyone's still counted");
+        // A member and a name: that member's pair with them.
+        const between = (await call(admin, `/resonance/all?min=any&member=${admin._id}&q=${few.username}`)).body;
+        assert.deepEqual(between.pairs.map((entry) => [entry.a.username, entry.b.username]), [[admin.username, few.username]]);
+        assert.equal((await call(admin, "/resonance/all?min=any&q=nobody-by-this-name")).body.total, 0);
+
         // Moderators too, and nobody else.
         assert.equal((await call(await member(0, { role: "moderator" }), "/resonance/all")).status, 200);
         assert.equal((await call(few, "/resonance/all")).status, 403);
         assert.equal((await call(null, "/resonance/all")).status, 401);
+    });
+
+    test("/SECRETresonance's pairs: any two members' ratings side by side, with the score the list shows, moderators and admins only", async () => {
+        await clear();
+        const Review = require("../models/reviewModel");
+        await Review.deleteMany({});
+        const admin = await member(0, { role: "admin" });
+        // Films 1 to 20, rated 1 to 5 in turn; and films 11 to 30, all at 3.
+        const first = await member(20, { privacy: "private", resonance: false }, (index) => 1 + (index % 9) * 0.5);
+        const second = await member(0);
+        await FilmLog.insertMany(films(20, () => 3, (index) => ({ genres: ["Drama"], year: 2010 + index }), 11).map((entry) => ({ ...entry, user: second._id, status: "completed" })));
+        const theirs = await Review.create({ user: second._id, tmdbId: 12, filmTitle: "Film 12", text: "Seen it." });
+
+        const { status, body } = await call(admin, `/resonance/all/${first._id}/${second._id}`);
+        assert.equal(status, 200);
+        assert.equal(body.first.username, first.username);
+        assert.equal(body.match.user.username, second.username);
+        // The score the /SECRETresonance list shows for them.
+        const listed = (await call(admin, `/resonance/all?member=${first._id}`)).body.pairs.find((entry) => entry.b.username === second.username);
+        assert.equal(body.match.percent, listed.percent);
+        assert.equal(body.match.sharedCount, 10);
+        close(body.averages.mine, 2.825);
+        close(body.averages.theirs, 3);
+        assert.deepEqual(body.films.map((entry) => entry.tmdbId), [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+        assert.deepEqual(body.films.find((entry) => entry.tmdbId === 12).theirs, { rating: 3, reviewId: String(theirs._id) });
+
+        // The other way round: mine and theirs swap.
+        const back = (await call(admin, `/resonance/all/${second._id}/${first._id}`)).body;
+        assert.equal(back.first.username, second.username);
+        assert.equal(back.match.percent, body.match.percent);
+        assert.deepEqual(back.films.find((entry) => entry.tmdbId === 12).mine, { rating: 3, reviewId: String(theirs._id) });
+
+        // Moderators too, and nobody else; no such pair is a 404.
+        assert.equal((await call(await member(0, { role: "moderator" }), `/resonance/all/${first._id}/${second._id}`)).status, 200);
+        assert.equal((await call(first, `/resonance/all/${first._id}/${second._id}`)).status, 403);
+        assert.equal((await call(null, `/resonance/all/${first._id}/${second._id}`)).status, 401);
+        assert.equal((await call(admin, `/resonance/all/${first._id}/${first._id}`)).status, 404);
+        assert.equal((await call(admin, `/resonance/all/${first._id}/nonsense`)).status, 404);
+        assert.equal((await call(admin, `/resonance/all/${first._id}/${new mongoose.Types.ObjectId()}`)).status, 404);
     });
 
     test("/SECRETresonance's Update Resonance now: moderators and admins store everyone's straight away", async () => {
@@ -739,6 +788,60 @@ describe("Resonance API and sweep", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal((await call(me, `/resonance/with/${me._id}`)).status, 404);
         assert.equal((await call(me, "/resonance/with/nonsense")).status, 404);
         assert.equal((await call(null, `/resonance/with/${stranger._id}`)).status, 401);
+    });
+
+    test("comparing ratings: the genres both rated 2+ films in, each one's average star rating there from all their films, most films first", async () => {
+        await clear();
+        const me = await member(0);
+        const other = await member(0);
+        const admin = await member(0, { role: "admin" });
+        const log = (user, tmdbId, rating, genres = []) => ({ ...film(tmdbId, rating, { genres }), user: user._id, status: "completed" });
+        await FilmLog.insertMany([
+            // Drama: 6 rated, 4 on average (films 3 to 6 only mine).
+            ...[5, 4, 4, 3, 5, 3].map((rating, index) => log(me, 1 + index, rating, ["Drama"])),
+            // Comedy: 4 of mine, but only 1 of theirs: left out.
+            ...[2, 3, 2, 3].map((rating, index) => log(me, 7 + index, rating, ["Comedy"])),
+            // Horror: only 1 of mine: left out.
+            log(me, 11, 1, ["Horror"]),
+            // Action (and Drama, for film 12): 2 each.
+            log(me, 12, 4, ["Action", "Drama"]),
+            log(me, 13, 5, ["Action"]),
+            // No genre, to make 20.
+            ...Array.from({ length: 7 }, (_, index) => log(me, 14 + index, 3)),
+            // Theirs: Drama 3, 4 and 2 (film 50 only theirs), one Comedy, two Horror.
+            log(other, 1, 3, ["Drama"]),
+            log(other, 2, 4, ["Drama"]),
+            log(other, 50, 2, ["Drama"]),
+            log(other, 7, 5, ["Comedy"]),
+            log(other, 11, 2, ["Horror"]),
+            log(other, 51, 2, ["Horror"]),
+            log(other, 12, 1, ["Action"]),
+            log(other, 52, 2.5, ["Action"]),
+            ...Array.from({ length: 12 }, (_, index) => log(other, 60 + index, 3)),
+        ]);
+        await pair(me, other, 70);
+
+        const { status, body } = await call(me, `/resonance/with/${other._id}`);
+        assert.equal(status, 200);
+        assert.deepEqual(body.genres.map((entry) => entry.genre), ["Drama", "Action"]);
+        const [drama, action] = body.genres;
+        // Drama: mine 5, 4, 4, 3, 5, 3 and 4 (film 12): 28 / 7.
+        close(drama.mine.average, 4);
+        assert.equal(drama.mine.count, 7);
+        close(drama.theirs.average, 3);
+        assert.equal(drama.theirs.count, 3);
+        assert.deepEqual(action, { genre: "Action", mine: { average: 4.5, count: 2 }, theirs: { average: 1.75, count: 2 } });
+
+        // From their side, mine and theirs swap.
+        const back = (await call(other, `/resonance/with/${me._id}`)).body;
+        assert.deepEqual(back.genres.find((entry) => entry.genre === "Action"), { genre: "Action", mine: { average: 1.75, count: 2 }, theirs: { average: 4.5, count: 2 } });
+
+        // /SECRETresonance's pair page has them too.
+        assert.deepEqual((await call(admin, `/resonance/all/${me._id}/${other._id}`)).body.genres, body.genres);
+
+        // The same rules as before: nothing for a member they may not see.
+        await User.updateOne({ _id: other._id }, { privacy: "private" });
+        assert.equal((await call(me, `/resonance/with/${other._id}`)).status, 404);
     });
 
     test("their matches are in their data download, and go with their account", async () => {
