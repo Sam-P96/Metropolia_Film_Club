@@ -3,15 +3,20 @@ import {
   DIFFERENCE,
   THEM_COLOUR,
   TRUE_DIFFERENCE,
+  VIEW_CHANGE,
   YOU_COLOUR,
+  easedScale,
   filmCount,
   oneDecimal,
   shiftOf,
   signedStars,
-  starScale,
   useChartTip,
+  useViewProgress,
   whoIsWho,
 } from './tasteChart'
+
+// Rings fade as they come onto the scale or leave it, in step with the movement.
+const FADE = `opacity ${VIEW_CHANGE.duration}s ease`
 
 // The chart, in its own units: wide enough for the genre names either side.
 const WIDTH = 400
@@ -52,16 +57,25 @@ function topGenres(genres) {
 // in place of "You".
 export default function TasteRadar({ genres, theirName, myName, view = DIFFERENCE, averages }) {
   const { tip, tipTarget } = useChartTip()
+  const progress = useViewProgress(view)
   const names = whoIsWho(theirName, myName)
 
   if (!genres || genres.length < FEWEST_GENRES) return null
 
   const moved = view === TRUE_DIFFERENCE
-  const shift = moved ? shiftOf(averages) : 0
-  const shown = topGenres(genres).map((entry) => ({ ...entry, mineShown: entry.mine.average, theirsShown: entry.theirs.average + shift }))
+  const shift = shiftOf(averages)
+  // Theirs `progress` of the way to moved, so the dashed shape eases there.
+  const top = topGenres(genres)
+  const shown = top.map((entry) => ({ ...entry, mineShown: entry.mine.average, theirsShown: entry.theirs.average + progress * shift }))
   const count = shown.length
-  const scale = starScale(shown.flatMap((entry) => [entry.mineShown, entry.theirsShown]))
-  const rings = scale.steps.filter((stars) => Number.isInteger(stars) && stars > scale.min)
+  const scale = easedScale(
+    top.flatMap((entry) => [entry.mine.average, entry.theirs.average]),
+    top.flatMap((entry) => [entry.mine.average, entry.theirs.average + shift]),
+    progress
+  )
+  // Every whole star either scale rings, each shown while it's on the scale.
+  const rings = scale.steps.filter((stars) => Number.isInteger(stars))
+  const ringShows = (stars) => stars > scale.min + 1e-6 && scale.shows(stars)
   const starPoint = (index, stars) => pointAt(index, count, scale.share(stars) * RADIUS)
   const mine = shown.map((entry, index) => starPoint(index, entry.mineShown))
   const theirs = shown.map((entry, index) => starPoint(index, entry.theirsShown))
@@ -83,14 +97,24 @@ export default function TasteRadar({ genres, theirName, myName, view = DIFFERENC
           {rings.map((stars) => (
             <polygon
               key={stars}
-              points={polygon(shown.map((_, index) => starPoint(index, stars)))}
+              points={polygon(shown.map((_, index) => starPoint(index, Math.max(stars, scale.min))))}
               fill="none"
               stroke="rgba(255,255,255,0.1)"
               strokeWidth="1"
+              opacity={ringShows(stars) ? 1 : 0}
+              style={{ transition: FADE }}
             />
           ))}
           {rings.map((stars) => (
-            <text key={`ring-${stars}`} x={CX + 4} y={CY - scale.share(stars) * RADIUS - 2} fontSize="8" fill="rgba(255,255,255,0.35)">
+            <text
+              key={`ring-${stars}`}
+              x={CX + 4}
+              y={CY - Math.max(0, scale.share(stars)) * RADIUS - 2}
+              fontSize="8"
+              fill="rgba(255,255,255,0.35)"
+              opacity={ringShows(stars) ? 1 : 0}
+              style={{ transition: FADE }}
+            >
               {stars}
             </text>
           ))}

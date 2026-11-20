@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { animate, useReducedMotion } from 'motion/react'
 
 // What the taste charts (TasteScatter, TasteDumbbell, TasteRadar) share:
 // whose colour is whose, the star scale, how numbers are shown, and the
@@ -42,12 +43,40 @@ export const RATING_VIEWS = [
 // between the averages (the comparison's `averages`, { mine, theirs }).
 export const shiftOf = (averages) => (averages ? averages.mine - averages.theirs : 0)
 
-// Their rating of a film as a chart shows it, next to mine: as given, or
-// moved by `shift`, unless both gave the top or bottom rating.
-export function shownTheirs(mine, theirs, view, shift) {
-  if (view !== TRUE_DIFFERENCE) return theirs
-  if (mine === theirs && (mine === MIN_STARS || mine === MAX_STARS)) return mine
-  return theirs + shift
+// How long the charts take to move between the two views, and how they ease.
+export const VIEW_CHANGE = { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+
+// How far into True difference the charts are: 0 (Difference) to 1 (True
+// difference), easing from one to the other over VIEW_CHANGE whenever
+// `view` changes, so everything moves into place instead of jumping. With
+// reduce motion it goes straight there.
+export function useViewProgress(view) {
+  const target = view === TRUE_DIFFERENCE ? 1 : 0
+  const [progress, setProgress] = useState(target)
+  const current = useRef(target)
+  const still = useReducedMotion()
+
+  useEffect(() => {
+    const controls = animate(current.current, target, {
+      ...VIEW_CHANGE,
+      duration: still ? 0 : VIEW_CHANGE.duration,
+      onUpdate: (latest) => {
+        current.current = latest
+        setProgress(latest)
+      },
+    })
+    return () => controls.stop()
+  }, [target, still])
+
+  return progress
+}
+
+// Their rating of a film as a chart shows it, next to mine, `progress` of
+// the way into True difference: as given at 0, moved by `shift` at 1. The
+// same top or bottom rating from both never moves.
+export function movedTheirs(mine, theirs, progress, shift) {
+  if (mine === theirs && (mine === MIN_STARS || mine === MAX_STARS)) return theirs
+  return theirs + progress * shift
 }
 
 // The star scale a chart draws on: 0.5 to 5, or wider, by half stars, if
@@ -68,6 +97,26 @@ export function starScale(values = []) {
     steps,
     share: (stars) => (stars - min) / (max - min),
     labelled: (stars) => steps.length <= 10 || Number.isInteger(stars),
+  }
+}
+
+// The scale while a chart moves between the views: from starScale(`before`)
+// (the values as Difference shows them) to starScale(`after`) (as True
+// difference does), `progress` of the way, its ends easing along. `steps`
+// is every half star either has; shows(stars) says whether one's on the
+// scale now, and labelled(stars) whether the nearer of the two numbers it.
+export function easedScale(before, after, progress) {
+  const from = starScale(before)
+  const to = starScale(after)
+  const min = from.min + (to.min - from.min) * progress
+  const max = from.max + (to.max - from.max) * progress
+  return {
+    min,
+    max,
+    steps: [...new Set([...from.steps, ...to.steps])].sort((a, b) => a - b),
+    share: (stars) => (stars - min) / (max - min),
+    shows: (stars) => stars >= min - 1e-6 && stars <= max + 1e-6,
+    labelled: (progress < 0.5 ? from : to).labelled,
   }
 }
 

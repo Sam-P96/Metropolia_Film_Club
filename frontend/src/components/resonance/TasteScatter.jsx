@@ -1,17 +1,21 @@
+import { useId } from 'react'
+
 import { ChartTip, NoFilmsInCommon, SteadyText, TasteCard, TasteLegend } from './TasteParts'
 import {
   DIFFERENCE,
   THEM_COLOUR,
   TRUE_DIFFERENCE,
+  VIEW_CHANGE,
   YOU_COLOUR,
+  easedScale,
   filmCount,
+  movedTheirs,
   oneDecimal,
   posterUrl,
   shiftOf,
-  shownTheirs,
   signedStars,
-  starScale,
   useChartTip,
+  useViewProgress,
   whoIsWho,
 } from './tasteChart'
 
@@ -28,15 +32,18 @@ const BIGGEST = 13
 const EQUAL_COLOUR = '#E5E7EB'
 // Closer than this is the same place.
 const SAME = 1e-6
+// Colours and labels fade as the view changes, in step with the movement.
+const FADE = `fill ${VIEW_CHANGE.duration}s ease, opacity ${VIEW_CHANGE.duration}s ease`
 
-// The films grouped by where they land, (my rating, theirs as shown): one
-// spot each, biggest first so smaller ones are drawn over them.
-function spotsOf(points) {
+// The films grouped by the two ratings they were given: one spot each,
+// the same spot in both views (it moves, rather than being swapped for
+// another), biggest first so smaller ones are drawn over them.
+function spotsOf(films) {
   const spots = new Map()
-  for (const point of points) {
-    const key = `${point.mine}|${point.theirs.toFixed(4)}`
-    if (!spots.has(key)) spots.set(key, { key, mine: point.mine, theirs: point.theirs, films: [] })
-    spots.get(key).films.push(point.film)
+  for (const film of films) {
+    const key = `${film.mine.rating}|${film.theirs.rating}`
+    if (!spots.has(key)) spots.set(key, { key, mine: film.mine.rating, given: film.theirs.rating, films: [] })
+    spots.get(key).films.push(film)
   }
   return [...spots.values()]
     .map((spot) => ({ ...spot, films: spot.films.sort((a, b) => a.title.localeCompare(b.title)) }))
@@ -46,21 +53,23 @@ function spotsOf(points) {
 const radiusOf = (count) => Math.min(BIGGEST, SMALLEST + 2.6 * Math.sqrt(count - 1))
 
 // Above the line their colour, below it mine, on it neither.
-const colourOf = (spot) =>
-  spot.theirs - spot.mine > SAME ? THEM_COLOUR : spot.mine - spot.theirs > SAME ? YOU_COLOUR : EQUAL_COLOUR
+const colourOf = (mine, theirs) => (theirs - mine > SAME ? THEM_COLOUR : mine - theirs > SAME ? YOU_COLOUR : EQUAL_COLOUR)
 
 // Every film both have rated, my star rating across and theirs up, the
-// films that land on the same spot drawn as one dot, bigger the more there
+// films with the same two ratings drawn as one dot, bigger the more there
 // are. The dashed diagonal is the same rating, and the shaded band within
 // half a star of it. A spot shows its films on hover, or on a tap.
 // `films` is the comparison's films (services/resonance.js
 // getResonanceWith), `theirName` the other member's name. `view` is
 // DIFFERENCE (the star ratings as given, the default) or TRUE_DIFFERENCE
 // (theirs moved by the gap between the two `averages`, the comparison's,
-// so the distance from the line is the true difference). `myName` is only
-// for a /SECRETresonance pair, in place of "You".
+// so the distance from the line is the true difference); changing it, the
+// dots glide to their new places. `myName` is only for a /SECRETresonance
+// pair, in place of "You".
 export default function TasteScatter({ films, theirName, myName, view = DIFFERENCE, averages }) {
   const { tip, tipTarget } = useChartTip()
+  const progress = useViewProgress(view)
+  const clipId = `taste-plot-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const names = whoIsWho(theirName, myName)
   const legend = <TasteLegend mine={names.mine} theirs={names.theirLegend} />
 
@@ -74,16 +83,16 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
 
   const moved = view === TRUE_DIFFERENCE
   const shift = shiftOf(averages)
-  const points = films.map((film) => ({
-    film,
-    mine: film.mine.rating,
-    theirs: shownTheirs(film.mine.rating, film.theirs.rating, view, shift),
-  }))
-  const scale = starScale(points.flatMap((point) => [point.mine, point.theirs]))
+  const theirsAt = (mine, given, at) => movedTheirs(mine, given, at, shift)
+  const scale = easedScale(
+    films.flatMap((film) => [film.mine.rating, film.theirs.rating]),
+    films.flatMap((film) => [film.mine.rating, theirsAt(film.mine.rating, film.theirs.rating, 1)]),
+    progress
+  )
   const xOf = (stars) => PAD.left + scale.share(stars) * PLOT
   const yOf = (stars) => PAD.top + (1 - scale.share(stars)) * PLOT
 
-  const spots = spotsOf(points)
+  const spots = spotsOf(films).map((spot) => ({ ...spot, theirs: theirsAt(spot.mine, spot.given, progress) }))
   const shown = spots.find((spot) => spot.key === tip)
   const band = [
     [scale.min, scale.min + 0.5],
@@ -104,19 +113,27 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           className="block h-auto w-full select-none"
           role="group"
-          aria-label={`Scatter chart of the ${filmCount(films.length)} ${names.both} have both rated: ${names.my} star rating across, ${theirName}'s up${moved ? `, ${movedBy} (the true difference)` : ''}, from ${oneDecimal(scale.min)} to ${oneDecimal(scale.max)}. Films above the diagonal ${theirName} rated higher, below it ${names.me} did.`}
+          aria-label={`Scatter chart of the ${filmCount(films.length)} ${names.both} have both rated: ${names.my} star rating across, ${theirName}'s up${moved ? `, ${movedBy} (the true difference)` : ''}. Films above the diagonal ${theirName} rated higher, below it ${names.me} did.`}
         >
-          {/* The grid, every half star. */}
-          {scale.steps.map((stars) => (
-            <g key={stars} stroke="rgba(255,255,255,0.07)" strokeWidth="1">
-              <line x1={xOf(stars)} y1={PAD.top} x2={xOf(stars)} y2={PAD.top + PLOT} />
-              <line x1={PAD.left} y1={yOf(stars)} x2={PAD.left + PLOT} y2={yOf(stars)} />
-            </g>
-          ))}
+          <defs>
+            <clipPath id={clipId}>
+              <rect x={PAD.left} y={PAD.top} width={PLOT} height={PLOT} />
+            </clipPath>
+          </defs>
+
+          {/* The grid, every half star, kept to the plot as the scale stretches. */}
+          <g clipPath={`url(#${clipId})`} stroke="rgba(255,255,255,0.07)" strokeWidth="1">
+            {scale.steps.map((stars) => (
+              <g key={stars}>
+                <line x1={xOf(stars)} y1={PAD.top} x2={xOf(stars)} y2={PAD.top + PLOT} />
+                <line x1={PAD.left} y1={yOf(stars)} x2={PAD.left + PLOT} y2={yOf(stars)} />
+              </g>
+            ))}
+          </g>
           <rect x={PAD.left} y={PAD.top} width={PLOT} height={PLOT} fill="none" stroke="rgba(255,255,255,0.18)" />
 
           {/* Within half a star, and the same rating. */}
-          <polygon points={band} fill="rgba(255,255,255,0.06)" />
+          <polygon points={band} fill="rgba(255,255,255,0.06)" clipPath={`url(#${clipId})`} />
           <line
             x1={xOf(scale.min)}
             y1={yOf(scale.min)}
@@ -127,9 +144,15 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
             strokeDasharray="5 4"
           />
 
-          {/* The scales. */}
-          {scale.steps.filter(scale.labelled).map((stars) => (
-            <g key={`label-${stars}`} fill="rgba(255,255,255,0.5)" fontSize="9">
+          {/* The scales: a number fades out as its half star leaves the scale. */}
+          {scale.steps.map((stars) => (
+            <g
+              key={`label-${stars}`}
+              fill="rgba(255,255,255,0.5)"
+              fontSize="9"
+              opacity={scale.shows(stars) && scale.labelled(stars) ? 1 : 0}
+              style={{ transition: FADE }}
+            >
               <text x={xOf(stars)} y={PAD.top + PLOT + 14} textAnchor="middle">
                 {oneDecimal(stars)}
               </text>
@@ -159,6 +182,8 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
             const count = spot.films.length
             const r = radiusOf(count)
             const active = tip === spot.key
+            const x = xOf(spot.mine)
+            const y = yOf(spot.theirs)
             return (
               <g
                 key={spot.key}
@@ -167,27 +192,19 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
                 className="cursor-pointer outline-none"
               >
                 {/* A bigger invisible target, for fingers. */}
-                <circle cx={xOf(spot.mine)} cy={yOf(spot.theirs)} r={Math.max(r, 11)} fill="transparent" />
+                <circle cx={x} cy={y} r={Math.max(r, 11)} fill="transparent" />
                 <circle
-                  cx={xOf(spot.mine)}
-                  cy={yOf(spot.theirs)}
+                  cx={x}
+                  cy={y}
                   r={r}
-                  fill={colourOf(spot)}
+                  fill={colourOf(spot.mine, spot.theirs)}
                   fillOpacity={active ? 1 : 0.85}
                   stroke={active ? '#fff' : '#0B0710'}
                   strokeWidth={active ? 2 : 1.5}
+                  style={{ transition: FADE }}
                 />
                 {count > 1 && r >= 7 && (
-                  <text
-                    x={xOf(spot.mine)}
-                    y={yOf(spot.theirs)}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize="9"
-                    fontWeight="700"
-                    fill="#0B0710"
-                    pointerEvents="none"
-                  >
+                  <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="9" fontWeight="700" fill="#0B0710" pointerEvents="none">
                     {count}
                   </text>
                 )}

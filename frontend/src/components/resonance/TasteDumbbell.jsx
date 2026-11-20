@@ -1,16 +1,19 @@
 import { Link } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import { NoFilmsInCommon, TasteCard, TasteLegend } from './TasteParts'
 import {
   DIFFERENCE,
   THEM_COLOUR,
   TRUE_DIFFERENCE,
+  VIEW_CHANGE,
   YOU_COLOUR,
+  easedScale,
+  movedTheirs,
   oneDecimal,
   posterUrl,
   shiftOf,
-  shownTheirs,
-  starScale,
+  useViewProgress,
   whoIsWho,
 } from './tasteChart'
 
@@ -42,15 +45,24 @@ function biggestDisagreements(films, limit, view) {
 }
 
 // One film: its poster and title (to its page), then the two ratings on
-// the track (`mine`, and `theirs` as shown), my dot and their ring joined
-// by a line (a dot in a ring when they're the same), and the two numbers.
-// On a phone the title sits above the track.
-function Row({ film, mine, theirs, scale, names }) {
+// the track (`mine`, and `theirs` as shown now), my dot and their ring
+// joined by a line (a dot in a ring when they're the same), and the two
+// numbers. On a phone the title sits above the track. When the view
+// changes the ring glides along the track (the numbers counting with it),
+// and a row that changes place slides to it.
+function Row({ film, mine, theirs, scale, names, still }) {
   const poster = posterUrl(film.posterPath)
   const xOf = (stars) => TRACK.inset + scale.share(stars) * (TRACK.width - 2 * TRACK.inset)
 
   return (
-    <li className="flex flex-col gap-1.5 py-2.5 sm:flex-row sm:items-center sm:gap-4">
+    <motion.li
+      layout="position"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={still ? { duration: 0 } : VIEW_CHANGE}
+      className="flex flex-col gap-1.5 py-2.5 sm:flex-row sm:items-center sm:gap-4"
+    >
       <div className="flex min-w-0 items-center gap-3 sm:w-56 sm:shrink-0">
         <span className="block h-11 w-7 shrink-0 overflow-hidden rounded-sm bg-white/10" aria-hidden="true">
           {poster && <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover" />}
@@ -68,10 +80,10 @@ function Row({ film, mine, theirs, scale, names }) {
           viewBox={`0 0 ${TRACK.width} ${TRACK.height}`}
           className="block h-auto min-w-0 flex-1"
           role="img"
-          aria-label={`${film.title}: ${names.mine} ${oneDecimal(mine)} stars, ${names.theirLegend} ${oneDecimal(theirs)} stars, from ${oneDecimal(scale.min)} to ${oneDecimal(scale.max)}.`}
+          aria-label={`${film.title}: ${names.mine} ${oneDecimal(mine)} stars, ${names.theirLegend} ${oneDecimal(theirs)} stars.`}
         >
           <line x1={xOf(scale.min)} y1={MID} x2={xOf(scale.max)} y2={MID} stroke="rgba(255,255,255,0.15)" strokeWidth="2" strokeLinecap="round" />
-          {scale.steps.filter(Number.isInteger).map((stars) => (
+          {scale.steps.filter((stars) => Number.isInteger(stars) && scale.shows(stars)).map((stars) => (
             <line key={stars} x1={xOf(stars)} y1={MID - 4} x2={xOf(stars)} y2={MID + 4} stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
           ))}
           <line x1={xOf(mine)} y1={MID} x2={xOf(theirs)} y2={MID} stroke="rgba(255,255,255,0.45)" strokeWidth="3" strokeLinecap="round" />
@@ -85,21 +97,25 @@ function Row({ film, mine, theirs, scale, names }) {
           <span style={{ color: THEM_COLOUR }}>{oneDecimal(theirs)}</span>
         </span>
       </div>
-    </li>
+    </motion.li>
   )
 }
 
-function Section({ title, rows, scale, names, empty }) {
+// One of the two lists. It's `relative` so a row leaving it fades out
+// where it was, lifted out of the list while the rest close up.
+function Section({ title, rows, scale, names, empty, still }) {
   return (
     <section className="min-w-0">
       <h4 className="text-sm font-semibold text-white">{title}</h4>
       {rows.length === 0 ? (
         <p className="py-3 text-sm text-white/60">{empty}</p>
       ) : (
-        <ul className="divide-y divide-white/5">
-          {rows.map((row) => (
-            <Row key={row.film.tmdbId} {...row} scale={scale} names={names} />
-          ))}
+        <ul className="relative divide-y divide-white/5">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {rows.map((row) => (
+              <Row key={row.film.tmdbId} {...row} scale={scale} names={names} still={still} />
+            ))}
+          </AnimatePresence>
         </ul>
       )}
     </section>
@@ -112,9 +128,12 @@ function Section({ title, rows, scale, names, empty }) {
 // getResonanceWith), `theirName` the other member's name. `view` is
 // DIFFERENCE (the star ratings as given, ranked by how far apart they
 // are; the default) or TRUE_DIFFERENCE (ranked by the true difference,
-// theirs moved by the gap between the two `averages`, the comparison's).
-// `myName` is only for a /SECRETresonance pair, in place of "You".
+// theirs moved by the gap between the two `averages`, the comparison's);
+// changing it, everything glides into place. `myName` is only for a
+// /SECRETresonance pair, in place of "You".
 export default function TasteDumbbell({ films, theirName, limit = 5, myName, view = DIFFERENCE, averages }) {
+  const progress = useViewProgress(view)
+  const still = useReducedMotion()
   const names = whoIsWho(theirName, myName)
   const legend = <TasteLegend mine={names.mine} theirs={names.theirLegend} />
 
@@ -127,22 +146,26 @@ export default function TasteDumbbell({ films, theirName, limit = 5, myName, vie
   }
 
   const shift = shiftOf(averages)
-  const rowsOf = (list) =>
-    list.map((film) => ({ film, mine: film.mine.rating, theirs: shownTheirs(film.mine.rating, film.theirs.rating, view, shift) }))
-  const agreed = rowsOf(mostAgreed(films, limit, view))
-  const apart = rowsOf(biggestDisagreements(films, limit, view))
-  // One scale for every row, so the tracks line up.
-  const scale = starScale([...agreed, ...apart].flatMap((row) => [row.mine, row.theirs]))
+  const theirsAt = (film, at) => movedTheirs(film.mine.rating, film.theirs.rating, at, shift)
+  // One scale for every row, from every film, so the tracks line up and
+  // stay put as rows come and go.
+  const scale = easedScale(
+    films.flatMap((film) => [film.mine.rating, film.theirs.rating]),
+    films.flatMap((film) => [film.mine.rating, theirsAt(film, 1)]),
+    progress
+  )
+  const rowsOf = (list) => list.map((film) => ({ film, mine: film.mine.rating, theirs: theirsAt(film, progress) }))
 
   return (
     <TasteCard title="Agree and disagree" legend={legend}>
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
-        <Section title="Most agreed" rows={agreed} scale={scale} names={names} empty="" />
+        <Section title="Most agreed" rows={rowsOf(mostAgreed(films, limit, view))} scale={scale} names={names} empty="" still={still} />
         <Section
           title="Biggest disagreements"
-          rows={apart}
+          rows={rowsOf(biggestDisagreements(films, limit, view))}
           scale={scale}
           names={names}
+          still={still}
           empty={`No disagreements: ${names.both} rate every shared film the same.`}
         />
       </div>

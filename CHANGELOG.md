@@ -68,7 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   other member's ratings moved by the gap between your averages, so how far
   apart two ratings sit is what Resonance counts (both at 5, or both at
   half a star, stay the same; the scale widens if a moved rating goes past
-  an end), and the dumbbell ranks by that instead. You in the site's gold,
+  an end), and the dumbbell ranks by that instead. Switching, everything
+  glides into place over 0.6s (dots, rings, the dashed shape and the
+  scales, and dumbbell rows sliding to their new rank), or switches at once
+  with reduce motion on. You in the site's gold,
   them in Soul Resonance blue, a legend on each; plain SVG, scaling to a
   phone with no sideways scrolling (`components/resonance/Taste*.jsx`,
   `tasteChart.js`). The comparison pages sit on the site's background made
