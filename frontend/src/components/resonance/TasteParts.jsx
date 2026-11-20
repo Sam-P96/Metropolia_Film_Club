@@ -40,6 +40,23 @@ export function TasteLegend({ mine, theirs, dashed = false }) {
   )
 }
 
+// Text that changes with the Difference / True difference toggle without
+// changing the size of what it's in: every version (`texts`, by key) is
+// laid out in the same spot, only `shown` visible, so the box is always as
+// tall as the longest of them at any width. `as` is the element (a <p>,
+// or a <figcaption>).
+export function SteadyText({ texts, shown, as: Tag = 'p', className = '' }) {
+  return (
+    <Tag className={`grid items-center ${className}`}>
+      {Object.entries(texts).map(([key, text]) => (
+        <span key={key} className={`col-start-1 row-start-1 ${key === shown ? '' : 'invisible'}`} aria-hidden={key === shown ? undefined : true}>
+          {text}
+        </span>
+      ))}
+    </Tag>
+  )
+}
+
 // In place of a chart, with no films both have rated.
 export function NoFilmsInCommon() {
   return <p className="py-6 text-center text-sm text-white/60">No films in common yet.</p>

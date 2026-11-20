@@ -1,4 +1,4 @@
-import { ChartTip, NoFilmsInCommon, TasteCard, TasteLegend } from './TasteParts'
+import { ChartTip, NoFilmsInCommon, SteadyText, TasteCard, TasteLegend } from './TasteParts'
 import {
   DIFFERENCE,
   THEM_COLOUR,
@@ -230,9 +230,16 @@ export default function TasteScatter({ films, theirName, myName, view = DIFFEREN
         )}
       </div>
 
-      <figcaption className="mt-2 text-center text-xs text-white/55">
-        {moved && `${movedBy}. `}Above the line: {theirName} liked it more. Below: {names.me} did.
-      </figcaption>
+      {/* Both captions take the same room, so the toggle never resizes the card. */}
+      <SteadyText
+        as="figcaption"
+        className="mt-2 text-center text-xs text-white/55"
+        shown={view}
+        texts={{
+          [DIFFERENCE]: `Above the line: ${theirName} liked it more. Below: ${names.me} did.`,
+          [TRUE_DIFFERENCE]: `${movedBy}. Above the line: ${theirName} liked it more. Below: ${names.me} did.`,
+        }}
+      />
     </TasteCard>
   )
 }

@@ -78,7 +78,8 @@ function Row({ film, mine, theirs, scale, names }) {
           <circle cx={xOf(theirs)} cy={MID} r="7" fill="#0B0710" stroke={THEM_COLOUR} strokeWidth="2.5" />
           <circle cx={xOf(mine)} cy={MID} r="4.5" fill={YOU_COLOUR} />
         </svg>
-        <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums" aria-hidden="true">
+        {/* Wide enough for "4.5 · 4.9" on one line, so the toggle never changes a row's height. */}
+        <span className="w-20 shrink-0 text-right text-sm font-semibold whitespace-nowrap tabular-nums" aria-hidden="true">
           <span style={{ color: YOU_COLOUR }}>{oneDecimal(mine)}</span>
           <span className="text-white/40"> · </span>
           <span style={{ color: THEM_COLOUR }}>{oneDecimal(theirs)}</span>

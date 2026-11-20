@@ -7,7 +7,8 @@ import ResonanceIcon, { ResonanceMark } from '../components/resonance/ResonanceI
 import TasteDumbbell from '../components/resonance/TasteDumbbell'
 import TasteRadar from '../components/resonance/TasteRadar'
 import TasteScatter from '../components/resonance/TasteScatter'
-import { DIFFERENCE, RATING_VIEWS, shiftOf, signedStars } from '../components/resonance/tasteChart'
+import { SteadyText } from '../components/resonance/TasteParts'
+import { DIFFERENCE, RATING_VIEWS, TRUE_DIFFERENCE, shiftOf, signedStars } from '../components/resonance/tasteChart'
 import StarRating from '../components/reviews/StarRating'
 import SortHeader from '../components/SortHeader'
 import useApi from '../hooks/useApi'
@@ -271,11 +272,15 @@ function Comparison({ first = null, match, averages, films, genres = [], sortBy,
           <div className="mb-8 space-y-6">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <PillToggle options={RATING_VIEWS} value={view} onChange={setView} label="Charts show" />
-              <p className="min-w-0 flex-1 basis-64 text-xs text-white/55">
-                {view === DIFFERENCE
-                  ? 'The star ratings as given.'
-                  : `${user.username}'s ratings moved ${signedStars(shiftOf(averages))} stars onto ${first ? `${first.username}'s` : 'your'} average, so how far apart two ratings sit is the true difference. Both at 5, or both at half a star, stay the same.`}
-              </p>
+              {/* Both notes take the same room, so toggling never moves the charts. */}
+              <SteadyText
+                className="min-w-0 flex-1 basis-64 text-xs text-white/55"
+                shown={view}
+                texts={{
+                  [DIFFERENCE]: 'The star ratings as given.',
+                  [TRUE_DIFFERENCE]: `${user.username}'s ratings moved ${signedStars(shiftOf(averages))} stars onto ${first ? `${first.username}'s` : 'your'} average, so how far apart two ratings sit is the true difference. Both at 5, or both at half a star, stay the same.`,
+                }}
+              />
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <TasteScatter films={films} theirName={user.username} myName={first?.username} view={view} averages={averages} />
