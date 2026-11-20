@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Seesaw Fruit Bounce — prototype</title>
+<style>
+:root{--bg:#0f1220;--panel:#1a1f36;--panel2:#262c4e;--ink:#eef1ff;--muted:#9aa3c7;--accent:#ffd166;--good:#06d6a0;--bad:#ef476f}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:flex;justify-content:center;padding:10px 10px 24px}
+#app{width:100%;max-width:430px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px;font-size:13px}
+.pill{background:var(--panel);padding:6px 10px;border-radius:999px;white-space:nowrap}
+.spacer{flex:1}
+.dev{display:inline-flex;align-items:center;gap:6px;background:#2a2340;border:1px dashed #7a68c9}
+.dev button{padding:2px 8px;border-radius:999px;font-size:11px}
+.stname{color:var(--muted);font-size:12px}
+header button{padding:6px 10px;font-size:12px;border-radius:999px}
+#stage{position:relative;width:100%;aspect-ratio:400/640;border-radius:18px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+canvas{width:100%;height:100%;display:block}
+.overlay{position:absolute;inset:0;background:rgba(12,14,28,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;text-align:center;gap:10px;overflow:auto}
+.hidden{display:none!important}
+h1{margin:0;font-size:23px}
+h2{margin:0;font-size:22px}
+p{margin:0}
+.muted{color:var(--muted);font-size:13px;line-height:1.45}
+button{font:inherit;border:0;border-radius:12px;padding:10px 12px;cursor:pointer;background:var(--panel2);color:var(--ink);transition:transform .08s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.35;cursor:not-allowed}
+.primary{background:var(--accent);color:#1b1b1b;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.entry{display:flex;flex-direction:column;gap:2px;padding:10px 6px}
+.entry b{font-size:16px}
+.entry small{color:var(--muted);font-size:11px}
+.entry.free{background:#1d4a42}
+.legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:14px}
+.how{background:var(--panel);border-radius:12px;padding:10px 12px;text-align:left;font-size:12.5px;line-height:1.55;color:#cfd5f5;width:100%}
+.big{font-size:34px;font-weight:800;color:var(--accent)}
+.row{display:flex;gap:8px;width:100%}
+.row button{flex:1}
+.note{font-size:12px;color:var(--muted)}
+.foot{margin-top:8px;font-size:12px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="pill" id="hPP"></span>
+    <span class="pill" id="hDay"></span>
+    <span class="pill" id="hCash"></span>
+    <span class="spacer"></span>
+    <span class="pill dev" title="Test tool: jump between stages">🛠 Stage
+      <button id="stPrev" aria-label="Previous stage">◀</button>
+      <b id="stNum">1</b>
+      <button id="stNext" aria-label="Next stage">▶</button>
+      <span id="stName" class="stname">Orchard</span>
+    </span>
+    <button id="btnDay" title="Simulate the next day (resets cash-outs)">Next day ▶</button>
+    <button id="btnReset" title="Reset wallet to 500 PP">Reset</button>
+  </header>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="overlay" id="menu"></div>
+    <div class="overlay hidden" id="result"></div>
+  </div>
+  <div class="foot">Tap · click · Space = jump</div>
+</div>
+<script>
+(() => {
+// ---------- Tunables ----------
+const W = 400, H = 640, GROUND = 427, GRAV = 900;       // ground sits at 2/3 of the screen
+const HALF = 80, TILT = 0.22, PIVOT_Y = GROUND - 24;     // fixed seesaw, centred
+const PERCH_Y = 160, PERCH_X = [62, W - 62];             // where buddies sit on the branches
+const FRUIT_ON_SCREEN = 3;          // fruit floating at once
+const POINTS_PER_PP = 5;              // score -> PP conversion
+const ENTRIES = [10, 20, 30, 50, 100]; // entry cost; multiplier = cost / 10
+const FREE_MULT = 2;                   // free play mirrors the 20 PP game
+const TIERS = [                        // m = value multiplier, w = spawn weight, y = height band
+  { m: 1,   w: 55,  y: [300, 385] },
+  { m: 3,   w: 25,  y: [240, 350] },
+  { m: 5,   w: 13,  y: [180, 290] },
+  { m: 10,  w: 6,   y: [132, 230] },
+  { m: 100, w: 1.2, y: [114, 134] },
+];
+const SETS = [
+  { name: 'Orchard',     fruit: ['🍎','🍐','🍊','🍉','🍒'], sky: ['#79c3ef','#e3f6ff'], hill: '#a6dc8f', grass: '#6cc35a', soil: '#5a3d2b', wood: '#7a4b2a', leaf: '#3f9a45', dark: false },
+  { name: 'Tropics',     fruit: ['🍌','🍋','🥝','🍍','🥭'], sky: ['#ff8e6e','#ffe2a6'], hill: '#f0b77e', grass: '#c9a35c', soil: '#6e4a2c', wood: '#6b3f22', leaf: '#2f8f5b', dark: false },
+  { name: 'Berry Night', fruit: ['🍓','🫐','🍇','🥥','🍈'], sky: ['#170f3d','#4f63b8'], hill: '#27306b', grass: '#2f3d7a', soil: '#1c1f3f', wood: '#4a3326', leaf: '#24563c', fx: 'stars' },
+  { name: 'Shooting Stars', fruit: ['🍏','🍑','🍅','🫒','🥑'], sky: ['#070b24','#24306a'], hill: '#1d2858', grass: '#25336a', soil: '#121836', wood: '#3a2b2a', leaf: '#1f4a4f', fx: 'meteors' },
+  { name: 'Galaxy',         fruit: ['🍒','🍇','🫐','🍑','🍍'], sky: ['#0e0320','#3a1260'], hill: '#3a1f5c', grass: '#4b2a78', soil: '#1d0f33', wood: '#2f1f3a', leaf: '#5b2a7a', fx: 'galaxy' },
+  { name: 'The Void',       fruit: ['🍎','🍊','🥝','🍉','🥭'], sky: ['#000000','#0c0514'], hill: '#150a22', grass: '#1f0f31', soil: '#06030b', wood: '#1a1020', leaf: '#26133d', fx: 'void' },
+];
+const TIER_COLORS = ['#ffffff', '#9be564', '#4cc9f0', '#c77dff', '#ffd166'];
+const BRANCHES = [
+  { x1: 10, x2: 100, y: PERCH_Y + 16 }, { x1: W - 100, x2: W - 10, y: PERCH_Y + 16 },  // perch branches
+  { x1: 10, x2: 165, y: 92 },           { x1: W - 165, x2: W - 10, y: 92 },            // upper branches
+];
+const EF = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const setFor = l => SETS[Math.min(l, SETS.length) - 1]; // past the last stage, you stay in the Void
+const sideIdx = side => side > 0 ? 1 : 0;
+function threshold(l) { // fruit points (unmultiplied) needed to reach level l
+  const T = [0, 0, 60, 180, 400, 700, 1100];
+  return l < T.length ? T[l] : 1100 + (l - 6) * 500;
+}
+
+// ---------- Save ----------
+const KEY = 'seesaw-fruit-proto-v1';
+let save = { pp: 500, day: 1, cashouts: 3 };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) Object.assign(save, s); } catch (e) {}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+
+// ---------- Canvas ----------
+const cv = document.getElementById('cv'), mainCtx = cv.getContext('2d');
+let ctx = mainCtx; // swapped to an offscreen canvas while painting backgrounds
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+const HEART_CHANCE = 0.05, MAX_HEARTS = 3; // a shuriken is sometimes a heart
+const FADE_TIME = 1.6; // seconds for one stage to fade into the next
+const bgOld = document.createElement('canvas'), bgNew = document.createElement('canvas');
+for (const c of [bgOld, bgNew]) { c.width = W * DPR; c.height = H * DPR; c.getContext('2d').setTransform(DPR, 0, 0, DPR, 0, 0); }
+const menu = document.getElementById('menu'), result = document.getElementById('result');
+
+// ---------- Game state ----------
+// phase 'ready': one buddy perched on a branch, one sitting on the low end of the seesaw
+// phase 'jump':  the perched buddy is dropping onto the raised end
+// phase 'launch': the other buddy is flying up to the branch on the far side
+function makeGame(entry) {
+  const s = {
+    entry, score: 0, basic: 0, lives: 3, level: 1, t: 0, inv: 0, shake: 0, over: false, idle: false,
+    chars: [ { e: '🐸', x: 0, y: 0 }, { e: '🐰', x: 0, y: 0 } ],
+    phase: 'ready', perch: { who: 0, side: -1 }, seat: { who: 1, side: -1 }, flight: null,
+    tilt: -TILT, buffer: 0,
+    fruits: [], shurikens: [], fx: [],
+    nextShur: 4, hp: 0, fadeFrom: 1, fadeT: 1, banner: { text: 'Level 1 · Orchard', t: 2.2 },
+  };
+  return s;
+}
+let g = makeGame({ cost: 0, mult: 1, free: true });
+g.idle = true;
+for (let i = 0; i < FRUIT_ON_SCREEN; i++) spawnFruit(true);
+
+function spawnFruit(initial) {
+  const has100 = g.fruits.some(f => f.tier === 4);
+  const ws = TIERS.map((t, i) => (i === 4 && has100) ? 0 : t.w);
+  let r = Math.random() * ws.reduce((a, b) => a + b, 0), tier = 0;
+  for (let i = 0; i < ws.length; i++) { if (r < ws[i]) { tier = i; break; } r -= ws[i]; }
+  const T = TIERS[tier], dir = Math.random() < 0.5 ? 1 : -1;
+  const sp = rand(70, 120) * (1 + 0.1 * (g.level - 1)) * (tier === 4 ? 1.4 : 1);
+  g.fruits.push({
+    tier, x: initial ? rand(20, W - 20) : (dir > 0 ? -22 : W + 22),
+    y: rand(T.y[0], T.y[1]), vx: dir * sp, ph: rand(0, 6.28), life: tier === 4 ? 9 : null,
+  });
+}
+
+const grav = () => GRAV * Math.min(1 + 0.07 * (g.level - 1), 1.5);
+function endPos(side, tilt = g.tilt) { // tilt > 0 means the right end is down
+  return { x: W / 2 + side * HALF * Math.cos(tilt), y: PIVOT_Y + side * HALF * Math.sin(tilt) };
+}
+function seatPos(side, tilt) { const e = endPos(side, tilt); return { x: e.x - side * 14, y: e.y - 17 }; }
+function perchPos(side) { return { x: PERCH_X[sideIdx(side)], y: PERCH_Y }; }
+
+// a projectile from (x0,y0) to (x1,y1) that peaks at apexY
+function makeFlight(who, x0, y0, x1, y1, apexY) {
+  const G = grav(), vy0 = -Math.sqrt(2 * G * (y0 - apexY));
+  const T = (-vy0 + Math.sqrt(vy0 * vy0 + 2 * G * (y1 - y0))) / G;
+  return { who, x0, y0, x1, y1, vx: (x1 - x0) / T, vy0, G, T, t: 0 };
+}
+
+function text(x, y, t, color, size = 18, max = 0.9) { g.fx.push({ x, y, text: t, color, size, t: max, max }); }
+function boom(x, y) { g.fx.push({ x, y, emoji: '💥', t: 0.45, max: 0.45 }); }
+
+function startGame(entry) {
+  if (!entry.free) {
+    if (save.pp < entry.cost || save.cashouts <= 0) return;
+    save.pp -= entry.cost; persist();
+  }
+  g = makeGame(entry);
+  if (devStage > 1) applyStage(devStage);
+  for (let i = 0; i < FRUIT_ON_SCREEN; i++) spawnFruit(true);
+  menu.classList.add('hidden'); result.classList.add('hidden');
+  if (document.activeElement) document.activeElement.blur();
+  renderHeader();
+}
+
+function tap() {
+  if (g.phase === 'ready') return doJump();
+  const fl = g.flight;
+  if (fl && !fl.doubled && fl.T - fl.t > 0.12) return doubleJump(fl);
+  g.buffer = 0.18; // a tap just before landing is remembered for the next jump
+}
+
+// mid-air tap: hop up again with a flip, then carry on to the same landing spot
+const FLIP_TIME = 0.45, DOUBLE_JUMP_HEIGHT = 70;
+function doubleJump(fl) {
+  const c = g.chars[fl.who];
+  const apex = Math.max(40, Math.min(c.y, fl.y1) - DOUBLE_JUMP_HEIGHT);
+  const nf = makeFlight(fl.who, c.x, c.y, fl.x1, fl.y1, apex);
+  nf.kind = fl.kind; nf.doubled = true; nf.spinT = 0;
+  nf.spinDir = nf.vx >= 0 ? 1 : -1;
+  g.flight = nf;
+  g.fx.push({ x: c.x, y: c.y + 20, emoji: '💨', t: 0.4, max: 0.4 });
+}
+
+function doJump() {
+  const jumper = g.perch.who, from = perchPos(g.perch.side);
+  const raised = -g.seat.side;
+  const to = seatPos(raised, -raised * TILT); // the raised end, before it tips down
+  g.flight = makeFlight(jumper, from.x, from.y, to.x, to.y, PERCH_Y - 38);
+  g.flight.kind = 'jump';
+  g.perch = null; g.phase = 'jump'; g.buffer = 0;
+}
+
+function onFlightLanded(fl) {
+  if (fl.kind === 'jump') {
+    const oldSide = g.seat.side, launcher = g.seat.who, raised = -oldSide;
+    const c = g.chars[launcher];
+    g.seat = { who: fl.who, side: raised };        // seesaw tips toward the jumper
+    const dest = perchPos(raised);                 // launched buddy flies to the far tree
+    g.flight = makeFlight(launcher, c.x, c.y, dest.x, dest.y, rand(108, 140));
+    g.flight.kind = 'launch';
+    g.phase = 'launch';
+  } else {
+    g.perch = { who: fl.who, side: g.seat.side };
+    g.flight = null; g.phase = 'ready';
+  }
+}
+
+function gainHeart(x, y) {
+  if (g.hp < MAX_HEARTS) { g.hp++; text(x, y - 24, '+1 💗', '#ff7ac8', 20); }
+  else text(x, y - 24, 'Hearts full', '#ff7ac8', 15);
+}
+
+function loseLife(reason) { // one shuriken = game over, unless a heart saves you
+  if (g.over || g.inv > 0) return;
+  if (g.hp > 0) {
+    g.hp--; g.inv = 1.5; g.shake = 0.3;
+    text(W / 2, 250, 'Saved by a heart! 💗', '#ff7ac8', 22, 1.3);
+    return;
+  }
+  g.lives = 0; g.shake = 0.45;
+  text(W / 2, 250, reason, '#ef476f', 26, 1.2);
+  endGame();
+}
+
+function endGame() { g.over = true; setTimeout(showResult, 800); }
+
+// shuriken heights: skip the resting heights (branch perch ≈ y160, seesaw seat ≈ y370–405)
+const SHURIKEN_BANDS = [[96, 126], [194, 360]];
+function shurikenY() {
+  const total = SHURIKEN_BANDS.reduce((a, [lo, hi]) => a + hi - lo, 0);
+  let r = Math.random() * total;
+  for (const [lo, hi] of SHURIKEN_BANDS) { if (r < hi - lo) return lo + r; r -= hi - lo; }
+  return SHURIKEN_BANDS[0][0];
+}
+
+function isPerched(i) { return g.perch && g.perch.who === i; }
+
+// ---------- Update ----------
+function update(dt) {
+  g.t += dt;
+  if (g.inv > 0) g.inv -= dt;
+  if (g.shake > 0) g.shake -= dt;
+  if (g.banner.t > 0) g.banner.t -= dt;
+  if (g.buffer > 0) g.buffer -= dt;
+  if (g.phase === 'ready' && g.buffer > 0) doJump();
+
+  // seesaw tips smoothly toward the seated side
+  g.tilt += (g.seat.side * TILT - g.tilt) * Math.min(1, dt * 16);
+
+  // positions
+  const sp = seatPos(g.seat.side); Object.assign(g.chars[g.seat.who], sp);
+  if (g.perch) Object.assign(g.chars[g.perch.who], perchPos(g.perch.side));
+  const fl = g.flight;
+  if (fl) {
+    fl.t += dt;
+    const c = g.chars[fl.who];
+    if (fl.t >= fl.T) { c.x = fl.x1; c.y = fl.y1; c.rot = 0; onFlightLanded(fl); }
+    else {
+      c.x = fl.x0 + fl.vx * fl.t; c.y = fl.y0 + fl.vy0 * fl.t + 0.5 * fl.G * fl.t * fl.t;
+      if (fl.spinT !== undefined) { fl.spinT += dt; c.rot = fl.spinDir * Math.PI * 2 * ease(Math.min(1, fl.spinT / FLIP_TIME)); }
+      else c.rot = 0;
+    }
+  }
+
+  // fruit
+  while (g.fruits.length < FRUIT_ON_SCREEN) spawnFruit(false);
+  const flyer = g.flight ? g.chars[g.flight.who] : null;
+  for (const fr of g.fruits) {
+    fr.x += fr.vx * dt;
+    if (fr.x < -24) fr.x = W + 24;
+    if (fr.x > W + 24) fr.x = -24;
+    if (fr.life !== null) fr.life -= dt;
+    const fy = fr.y + Math.sin(g.t * 2 + fr.ph) * 4;
+    if (flyer && Math.hypot(flyer.x - fr.x, flyer.y - fy) < 28) {
+      fr.dead = true;
+      const m = TIERS[fr.tier].m, pts = m * g.entry.mult;
+      g.score += pts; g.basic += m;
+      text(fr.x, fy, '+' + pts, TIER_COLORS[fr.tier], fr.tier === 4 ? 30 : 18);
+      if (fr.tier === 4) g.banner = { text: 'JACKPOT FRUIT! ×100', t: 1.8 };
+    }
+  }
+  g.fruits = g.fruits.filter(fr => !fr.dead && !(fr.life !== null && fr.life <= 0));
+  while (g.basic >= threshold(g.level + 1)) {
+    if (g.fadeT >= 1) g.fadeFrom = g.level;
+    g.fadeT = 0;
+    g.level++;
+    g.banner = { text: `Level ${g.level} · ${setFor(g.level).name}`, t: 2.2 };
+  }
+
+  // shurikens: fly straight across, hit anyone
+  const diff = 1 + 0.3 * (g.level - 1);
+  g.nextShur -= dt;
+  if (g.nextShur <= 0) {
+    // level 1: one at a time · every 2 levels adds one more per wave (max 4)
+    const wave = Math.min(1 + Math.floor((g.level - 1) / 2), 4);
+    const lanes = [];
+    for (let i = 0; i < wave; i++) {
+      let y, tries = 0;
+      do { y = shurikenY(); tries++; } while (tries < 20 && lanes.some(l => Math.abs(l - y) < 45));
+      lanes.push(y);
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const heart = Math.random() < HEART_CHANCE;
+      g.shurikens.push({ x: dir > 0 ? -20 : W + 20, y, vx: dir * (rand(150, 210) + 14 * g.level), r: 0, warn: 0.9 + i * 0.35, heart });
+    }
+    g.nextShur = Math.max(1.2, rand(4, 6.5) / diff);
+  }
+  for (const sh of g.shurikens) {
+    if (sh.warn > 0) { sh.warn -= dt; continue; }
+    sh.x += sh.vx * dt; sh.r += 14 * dt;
+    for (const c of g.chars) if (dist(sh, c) < (sh.heart ? 26 : 20)) {
+      sh.dead = true;
+      if (sh.heart) gainHeart(sh.x, sh.y); else loseLife('Shuriken!');
+      break;
+    }
+    if (sh.x < -40 || sh.x > W + 40) sh.dead = true;
+  }
+  g.shurikens = g.shurikens.filter(sh => !sh.dead);
+
+  // fx
+  for (const p of g.fx) { p.t -= dt; if (!p.emoji) p.y -= 35 * dt; }
+  g.fx = g.fx.filter(p => p.t > 0);
+}
+
+function idleUpdate(dt) {
+  g.t += dt;
+  for (const fr of g.fruits) {
+    fr.x += fr.vx * dt;
+    if (fr.x < -24) fr.x = W + 24;
+    if (fr.x > W + 24) fr.x = -24;
+  }
+}
+
+// ---------- Sky effects ----------
+const STARS = (() => { const r = seeded(99), a = []; for (let i = 0; i < 70; i++) a.push({ x: r() * W, y: r() * (GROUND - 20), s: 0.8 + r() * 1.6, p: r() * 6.28 }); return a; })();
+const BAND = (() => { const r = seeded(5), a = []; for (let i = 0; i < 280; i++) { const t = r(), off = (r() + r() + r() - 1.5) * 55; a.push({ x: -20 + t * (W + 40) + off * 0.6, y: 390 - t * 350 + off, s: 0.5 + r() * 1.4, c: r() }); } return a; })();
+const SPIRAL = (() => { const r = seeded(17), a = []; for (let arm = 0; arm < 2; arm++) for (let i = 0; i < 70; i++) { const t = i / 70; a.push({ ang: arm * Math.PI + t * 4.2 + (r() - 0.5) * 0.3, rad: 6 + t * 46 + (r() - 0.5) * 6, s: 0.6 + r() * 1.3 }); } return a; })();
+const INFALL = (() => { const r = seeded(13), a = []; for (let i = 0; i < 80; i++) a.push({ a: r() * 6.28, o: r(), sp: 0.5 + r() * 0.9 }); return a; })();
+
+function drawStars(color, alpha) {
+  ctx.fillStyle = color;
+  for (const st of STARS) { ctx.globalAlpha = alpha * (0.55 + 0.45 * Math.sin(g.t * 2 + st.p)); ctx.fillRect(st.x, st.y, st.s, st.s); }
+  ctx.globalAlpha = 1;
+}
+function drawMeteors() {
+  for (let k = 0; k < 3; k++) {
+    const P = 2.4 + k * 0.9, tt = g.t + k * 1.3, cyc = Math.floor(tt / P), ph = tt % P, life = 0.9;
+    if (ph > life) continue;
+    const r = seeded(cyc * 31 + k * 7 + 1);
+    const sx = W * 0.25 + r() * W * 0.85, sy = 10 + r() * 170;
+    const ang = Math.PI * 0.78 + (r() - 0.5) * 0.25, len = 80 + r() * 70, sp = 420 + r() * 180;
+    const hx = sx + Math.cos(ang) * sp * ph, hy = sy + Math.sin(ang) * sp * ph;
+    const tx = hx - Math.cos(ang) * len, ty = hy - Math.sin(ang) * len, a = 1 - ph / life;
+    const gr = ctx.createLinearGradient(tx, ty, hx, hy);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, `rgba(255,240,205,${a})`);
+    ctx.strokeStyle = gr; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(hx, hy, 2.6, 0, 7); ctx.fill();
+  }
+}
+function glow(x, y, r, color) {
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, color); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function drawGalaxy() {
+  glow(80, 340, 150, 'rgba(255,80,200,.22)');
+  glow(200, 230, 170, 'rgba(140,90,255,.24)');
+  glow(330, 110, 140, 'rgba(70,170,255,.2)');
+  glow(250, 270, 90, 'rgba(255,200,120,.13)');
+  for (const b of BAND) {
+    ctx.globalAlpha = 0.3 + 0.55 * Math.abs(Math.sin(g.t * 1.4 + b.c * 20));
+    ctx.fillStyle = b.c < 0.2 ? '#ffd6f5' : b.c < 0.4 ? '#c9d8ff' : '#ffffff';
+    ctx.fillRect(b.x, b.y, b.s, b.s);
+  }
+  ctx.globalAlpha = 1;
+  // a slowly turning spiral galaxy
+  const cx = 205, cy = 118;
+  glow(cx, cy, 36, 'rgba(255,230,200,.55)');
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(1, 0.5); ctx.rotate(g.t * 0.12);
+  for (const p of SPIRAL) {
+    ctx.globalAlpha = 0.85 - p.rad / 70;
+    ctx.fillStyle = p.rad < 20 ? '#fff1d6' : '#d7c4ff';
+    ctx.beginPath(); ctx.arc(Math.cos(p.ang) * p.rad, Math.sin(p.ang) * p.rad, p.s, 0, 7); ctx.fill();
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+function diskHalf(a0, a1) { // accretion disk, drawn squashed into an ellipse
+  const rings = [[78, 9, 'rgba(160,80,255,.35)'], [64, 9, 'rgba(255,120,60,.55)'], [52, 7, 'rgba(255,175,95,.8)'], [43, 5, 'rgba(255,230,180,.9)']];
+  for (const [r, w, c] of rings) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke(); }
+  for (let k = 0; k < 14; k++) { // hot clumps orbiting
+    let ang = (g.t * (1.6 - k * 0.05) + k * 0.45) % (Math.PI * 2);
+    if (ang < a0 || ang > a1) continue;
+    const r = 46 + (k % 4) * 9;
+    ctx.fillStyle = 'rgba(255,240,210,.9)'; ctx.beginPath(); ctx.arc(Math.cos(ang) * r, Math.sin(ang) * r, 2.2, 0, 7); ctx.fill();
+  }
+}
+function drawVoid() {
+  const cx = W / 2, cy = 200;
+  drawStars('#b9a6ff', 0.35);
+  glow(cx, cy, 170, 'rgba(120,50,230,.28)');
+  for (const p of INFALL) { // matter spiralling in
+    const life = (g.t * p.sp * 0.22 + p.o) % 1, r = 34 + 150 * (1 - life), a = p.a + life * 5;
+    ctx.globalAlpha = 0.15 + 0.7 * life;
+    ctx.fillStyle = life > 0.7 ? '#ffcf8a' : '#b38cff';
+    ctx.beginPath(); ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.42, 1 + life * 1.4, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(1, 0.3); diskHalf(Math.PI, Math.PI * 2); ctx.restore(); // far side
+  ctx.strokeStyle = 'rgba(255,170,100,.45)'; ctx.lineWidth = 5; // light bent over the top
+  ctx.beginPath(); ctx.arc(cx, cy, 40, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy, 31, 0, 7); ctx.fill(); // event horizon
+  ctx.strokeStyle = 'rgba(255,215,160,.9)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(cx, cy, 32.5, 0, 7); ctx.stroke();
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(1, 0.3); diskHalf(0, Math.PI); ctx.restore(); // near side
+}
+function drawSkyFX(S) {
+  if (S.fx === 'stars') drawStars('#ffffff', 0.75);
+  else if (S.fx === 'meteors') { drawStars('#ffffff', 0.8); drawMeteors(); }
+  else if (S.fx === 'galaxy') { drawStars('#ffffff', 0.6); drawGalaxy(); }
+  else if (S.fx === 'void') drawVoid();
+}
+
+// ---------- Draw ----------
+function emoji(e, x, y, size) {
+  ctx.font = `${size}px ${EF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+// ---- foliage: clusters of small circles in 3 shades (no emoji) ----
+function shade(hex, amt) { // amt < 0 darkens, > 0 lightens
+  const n = parseInt(hex.slice(1), 16), ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const f = v => Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt);
+  return `rgb(${ch.map(f).join(',')})`;
+}
+function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const CLUMPS = [ // [x, y, radius] for the left tree; mirrored for the right
+  [18, 38, 46], [72, 26, 34], [112, 68, 30], [152, 84, 22], [28, 108, 30], [-4, 150, 24], [102, 184, 13],
+];
+function buildClusters(clumps, seed) { // clumps: [x, y, radius, mirrored?]
+  const rnd = seeded(seed), out = [];
+  for (const [cx, y0, R, mirror] of clumps) {
+    const n = Math.round(R * R / 26);
+    for (let i = 0; i < n; i++) {
+      const ang = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R * 0.85;
+      const dx = Math.cos(ang) * d, dy = Math.sin(ang) * d;
+      const r = 5 + rnd() * 7 * (1 - d / R * 0.5);
+      // light from the top-left: lower/right parts sit in shade
+      const t = (dy * 0.8 + (mirror ? -dx : dx) * 0.3) / R + (rnd() - 0.5) * 0.5;
+      out.push({ x: cx + dx, y: y0 + dy, r, tone: t > 0.25 ? 0 : t < -0.3 ? 2 : 1 });
+    }
+    out.push({ x: cx, y: y0 + R * 0.12, r: R * 0.82, tone: -1, base: true }); // solid core so no gaps show
+  }
+  out.sort((p, q) => (q.base ? 1 : 0) - (p.base ? 1 : 0) || p.tone - q.tone);
+  return out;
+}
+const FOLIAGE = buildClusters([...CLUMPS.map(c => [c[0], c[1], c[2], false]), ...CLUMPS.map(c => [W - c[0], c[1], c[2], true])], 7);
+const BUSHES = buildClusters([ // the bushes along the ground behind the seesaw
+  [30, GROUND - 8, 42], [92, GROUND - 22, 52], [150, GROUND - 4, 36], [218, GROUND - 10, 44],
+  [282, GROUND - 26, 58], [345, GROUND - 14, 48], [395, GROUND - 4, 36],
+], 21);
+function drawClusters(list, color) {
+  const tones = { '-1': shade(color, -0.35), 0: shade(color, -0.22), 1: color, 2: shade(color, 0.22) };
+  for (const p of list) {
+    ctx.fillStyle = tones[p.tone];
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+  ctx.fillStyle = shade(color, 0.42); // a few tiny highlights
+  for (let i = 0; i < list.length; i += 9) { const p = list[i]; if (p.tone === 2) { ctx.beginPath(); ctx.arc(p.x - p.r * 0.3, p.y - p.r * 0.3, p.r * 0.35, 0, 7); ctx.fill(); } }
+}
+function drawFoliage(S) { drawClusters(FOLIAGE, S.leaf); }
+function drawTrees(S) {
+  ctx.fillStyle = S.wood;
+  ctx.fillRect(-4, 30, 24, GROUND - 30);
+  ctx.fillRect(W - 20, 30, 24, GROUND - 30);
+  ctx.fillStyle = shade(S.wood, -0.3); // bark shading
+  ctx.fillRect(12, 30, 8, GROUND - 30);
+  ctx.fillRect(W - 20, 30, 8, GROUND - 30);
+  ctx.strokeStyle = S.wood; ctx.lineCap = 'round';
+  for (const b of BRANCHES) {
+    const left = b.x1 < W / 2;
+    ctx.lineWidth = b.y < PERCH_Y ? 10 : 12;
+    ctx.beginPath(); ctx.moveTo(left ? 12 : W - 12, b.y + 8); ctx.lineTo(left ? b.x2 : b.x1, b.y); ctx.stroke();
+  }
+  drawFoliage(S);
+}
+function drawSeesaw() {
+  const L = endPos(-1), R = endPos(1), cx = W / 2;
+  ctx.fillStyle = '#4b506b';
+  ctx.beginPath(); ctx.moveTo(cx, PIVOT_Y); ctx.lineTo(cx - 20, GROUND); ctx.lineTo(cx + 20, GROUND); ctx.closePath(); ctx.fill();
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#b8742f'; ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.moveTo(L.x, L.y); ctx.lineTo(R.x, R.y); ctx.stroke();
+  ctx.fillStyle = '#2b2f45'; ctx.beginPath(); ctx.arc(cx, PIVOT_Y, 4, 0, 7); ctx.fill();
+}
+function drawShuriken(x, y, r) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(r);
+  ctx.fillStyle = '#cfd6e6'; ctx.strokeStyle = '#3b4256'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rad = i % 2 === 0 ? 13 : 4.5; ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad); }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#3b4256'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawHUD(S) {
+  // bottom third = ground + scoreboard
+  const top = GROUND + 26;
+  ctx.fillStyle = 'rgba(10,12,28,.55)'; roundRect(14, top, W - 28, H - top - 14, 16); ctx.fill();
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '800 26px system-ui';
+  ctx.fillText(`⭐ ${g.score}`, 30, top + 28);
+  ctx.textAlign = 'right';
+  if (g.hp > 0) {
+    ctx.font = `20px ${EF}`; ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 1; ctx.fillText('💖'.repeat(g.hp), W - 30 - (MAX_HEARTS - g.hp) * 26, top + 28);
+    ctx.globalAlpha = 0.25; ctx.fillText('🤍'.repeat(MAX_HEARTS - g.hp), W - 30, top + 28); ctx.globalAlpha = 1;
+  } else {
+    ctx.font = '700 13px system-ui'; ctx.fillStyle = '#ef476f';
+    ctx.fillText('☠️ one hit = out', W - 30, top + 28);
+  }
+  ctx.font = '600 13px system-ui'; ctx.fillStyle = '#cfd5f5';
+  ctx.textAlign = 'left';
+  ctx.fillText(g.entry.free ? `FREE play · ×${g.entry.mult}` : `${g.entry.cost} PP game · ×${g.entry.mult}`, 30, top + 56);
+  ctx.textAlign = 'right'; ctx.fillText(`Lv ${g.level} · ${S.name}`, W - 30, top + 56);
+  const a = threshold(g.level), b = threshold(g.level + 1), p = clamp((g.basic - a) / (b - a), 0, 1);
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(30, top + 72, W - 60, 4);
+  ctx.fillStyle = '#06d6a0'; ctx.fillRect(30, top + 72, (W - 60) * p, 4);
+  for (let i = 0; i < 5; i++) {
+    const x = 30 + (W - 60) * (i + 0.5) / 5;
+    emoji(S.fruit[i], x, top + 100, 22);
+    ctx.font = '700 12px system-ui'; ctx.fillStyle = TIER_COLORS[i]; ctx.textAlign = 'center';
+    ctx.fillText('×' + TIERS[i].m, x, top + 122);
+  }
+  if (g.phase === 'ready' && !g.over) {
+    ctx.globalAlpha = 0.55 + 0.45 * Math.sin(g.t * 6);
+    ctx.fillStyle = '#ffd166'; ctx.font = '800 13px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('TAP TO JUMP', W / 2, top + 146);
+    ctx.globalAlpha = 1;
+  }
+  if (g.banner.t > 0) {
+    ctx.globalAlpha = clamp(g.banner.t, 0, 1);
+    ctx.fillStyle = 'rgba(10,12,28,.65)'; roundRect(40, 222, W - 80, 54, 14); ctx.fill();
+    ctx.fillStyle = '#ffd166'; ctx.font = '800 20px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(g.banner.text, W / 2, 249);
+    ctx.globalAlpha = 1;
+  }
+}
+function paintBackground(S, canvas) { // sky, sky effects, bushes, ground and trees for one stage
+  ctx = canvas.getContext('2d');
+  const gr = ctx.createLinearGradient(0, 0, 0, GROUND);
+  gr.addColorStop(0, S.sky[0]); gr.addColorStop(1, S.sky[1]);
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+  drawSkyFX(S);
+  drawClusters(BUSHES, S.hill);
+  ctx.fillStyle = S.soil; ctx.fillRect(0, GROUND, W, H - GROUND);
+  ctx.fillStyle = S.grass; ctx.fillRect(0, GROUND, W, 12);
+  drawTrees(S);
+  ctx = mainCtx;
+}
+const ease = t => t * t * (3 - 2 * t);
+function draw() {
+  const S = setFor(g.level);
+  const fading = g.fadeT < 1 && setFor(g.fadeFrom) !== S;
+  const k = fading ? ease(g.fadeT) : 1, P = fading ? setFor(g.fadeFrom) : null;
+  paintBackground(S, bgNew);
+  if (fading) paintBackground(P, bgOld);
+  ctx.save();
+  if (g.shake > 0) ctx.translate(rand(-5, 5), rand(-5, 5));
+  if (fading) { ctx.drawImage(bgOld, 0, 0, W, H); ctx.globalAlpha = k; }
+  ctx.drawImage(bgNew, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+
+  for (const fr of g.fruits) {
+    const y = fr.y + Math.sin(g.t * 2 + fr.ph) * 4;
+    if (fr.life !== null && fr.life < 3 && Math.floor(g.t * 8) % 2) continue;
+    if (fr.tier >= 2) {
+      ctx.fillStyle = ['', '', 'rgba(76,201,240,.28)', 'rgba(199,125,255,.33)', 'rgba(255,209,102,.5)'][fr.tier];
+      ctx.beginPath(); ctx.arc(fr.x, y, fr.tier === 4 ? 22 + Math.sin(g.t * 6) * 3 : 17, 0, 7); ctx.fill();
+    }
+    const size = fr.tier === 4 ? 28 : 24;
+    if (fading) { // fruit morph into the new stage's set
+      ctx.globalAlpha = 1 - k; emoji(P.fruit[fr.tier], fr.x, y, size);
+      ctx.globalAlpha = k; emoji(S.fruit[fr.tier], fr.x, y, size);
+      ctx.globalAlpha = 1;
+    } else emoji(S.fruit[fr.tier], fr.x, y, size);
+  }
+
+  // place buddies for the idle screen too
+  Object.assign(g.chars[g.seat.who], seatPos(g.seat.side));
+  if (g.perch) Object.assign(g.chars[g.perch.who], perchPos(g.perch.side));
+  drawSeesaw();
+  const blink = g.inv > 0 && Math.floor(g.t * 14) % 2 === 0;
+  if (!blink) for (const c of g.chars) {
+    if (c.rot) { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); emoji(c.e, 0, 0, 34); ctx.restore(); }
+    else emoji(c.e, c.x, c.y, 34);
+  }
+
+  for (const sh of g.shurikens) {
+    if (sh.warn > 0) {
+      if (Math.floor(g.t * 10) % 2) {
+        const x = sh.vx > 0 ? 14 : W - 14;
+        ctx.fillStyle = sh.heart ? '#ff7ac8' : '#ef476f'; ctx.beginPath(); ctx.arc(x, sh.y, 10, 0, 7); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sh.heart ? '♥' : '!', x, sh.y + 1);
+      }
+      continue;
+    }
+    if (sh.heart) {
+      const pulse = 1 + Math.sin(g.t * 8) * 0.08;
+      glow(sh.x, sh.y, 30 * pulse, 'rgba(255,90,190,.75)');
+      emoji('💖', sh.x, sh.y, 24 * pulse);
+    } else drawShuriken(sh.x, sh.y, sh.r);
+  }
+  for (const p of g.fx) {
+    const a = clamp(p.t / p.max, 0, 1);
+    ctx.globalAlpha = a;
+    if (p.emoji) emoji(p.emoji, p.x, p.y, 30 * (1.4 - a * 0.4));
+    else {
+      ctx.font = `800 ${p.size}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  if (!g.idle) drawHUD(S);
+}
+
+// ---------- UI ----------
+const hPP = document.getElementById('hPP'), hDay = document.getElementById('hDay'), hCash = document.getElementById('hCash');
+function renderHeader() {
+  hPP.textContent = `💰 ${save.pp} PP`;
+  hDay.textContent = `📅 Day ${save.day}`;
+  hCash.textContent = `💸 ${save.cashouts}/3 cash-outs`;
+}
+function renderMenu(msg) {
+  const S = SETS[0], locked = save.cashouts <= 0;
+  let note;
+  if (locked) note = "All 3 cash-outs used today. Free play only until tomorrow.";
+  else if (save.pp < 10) note = "Out of PP. Hit Reset in the top bar.";
+  else note = `Cash-outs left today: ${save.cashouts}/3 · ${POINTS_PER_PP} pts = 1 PP`;
+  menu.innerHTML = `
+    <h1>🍉 Seesaw Fruit Bounce</h1>
+    <p class="muted">${msg ? `<b style="color:var(--accent)">${msg}</b>` : 'Prototype · pick an entry to play'}</p>
+    <div class="how">
+      👆 <b>Tap / click / Space:</b> the buddy on the branch jumps onto the seesaw and launches the other one up to the far tree.<br>
+      🤸 <b>Tap again mid-air</b> to double jump with a flip. You still land in the same spot.<br>
+      🍎 Time your jumps so the arcs pass through fruit. The higher it floats, the more it's worth.<br>
+      ✴️ Shurikens fly straight across and can hit anyone. <b>One hit and the run is over</b>, unless you're holding a 💖. Now and then a glowing heart flies by instead: catch it for an extra chance (hold up to 3). Watch for the red <b>!</b> warning. More of them come at higher levels.
+    </div>
+    <div class="legend">${S.fruit.map((e, i) => `<span>${e} ×${TIERS[i].m}</span>`).join('')}</div>
+    <div class="grid">
+      ${ENTRIES.map(c => `<button class="entry" data-c="${c}" ${(locked || save.pp < c) ? 'disabled' : ''}><b>${c} PP</b><small>${S.fruit[0]} = ${c / 10} pt${c > 10 ? 's' : ''}</small></button>`).join('')}
+      <button class="entry free" data-free="1" ${locked ? '' : 'disabled'}><b>Free</b><small>${locked ? `${S.fruit[0]} = ${FREE_MULT} pts` : 'after 3 cash-outs'}</small></button>
+    </div>
+    <p class="note">${note}</p>`;
+  menu.classList.remove('hidden');
+  renderHeader();
+}
+function toMenu(msg) { result.classList.add('hidden'); renderMenu(msg); }
+function showResult() {
+  const e = g.entry, payout = Math.floor(g.score / POINTS_PER_PP);
+  if (e.free) {
+    result.innerHTML = `
+      <h2>Free play over</h2>
+      <div class="big">${g.score} pts</div>
+      <p class="muted">${g.score / e.mult} fruit points × ${e.mult} · reached level ${g.level}<br>Free play can't be cashed out.</p>
+      <div class="row"><button class="primary" data-a="again">Play again</button><button data-a="menu">Menu</button></div>`;
+  } else {
+    const net = payout - e.cost;
+    result.innerHTML = `
+      <h2>Game over</h2>
+      <div class="big">${g.score} pts</div>
+      <p class="muted">${g.score / e.mult} fruit points × ${e.mult} (${e.cost} PP game) · level ${g.level}</p>
+      <p>Worth <b>${payout} PP</b> <span class="note">(${POINTS_PER_PP} pts = 1 PP)</span><br>
+      <span style="color:${net >= 0 ? 'var(--good)' : 'var(--bad)'}">${net >= 0 ? '+' : ''}${net} PP vs. your entry</span></p>
+      <div class="row"><button class="primary" data-a="cash">Cash out +${payout} PP</button><button data-a="discard">Discard</button></div>
+      <p class="note">Cash-outs left today: ${save.cashouts}/3. Discarding saves your cash-out for a better run.</p>`;
+  }
+  result.classList.remove('hidden');
+}
+menu.addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.free) startGame({ cost: 0, mult: FREE_MULT, free: true });
+  else if (b.dataset.c) { const c = +b.dataset.c; startGame({ cost: c, mult: c / 10, free: false }); }
+});
+result.addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const a = b.dataset.a;
+  if (a === 'cash') {
+    const p = Math.floor(g.score / POINTS_PER_PP);
+    save.pp += p; save.cashouts = Math.max(0, save.cashouts - 1); persist();
+    toMenu(save.cashouts === 0 ? `+${p} PP · daily cash-outs used, free play unlocked!` : `Cashed out +${p} PP`);
+  } else if (a === 'discard') toMenu('Score discarded');
+  else if (a === 'again') startGame(g.entry);
+  else if (a === 'menu') toMenu();
+});
+document.getElementById('btnDay').addEventListener('click', e => {
+  save.day++; save.cashouts = 3; persist(); e.currentTarget.blur();
+  if (!menu.classList.contains('hidden')) renderMenu('New day: cash-outs reset'); else renderHeader();
+});
+document.getElementById('btnReset').addEventListener('click', e => {
+  save = { pp: 500, day: 1, cashouts: 3 }; persist(); e.currentTarget.blur();
+  if (!menu.classList.contains('hidden')) renderMenu('Wallet reset to 500 PP'); else renderHeader();
+});
+
+// ---------- Stage test tool ----------
+let devStage = 1;
+function applyStage(n) {
+  if (n !== g.level) { g.fadeFrom = g.level; g.fadeT = 0; }
+  g.level = n; g.basic = threshold(n); // progress bar starts at the beginning of that stage
+  g.banner = { text: `Level ${n} · ${setFor(n).name}`, t: 1.6 };
+}
+function setStage(n) {
+  devStage = Math.max(1, n);
+  if (!g.over) applyStage(devStage);
+  document.getElementById('stNum').textContent = devStage;
+  document.getElementById('stName').textContent = setFor(devStage).name;
+}
+document.getElementById('stPrev').addEventListener('click', e => { setStage(devStage - 1); e.currentTarget.blur(); });
+document.getElementById('stNext').addEventListener('click', e => { setStage(devStage + 1); e.currentTarget.blur(); });
+
+// ---------- Input ----------
+cv.addEventListener('pointerdown', e => { if (!g.idle && !g.over) { e.preventDefault(); tap(); } });
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.key === ' ') { if (!g.idle && !g.over) { e.preventDefault(); tap(); } }
+});
+
+// ---------- Loop ----------
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.033, (now - last) / 1000); last = now;
+  if (g.idle) idleUpdate(dt); else if (!g.over) update(dt);
+  if (g.fadeT < 1) g.fadeT = Math.min(1, g.fadeT + dt / FADE_TIME);
+  draw();
+  requestAnimationFrame(loop);
+}
+renderMenu();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

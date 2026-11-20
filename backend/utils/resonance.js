@@ -26,7 +26,7 @@ const WEIGHTS = {
 // How far apart two ratings are, once adjusted, before they count as
 // nothing alike: this far or further is 0%. Less than the whole scale
 // (5 - 0.5 = 4.5), so a big disagreement already counts as none.
-const RATING_SPREAD = 2.75;
+const RATING_SPREAD = 2;
 
 // How the gap is curved before it's taken off: 1 is a straight line
 // (every star costs the same), 2 makes small gaps cost little and big
@@ -78,13 +78,15 @@ const clamp01 = (value) => Math.min(1, Math.max(0, value));
 // RATING_SPREAD apart or more, and curved in between. The gap, as a share
 // of RATING_SPREAD, is raised to GAP_CURVE before it's taken off, so a
 // small gap costs little and a big one a lot: with a curve of 2, half a
-// star apart is still 97%, a star 87%, two stars 47%.
-const alike = (gap) => clamp01(1 - (gap / RATING_SPREAD) ** GAP_CURVE);
+// star apart is still 97%, a star 87%, two stars 47%. `curve` is only ever
+// passed by scripts/resonance-curve-report.js, to compare another curve
+// with the real one: the site always scores with GAP_CURVE.
+const alike = (gap, curve = GAP_CURVE) => clamp01(1 - (gap / RATING_SPREAD) ** curve);
 
 // How alike two ratings are: 1 for the same, 0 for as far apart as
-// ratings go.
-function similarity(a, b) {
-    return alike(Math.abs(a - b));
+// ratings go. `curve` as alike's.
+function similarity(a, b, curve = GAP_CURVE) {
+    return alike(Math.abs(a - b), curve);
 }
 
 // How far apart two members' ratings of one film are, in stars, from their
@@ -98,9 +100,9 @@ function filmGap(a, b) {
 }
 
 // How alike two members' ratings of one film are (filmGap): 1 for no gap,
-// 0 for as far apart as ratings go.
-function filmSimilarity(a, b) {
-    return alike(filmGap(a, b));
+// 0 for as far apart as ratings go. `curve` as alike's.
+function filmSimilarity(a, b, curve = GAP_CURVE) {
+    return alike(filmGap(a, b), curve);
 }
 
 // What share of `films` each key from `keysOf(film)` has, adding up to 1.
@@ -175,7 +177,8 @@ function tasteOf(films) {
 // have rated (filmSimilarity), scaled down while there are only a few of
 // those. Returns
 // { factor, shared: [{ a, b }] }, a and b being each one's entry for the film.
-function moviesFactor(a, b) {
+// `curve` as alike's.
+function moviesFactor(a, b, curve = GAP_CURVE) {
     const shared = [];
     for (const [tmdbId, film] of a.byFilm) {
         const theirs = b.byFilm.get(tmdbId);
@@ -184,15 +187,16 @@ function moviesFactor(a, b) {
 
     if (shared.length === 0) return { factor: 0, shared };
 
-    const match = shared.reduce((sum, film) => sum + filmSimilarity(film.a, film.b), 0) / shared.length;
+    const match = shared.reduce((sum, film) => sum + filmSimilarity(film.a, film.b, curve), 0) / shared.length;
     const confidence = Math.min(shared.length / FULL_CONFIDENCE_AT, 1);
     return { factor: match * confidence, shared };
 }
 
 // Genre + Ratings: how alike their average adjusted rating is in each genre
 // both have rated enough films in, counting a genre more the more films
-// they've rated in it between them. 0 with no genre to compare.
-function genreRatingFactor(a, b) {
+// they've rated in it between them. 0 with no genre to compare. `curve` as
+// alike's.
+function genreRatingFactor(a, b, curve = GAP_CURVE) {
     let weighted = 0;
     let weights = 0;
 
@@ -201,7 +205,7 @@ function genreRatingFactor(a, b) {
         if (!theirs || mine.count < MIN_GENRE_FILMS || theirs.count < MIN_GENRE_FILMS) continue;
 
         const weight = mine.count + theirs.count;
-        weighted += similarity(mine.total / mine.count, theirs.total / theirs.count) * weight;
+        weighted += similarity(mine.total / mine.count, theirs.total / theirs.count, curve) * weight;
         weights += weight;
     }
 
@@ -243,11 +247,13 @@ const toPercent = (value) => Math.round(clamp01(value) * 100);
 // the movies and genre factors as percentages (the two the card shows),
 // how many films both have rated, and the top shared films. `factors` has
 // all five, 0 to 1, for the tests; they're never stored or sent.
-function resonanceBetween(a, b) {
-    const movies = moviesFactor(a, b);
+// `gapCurve` is only for scripts/resonance-curve-report.js (alike): the
+// site always leaves it out, and scores with GAP_CURVE.
+function resonanceBetween(a, b, { gapCurve = GAP_CURVE } = {}) {
+    const movies = moviesFactor(a, b, gapCurve);
     const factors = {
         movies: movies.factor,
-        genreRating: genreRatingFactor(a, b),
+        genreRating: genreRatingFactor(a, b, gapCurve),
         genreOverlap: genreOverlapFactor(a, b),
         year: yearFactor(a, b),
         ageRating: ageRatingFactor(a, b),

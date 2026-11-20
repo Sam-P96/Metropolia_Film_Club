@@ -4,7 +4,7 @@
 // called.
 export const RESONANCE_TIERS = {
   // This or more is a Soul Resonance, with the Resonance icon.
-  soul: 80,
+  soul: 85,
   // This or more is a Resonance. Anything below is a Dissonance, shown the
   // other way round: a 40% match is "Dissonance: 60%".
   resonance: 50,
