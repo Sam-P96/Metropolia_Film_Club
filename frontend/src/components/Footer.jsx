@@ -46,12 +46,12 @@ function Footer() {
           <ul className="space-y-2">
             <li className="text-sm text-white/60">Email coming soon</li>
             <li>
-              <a href="https://instagram.com/" target="_blank" rel="noopener noreferrer" className={linkClasses}>
+              <a href="https://www.instagram.com/kinokaverit/" target="_blank" rel="noopener noreferrer" className={linkClasses}>
                 Instagram
               </a>
             </li>
             <li>
-              <a href="https://discord.com/" target="_blank" rel="noopener noreferrer" className={linkClasses}>
+              <a href="https://discord.gg/bhNeyxk8af" target="_blank" rel="noopener noreferrer" className={linkClasses}>
                 Discord
               </a>
             </li>
