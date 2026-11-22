@@ -75,7 +75,7 @@ function AboutClub({ isAuthenticated: isLoggedIn = false }) {
           )}
 
           <a
-            href="https://discord.gg/FFna7RBA3"
+            href="https://discord.gg/bhNeyxk8af"
             target="_blank"
             rel="noopener noreferrer"
             className={secondaryButton}
