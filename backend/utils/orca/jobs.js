@@ -10,7 +10,9 @@ const { nextMidnight, today } = require("./clock");
 // Lord Gang Orca's favours (section 6 of his spec): while a member's favour
 // mode is on, four jobs a day, dealt at 00:00 (and the moment it starts).
 // Jobs not done by the next 00:00 expire; done ones count across days, on
-// the member. Three done and favour mode ends.
+// the member. Three done and favour mode ends. A member in the red has debt
+// jobs too (debt.js): the same kinds, picked and finished the same way,
+// kept apart by `mode`.
 //
 // Who can be picked comes from King Loan Shark's own lists
 // (loanShark/jobLists.js, the ones /SECRETloanshark shows), so the two
@@ -121,7 +123,7 @@ async function dealJobs(playerId, { now = new Date(), random = Math.random, forc
     const claimed = await OrcaPlayer.findOneAndUpdate(claim, { $set: { "favour.jobsDay": day } }, { returnDocument: "after" }).lean();
     if (!claimed) return [];
 
-    await OrcaJob.updateMany({ player: playerId, status: "open" }, { $set: { status: "expired" } });
+    await OrcaJob.updateMany({ player: playerId, status: "open", mode: { $ne: "debt" } }, { $set: { status: "expired" } });
     const picked = await pickJobs(playerId, { now, random });
     if (picked.length === 0) return [];
     const expiresAt = nextMidnight(now);
@@ -140,12 +142,13 @@ async function endFavour(playerId, random = Math.random) {
         },
         { returnDocument: "after" }
     ).lean();
-    if (ended) await OrcaJob.updateMany({ player: playerId, status: "open" }, { $set: { status: "cancelled" } });
+    if (ended) await OrcaJob.updateMany({ player: playerId, status: "open", mode: { $ne: "debt" } }, { $set: { status: "cancelled" } });
     return Boolean(ended);
 }
 
-// A job's action happened: it's done, and it counts towards the player's
-// three (if their favour mode is still on). Returns whether it counted.
+// A job's action happened: it's done. A favour counts towards the player's
+// three (if their favour mode is still on); a debt job forgives some of
+// their debt (debt.js forgive). Returns whether it counted.
 async function completeJob(job, now = new Date()) {
     const claimed = await OrcaJob.findOneAndUpdate(
         { _id: job._id, status: "open", expiresAt: { $gt: now } },
@@ -159,6 +162,7 @@ async function completeJob(job, now = new Date()) {
         { returnDocument: "after" }
     ).lean();
     if (!claimed) return false;
+    if (claimed.mode === "debt") return (await require("./debt").forgive(claimed)) > 0;
 
     const player = await OrcaPlayer.findOneAndUpdate(
         { user: job.player, "favour.on": true },
@@ -240,24 +244,32 @@ async function undoJobDislikes(now = new Date()) {
     return due.length;
 }
 
-// Every minute (jobs/orcaSweep.js): jobs past 00:00 expire, members in
-// favour mode get today's four, and job dislikes 48 hours old come off.
+// Every minute (jobs/orcaSweep.js): jobs past their time expire, members in
+// favour mode get today's four, members in the red get their debt jobs
+// topped up to ten (and members out of it lose theirs: debt.js), and job
+// dislikes 48 hours old come off.
 async function sweep(now = new Date()) {
     await OrcaJob.updateMany({ status: "open", expiresAt: { $lte: now } }, { $set: { status: "expired" } });
     const due = await OrcaPlayer.find({ "favour.on": true, "favour.jobsDay": { $ne: today(now) } }).select("user").lean();
     for (const player of due) {
         await dealJobs(player.user, { now }).catch((error) => console.error("Lord Gang Orca couldn't deal jobs:", error.message));
     }
+    await require("./debt").sweepDebts(now);
     await undoJobDislikes(now);
     return due.length;
 }
 
-// A member's jobs for the page: today's, with names and the review.
+// A member's favours for the page: today's, with names and the review.
 async function jobsFor(playerId, now = new Date()) {
-    const { MEMBER_FIELDS, userSummary } = require("../serialize");
-    const jobs = await OrcaJob.find({ player: playerId, day: today(now), status: { $in: ["open", "done", "expired"] } })
+    const jobs = await OrcaJob.find({ player: playerId, day: today(now), mode: { $ne: "debt" }, status: { $in: ["open", "done", "expired"] } })
         .sort({ createdAt: 1 })
         .lean();
+    return jobViews(jobs);
+}
+
+// Jobs as the page shows them: who X and Y are, and the review.
+async function jobViews(jobs) {
+    const { MEMBER_FIELDS, userSummary } = require("../serialize");
     const ids = [...new Set(jobs.flatMap((job) => [job.x, job.y]).filter(Boolean).map(String))];
     const users = await User.find({ _id: { $in: ids } }).select(MEMBER_FIELDS).lean();
     const byId = new Map(users.map((user) => [String(user._id), userSummary(user)]));
@@ -270,7 +282,8 @@ async function jobsFor(playerId, now = new Date()) {
         y: member(job.y),
         review: job.review ? { _id: job.review, filmTitle: job.filmTitle } : null,
         expiresAt: job.expiresAt,
+        forgiven: job.forgiven ?? null,
     }));
 }
 
-module.exports = { DAY_MS, rollType, pickJobs, dealJobs, endFavour, completeJob, onReviewPosted, beforeVote, onGameFinished, undoJobDislikes, sweep, jobsFor };
+module.exports = { DAY_MS, rollType, pickJobs, dealJobs, endFavour, completeJob, onReviewPosted, beforeVote, onGameFinished, undoJobDislikes, sweep, jobsFor, jobViews };

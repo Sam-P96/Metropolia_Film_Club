@@ -21,10 +21,11 @@ export const DOUBLE = {
   seed: { percentile: 0.75, min: 20, max: 500, activeMonths: 2 },
 
   // The bonus pot: `share` of what's left in the pot at each Monday reset
-  // goes in (all of it), up to `cap` (whatever doesn't fit is burned). Won
-  // along with a win when the bet is at least `betMultiple` times the
-  // week's seed.
-  bonus: { share: 1, cap: 95000, betMultiple: 4 },
+  // goes in (all of it), up to `cap` (whatever doesn't fit is burned), and
+  // it grows by `daily` on its own every day at the reset's hour (12:00,
+  // Helsinki), up to the cap too. Won along with a win when the bet is at
+  // least `betMultiple` times the week's seed.
+  bonus: { share: 1, cap: 95000, betMultiple: 4, daily: 500 },
 
   // When the pot starts over: every Monday at 12:00, Helsinki time.
   reset: { weekday: 1, hour: 12, zone: 'Europe/Helsinki' },

@@ -1,5 +1,6 @@
 // Site events that come round by the calendar, in Helsinki time: the Black
-// Market's Black Friday Sale and Box Office Scratch's Double Prize Weekend.
+// Market's Black Friday Sale and Box Office Scratch's Double Prize Weekend
+// (from Friday 16:00).
 // The server decides from these (what things cost and pay, and the
 // notification everyone gets when one starts: backend/utils/siteEvents.js);
 // the pages show them with the same sums.
@@ -56,16 +57,26 @@ export const salePrice = (item, now = new Date()) => priceInSale(item, blackFrid
 
 // ---------- Box Office Scratch's Double Prize Weekend ----------
 
-// Every Saturday and Sunday, Helsinki time: a card bought then pays `times`
-// its prize (a refund pays the ticket price back and once more in P-PP).
-// The jackpots stay as they are.
-export const DOUBLE_PRIZES = { times: 2 }
+// Every weekend, Helsinki time, from Friday at `startsFriday` to the end of
+// Sunday: a card bought then pays `times` its prize (a refund pays the
+// ticket price back and once more in P-PP). The jackpots stay as they are.
+// Each member can buy `cardsPerDay` cards of each ticket a day while it's
+// on (Helsinki days: Friday evening counts as Friday).
+export const DOUBLE_PRIZES = { times: 2, startsFriday: '16:00', cardsPerDay: 15 }
+
+const clockFormat = new Intl.DateTimeFormat('en-GB', { timeZone: EVENT_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+// The time in Helsinki at `now`, as "16:05".
+const helsinkiClock = (now = new Date()) => clockFormat.format(now)
 
 // The weekend at `now`. `key` names this weekend by its Saturday (its
 // notification is sent once per key).
 export function doublePrizeWeekend(now = new Date()) {
   const day = helsinkiDay(now)
   const weekday = weekdayOf(day)
-  const saturday = weekday === 6 ? day : weekday === 0 ? addDays(day, -1) : null
+  let saturday = null
+  if (weekday === 5 && helsinkiClock(now) >= DOUBLE_PRIZES.startsFriday) saturday = addDays(day, 1)
+  else if (weekday === 6) saturday = day
+  else if (weekday === 0) saturday = addDays(day, -1)
   return { on: saturday !== null, key: saturday ? `doublePrizes-${saturday}` : null, lastDay: saturday ? addDays(saturday, 1) : null }
 }

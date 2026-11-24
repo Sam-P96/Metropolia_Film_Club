@@ -45,6 +45,9 @@ const orcaPlayerSchema = new Schema({
     // data/lordGangOrcaScripts.js moments), so the next is a different one.
     lastMoment: { type: String, default: null },
 
+    // In the red (utils/orca/debt.js): when their empty debt-job slots were
+    // last filled, claimed so two at once can't both deal.
+    debtDealtAt: { type: Date, default: null },
     // Lines waiting for their next visit: "jobDone", "allDone".
     news: { type: [String], default: [] },
 

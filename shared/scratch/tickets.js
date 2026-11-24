@@ -16,11 +16,15 @@ export const isTicketType = (key, s = SCRATCH) => typeof key === 'string' && Obj
 // The ticket type of a card, a jackpot win or a notification.
 export const ticketTypeOf = (item) => (isTicketType(item?.ticketType) ? item.ticketType : DEFAULT_TICKET_TYPE)
 
-// A type's settings, with its `key`. An unknown key gets the default type,
-// so callers that take a key from outside check it with isTicketType first.
+// A type's settings, with its `key`, and `jackpotContribution`: what each
+// ticket sold adds to its jackpot, config.js's jackpotShare of the price,
+// rounded to a whole point (a type can set its own instead). An unknown key
+// gets the default type, so callers that take a key from outside check it
+// with isTicketType first.
 export function ticketType(key, s = SCRATCH) {
   const found = isTicketType(key, s) ? key : DEFAULT_TICKET_TYPE
-  return { key: found, ...s.ticketTypes[found] }
+  const settings = s.ticketTypes[found]
+  return { key: found, jackpotContribution: Math.round(settings.price * (s.jackpotShare ?? 0)), ...settings }
 }
 
 // The tiers as `key`'s tickets pay them: config.js's tiers, each with `ppp`

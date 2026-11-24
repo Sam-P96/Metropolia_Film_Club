@@ -96,6 +96,12 @@ async function changeWallet(userId, decide, {
         const set = { "wallet.pp": balance.pp, "wallet.ppp": balance.ppp };
         if ("lastPayoutDay" in change) set["wallet.lastPayoutDay"] = change.lastPayoutDay;
 
+        // In the red, the lowest it's been since going there is kept (Lord
+        // Gang Orca's debt jobs forgive a share of it: utils/orca/debt.js);
+        // out of it, that's forgotten.
+        const lowest = Math.min(balance.pp, balance.ppp);
+        const update = lowest < 0 ? { $set: set, $min: { "wallet.debtLow": lowest } } : { $set: set, $unset: { "wallet.debtLow": 1 } };
+
         const result = await User.updateOne(
             {
                 _id: userId,
@@ -105,7 +111,7 @@ async function changeWallet(userId, decide, {
                 // null also matches wallets from before freezing existed.
                 "wallet.frozenUntil": wallet.frozenUntil,
             },
-            { $set: set },
+            update,
             { timestamps: false, session }
         );
 

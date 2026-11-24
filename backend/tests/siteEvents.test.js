@@ -14,7 +14,7 @@ process.env.SECRET ??= "site-events-test-secret";
 const mongoose = require("mongoose");
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { blackFridayOf, blackFridaySale, doublePrizeWeekend, priceInSale, salePrice } = require("../../shared/events.js");
+const { DOUBLE_PRIZES, blackFridayOf, blackFridaySale, doublePrizeWeekend, priceInSale, salePrice } = require("../../shared/events.js");
 const { NAME_ITEMS, cosmeticById } = require("../../shared/cosmetics/catalogue.js");
 
 // Helsinki is UTC+2 in late November: its midnight is 22:00 UTC the day before.
@@ -47,14 +47,21 @@ describe("the calendar", () => {
         assert.equal(salePrice({ id: "name.neon.blue", price: 5000 }, at("2026-12-05T10:00:00Z")), 5000);
     });
 
-    test("Double Prize Weekend: every Saturday and Sunday, Helsinki time, named by its Saturday", () => {
-        assert.equal(doublePrizeWeekend(at("2026-11-20T21:59:59Z")).on, false, "Friday 23:59");
-        assert.deepEqual(doublePrizeWeekend(at("2026-11-20T22:00:00Z")), { on: true, key: "doublePrizes-2026-11-21", lastDay: "2026-11-22" });
+    test("Double Prize Weekend: from Friday 16:00 to the end of Sunday, Helsinki time, named by its Saturday", () => {
+        assert.equal(doublePrizeWeekend(at("2026-11-20T13:59:59Z")).on, false, "Friday 15:59");
+        assert.deepEqual(doublePrizeWeekend(at("2026-11-20T14:00:00Z")), { on: true, key: "doublePrizes-2026-11-21", lastDay: "2026-11-22" }, "Friday 16:00");
+        assert.equal(doublePrizeWeekend(at("2026-11-20T21:59:59Z")).key, "doublePrizes-2026-11-21", "Friday 23:59");
+        assert.equal(doublePrizeWeekend(at("2026-11-20T22:00:00Z")).key, "doublePrizes-2026-11-21", "Saturday 00:00");
+        assert.equal(doublePrizeWeekend(at("2026-11-19T14:00:00Z")).on, false, "Thursday 16:00");
         assert.equal(doublePrizeWeekend(at("2026-11-22T21:59:59Z")).key, "doublePrizes-2026-11-21", "Sunday 23:59");
         assert.equal(doublePrizeWeekend(at("2026-11-22T22:00:00Z")).on, false, "Monday 00:00");
         // Summer time: Helsinki is UTC+3.
-        assert.equal(doublePrizeWeekend(at("2026-06-26T20:59:59Z")).on, false);
-        assert.equal(doublePrizeWeekend(at("2026-06-26T21:00:00Z")).on, true);
+        assert.equal(doublePrizeWeekend(at("2026-06-26T12:59:59Z")).on, false);
+        assert.equal(doublePrizeWeekend(at("2026-06-26T13:00:00Z")).on, true);
+    });
+
+    test("15 cards of each ticket a day while it's on", () => {
+        assert.deepEqual(DOUBLE_PRIZES, { times: 2, startsFriday: "16:00", cardsPerDay: 15 });
     });
 });
 
@@ -104,11 +111,13 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         // Black Friday: the sale, but not a weekend yet.
         assert.deepEqual(await announceSiteEvents(at("2026-11-27T08:00:00Z")), ["blackFriday"]);
         assert.deepEqual(await announceSiteEvents(at("2026-11-27T09:00:00Z")), [], "only once");
-        // The Saturday: the weekend starts too.
-        assert.deepEqual(await announceSiteEvents(at("2026-11-28T08:00:00Z")), ["doublePrizes"]);
+        // 16:00 that Friday: the weekend starts too.
+        assert.deepEqual(await announceSiteEvents(at("2026-11-27T14:00:00Z")), ["doublePrizes"]);
+        assert.deepEqual(await announceSiteEvents(at("2026-11-28T08:00:00Z")), [], "Saturday: already sent");
         assert.deepEqual(await announceSiteEvents(at("2026-11-29T20:00:00Z")), [], "Sunday: both already sent");
         // The next weekend is a new one.
-        assert.deepEqual(await announceSiteEvents(at("2026-12-05T08:00:00Z")), ["doublePrizes"]);
+        assert.deepEqual(await announceSiteEvents(at("2026-12-04T13:00:00Z")), [], "Friday 15:00");
+        assert.deepEqual(await announceSiteEvents(at("2026-12-04T14:00:00Z")), ["doublePrizes"]);
 
         for (const person of people) {
             const types = (await Notification.find({ recipient: person._id }).lean()).map((note) => note.type).sort();

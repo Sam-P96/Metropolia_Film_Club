@@ -48,7 +48,7 @@ const FEED_FILTERS = {
     events: ["event", ...Object.values(Notification.EVENT_RSVP_TYPES)],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
 };
 // What Reviews, Cuts and Games show whatever else they leave out: club
 // events, and big news (a trending review, a jackpot, a Double or Nothing
@@ -221,6 +221,12 @@ async function hydrate(rows, viewer) {
 
         // The Black Friday Sale and Double Prize Weekend starting: nobody's in
         // them, just that.
+        // Box Office Scratch's Golden Rush, told to this member alone: when
+        // it runs.
+        if (row.type === "goldenRush") {
+            return [{ _id: row._id, type: row.type, at: row.at, rush: { from: row.rush?.from ?? null, to: row.rush?.to ?? null }, actors: [] }];
+        }
+
         if (Notification.SITE_EVENT_TYPES.includes(row.type)) {
             return [{ _id: row._id, type: row.type, at: row.at, actors: [] }];
         }

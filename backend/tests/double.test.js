@@ -115,6 +115,25 @@ describe("the game logic", () => {
         // The week the clocks go back (25 October 2026): the next Monday is in winter time.
         assert.equal(engine.nextResetAt(new Date("2026-10-21T12:00:00Z")).toISOString(), "2026-10-26T10:00:00.000Z");
     });
+
+    test("the bonus pot grows by 500 a day on its own, never past 95 000", () => {
+        assert.equal(engine.bonusGrowth(0, 1), 500);
+        assert.equal(engine.bonusGrowth(900, 3), 2400);
+        assert.equal(engine.bonusGrowth(94800, 1), 95000);
+        assert.equal(engine.bonusGrowth(95000, 4), 95000);
+        assert.equal(engine.bonusGrowth(900, 0), 900);
+    });
+
+    test("it grows at 12:00 in Helsinki, every day, summer and winter, the clocks changing included", () => {
+        assert.equal(engine.lastDailyAt(new Date("2026-07-15T08:59:00Z")).toISOString(), "2026-07-14T09:00:00.000Z");
+        assert.equal(engine.lastDailyAt(new Date("2026-07-15T09:00:00Z")).toISOString(), "2026-07-15T09:00:00.000Z");
+        assert.equal(engine.lastDailyAt(new Date("2026-11-24T10:30:00Z")).toISOString(), "2026-11-24T10:00:00.000Z");
+        const noon = (iso) => engine.lastDailyAt(new Date(iso));
+        assert.equal(engine.dailiesBetween(noon("2026-11-20T12:00:00Z"), new Date("2026-11-24T10:30:00Z")), 4);
+        assert.equal(engine.dailiesBetween(noon("2026-11-24T12:00:00Z"), new Date("2026-11-24T20:00:00Z")), 0, "the same day");
+        assert.equal(engine.dailiesBetween(noon("2026-10-23T12:00:00Z"), new Date("2026-10-27T12:00:00Z")), 4, "over the clocks going back");
+        assert.equal(engine.dailiesBetween(noon("2026-03-27T12:00:00Z"), new Date("2026-03-30T12:00:00Z")), 3, "over the clocks going forward");
+    });
 });
 
 const uri = process.env.MONGO_TEST_URI;
@@ -484,6 +503,29 @@ describe("the Double or Nothing routes", { skip: !uri ? "set MONGO_TEST_URI to r
         assert.deepEqual(await walletOf(player), { pp: 0, ppp: 1060 });
         assert.equal((await pot()).bonusPot, 0);
         assert.equal(await WalletTx.countDocuments({ user: player._id, reason: "doubleBonus", ppp: 900 }), 1);
+    });
+
+    routeTest("the bonus pot grows by 500 for every 12:00 since it last did, on the next request, and only once", async () => {
+        const lastNoon = engine.lastDailyAt(new Date());
+        await setPot({ bonusPot: 900, bonusGrownAt: new Date(lastNoon.getTime() - 3 * 86400000) });
+        const player = await member(0);
+        await status(player);
+        const after = await pot();
+        assert.equal(after.bonusPot, 2400);
+        assert.equal(after.bonusGrownAt.toISOString(), lastNoon.toISOString());
+        await status(player);
+        assert.equal((await pot()).bonusPot, 2400, "not again until the next 12:00");
+
+        // Never past the cap.
+        await setPot({ bonusPot: 94800, bonusGrownAt: new Date(lastNoon.getTime() - 2 * 86400000) });
+        await status(player);
+        assert.equal((await pot()).bonusPot, 95000);
+
+        // A pot from before it grew by itself starts counting from now.
+        await setPot({ bonusPot: 700 });
+        await status(player);
+        const started = await pot();
+        assert.deepEqual([started.bonusPot, started.bonusGrownAt.toISOString()], [700, lastNoon.toISOString()]);
     });
 
     routeTest("the bonus pot: a win below 4x the seed doesn't touch it", async () => {

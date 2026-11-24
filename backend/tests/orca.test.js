@@ -343,6 +343,119 @@ describe("against the database", { skip: !uri ? "set MONGO_TEST_URI to run these
         assert.equal(after.dislikedBy.length, 0);
     });
 
+    // ---- In the red (utils/orca/debt.js) ----
+
+    const { changeWallet } = require("../utils/wallet");
+    // A Steal and Defend fine they couldn't pay: P-PP below 0.
+    const fine = (user, ppp) => changeWallet(user._id, () => ({ ppp: -ppp }), { reason: "stealFine", allowDebt: true });
+    const win = (user, ppp) => changeWallet(user._id, () => ({ ppp }), { reason: "win" });
+
+    test("the wallet keeps the lowest it's been while in the red, and forgets it once out", async () => {
+        const kid = await member({ ppp: 0 });
+        await fine(kid, 100);
+        assert.equal((await walletOf(kid)).debtLow, -100);
+        await fine(kid, 900);
+        await win(kid, 500);
+        assert.deepEqual([(await walletOf(kid)).ppp, (await walletOf(kid)).debtLow], [-500, -1000]);
+        await win(kid, 500);
+        assert.equal("debtLow" in (await walletOf(kid)), false, "back to 0: forgotten");
+        await fine(kid, 30);
+        assert.equal((await walletOf(kid)).debtLow, -30, "a new debt starts again from there");
+    });
+
+    test("in the red: he's open around the clock for begging, with ten jobs that each forgive a tenth of the lowest, never past 0", async () => {
+        const debts = require("../utils/orca/debt");
+        const kid = await member({ reviews: 20 });
+        for (let i = 0; i < 4; i++) await member({ reviews: 1, pvp: true });
+        // Saturday at 03:00: he's shut.
+        await orca.debug(kid._id, "clock", { weekday: 6, hour: 3 });
+        assert.equal((await orca.statusOf(kid._id)).open, false);
+        await assert.rejects(orca.beg(kid._id), /not in/);
+
+        await fine(kid, 1000);
+        await win(kid, 500);
+        const status = await orca.statusOf(kid._id);
+        assert.equal(status.open, true, "open while they're in the red");
+        assert.deepEqual([status.debt.on, status.debt.owed, status.debt.low, status.debt.perJob, status.debt.slots], [true, 500, -1000, 100, 10]);
+        assert.equal(status.debt.jobs.length, 10);
+        const dealt = await OrcaJob.find({ player: kid._id, mode: "debt" }).lean();
+        assert.equal(dealt.length, 10);
+        for (const job of dealt) {
+            assert.ok(Math.abs(job.expiresAt - job.createdAt - 2 * 24 * 60 * 60 * 1000) < 1000, "each good for two days");
+            assert.ok(["challenge", "review", "dislike", "like"].includes(job.type));
+        }
+        assert.deepEqual((await orca.summaryOf(kid._id)).debt, { on: true });
+        assert.equal((await orca.summaryOf(kid._id)).open, true);
+        const begged = await orca.beg(kid._id, { random: () => 0.5 });
+        assert.deepEqual(begged.paid, { pp: 10, ppp: 0 }, "begging as usual");
+
+        // Each job done forgives 100 (a tenth of -1,000), from -500.
+        const [first, second, third, fourth, fifth, ...rest] = dealt;
+        for (const job of [first, second, third, fourth]) assert.equal(await jobs.completeJob(job), true);
+        assert.equal((await walletOf(kid)).ppp, -100);
+        assert.equal((await OrcaJob.findById(first._id).lean()).forgiven, 100);
+        assert.equal((await orca.statusOf(kid._id)).debt.jobs.length, 10, "done ones keep their slots until they're replaced");
+
+        // The last 100: out of the red, the rest cancelled, all as usual again.
+        assert.equal(await jobs.completeJob(fifth), true);
+        assert.equal((await walletOf(kid)).ppp, 0);
+        assert.deepEqual(new Set((await OrcaJob.find({ _id: { $in: rest.map((job) => job._id) } }).lean()).map((job) => job.status)), new Set(["cancelled"]));
+        const after = await orca.statusOf(kid._id, { takeNews: true });
+        assert.deepEqual([after.debt.on, after.open], [false, false]);
+        assert.equal(after.news.at(-1).text, SCRIPTS.lines.allDone[0]);
+        await orca.debug(kid._id, "skipCooldown");
+        await assert.rejects(orca.beg(kid._id), /not in/);
+        assert.equal(await debts.dealDebtJobs(kid._id).then((list) => list.length), 0, "no jobs out of the red");
+    });
+
+    test("never past 0: a job worth more than what's owed forgives just that", async () => {
+        const kid = await member({ reviews: 20 });
+        await fine(kid, 1000);
+        await win(kid, 950);
+        await orca.statusOf(kid._id);
+        const [job] = await OrcaJob.find({ player: kid._id, mode: "debt" }).lean();
+        await jobs.completeJob(job);
+        assert.equal((await walletOf(kid)).ppp, 0);
+        assert.equal((await OrcaJob.findById(job._id).lean()).forgiven, 50);
+    });
+
+    test("a slot gets a new job two days after its last was dealt, done or not; the sweep deals, and cancels for those out of the red", async () => {
+        const kid = await member({ reviews: 20 });
+        await fine(kid, 200);
+        const now = new Date();
+        await jobs.sweep(now);
+        const dealt = await OrcaJob.find({ player: kid._id, mode: "debt" }).lean();
+        assert.equal(dealt.length, 10);
+        await jobs.completeJob(dealt[0]);
+
+        // A day later: nothing new.
+        await jobs.sweep(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+        assert.equal(await OrcaJob.countDocuments({ player: kid._id, mode: "debt" }), 10);
+
+        // Two days on: the open ones expire, and all ten slots are filled again.
+        const later = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000 + 60 * 1000);
+        await jobs.sweep(later);
+        assert.equal(await OrcaJob.countDocuments({ player: kid._id, mode: "debt", status: "expired" }), 9);
+        assert.equal(await OrcaJob.countDocuments({ player: kid._id, mode: "debt", status: "open", createdAt: later }), 10);
+
+        // Out of the red some other way: the next sweep cancels them.
+        await win(kid, 1000);
+        await jobs.sweep(later);
+        assert.equal(await OrcaJob.countDocuments({ player: kid._id, mode: "debt", status: "open" }), 0);
+    });
+
+    test("favours and debt jobs stay apart: favour mode's jobs, its three and its page aren't touched by debt jobs", async () => {
+        const kid = await member({ reviews: 20 });
+        await fine(kid, 300);
+        await OrcaPlayer.updateOne({ user: kid._id }, { $set: { "favour.on": true, "favour.jobsDay": null } }, { upsert: true });
+        const status = await orca.statusOf(kid._id);
+        assert.equal(status.debt.jobs.length, 10);
+        assert.ok(status.favour.jobs.length <= 4, "only the day's favours on the favours list");
+        const debtJob = await OrcaJob.findOne({ player: kid._id, mode: "debt" }).lean();
+        await jobs.completeJob(debtJob);
+        assert.equal((await OrcaPlayer.findOne({ user: kid._id }).lean()).favour.done, 0, "a debt job isn't a favour");
+    });
+
     test("the routes: the testing tools are admins' only", async () => {
         const kid = await member();
         const admin = await member({ role: "admin" });

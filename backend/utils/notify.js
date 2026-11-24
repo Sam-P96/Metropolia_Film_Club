@@ -341,6 +341,13 @@ async function noteSiteEvent(type) {
     await sendToEach(members, { type });
 }
 
+// Box Office Scratch's Golden Rush started (utils/scratch.js
+// goldenRushNotice): the one member picked hears when it runs, `from` to
+// `to`, pinned to the top of their Notifications until it's over.
+function noteGoldenRush(recipient, from, to) {
+    return Notification.create({ recipient, type: "goldenRush", rush: { from, to }, pinned: true });
+}
+
 // The Slot Machine (utils/slots.js): `playerId` tripled what they put in
 // this session. Big news: every member hears about it, the player included.
 async function noteSlotTriple(playerId) {
@@ -801,6 +808,7 @@ module.exports = {
     noteQuizWinner,
     noteQuizStreak,
     noteSiteEvent,
+    noteGoldenRush,
     noteDoubleResult,
     notePokerWin,
     noteStealAttacked,

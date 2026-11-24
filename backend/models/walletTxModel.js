@@ -74,6 +74,8 @@ const Schema = mongoose.Schema;
 // Lord Gang Orca (utils/orca/player.js):
 //   orcaBeg          a beg: PP (never past the PP cap), plus P-PP for a
 //                    question answered right
+//   orcaForgive      a debt job done: P-PP added towards 0, never past it
+//                    (utils/orca/debt.js)
 //   quizPrize        the Daily Quiz's weekly draw, won, in P-PP (utils/quiz.js)
 //   quizStreak       the Daily Quiz's 7 day streak bonus, in P-PP
 //   adminGrant       P-PP sent by an admin from the admin panel (`other`: which
@@ -97,7 +99,7 @@ const walletTxSchema = new Schema({
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
-            "crashBet", "crashWin", "crashRefund", "crashProtect", "forrestEntry", "forrestCashOut", "orcaBeg",
+            "crashBet", "crashWin", "crashRefund", "crashProtect", "forrestEntry", "forrestCashOut", "orcaBeg", "orcaForgive",
             "quizPrize", "quizStreak", "adminGrant",
         ],
         required: true,

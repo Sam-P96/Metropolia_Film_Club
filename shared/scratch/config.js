@@ -33,6 +33,11 @@ export const SCRATCH = {
   // Not enough stars by the last scratch.
   loss: { key: 'bomb', name: 'Box Office Bomb' },
 
+  // How much of what every ticket costs goes into its own type's jackpot:
+  // 90%, so a 10 point ticket adds 9 (tickets.js ticketType, as
+  // `jackpotContribution`).
+  jackpotShare: 0.9,
+
   // ---- The tickets on sale ----
   // Cheapest first: the page lists them in this order. Each one has:
   //   price                what it costs, in points: PP first, then P-PP
@@ -43,8 +48,6 @@ export const SCRATCH = {
   //                        PP, P-PP as P-PP)
   //   jackpotSeed          its own jackpot, in P-PP: what the pool starts at,
   //                        and goes back to after someone wins it
-  //   jackpotContribution  how much each ticket of this type sold adds to
-  //                        its pool
   //   hours                null if it's always on sale. Otherwise it's on
   //                        sale from `opens` up to (not including) `closes`
   //                        by the clocks in `timeZone`, daylight saving time
@@ -58,7 +61,6 @@ export const SCRATCH = {
       price: 10,
       prizes: { 3: { ppp: 80 }, 4: { ppp: 40 }, 5: { ppp: 20 }, 6: { ppp: 15 }, 7: { refund: true } },
       jackpotSeed: 150,
-      jackpotContribution: 1,
       hours: null,
     },
     premium: {
@@ -66,7 +68,6 @@ export const SCRATCH = {
       price: 20,
       prizes: { 3: { ppp: 165 }, 4: { ppp: 85 }, 5: { ppp: 40 }, 6: { ppp: 35 }, 7: { refund: true } },
       jackpotSeed: 315,
-      jackpotContribution: 2,
       hours: null,
     },
     vip: {
@@ -74,7 +75,6 @@ export const SCRATCH = {
       price: 30,
       prizes: { 3: { ppp: 265 }, 4: { ppp: 130 }, 5: { ppp: 65 }, 6: { ppp: 50 }, 7: { refund: true } },
       jackpotSeed: 485,
-      jackpotContribution: 3,
       hours: { timeZone: 'Europe/Helsinki', opens: '16:00', closes: '24:00' },
     },
   },

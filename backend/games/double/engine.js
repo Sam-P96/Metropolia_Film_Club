@@ -93,6 +93,33 @@ function resetSplit(lost, bonusPot) {
     return { toBonus, burned: lost - toBonus, bonusPot: bonusPot + toBonus };
 }
 
+// The bonus pot's daily growth: DOUBLE.bonus.daily for each of `days`,
+// never past the cap (a pot already over it stays as it is).
+function bonusGrowth(bonusPot, days) {
+    if (days <= 0 || bonusPot >= DOUBLE.bonus.cap) return bonusPot;
+    return Math.min(DOUBLE.bonus.cap, bonusPot + days * DOUBLE.bonus.daily);
+}
+
+// The latest 12:00 in Helsinki at or before `now`: when the bonus pot last
+// grew.
+function lastDailyAt(now = new Date()) {
+    const { hour, zone } = DOUBLE.reset;
+    const here = DateTime.fromJSDate(now, { zone });
+    let at = here.set({ hour, minute: 0, second: 0, millisecond: 0 });
+    if (at > here) at = at.minus({ days: 1 });
+    return at.toJSDate();
+}
+
+// How many 12:00s (Helsinki) passed after `since`, up to `now`. Counted in
+// Helsinki's days, so the clocks changing can't add or lose one.
+function dailiesBetween(since, now = new Date()) {
+    const { zone } = DOUBLE.reset;
+    const last = DateTime.fromJSDate(lastDailyAt(now), { zone });
+    const from = DateTime.fromJSDate(since, { zone });
+    if (last <= from) return 0;
+    return Math.round(last.startOf("day").diff(DateTime.fromJSDate(lastDailyAt(since), { zone }).startOf("day"), "days").days);
+}
+
 // Whether a win at `bet` also wins the bonus pot, in a week seeded `seed`.
 function bonusEligible(bet, seed) {
     return bet >= DOUBLE.bonus.betMultiple * seed;
@@ -132,6 +159,9 @@ module.exports = {
     percentile,
     seedFrom,
     resetSplit,
+    bonusGrowth,
+    lastDailyAt,
+    dailiesBetween,
     bonusEligible,
     lastResetAt,
     nextResetAt,

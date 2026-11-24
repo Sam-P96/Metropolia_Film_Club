@@ -2,14 +2,15 @@ const mongoose = require("mongoose");
 const ScratchCard = require("../models/scratchCardModel");
 const Jackpot = require("../models/jackpotModel");
 const GoldenRush = require("../models/goldenRushModel");
+const Notification = require("../models/notificationModel");
 const User = require("../models/userModel");
 const WalletTx = require("../models/walletTxModel");
-const { WalletError, changeWallet, credit, spend } = require("./wallet");
-const { noteScratchJackpot, noteScratchWin } = require("./notify");
+const { WalletError, changeWallet, credit, leaderboardStages, spend } = require("./wallet");
+const { noteGoldenRush, noteScratchJackpot, noteScratchWin } = require("./notify");
 const { announceJackpot } = require("../games/farkle/live");
 const { ScratchError, TILE_COUNT, newLayout, scratchTile, sealLayout, tierByKey } = require("../games/scratch/engine");
 const { SCRATCH } = require("../../shared/scratch/config.js");
-const { GOLDEN_RUSH, goldenRushHour, goldenTicketOneIn } = require("../games/happyHours");
+const { HAPPY_HOURS, goldenTicketOneIn, helsinkiDay, windowAt } = require("../games/happyHours");
 const { JACKPOT_FEED } = require("../config/jackpotFeed");
 const { DOUBLE_PRIZES, doublePrizeWeekend } = require("../../shared/events.js");
 const {
@@ -193,67 +194,77 @@ async function claimJackpot(card) {
 }
 
 // ---- The Golden Rush ----
-// In its windows (games/happyHours.js), one card in 10 hides the Golden
-// Ticket, on one ticket type: the one with the biggest jackpot of those on
-// sale. A card bought in it winning that jackpot stops it for 14 days.
-// Server only: no page is told.
+// Twice a day, for an hour at a time, at times that change every day
+// (games/happyHours.js): one card in 50 hides the Golden Ticket instead of
+// one in 200, whatever the ticket. Nobody's told, except for the one member
+// goldenRushNotice picks when a jackpot has grown big.
 
-const RUSH_ID = "scratch";
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-// The ticket type the rush is on at `now`, from the pools' `amounts`
-// ({ standard, premium, vip }): the biggest jackpot of the types on sale
-// then, the dearer ticket on a tie. null if none is on sale.
-function rushTicketType(amounts, now = new Date()) {
-    let best = null;
-    for (const type of TICKET_TYPES) {
-        if (!ticketHours(type, now).open) continue;
-        const amount = amounts[type] ?? ticketType(type).jackpotSeed;
-        if (!best || amount >= best.amount) best = { type, amount };
-    }
-    return best?.type ?? null;
-}
-
-// Is the rush on at `now`: in one of its windows, and no card bought in it
-// has won a jackpot in the last 14 days? Resolves to the ticket type it's
-// on, or null.
-async function goldenRushOn(now = new Date()) {
-    if (!goldenRushHour(now)) return null;
-    const [rush, pools] = await Promise.all([
-        GoldenRush.findById(RUSH_ID).lean(),
-        Jackpot.find({ _id: { $in: JACKPOT_IDS } }).select("amount").lean(),
-    ]);
-    if (rush?.wonAt && now.getTime() < rush.wonAt.getTime() + GOLDEN_RUSH.restDays * DAY_MS) return null;
-    const byId = new Map(pools.map((pool) => [pool._id, pool.amount]));
-    return rushTicketType(Object.fromEntries(TICKET_TYPES.map((type) => [type, byId.get(jackpotId(type))])), now);
-}
-
-// One card in how many hides the Golden Ticket, for a `type` card bought
-// at `now`: { oneIn, rush }. One in 200; one in 50 in the scratch happy
-// hour; one in 10 for the rush's ticket while it's on.
-async function goldenOdds(type, now = new Date()) {
+// One card in how many hides the Golden Ticket, for a card bought at `now`:
+// { oneIn, rush }, `rush` saying it's the Golden Rush's odds.
+function goldenOdds(now = new Date()) {
     const oneIn = goldenTicketOneIn(SCRATCH.goldenTicketOneIn, now);
-    if ((await goldenRushOn(now)) !== type) return { oneIn, rush: false };
-    return { oneIn: Math.min(oneIn, GOLDEN_RUSH.oneIn), rush: true };
+    return { oneIn, rush: oneIn < SCRATCH.goldenTicketOneIn };
 }
 
-// `card`, bought in the rush, won its jackpot: the rush stops, from now.
-// Only if nothing else bought in it has won since `card` was bought (a
-// rush card that was still being scratched when the rush stopped doesn't
-// stop the next one), and only once, so paying again after a failure
-// changes nothing.
-async function stopGoldenRush(card, at = new Date()) {
+// A random member to tell, never the richest one (the top of the PP
+// Leaderboard), or null if there's nobody else.
+async function memberToTell() {
+    const [richest] = await User.aggregate([...leaderboardStages({ username: 1 }), { $limit: 1 }]);
+    const [picked] = await User.aggregate([{ $match: richest ? { _id: { $ne: richest._id } } : {} }, { $sample: { size: 1 } }, { $project: { _id: 1 } }]);
+    return picked?._id ?? null;
+}
+
+// Every minute (jobs/goldenRush.js). When a Golden Rush window has just
+// started: if the jackpot of any ticket on sale then has reached its line
+// (HAPPY_HOURS.goldenRush.notifyAt), one member picked at random, never the
+// richest, gets a notification saying so, pinned to the top of their
+// Notifications until the window's over. Each window is claimed by its
+// start time first, so this happens once whatever the server does: a window
+// found under the line stays quiet, even if a jackpot passes it later on.
+// Notices whose window is over come unpinned. Resolves to the member told,
+// or null.
+async function goldenRushNotice(now = new Date()) {
+    await Notification.updateMany({ type: "goldenRush", pinned: true, "rush.to": { $lte: now } }, { $unset: { pinned: 1 } });
+
+    const window = windowAt("goldenRush", now);
+    if (!window) return null;
+
+    const { amounts } = await jackpotView();
+    const onSale = TICKET_TYPES.filter((type) => ticketHours(type, now).open);
+    const pools = Object.fromEntries(onSale.map((type) => [type, amounts[type]]));
+    const big = onSale.some((type) => amounts[type] >= HAPPY_HOURS.goldenRush.notifyAt[type]);
+
     try {
-        await GoldenRush.updateOne(
-            { _id: RUSH_ID, $or: [{ wonAt: null }, { wonAt: { $lt: card.createdAt } }] },
-            { $set: { wonAt: at, card: card._id, ticketType: ticketTypeOf(card) } },
-            { upsert: true }
-        );
+        await GoldenRush.create({ _id: window.from.toISOString(), from: window.from, to: window.to, pools, at: now });
     } catch (error) {
-        // It's there, but stopped since this card was bought: the upsert
-        // tried to make a second one.
-        if (error.code !== 11000) throw error;
+        if (error.code === 11000) return null; // seen already
+        throw error;
     }
+    if (!big) return null;
+
+    const member = await memberToTell();
+    if (!member) return null;
+    await GoldenRush.updateOne({ _id: window.from.toISOString() }, { $set: { notified: member } });
+    await noteGoldenRush(member, window.from, window.to);
+    return member;
+}
+
+// ---- Double Prize Weekend's daily cards ----
+
+// How many `type` cards `userId` has bought today (the Helsinki date `now`
+// falls on) in a Double Prize Weekend.
+function weekendCardsToday(userId, type, now) {
+    return ScratchCard.countDocuments({ user: userId, ticketType: type, doublePrizes: true, boughtDay: helsinkiDay(now) });
+}
+
+// In a Double Prize Weekend, each member can buy DOUBLE_PRIZES.cardsPerDay
+// cards of each ticket a day (shared/events.js). For the page: { on, perDay,
+// left: { standard, premium, vip } }, or { on: false } outside one.
+async function weekendLimits(userId, now = new Date()) {
+    if (!doublePrizeWeekend(now).on) return { on: false };
+    const perDay = DOUBLE_PRIZES.cardsPerDay;
+    const bought = await Promise.all(TICKET_TYPES.map((type) => weekendCardsToday(userId, type, now)));
+    return { on: true, perDay, left: Object.fromEntries(TICKET_TYPES.map((type, i) => [type, Math.max(0, perDay - bought[i])])) };
 }
 
 // ---- Opening hours ----
@@ -335,14 +346,16 @@ async function currentCard(userId) {
 }
 
 // A new ticket of type `type` (a key in config.js ticketTypes), if it's on
-// sale at `now`: a VIP ticket only in its hours, by the clocks in Helsinki.
-// It's dealt with the Golden Ticket odds of that moment (goldenOdds).
-// The card is made first, as "pending", holding their activeFor: it's
-// unique, so a second Buy tap (or a card already going) fails here, before
-// anything is taken. Then the price is taken, PP first and then P-PP, and
-// the card goes live. If taking the price fails (not enough points), the
-// card is deleted again. Each ticket sold adds to its type's jackpot.
-// Returns the card, with its seal (`hash`).
+// sale at `now`: a VIP ticket only in its hours, by the clocks in Helsinki,
+// and in a Double Prize Weekend only DOUBLE_PRIZES.cardsPerDay of each type
+// a day. It's dealt with the Golden Ticket odds of that moment
+// (goldenOdds). The card is made first, as "pending", holding their
+// activeFor: it's unique, so a second Buy tap (or a card already going)
+// fails here, before anything is taken. Then the price is taken, PP first
+// and then P-PP, and the card goes live. If taking the price fails (not
+// enough points), the card is deleted again. Each ticket sold adds its
+// share of the price to its type's jackpot. Returns the card, with its
+// seal (`hash`).
 async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
     if (!isTicketType(type)) {
         throw new ScratchError(`Pick a ticket: ${TICKET_TYPES.join(", ")}.`);
@@ -351,8 +364,17 @@ async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
     if (!ticketHours(type, now).open) {
         throw new ScratchError(`${kind.name} tickets are on sale ${describeHours(kind.hours)}.`, 403);
     }
+    // Only one card can be going at once (activeFor), so counting first
+    // can't let two through past the limit.
+    const doublePrizes = doublePrizeWeekend(now).on;
+    if (doublePrizes && (await weekendCardsToday(userId, type, now)) >= DOUBLE_PRIZES.cardsPerDay) {
+        throw new ScratchError(
+            `It's a Double Prize Weekend: ${DOUBLE_PRIZES.cardsPerDay} ${kind.name} tickets a day each, and you've had today's. More at midnight.`,
+            429
+        );
+    }
 
-    const odds = await goldenOdds(type, now);
+    const odds = goldenOdds(now);
     const layout = newLayout(undefined, { goldenOneIn: odds.oneIn });
     const { salt, hash } = sealLayout(layout);
 
@@ -366,7 +388,8 @@ async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
             hash,
             price: kind.price,
             activeFor: userId,
-            doublePrizes: doublePrizeWeekend(now).on,
+            doublePrizes,
+            boughtDay: helsinkiDay(now),
             goldenRush: odds.rush,
         });
     } catch (error) {
@@ -515,14 +538,12 @@ async function payPrize(cardId) {
 
 // Pays the jackpot `card` won with the Golden Ticket, once, the same way:
 // its type's pool is claimed (claimJackpot), then the card is claimed for
-// paying. Every member hears about it, and which ticket it was. A card
-// bought in the Golden Rush stops it.
+// paying. Every member hears about it, and which ticket it was.
 async function payJackpot(cardId) {
     const found = await ScratchCard.findOne({ _id: cardId, goldenFound: true, jackpotPaid: false }).lean();
     if (!found) return;
 
     const amount = await claimJackpot(found);
-    if (found.goldenRush) await stopGoldenRush(found);
     const card = await ScratchCard.findOneAndUpdate(
         { _id: cardId, jackpotPaid: false },
         { $set: { jackpotPaid: true, jackpotAmount: amount } },
@@ -617,9 +638,9 @@ module.exports = {
     splitFeed,
     feedJackpots,
     claimJackpot,
-    rushTicketType,
-    goldenRushOn,
     goldenOdds,
+    goldenRushNotice,
+    weekendLimits,
     cardView,
     currentCard,
     buyCard,

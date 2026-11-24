@@ -1,5 +1,5 @@
 const express = require("express");
-const { getJackpot, getHours, getCurrentCard, postCard, postScratch, postCollect, getReveal } = require("../controllers/scratchController");
+const { getJackpot, getHours, getLimits, getCurrentCard, postCard, postScratch, postCollect, getReveal } = require("../controllers/scratchController");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -11,6 +11,8 @@ router.get("/hours", getHours);
 // Their card: the one to show, a new one, and what they do with it. The
 // controller checks each card is theirs.
 router.get("/card", requireAuth, getCurrentCard);
+// In a Double Prize Weekend: the cards of each ticket they've left today.
+router.get("/limits", requireAuth, getLimits);
 router.post("/cards", requireAuth, postCard);
 router.post("/cards/:id/scratch", requireAuth, postScratch);
 router.post("/cards/:id/collect", requireAuth, postCollect);

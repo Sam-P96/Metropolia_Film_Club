@@ -7,13 +7,16 @@ const { LORD_GANG_ORCA } = require("../../config/lordGangOrca");
 const { WalletError, changeWallet, dailyPp, ppCap } = require("../wallet");
 const { clockOf, isOpen, nextMidnight, nextOpening, today } = require("./clock");
 const jobs = require("./jobs");
+const debts = require("./debt");
 
 // Lord Gang Orca, the mob boss on the Games page: members beg him for PP
 // (three times a day, an hour apart, while he's open), now and then he asks
 // a question instead, and once a member's begs reach their secret
 // threshold, he wants favours (jobs.js) before he pays again. He never
-// takes anything back. Everything is decided here, on the server: the page
-// is sent what to show, never the threshold or a question's answer.
+// takes anything back. A member in the red finds him open around the clock
+// for begging, with jobs that pay their debt off (debt.js). Everything is
+// decided here, on the server: the page is sent what to show, never the
+// threshold or a question's answer.
 
 const BEG = LORD_GANG_ORCA.beg;
 const FAVOUR = LORD_GANG_ORCA.favour;
@@ -135,7 +138,7 @@ async function beg(userId, { now = new Date(), random = secure } = {}) {
     const reviews = await reviewsOf(userId);
     let player = await playerOf(userId);
     if (reviews < 1) return { steps: [line("noReviews", random)] };
-    if (!isOpen(clockOf(now, player.fakeClock))) throw new OrcaError("He's not in. Come back Monday to Friday, from 16:00.", 409);
+    if (!isOpen(clockOf(now, player.fakeClock)) && !(await debts.debtOfMember(userId))) throw new OrcaError("He's not in. Come back Monday to Friday, from 16:00.", 409);
     if (player.question) return { steps: [orcaSays(SCRIPTS.questions[player.question.index].question)], question: questionView(player.question) };
     if (player.favour.on) return { steps: [await freshLine(player, "favourMode", random)] };
 
@@ -207,16 +210,19 @@ async function answer(userId, option, { now = new Date() } = {}) {
 
 // What his page shows. `news`: the lines waiting since their last visit
 // (jobs done), shown now and then forgotten. `admin`: their testing tools'
-// state too.
+// state too. In the red, he's open whatever the time, and `debt` has their
+// debt jobs (dealt now if any slots are empty).
 async function statusOf(userId, { now = new Date(), takeNews = false, admin = false } = {}) {
     let player = await playerOf(userId);
     if (player.favour.on && player.favour.jobsDay !== today(now)) {
         await jobs.dealJobs(userId, { now });
         player = await playerOf(userId);
     }
+    const debt = await debts.debtOfMember(userId);
+    if (debt) await debts.dealDebtJobs(userId, { now });
     const reviews = await reviewsOf(userId);
     const clock = clockOf(now, player.fakeClock);
-    const open = isOpen(clock);
+    const open = isOpen(clock) || Boolean(debt);
     const begs = player.day === today(now) ? player.begs : 0;
     const cooldownUntil = player.lastBegAt && player.lastBegAt.getTime() + BEG.cooldownMs > now.getTime() ? new Date(player.lastBegAt.getTime() + BEG.cooldownMs) : null;
 
@@ -257,6 +263,18 @@ async function statusOf(userId, { now = new Date(), takeNews = false, admin = fa
             jobTexts: SCRIPTS.jobs,
             refreshAt: nextMidnight(now),
         },
+        debt: debt
+            ? {
+                  on: true,
+                  owed: debt.owed,
+                  low: debt.low,
+                  perJob: debt.perJob,
+                  slots: LORD_GANG_ORCA.debt.jobs,
+                  refreshDays: LORD_GANG_ORCA.debt.refreshDays,
+                  jobs: await debts.debtJobsFor(userId, now),
+                  jobTexts: SCRIPTS.jobs,
+              }
+            : { on: false },
         ...(admin && {
             debug: {
                 fakeClock: player.fakeClock,
@@ -267,17 +285,20 @@ async function statusOf(userId, { now = new Date(), takeNews = false, admin = fa
     };
 }
 
-// The Games page's box: open or not, begs left, the cooldown, favours.
+// The Games page's box: open or not, begs left, the cooldown, favours, and
+// whether they're in the red (open around the clock, with debt jobs).
 async function summaryOf(userId, now = new Date()) {
     const player = await OrcaPlayer.findOne({ user: userId }).lean();
+    const debt = await debts.debtOfMember(userId);
     const clock = clockOf(now, player?.fakeClock);
     const begs = player?.day === today(now) ? player.begs : 0;
     const cooldownUntil = player?.lastBegAt && player.lastBegAt.getTime() + BEG.cooldownMs > now.getTime() ? new Date(player.lastBegAt.getTime() + BEG.cooldownMs) : null;
     return {
-        open: isOpen(clock),
+        open: isOpen(clock) || Boolean(debt),
         begs: { used: begs, perDay: BEG.perDay },
         cooldownUntil,
         favour: { on: Boolean(player?.favour?.on), done: player?.favour?.done ?? 0, needed: FAVOUR.needed },
+        debt: { on: Boolean(debt) },
     };
 }
 
@@ -321,7 +342,7 @@ async function debug(userId, action, payload = {}, now = new Date()) {
         }
         case "endFavour":
             await OrcaPlayer.updateOne({ user: userId }, { $set: { "favour.on": false, "favour.done": 0, "favour.jobsDay": null, built: 0, threshold: rollThreshold() } });
-            await OrcaJob.updateMany({ player: userId, status: "open" }, { $set: { status: "cancelled" } });
+            await OrcaJob.updateMany({ player: userId, status: "open", mode: { $ne: "debt" } }, { $set: { status: "cancelled" } });
             break;
         default:
             throw new OrcaError("Unknown testing tool.");
@@ -345,4 +366,4 @@ async function forgetOrcaPlayer(userId) {
     await OrcaJob.updateMany({ status: "open", $or: [{ x: userId }, { y: userId }] }, { $set: { status: "cancelled" } });
 }
 
-module.exports = { OrcaError, WalletError, rollThreshold, begAmount, beg, answer, statusOf, summaryOf, debug, orcaDataOf, forgetOrcaPlayer };
+module.exports = { OrcaError, WalletError, rollThreshold, playerOf, begAmount, beg, answer, statusOf, summaryOf, debug, orcaDataOf, forgetOrcaPlayer };
