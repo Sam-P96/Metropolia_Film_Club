@@ -24,6 +24,7 @@ const { poolBetsOf } = require("../utils/poolBets");
 const { forgetPoolShop, poolShopDataOf } = require("../utils/poolShop");
 const { crashDataOf, forgetCrashPlayer } = require("../utils/crash");
 const { forrestDataOf, forgetForrestPlayer } = require("../utils/forrest");
+const { catflixDataOf, forgetCatflixPlayer } = require("../utils/catflix/data");
 const { orcaDataOf, forgetOrcaPlayer } = require("../utils/orca/player");
 const { forgetQuizMember, quizDataOf } = require("../utils/quiz");
 const PokerSeat = require("../models/pokerSeatModel");
@@ -519,7 +520,7 @@ const updateMe = async (req, res) => {
 const exportMe = async (req, res) => {
     const userId = req.user._id;
 
-    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket, gomokuGames, gomokuShop, dailyQuiz, poolGames, poolBets, poolShop, crash, forrestBounce, lordGangOrca] = await Promise.all([
+    const [account, reviews, comments, filmLogs, walletHistory, farkleMatches, scratchCards, doubleOrNothingGames, slotMachine, resonance, stealAndDefend, pokerSeat, loanShark, blackMarket, gomokuGames, gomokuShop, dailyQuiz, poolGames, poolBets, poolShop, crash, forrestBounce, lordGangOrca, catflixNoChill] = await Promise.all([
         User.findById(userId).select("-password").lean(),
         Review.find({ user: userId }).lean(),
         Comment.find({ user: userId }).lean(),
@@ -555,6 +556,8 @@ const exportMe = async (req, res) => {
         forrestDataOf(userId),
         // Lord Gang Orca: their begs, favours and jobs.
         orcaDataOf(userId),
+        // Catflix No Chill: their pet, things, Ruin Runs and Kitty Races.
+        catflixDataOf(userId),
     ]);
 
     if (!account) {
@@ -583,6 +586,7 @@ const exportMe = async (req, res) => {
         crash,
         forrestBounce,
         lordGangOrca,
+        catflixNoChill,
     });
 }
 
@@ -637,6 +641,7 @@ async function deleteAccount(user) {
     await forgetCrashPlayer(userId);
     await forgetForrestPlayer(userId);
     await forgetOrcaPlayer(userId);
+    await forgetCatflixPlayer(userId);
     await forgetQuizMember(userId);
     await WalletTx.deleteMany({ user: userId });
     await User.deleteOne({ _id: userId });

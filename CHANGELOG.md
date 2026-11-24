@@ -8,6 +8,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Catflix No Chill (Games → Catflix No Chill, `/games/catflix`), the pet
+  game: every member hatches one magical egg cat from a free egg (100 taps;
+  the server picks the cat) and looks after it. Cats are gender neutral and
+  don't breed.
+  - Meters: happiness, hunger, confidence and love, kept on the server and
+    caught up an hour at a time (`backend/utils/catflix/pets.js`). Three
+    feeds (or hunger at 100) keep a cat full for 24 hours; below 15 hunger
+    it loses 1 happiness an hour. It poops every 8 hours (5 at most), and
+    each poop left costs 1 happiness every 2 hours. The owner's love drops 1
+    an hour while happiness is under 50, other members' love under 25, and a
+    cat only grows love for other members while its happiness is under 50.
+  - Care at home (feed, brush, scoop, scold, praise) as often as you like;
+    on someone else's pet, once an hour each. Scold then praise: +2 love,
+    +2 happiness, a little less confidence. Scold alone: +2 confidence, a
+    little less happiness.
+  - The Room Room (the School to start, six maps): your cat and 6 others,
+    picked again every visit, each a friend's half the time. Play (+1
+    happiness for both), Pet (+2 happiness, +1 confidence for theirs) or
+    Bully, once an hour per pet, or go on a Play Date to their room. The
+    weather changes every 4 hours (6 times a day), the same for everyone;
+    none indoors, and the Christmas map only ever has sun or snow.
+  - The shop, all for PP (never real money): card packs (including the
+    Black & Gold pack, 7 cards for 200,000 PP), food (3 servings for 100
+    PP, 100 at most), room styles (500 PP each; Cozy is free), and aura
+    crystals (500,000 PP, Rain Cloud 800,000; Black Friday prices apply).
+    Packs are opened, cards forged and cast on the server
+    (`backend/utils/catflix/shop.js`).
+  - A friend's cat that loves you (80 love or more, earned by caring for it
+    on Play Dates): once a day, from 12:00, it has a 5% chance of stealing
+    5% of its owner's PP (never P-PP) and giving it to you as P-PP. You get
+    a notification with the cat's happy animation; its owner is told too
+    (`backend/utils/catflix/gifts.js`).
+  - Your pet on the Games page card (before it hatches, or logged out, the
+    game's logo: the first registered form's idle animation), on your
+    profile above Stats with "Visit Pet" (a Play Date in their pet's room,
+    or your own), and on the leaderboards' top 3 rows, on their banners,
+    from tablet width.
+  - The game is Pet Forge's page played for real (`/api/catflix/app/`),
+    shown in a frame filling the screen; the site draws pets itself with
+    `components/catflix/PetSprite.jsx`. Its tabs: Explore (the Room Room),
+    Kitty Race, Ruin Run, Pet and Shop. On Explore, Kitty Race and Ruin Run
+    the screen holds still (no scrolling while you play): the game sits at
+    the top, between the tabs and the bottom of the screen, and everything
+    else opens in a pop-up window over it (Explore's places, Kitty Race's
+    bets, races and results). Explore's auras switch and place button are
+    under the game window.
+  - Ruin Run (Games → Ruin Run, or its tab): your pet runs through a ruined
+    city, 2% faster every second and 25% faster after each enemy pet. Like
+    Forrest Bounce, a menu over the game picks the bet: 1, 10, 30, 50, 100
+    or any amount up to 10,000 PP (PP first, then P-PP), with one switch
+    over the game (tap lanes or swipe);
+    every 1% of speed above 100% when the run ends pays back 2% of the bet,
+    with no cap (150%: the bet back; 200%: twice it). Like Forrest Bounce,
+    three runs a play day can be cashed out (or thrown away to keep the
+    cash-out), then it's free play until 12:00, and what a run loses goes
+    to the Box Office Scratch jackpots. Every run gives your pet +1
+    confidence. The run is a fixed-step engine shared by the page and the
+    server (`backend/public/pet-forge/ruin-engine.js`): the server picks
+    the seed and plays the run again from what the player pressed, so the
+    speed it pays for is its own.
+  - Nekomusume: Kitty Race (Games → Kitty Race, or its tab): ten cats race,
+    yours among them, on a track picked at random. Bet up to 5,000 PP;
+    every cat has the same chance,
+    and yours winning pays 10 times the bet (the bet back, the rest in
+    P-PP). 90% of every bet lost goes to the Box Office Scratch jackpots.
+    Race straight away against nine house cats, or open a race your friends
+    (members who follow each other) can join with their own bets; it starts
+    when the host says, or by itself after 5 minutes, and leaving before
+    the start gives the bet back. The server picks the winner and the whole
+    finishing order and pays out at the start; every page plays the same
+    race from its seed.
+
+- Pet Forge (Admin panel → Pet Forge, `/admin/pet-forge`), for making the
+  pets of Catflix No Chill, from the prototype in `shared/prototype/`.
+  Upload a base form's animations (idle, sad, angry, love, walk; GIFs or PNG
+  strips), resize each one on its own (width × height in art pixels, ▼ ▲,
+  Sync to keep them in proportion, ↺; a 256 px animation set to 64 px
+  matches 64 px ones, and the cat is that size everywhere), recolour its fur
+  with one shared palette and coats, and register
+  named forms with a rarity. Base forms, their animation files and
+  registered forms are saved on the server, admins only, every save checked
+  (`backend/utils/petForge.js`); the files are kept in the database. The
+  Room, Race, Run, Pet, Shop and Profile tabs are a sandbox for trying them
+  out, kept in the admin's browser only: nothing done there touches the
+  real site. The page is served by the server (`backend/public/pet-forge/`)
+  and shown in a frame, so it works under the site's security rules.
 - Forrest Bounce (Games → Forrest Bounce, `/games/forrest-bounce`): tap to
   drop one buddy from a branch onto a seesaw and launch the other up to the
   far tree, through floating fruit (higher is worth more, up to a x100
@@ -858,6 +944,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Catflix No Chill: the Wallet page names its receipts (shop buys, Ruin Run
+  and Kitty Race bets and wins), and a member's pet, things, runs and races
+  are in their data export and go when they delete their account.
+- Catflix No Chill and Pet Forge on a phone: the pet room's columns stack,
+  and pickers with many buttons (the six places) wrap instead of cutting off.
 - Review card banners with a picture came up empty (leaderboards, review
   cards, profiles, Resonance, Notifications) when the server didn't have
   its small copies of them on disk: the database said the copies were

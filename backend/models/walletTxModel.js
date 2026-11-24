@@ -84,6 +84,18 @@ const Schema = mongoose.Schema;
 //   loanCollector    Kaveri took it for King Loan Shark, out of the
 //                    wallet: only ever an admin's development button (at 12:00
 //                    he takes it from the payout before it reaches the wallet)
+// Catflix No Chill (utils/catflix/), with the run or race in `catflix`:
+//   catflixShop      a booster pack, aura crystal, pet food or room style
+//   ruinRunEntry     a Ruin Run's bet (PP first, then P-PP; ruinRun.js)
+//   ruinRunCashOut   a Ruin Run cashed out: the bet back in its own coins,
+//                    the rest in P-PP (less than the bet: split like it)
+//   kittyRaceBet     a Kitty Race bet (PP first, then P-PP; kittyRace.js)
+//   kittyRaceWin     their cat won: 10 times the bet, the bet back in its
+//                    own coins and the rest in P-PP
+//   kittyRaceRefund  a bet back: they left before the start, or the host did
+//   catflixGift      a friend's cat that loves them stole this from its
+//                    owner (`other`) for them, in P-PP (gifts.js)
+//   catflixStolen    their cat stole this PP from them for a friend (`other`)
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -98,6 +110,7 @@ const walletTxSchema = new Schema({
             "pokerBuyIn", "pokerCashOut",
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
+            "catflixShop", "ruinRunEntry", "ruinRunCashOut", "kittyRaceBet", "kittyRaceWin", "kittyRaceRefund", "catflixGift", "catflixStolen",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
             "crashBet", "crashWin", "crashRefund", "crashProtect", "forrestEntry", "forrestCashOut", "orcaBeg", "orcaForgive",
             "quizPrize", "quizStreak", "adminGrant",
@@ -128,6 +141,8 @@ const walletTxSchema = new Schema({
     poolBet: {type: Schema.Types.ObjectId, ref: "PoolBet", default: null},
     crash: {type: Schema.Types.ObjectId, ref: "CrashRound", default: null},
     forrest: {type: Schema.Types.ObjectId, ref: "ForrestRun", default: null},
+    // The Catflix No Chill Ruin Run or Kitty Race a bet or win belongs to.
+    catflix: {type: Schema.Types.ObjectId, default: null},
     // An admin's note with P-PP they sent (adminGrant), if they wrote one.
     note: {type: String},
     at: {type: Date, default: Date.now},

@@ -24,6 +24,13 @@ const JACKPOT_FEED = {
     // its cash-out paid. All of it for a run thrown away, let go when a new
     // one started, not counted, or never finished.
     forrest: 1,
+
+    // Catflix No Chill. Of what a Ruin Run loses (PP and P-PP): its bet,
+    // less what its cash-out paid; all of it for a run thrown away or never
+    // finished, like Forrest Bounce.
+    ruinRun: 1,
+    // Of every Kitty Race bet lost (PP and P-PP): any cat but yours won.
+    kittyRace: 0.9,
 };
 
 module.exports = { JACKPOT_FEED };

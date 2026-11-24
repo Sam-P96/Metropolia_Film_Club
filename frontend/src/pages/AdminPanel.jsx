@@ -18,6 +18,11 @@ const QUIET = 'cursor-pointer rounded-lg border border-white/20 bg-white/5 px-4 
 // Every admin tool with a page of its own, to go to from here.
 const TOOLS = [
   {
+    path: '/admin/pet-forge',
+    name: 'Pet Forge',
+    about: 'Make the pets of Catflix No Chill: upload a base form’s animations, recolour them and register named forms with a rarity. Its Room, Race, Run, Pet, Shop and Profile tabs are a sandbox for trying them out, kept in your browser only.',
+  },
+  {
     path: '/games/steal-and-defend/admin',
     name: 'Steal and Defend admin',
     about: 'Flags of suspicious play, the Ban List (site, games and Steal and Defend bans) and resetting everyone’s steal timer.',

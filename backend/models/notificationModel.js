@@ -170,6 +170,13 @@ const CRASH_TYPES = ["crashBigWin", "crashResult", "crashInvite"];
 // level, net (won or lost), previous (the best it beat) }.
 const FORREST_TYPES = ["forrestCashOut", "forrestBigWin", "forrestBest", "forrestRecord"];
 
+// Catflix No Chill (utils/catflix/gifts.js): a friend's cat that loves you
+// stole some of its owner's PP for you.
+//   catflixGift    to you: `actors[0]` is its owner; `amount` P-PP is yours
+//   catflixStolen  to its owner: `actors[0]` got `amount` of their PP
+// `catflix`: the cat ({ pet, petName, skinId }).
+const CATFLIX_TYPES = ["catflixGift", "catflixStolen"];
+
 // Box Office Scratch's Golden Rush (utils/scratch.js goldenRushNotice):
 //   goldenRush  a Golden Rush window has started, `rush.from` to `rush.to`:
 //               1 in 50 cards hides the Golden Ticket. Only one member is
@@ -186,6 +193,7 @@ const EVENT_RSVP_TYPES = { attending: "eventAttending", interested: "eventIntere
 const GAME_TYPES = [
     ...CRASH_TYPES,
     ...FORREST_TYPES,
+    ...CATFLIX_TYPES,
     ...SCRATCH_RUSH_TYPES,
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
@@ -200,7 +208,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...SCRATCH_RUSH_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...CATFLIX_TYPES, ...SCRATCH_RUSH_TYPES],
         required: true,
     },
     review: {
@@ -208,7 +216,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
+            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...CATFLIX_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -241,6 +249,12 @@ const notificationSchema = new Schema({
         level: {type: Number},
         net: {type: Number},
         previous: {type: Number},
+    },
+    // Catflix No Chill: the cat that stole for a friend.
+    catflix: {
+        pet: {type: Schema.Types.ObjectId},
+        petName: {type: String},
+        skinId: {type: String},
     },
     // Box Office Scratch's Golden Rush: when the window starts and ends.
     rush: {
@@ -307,6 +321,7 @@ Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.CRASH_TYPES = CRASH_TYPES;
 Notification.FORREST_TYPES = FORREST_TYPES;
+Notification.CATFLIX_TYPES = CATFLIX_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;
 Notification.SITE_EVENT_TYPES = SITE_EVENT_TYPES;

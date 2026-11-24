@@ -3,8 +3,9 @@ const { JACKPOT_FEED } = require("../config/jackpotFeed");
 // Shares of what's lost elsewhere going into the Box Office Scratch
 // jackpots (config/jackpotFeed.js): from stakes lost to Clanker at Kino
 // Farkle (utils/farkle.js), from what King Loan Shark takes
-// (utils/loanShark/), from Box Office Crash rounds (utils/crash.js) and
-// from Forrest Bounce runs (utils/forrest.js). The pools themselves are
+// (utils/loanShark/), from Box Office Crash rounds (utils/crash.js), from
+// Forrest Bounce runs (utils/forrest.js), and from Catflix No Chill's Ruin
+// Runs and Kitty Races (utils/catflix/). The pools themselves are
 // utils/scratch.js's.
 
 // `share` (0.75) of `amount`, rounded up to a whole point, without floating
@@ -43,4 +44,10 @@ const feedFromCrash = (lost) => feed(feedShare(lost, JACKPOT_FEED.crash), "Box O
 // A Forrest Bounce run lost `lost` points.
 const feedFromForrest = (lost) => feed(feedShare(lost, JACKPOT_FEED.forrest), "Forrest Bounce");
 
-module.exports = { feedShare, feedFromClanker, feedFromLoanShark, feedFromCrash, feedFromForrest };
+// A Ruin Run lost `lost` points.
+const feedFromRuinRun = (lost) => feed(feedShare(lost, JACKPOT_FEED.ruinRun), "Ruin Run");
+
+// Kitty Race bets of `lost` points lost, all of a race's together.
+const feedFromKittyRace = (lost) => feed(feedShare(lost, JACKPOT_FEED.kittyRace), "Kitty Race");
+
+module.exports = { feedShare, feedFromClanker, feedFromLoanShark, feedFromCrash, feedFromForrest, feedFromRuinRun, feedFromKittyRace };

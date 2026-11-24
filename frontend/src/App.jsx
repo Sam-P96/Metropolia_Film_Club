@@ -78,10 +78,12 @@ const PoolShop = lazy(() => import("./pages/PoolShop"));
 const Crash = lazy(() => import("./pages/Crash"));
 const ForrestBounce = lazy(() => import("./pages/ForrestBounce"));
 const ForrestPlay = lazy(() => import("./pages/ForrestPlay"));
+const Catflix = lazy(() => import("./pages/Catflix"));
 const LordGangOrca = lazy(() => import("./pages/LordGangOrca"));
 const DailyQuiz = lazy(() => import("./pages/DailyQuiz"));
 const QuizQuestions = lazy(() => import("./pages/QuizQuestions"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const PetForge = lazy(() => import("./pages/PetForge"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Infinite Gomoku's developer tool: only in the Vite dev server. A
@@ -165,6 +167,10 @@ function App() {
                 name on their own profile links here. Not in the nav. */}
             <Route path="/admin" element={
               isAuthenticated ? (<AdminPanel />) : (<Navigate to="/login" state={{ from: '/admin' }} />)
+            } />
+            {/* Pet Forge: the admin panel's pet maker. */}
+            <Route path="/admin/pet-forge" element={
+              isAuthenticated ? (<PetForge />) : (<Navigate to="/login" state={{ from: '/admin/pet-forge' }} />)
             } />
             <Route path="/SECRET" element={
               isAuthenticated ? (<SecretIndex />) : (<Navigate to="/login" state={{ from: '/SECRET' }} />)
@@ -270,6 +276,10 @@ function App() {
             } />
             <Route path="/games/pool/:matchId" element={
               isAuthenticated ? (<PoolMatch />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
+            } />
+            {/* Catflix No Chill: the pet game, its own page in a frame (pages/Catflix.jsx). */}
+            <Route path="/games/catflix" element={
+              isAuthenticated ? (<Catflix />) : (<Navigate to="/login" state={{ from: location.pathname }} />)
             } />
             <Route path="/games/scratch" element={
               isAuthenticated ? (<ScratchGame />) : (<Navigate to="/login" state={{ from: location.pathname }} />)

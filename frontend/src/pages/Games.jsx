@@ -26,6 +26,9 @@ import { GomokuLogo, GomokuTitle } from '../components/gomoku/GomokuChrome'
 import { PoolLogo, PoolTitle } from '../components/pool/PoolChrome'
 import { CrashLogo, CrashTitle } from '../components/crash/CrashChrome'
 import { ForrestLogo, ForrestTitle } from '../components/forrest/ForrestChrome'
+import CatflixLogo from '../components/catflix/CatflixLogo'
+import { getCatflixMe } from '../services/catflix'
+import { CATFLIX } from '../../../shared/catflix/rules.js'
 
 const CARD = 'group flex h-full flex-col gap-4 rounded-2xl border border-white/10 bg-plum/40 p-6 shadow-xl shadow-black/40 backdrop-blur-md transition-colors hover:border-brand-gold/60'
 
@@ -38,7 +41,9 @@ const SCRATCH_PRICES = SCRATCH_TICKETS.map((type) => type.price)
 const SCRATCH_TIMED = SCRATCH_TICKETS.filter((type) => type.hours)
 
 // Every game on the site, as a card each, behind "Games" in the nav:
-// Loan Shark first, then Farkle, Box Office Scratch, Infinite Gomoku, 8
+// Loan Shark first, then Farkle, Box Office Scratch, Catflix No Chill, Infinite
+// Gomoku, Catflix's Nekomusume: Kitty Race and Ruin Run (tabs of its game, opened
+// straight from here), 8
 // Ball Pool, Box Office Crash, Forrest Bounce, Kino Kasino, Kino Poker, Double or Nothing,
 // Lord Gang Orca, and Steal and Defend last (its picture says "Require
 // PvP" until its PvP is on). Every row
@@ -56,6 +61,9 @@ export default function Games() {
   // Steal and Defend's card shows its logo only to members with its PvP on.
   const steal = useApi(() => getStealStatus(), [loggedIn], { enabled: loggedIn })
   const stealPvp = Boolean(steal.data?.pvp)
+  // Catflix No Chill's card shows your pet (null: no pet yet, or logged out).
+  const catflix = useApi(() => getCatflixMe(), [loggedIn], { enabled: loggedIn })
+  const myPet = loggedIn ? (catflix.error ? null : catflix.data?.pet) : null
 
   return (
     <>
@@ -119,6 +127,19 @@ export default function Games() {
             </Link>
           </li>
           <li>
+            <Link to="/games/catflix" className={CARD}>
+              <CatflixLogo pet={myPet} />
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Catflix <span className="text-brand-gold">No Chill</span>
+              </h2>
+              <p className="text-white/70">
+                Hatch a magical egg cat and look after it: feed it, brush it, scoop its poop. Then go exploring with it to play with, pet or bully
+                the cats of other members.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Catflix No Chill →</span>
+            </Link>
+          </li>
+          <li>
             <Link to="/games/gomoku" className={CARD}>
               <GomokuLogo size={30} />
               <h2 className="font-['Cinzel'] text-2xl text-white">
@@ -128,6 +149,42 @@ export default function Games() {
                 Five in a row wins. Play a friend on this device or any member online, for fun or for PP, and land every piece with a shockwave.
               </p>
               <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Infinite Gomoku →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/catflix#race" className={CARD}>
+              <span className="flex items-center gap-3 self-start">
+                <CatflixLogo pet={myPet} />
+                <span className="rounded-lg border border-brand-gold/50 bg-brand-gold/10 px-2 py-1 text-sm font-bold text-brand-gold" aria-hidden="true">
+                  🏁 ×{CATFLIX.kittyRace.pays}
+                </span>
+              </span>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Nekomusume: <span className="text-brand-gold">Kitty Race</span>
+              </h2>
+              <p className="text-white/70">
+                {CATFLIX.kittyRace.racers} cats race, your pet among them. Bet up to {CATFLIX.kittyRace.maxBet.toLocaleString('en-US')} PP: if your cat
+                wins, you get {CATFLIX.kittyRace.pays} times your bet. Race the house cats, or open a race for your friends.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Race in Kitty Race →</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/games/catflix#run" className={CARD}>
+              <span className="flex items-center gap-3 self-start">
+                <CatflixLogo pet={myPet} />
+                <span className="rounded-lg border border-brand-gold/50 bg-brand-gold/10 px-2 py-1 text-sm font-bold text-brand-gold" aria-hidden="true">
+                  ⚡ 200%
+                </span>
+              </span>
+              <h2 className="font-['Bebas_Neue'] text-3xl leading-none tracking-wide text-white">
+                Ruin <span className="text-brand-gold">Run</span>
+              </h2>
+              <p className="text-white/70">
+                Your pet runs through a ruined city, faster and faster. Every 1% of speed above 100% pays back {CATFLIX.ruinRun.backPerPercent}% of
+                your bet, with no cap. Cash out your best {CATFLIX.ruinRun.cashOutsPerDay} runs a day.
+              </p>
+              <span className="mt-auto font-semibold text-brand-gold transition-colors group-hover:text-white">Play Ruin Run →</span>
             </Link>
           </li>
           <li>

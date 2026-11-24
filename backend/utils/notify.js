@@ -772,7 +772,19 @@ async function forgetMember(userId, reviewIds, cutIds = []) {
     await Notification.deleteMany({ type: { $in: VOTE_TYPES }, actors: { $size: 0 } });
 }
 
+// Catflix No Chill (utils/catflix/gifts.js): `pet`, `ownerId`'s cat, stole
+// `amount` of their PP for `friendId`. The friend hears (with the cat), and
+// so does the owner.
+function noteCatflixGift({ ownerId, friendId, pet, amount }) {
+    const catflix = { pet: pet._id, petName: pet.name, skinId: pet.skinId };
+    return Notification.insertMany([
+        { recipient: friendId, type: "catflixGift", amount, catflix, actors: [ownerId] },
+        { recipient: ownerId, type: "catflixStolen", amount, catflix, actors: [friendId] },
+    ]);
+}
+
 module.exports = {
+    noteCatflixGift,
     noteForrestCashOut,
     noteForrestBest,
     noteCrashResults,
