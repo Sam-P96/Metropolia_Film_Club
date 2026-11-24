@@ -190,6 +190,11 @@ const userSchema = new Schema(
             ppp: { type: Number, default: 0 },
             lastPayoutDay: { type: String, default: null },
             frozenUntil: { type: Date },
+            // While P-PP (or PP) is below 0: the lowest it's been since it
+            // went there (utils/wallet.js changeWallet keeps it). Lord Gang
+            // Orca's debt jobs forgive a share of it (utils/orca/debt.js).
+            // Missing whenever they're out of the red.
+            debtLow: { type: Number },
         },
 
         // When they last logged in. Steal and Defend takes an Infinity Stone

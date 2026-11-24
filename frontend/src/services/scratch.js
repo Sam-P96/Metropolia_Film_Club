@@ -21,6 +21,12 @@ export function getTicketHours() {
   return api('/scratch/hours')
 }
 
+// In a Double Prize Weekend, how many cards of each ticket they can still
+// buy today: { on, perDay, left: { standard, premium, vip } }, or { on: false }.
+export function getWeekendLimits() {
+  return api('/scratch/limits')
+}
+
 // The card to show: the one being scratched, or the last finished one not
 // yet revealed. { card }, null if neither.
 export function getCurrentCard() {

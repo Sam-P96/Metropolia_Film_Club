@@ -17,10 +17,10 @@ const jwt = require("jsonwebtoken");
 
 const { SCRATCH } = require("../../shared/scratch/config.js");
 const { scratchOdds } = require("../../shared/scratch/odds.js");
-const { TICKET_TYPES, describeHours, ticketHours, ticketTiers, ticketTypeOf } = require("../../shared/scratch/tickets.js");
+const { TICKET_TYPES, describeHours, ticketHours, ticketTiers, ticketType, ticketTypeOf } = require("../../shared/scratch/tickets.js");
 const engine = require("../games/scratch/engine");
 
-const { standard: STANDARD, premium: PREMIUM, vip: VIP } = SCRATCH.ticketTypes;
+const [STANDARD, PREMIUM, VIP] = TICKET_TYPES.map((key) => ticketType(key));
 
 const STAR = "star";
 const BLANK = "blank";
@@ -124,10 +124,15 @@ describe("the ticket types", () => {
         assert.equal(engine.tierByKey("dvd", "vip").refund, true);
     });
 
-    test("return to player: 88.6% Standard, 92.9% Premium, 94.9% VIP", () => {
-        assert.equal(scratchOdds("standard").rtp.toFixed(3), "0.886");
-        assert.equal(scratchOdds("premium").rtp.toFixed(3), "0.929");
-        assert.equal(scratchOdds("vip").rtp.toFixed(3), "0.949");
+    test("90% of every ticket goes into its jackpot: 9, 18 and 27", () => {
+        assert.equal(SCRATCH.jackpotShare, 0.9);
+        assert.deepEqual([STANDARD, PREMIUM, VIP].map((type) => type.jackpotContribution), [9, 18, 27]);
+    });
+
+    test("return to player, the jackpots counted in: 168.6% Standard, 172.9% Premium, 174.9% VIP", () => {
+        assert.equal(scratchOdds("standard").rtp.toFixed(3), "1.686");
+        assert.equal(scratchOdds("premium").rtp.toFixed(3), "1.729");
+        assert.equal(scratchOdds("vip").rtp.toFixed(3), "1.749");
     });
 
     test("anything without a ticket type is Standard", () => {
@@ -245,7 +250,9 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
     const walletOf = async (user) => (await User.findById(user._id).select("wallet").lean()).wallet;
     const POOL_IDS = { standard: "main", premium: "premium", vip: "vip" };
     const pool = async (type = "standard") => (await Jackpot.findById(POOL_IDS[type]).lean())?.amount;
-    const rig = (card, layout) => ScratchCard.updateOne({ _id: card._id }, { $set: { layout } });
+    // Lays out `card`'s tiles, and pays it as on a weekday whatever today is
+    // (a Double Prize Weekend would double its prize).
+    const rig = (card, layout) => ScratchCard.updateOne({ _id: card._id }, { $set: { layout, doublePrizes: false } });
     // A VIP ticket bought at 18:00 Helsinki time, whatever the time now.
     const IN_VIP_HOURS = new Date("2026-07-01T15:00:00Z");
     const buyVip = async (user) => {
@@ -473,8 +480,9 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         const { sweepScratchCards } = require("../utils/scratch");
         const user = await member(100);
         const card = (await buy(user)).body;
-        // As if the server stopped right after locking the tier in.
-        await ScratchCard.updateOne({ _id: card._id }, { $set: { tier: "darling", prizePaid: false } });
+        // As if the server stopped right after locking the tier in (on a
+        // weekday, whatever today is).
+        await ScratchCard.updateOne({ _id: card._id }, { $set: { tier: "darling", prizePaid: false, doublePrizes: false } });
         await Promise.all([sweepScratchCards(), sweepScratchCards()]);
         assert.equal((await walletOf(user)).ppp, 40);
         assert.equal(await WalletTx.countDocuments({ user: user._id, reason: "scratchWin" }), 1);
@@ -490,7 +498,7 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         assert.ok(body.amounts.vip >= VIP.jackpotSeed);
     });
 
-    test("a Premium ticket costs 20, PP first, and adds 2 to the Premium pool only", async () => {
+    test("a Premium ticket costs 20, PP first, and adds 18 to the Premium pool only", async () => {
         const user = await member(15, 50);
         const before = { standard: await pool("standard"), premium: await pool("premium"), vip: await pool("vip") };
         const { status, body } = await buy(user, "premium");
@@ -691,58 +699,32 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
     });
 
     // ---- The Golden Rush (games/happyHours.js): 15 January, Helsinki winter time (UTC+2) ----
-    const RUSH = {
-        vip: "2026-01-15T14:10:00Z", // 16:10, VIP's first 30 minutes
-        noon: "2026-01-15T09:45:00Z", // 11:45, VIP shut
-        last: "2026-01-15T10:30:00Z", // 12:30, its last minute
-        happy: "2026-01-15T10:31:00Z", // 12:31, the 1 in 50 instead
-        before: "2026-01-15T09:29:00Z", // 11:29
-        after: "2026-01-15T14:30:00Z", // 16:30
-    };
+    const { windowsFor, helsinkiTime } = require("../games/happyHours");
+    const RUSH_DAY = "2026-01-15";
+    const [EARLY, LATE] = windowsFor("goldenRush", RUSH_DAY);
+    const rushAt = (window, plus = 0, day = RUSH_DAY) => helsinkiTime(day, window.from + plus);
+    const OUTSIDE = helsinkiTime(RUSH_DAY, 9 * 60 + 30); // 09:30, before any window
     const setPools = (amounts) =>
         Promise.all(Object.entries(amounts).map(([type, amount]) => Jackpot.updateOne({ _id: POOL_IDS[type] }, { $set: { amount }, $setOnInsert: { recent: [] } }, { upsert: true })));
-    const goldenCard = layoutWith({ stars: [0, 1, 2, 3, 4], golden: 9 });
     const flat = async (promise) => JSON.parse(JSON.stringify(await promise));
+    // A card done with, so the member can buy the next.
+    const putAway = (card) => ScratchCard.updateOne({ _id: card._id }, { $set: { status: "complete" }, $unset: { activeFor: 1 } });
 
-    test("the Golden Rush: in its windows the biggest jackpot on sale is dealt 1 in 10 (the dearer ticket on a tie); everything else as usual", async () => {
-        const GoldenRush = require("../models/goldenRushModel");
-        const { goldenOdds, goldenRushOn, rushTicketType } = require("../utils/scratch");
-        await GoldenRush.deleteMany({});
-        await setPools({ standard: 500, premium: 400, vip: 900 });
-        const odds = async (type, at) => Object.values(await goldenOdds(type, new Date(at)));
-
-        // 16:10: all three on sale, and VIP's the biggest.
-        assert.equal(await goldenRushOn(new Date(RUSH.vip)), "vip");
-        assert.deepEqual(await odds("vip", RUSH.vip), [10, true]);
-        assert.deepEqual(await odds("premium", RUSH.vip), [200, false]);
-        assert.deepEqual(await odds("standard", RUSH.vip), [200, false]);
-
-        // 11:45 and 12:30: VIP's shut, so it's the biggest of the other two.
-        for (const at of [RUSH.noon, RUSH.last]) {
-            assert.equal(await goldenRushOn(new Date(at)), "standard", at);
-            assert.deepEqual(await odds("standard", at), [10, true]);
-            assert.deepEqual(await odds("premium", at), [200, false]);
+    test("the Golden Rush: 1 in 50 in either of the day's windows, whatever the ticket; 1 in 200 outside them", () => {
+        const { goldenOdds } = require("../utils/scratch");
+        assert.ok(EARLY.from >= 10 * 60 && EARLY.to <= 16 * 60, "the first between 10:00 and 16:00");
+        assert.ok(LATE.from >= 16 * 60 && LATE.to <= 23 * 60, "the second between 16:00 and 23:00");
+        for (const window of [EARLY, LATE]) {
+            assert.deepEqual(goldenOdds(rushAt(window)), { oneIn: 50, rush: true });
+            assert.deepEqual(goldenOdds(rushAt(window, 59)), { oneIn: 50, rush: true });
+            assert.deepEqual(goldenOdds(rushAt(window, 60)).oneIn, LATE.from === window.to ? 50 : 200);
         }
-
-        // 12:31: the 1 in 50 on every ticket, no rush.
-        assert.deepEqual(await odds("standard", RUSH.happy), [50, false]);
-        assert.deepEqual(await odds("premium", RUSH.happy), [50, false]);
-
-        // Outside the windows, nothing.
-        for (const at of [RUSH.before, RUSH.after]) assert.equal(await goldenRushOn(new Date(at)), null, at);
-        assert.deepEqual(await odds("vip", RUSH.after), [200, false]);
-
-        // Level pools: the dearer ticket.
-        assert.equal(rushTicketType({ standard: 400, premium: 400, vip: 100 }, new Date(RUSH.noon)), "premium");
-        assert.equal(rushTicketType({ standard: 400, premium: 400, vip: 400 }, new Date(RUSH.vip)), "vip");
+        assert.deepEqual(goldenOdds(OUTSIDE), { oneIn: 200, rush: false });
     });
 
-    test("a card bought in the rush is dealt 1 in 10 and marked so; the page is never told", async () => {
+    test("a card bought in the rush is dealt 1 in 50 and marked so, on any ticket; the page is never told", async () => {
         const nodeCrypto = require("crypto");
-        const GoldenRush = require("../models/goldenRushModel");
         const { buyCard } = require("../utils/scratch");
-        await GoldenRush.deleteMany({});
-        await setPools({ standard: 500, premium: 400, vip: 900 });
         const lucky = await member(100);
         const plain = await member(100);
 
@@ -757,75 +739,204 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         let plainCard;
         let rushAsked;
         try {
-            rushCard = await buyCard(lucky._id, "vip", new Date(RUSH.vip));
+            rushCard = await buyCard(lucky._id, "standard", rushAt(EARLY, 5));
             rushAsked = asked.splice(0);
-            plainCard = await buyCard(plain._id, "premium", new Date(RUSH.vip));
+            plainCard = await buyCard(plain._id, "premium", OUTSIDE);
         } finally {
             nodeCrypto.randomInt = real;
         }
-        assert.ok(rushAsked.includes(10) && !rushAsked.includes(200), "VIP, the biggest pool: 1 in 10");
-        assert.ok(asked.includes(200) && !asked.includes(10), "Premium: 1 in 200");
+        assert.ok(rushAsked.includes(50) && !rushAsked.includes(200), "in the rush: 1 in 50");
+        assert.ok(asked.includes(200) && !asked.includes(50), "outside it: 1 in 200");
 
-        const saved = await ScratchCard.find({ _id: { $in: [rushCard._id, plainCard._id] } }).sort({ price: -1 }).lean();
-        assert.deepEqual(saved.map((card) => [card.ticketType, card.goldenRush]), [["vip", true], ["premium", false]]);
+        const saved = await ScratchCard.find({ _id: { $in: [rushCard._id, plainCard._id] } }).sort({ price: 1 }).lean();
+        assert.deepEqual(saved.map((card) => [card.ticketType, card.goldenRush]), [["standard", true], ["premium", false]]);
         assert.equal("goldenRush" in rushCard, false);
         const shown = await call(lucky, "GET", "/card");
         assert.equal(shown.status, 200);
         assert.equal(JSON.stringify(shown.body).includes("goldenRush"), false);
     });
 
-    test("a rush card winning its jackpot stops the rush for 14 days; a win from a card bought outside it doesn't, nor does a rush card bought before the stop", async () => {
-        const GoldenRush = require("../models/goldenRushModel");
-        const { buyCard, goldenRushOn } = require("../utils/scratch");
-        await GoldenRush.deleteMany({});
-        await setPools({ standard: 500, premium: 400, vip: 900 });
-        const at = new Date(RUSH.vip);
+    test("a jackpot won in the rush changes nothing: the next card in it is dealt 1 in 50 too", async () => {
+        const nodeCrypto = require("crypto");
+        const { buyCard } = require("../utils/scratch");
+        await setPools({ standard: 500 });
+        const winner = await member(100);
+        const card = await flat(buyCard(winner._id, "standard", rushAt(EARLY, 1)));
+        await rig(card, layoutWith({ stars: [0, 1, 2, 3, 4], golden: 9 }));
+        assert.equal((await scratch(winner, card, 9)).body.card.jackpotAmount, 509);
 
-        // A Standard jackpot won in the rush, but not on its ticket: still on.
-        const plain = await member(100);
-        const plainCard = await flat(buyCard(plain._id, "standard", at));
-        await rig(plainCard, goldenCard);
-        assert.equal((await scratch(plain, plainCard, 9)).body.card.jackpotAmount, 501);
-        assert.equal(await GoldenRush.countDocuments(), 0);
-        assert.equal(await goldenRushOn(at), "vip");
+        const next = await member(100);
+        const real = nodeCrypto.randomInt;
+        const asked = [];
+        nodeCrypto.randomInt = (...args) => {
+            asked.push(args[0]);
+            return real(...args);
+        };
+        try {
+            await buyCard(next._id, "standard", rushAt(EARLY, 2));
+        } finally {
+            nodeCrypto.randomInt = real;
+        }
+        assert.ok(asked.includes(50));
+    });
 
-        // Two VIP cards in the rush: the first to win stops it.
-        const first = await member(100);
-        const second = await member(100);
-        const cardA = await flat(buyCard(first._id, "vip", at));
-        const cardB = await flat(buyCard(second._id, "vip", at));
-        await rig(cardA, goldenCard);
-        await rig(cardB, goldenCard);
-        assert.equal((await scratch(first, cardA, 9)).body.card.jackpotAmount, 906);
-        const stopped = await GoldenRush.findById("scratch").lean();
-        assert.deepEqual([String(stopped.card), stopped.ticketType], [cardA._id, "vip"]);
-        assert.ok(Math.abs(Date.now() - stopped.wonAt.getTime()) < 60 * 1000, "stopped as it was won");
+    // ---- Telling one member (utils/scratch.js goldenRushNotice) ----
 
-        // The other was bought before the stop: it wins what's there, and
-        // doesn't stop it again.
-        assert.equal((await scratch(second, cardB, 9)).body.card.jackpotAmount, VIP.jackpotSeed);
-        assert.deepEqual(await GoldenRush.findById("scratch").lean(), stopped);
+    const GoldenRush = () => require("../models/goldenRushModel");
+    const notices = () => Notification.find({ type: "goldenRush" }).lean();
+    const fresh = async () => {
+        await GoldenRush().deleteMany({});
+        await Notification.deleteMany({ type: "goldenRush" });
+    };
+    const richestOf = async () => {
+        const { leaderboardStages } = require("../utils/wallet");
+        const [top] = await User.aggregate([...leaderboardStages({ username: 1 }), { $limit: 1 }]);
+        return String(top._id);
+    };
 
-        // 14 days: off until then, on again from then.
-        const DAY = 24 * 60 * 60 * 1000;
-        await GoldenRush.updateOne({ _id: "scratch" }, { $set: { wonAt: new Date(at.getTime() - 14 * DAY + 60 * 1000) } });
-        assert.equal(await goldenRushOn(at), null, "13 days, 23 hours and 59 minutes");
-        const waiting = await member(100);
-        await buyCard(waiting._id, "vip", at);
-        assert.equal((await ScratchCard.findOne({ user: waiting._id }).lean()).goldenRush, false, "bought while it's off");
-        await GoldenRush.updateOne({ _id: "scratch" }, { $set: { wonAt: new Date(at.getTime() - 14 * DAY) } });
-        assert.equal(await goldenRushOn(at), "vip", "14 days");
+    test("every jackpot under its line: nobody's told, and the window's decided once, even if one passes the line later", async () => {
+        const { goldenRushNotice } = require("../utils/scratch");
+        await fresh();
+        await member(0);
+        await setPools({ standard: 9999, premium: 29999, vip: 49999 });
+        assert.equal(await goldenRushNotice(rushAt(LATE, 0)), null);
+        assert.equal((await notices()).length, 0);
+        const seen = await GoldenRush().findById(rushAt(LATE).toISOString()).lean();
+        assert.deepEqual([seen.notified, seen.pools], [null, { standard: 9999, premium: 29999, vip: 49999 }]);
 
-        // Back on: the next rush card to win stops it again.
-        const third = await member(100);
-        const cardC = await flat(buyCard(third._id, "vip", at));
-        assert.equal((await ScratchCard.findById(cardC._id).lean()).goldenRush, true);
-        await rig(cardC, goldenCard);
-        await scratch(third, cardC, 9);
-        const again = await GoldenRush.findById("scratch").lean();
-        assert.equal(String(again.card), cardC._id);
-        assert.ok(Math.abs(Date.now() - again.wonAt.getTime()) < 60 * 1000);
-        assert.equal(await goldenRushOn(new Date(again.wonAt.getTime() + DAY)), null, "off again (whatever the time of day)");
+        await setPools({ standard: 20000 });
+        assert.equal(await goldenRushNotice(rushAt(LATE, 10)), null, "already decided");
+        assert.equal((await notices()).length, 0);
+        assert.equal(await goldenRushNotice(OUTSIDE), null, "no window");
+    });
+
+    test("a jackpot past its line: one member hears, pinned to the top until it's over, with when it runs; once per window", async () => {
+        const { goldenRushNotice } = require("../utils/scratch");
+        await fresh();
+        await member(0);
+        await setPools({ standard: 10000, premium: 400, vip: 500 });
+
+        const told = await goldenRushNotice(rushAt(EARLY, 0));
+        assert.ok(told, "someone's told");
+        const [notice, ...others] = await notices();
+        assert.deepEqual(others, [], "only one member");
+        assert.equal(String(notice.recipient), String(told));
+        assert.deepEqual([notice.rush.from.getTime(), notice.rush.to.getTime(), notice.pinned], [rushAt(EARLY).getTime(), rushAt(EARLY, 60).getTime(), true]);
+        assert.equal(String((await GoldenRush().findById(rushAt(EARLY).toISOString()).lean()).notified), String(told));
+
+        // A minute later, or after a restart: nobody else.
+        assert.equal(await goldenRushNotice(rushAt(EARLY, 1)), null);
+        assert.equal((await notices()).length, 1);
+
+        // Over: it comes off the top, and stays in their Notifications.
+        await goldenRushNotice(rushAt(EARLY, 60));
+        const after = await Notification.findById(notice._id).lean();
+        assert.equal(after.pinned, undefined);
+    });
+
+    test("never the richest member, whoever's picked", async () => {
+        const { goldenRushNotice } = require("../utils/scratch");
+        await member(0);
+        await member(0, 10_000_000);
+        const richest = await richestOf();
+        await setPools({ standard: 50000 });
+        const picked = new Set();
+        for (let day = 1; day <= 25; day++) {
+            const date = `2026-02-${String(day).padStart(2, "0")}`;
+            const [window] = windowsFor("goldenRush", date);
+            await fresh();
+            const told = await goldenRushNotice(helsinkiTime(date, window.from));
+            assert.ok(told);
+            assert.notEqual(String(told), richest);
+            picked.add(String(told));
+        }
+        assert.ok(picked.size > 1, "picked at random");
+    });
+
+    test("only a jackpot on sale counts: a big VIP pool tells someone in the second window (16:00 on), not the first", async () => {
+        const { goldenRushNotice } = require("../utils/scratch");
+        await fresh();
+        await setPools({ standard: 500, premium: 500, vip: 60000 });
+        assert.equal(await goldenRushNotice(rushAt(EARLY, 0)), null, "VIP's not on sale before 16:00");
+        assert.ok(await goldenRushNotice(rushAt(LATE, 0)));
+        await setPools({ standard: 500, premium: 30000, vip: 500 });
+        await fresh();
+        assert.ok(await goldenRushNotice(rushAt(EARLY, 0)), "Premium's always on sale");
+    });
+
+    test("the notice shows in Notifications under All and Games, at the top while it's pinned", async () => {
+        const Feed = express();
+        Feed.use(express.json());
+        Feed.use("/api/feed", require("../routes/feedRouter"));
+        const feedServer = Feed.listen(0);
+        try {
+            const reader = await member(0);
+            const { noteGoldenRush } = require("../utils/notify");
+            await Notification.create({ recipient: reader._id, type: "payout", amount: 3 });
+            await noteGoldenRush(reader._id, rushAt(LATE), rushAt(LATE, 60));
+            await Notification.create({ recipient: reader._id, type: "payout", amount: 4, at: new Date(Date.now() + 1000) });
+            const page = async (filter) => {
+                const response = await fetch(`http://127.0.0.1:${feedServer.address().port}/api/feed?filter=${filter}`, { headers: { Authorization: `Bearer ${tokens.get(String(reader._id))}` } });
+                return (await response.json()).items;
+            };
+            for (const filter of ["all", "games"]) {
+                const [first] = await page(filter);
+                assert.equal(first.type, "goldenRush", filter);
+                assert.deepEqual([first.rush.from, first.rush.to], [rushAt(LATE).toISOString(), rushAt(LATE, 60).toISOString()]);
+            }
+            for (const filter of ["events", "reviews", "cuts"]) assert.equal((await page(filter)).some((item) => item.type === "goldenRush"), false, filter);
+        } finally {
+            feedServer.close();
+        }
+    });
+
+    // ---- Double Prize Weekend: 15 of each ticket a day (shared/events.js) ----
+
+    // Saturday 17 January 2026 at 12:00 Helsinki time, and around it.
+    const SATURDAY = new Date("2026-01-17T10:00:00Z");
+    const SUNDAY = new Date("2026-01-18T10:00:00Z");
+    const FRIDAY_EARLY = new Date("2026-01-16T13:59:00Z"); // 15:59
+    const FRIDAY_EVENING = new Date("2026-01-16T14:00:00Z"); // 16:00
+
+    test("from Friday 16:00: cards pay double; 15:59 is still a weekday", async () => {
+        const { buyCard } = require("../utils/scratch");
+        const user = await member(100);
+        const before = await flat(buyCard(user._id, "standard", FRIDAY_EARLY));
+        assert.equal(before.doublePrizes, false);
+        await putAway(before);
+        const after = await flat(buyCard(user._id, "standard", FRIDAY_EVENING));
+        assert.equal(after.doublePrizes, true);
+    });
+
+    test("in the weekend, 15 cards of each ticket a day: the 16th is refused, nothing taken; the other tickets and the next day are their own", async () => {
+        const { buyCard, weekendLimits } = require("../utils/scratch");
+        const user = await member(1000);
+        assert.deepEqual(await weekendLimits(user._id, SATURDAY), { on: true, perDay: 15, left: { standard: 15, premium: 15, vip: 15 } });
+        for (let i = 0; i < 15; i++) await putAway(await flat(buyCard(user._id, "standard", SATURDAY)));
+        assert.deepEqual((await weekendLimits(user._id, SATURDAY)).left, { standard: 0, premium: 15, vip: 15 });
+
+        const wallet = await walletOf(user);
+        await assert.rejects(buyCard(user._id, "standard", SATURDAY), (error) => {
+            assert.equal(error.status, 429);
+            assert.match(error.message, /15 Standard tickets a day each, and you've had today's/);
+            return true;
+        });
+        assert.deepEqual(await walletOf(user), wallet, "nothing taken");
+        assert.equal(await ScratchCard.countDocuments({ user: user._id }), 15);
+
+        await putAway(await flat(buyCard(user._id, "premium", SATURDAY)));
+        assert.deepEqual((await weekendLimits(user._id, SATURDAY)).left, { standard: 0, premium: 14, vip: 15 });
+        assert.deepEqual((await weekendLimits(user._id, SUNDAY)).left, { standard: 15, premium: 15, vip: 15 }, "Sunday's a new day");
+        await putAway(await flat(buyCard(user._id, "standard", SUNDAY)));
+    });
+
+    test("outside a weekend there's no limit, and the route says so", async () => {
+        const { weekendLimits } = require("../utils/scratch");
+        const user = await member(0);
+        assert.deepEqual(await weekendLimits(user._id, new Date("2026-01-14T10:00:00Z")), { on: false });
+        const { status, body } = await call(user, "GET", "/limits");
+        assert.equal(status, 200);
+        assert.equal(typeof body.on, "boolean");
     });
 
     test("deleting an account takes their name off every pool's Recent jackpots", async () => {

@@ -42,6 +42,7 @@ const { giveEveryoneAWallet } = require("./utils/wallet");
 const { startDailyPayout } = require("./jobs/dailyPayout");
 const { startFarkleSweep } = require("./jobs/farkleSweep");
 const { startScratchSweep } = require("./jobs/scratchSweep");
+const { startGoldenRush } = require("./jobs/goldenRush");
 const { startForrestSweep } = require("./jobs/forrestSweep");
 const { startResonanceSweep } = require("./jobs/resonanceSweep");
 const { startStealSweep } = require("./jobs/stealSweep");
@@ -128,6 +129,12 @@ connected
 connected
     .then(() => startScratchSweep())
     .catch((error) => console.error("Couldn't start the scratch sweep:", error.message));
+
+// Box Office Scratch's Golden Rush: one member told when a window starts
+// with a big jackpot (jobs/goldenRush.js).
+connected
+    .then(() => startGoldenRush())
+    .catch((error) => console.error("Couldn't start the Golden Rush check:", error.message));
 
 // Forrest Bounce: lets go of runs nobody came back to finish, their entries
 // to the scratch jackpots (jobs/forrestSweep.js).

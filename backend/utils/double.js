@@ -19,6 +19,9 @@ const {
     outcomeOf,
     seedFrom,
     resetSplit,
+    bonusGrowth,
+    lastDailyAt,
+    dailiesBetween,
     bonusEligible,
     lastResetAt,
     nextResetAt,
@@ -100,7 +103,7 @@ async function ensurePot(now = new Date()) {
     if (await DoublePot.exists({ _id: POT_ID })) return;
     const seed = await weekSeed(null, now);
     try {
-        await DoublePot.create({ _id: POT_ID, currentBet: seed, seed, weekStart: lastResetAt(now) });
+        await DoublePot.create({ _id: POT_ID, currentBet: seed, seed, weekStart: lastResetAt(now), bonusGrownAt: lastDailyAt(now) });
     } catch (error) {
         if (error.code !== 11000) throw error;
     }
@@ -138,6 +141,16 @@ async function resetPot(session, pot, now) {
 }
 
 const resetDue = (pot, now) => lastResetAt(now) > pot.weekStart;
+
+// The bonus pot grows by itself at 12:00 every day (DOUBLE.bonus.daily). A
+// pot from before then has no `bonusGrownAt`: it starts counting from now.
+const growthDue = (pot, now) => !pot.bonusGrownAt || lastDailyAt(now) > pot.bonusGrownAt;
+
+// Adds the bonus pot's growth for every 12:00 since it last grew.
+function growBonus(session, pot, now) {
+    const days = pot.bonusGrownAt ? dailiesBetween(pot.bonusGrownAt, now) : 0;
+    return savePot(session, pot, { bonusPot: bonusGrowth(pot.bonusPot, days), bonusGrownAt: lastDailyAt(now) });
+}
 
 // One round: the player's throw, then the house's, picked only now.
 function newRound(playerThrow, auto) {
@@ -216,7 +229,8 @@ async function playOutForThem(session, pot, game, now) {
 
 // Brings the pot up to date before anything else happens: finishes the
 // game being played if its player ran out of time, then does the Monday
-// reset if one is due. A game still being played when Monday 12:00 comes
+// reset if one is due, and grows the bonus pot for each 12:00 since it
+// last did. A game still being played when Monday 12:00 comes
 // keeps the old week until it ends (a few minutes at most), and the reset
 // follows straight after it (finishGame).
 async function settle(session, now) {
@@ -232,6 +246,7 @@ async function settle(session, now) {
     }
 
     if (!pot.activeGameId && resetDue(pot, now)) pot = await resetPot(session, pot, now);
+    if (growthDue(pot, now)) pot = await growBonus(session, pot, now);
     return pot;
 }
 
@@ -240,9 +255,9 @@ async function settle(session, now) {
 async function needsSettling(pot, now) {
     if (pot.activeGameId) {
         const game = await DoubleGame.findById(pot.activeGameId).select("status roundDeadline").lean();
-        return !game || game.status !== "in_progress" || game.roundDeadline <= now;
+        return !game || game.status !== "in_progress" || game.roundDeadline <= now || growthDue(pot, now);
     }
-    return resetDue(pot, now);
+    return resetDue(pot, now) || growthDue(pot, now);
 }
 
 // A game as the page gets it. Nothing in it is secret: each house throw

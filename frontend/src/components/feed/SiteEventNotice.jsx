@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { GoldenTicketIcon, StarIcon } from '../scratch/TileFace'
-import { BLACK_FRIDAY } from '../../../../shared/events.js'
+import { BLACK_FRIDAY, DOUBLE_PRIZES } from '../../../../shared/events.js'
 import { cosmeticById } from '../../../../shared/cosmetics/catalogue.js'
 import { timeAgo } from '../../utils/timeAgo'
 
@@ -51,8 +51,8 @@ function DoublePrizesNotice({ item }) {
         </div>
         <p className="rainbow-text mt-2 font-['Bebas_Neue'] text-4xl leading-none tracking-wide">Double Prize Weekend</p>
         <p className="mt-2 text-white/80">
-          Every prize is <strong className="text-white">doubled</strong> on cards bought this weekend, until Sunday at midnight. The jackpots stay as
-          they are.
+          Every prize is <strong className="text-white">doubled</strong> on cards bought this weekend, from Friday 16:00 until Sunday at midnight. The
+          jackpots stay as they are. {DOUBLE_PRIZES.cardsPerDay} cards of each ticket a day.
         </p>
         <Link
           to="/games/scratch"

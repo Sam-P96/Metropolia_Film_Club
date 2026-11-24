@@ -170,6 +170,13 @@ const CRASH_TYPES = ["crashBigWin", "crashResult", "crashInvite"];
 // level, net (won or lost), previous (the best it beat) }.
 const FORREST_TYPES = ["forrestCashOut", "forrestBigWin", "forrestBest", "forrestRecord"];
 
+// Box Office Scratch's Golden Rush (utils/scratch.js goldenRushNotice):
+//   goldenRush  a Golden Rush window has started, `rush.from` to `rush.to`:
+//               1 in 50 cards hides the Golden Ticket. Only one member is
+//               told, pinned to the top of their Notifications until it's
+//               over. No review, no actors.
+const SCRATCH_RUSH_TYPES = ["goldenRush"];
+
 // The Attend and Interested buttons on an event's page (utils/notify.js
 // noteEventRsvp), by the RSVP each one is for: a member's followers hear
 // they're going or interested, in place of whatever they'd heard about that
@@ -179,6 +186,7 @@ const EVENT_RSVP_TYPES = { attending: "eventAttending", interested: "eventIntere
 const GAME_TYPES = [
     ...CRASH_TYPES,
     ...FORREST_TYPES,
+    ...SCRATCH_RUSH_TYPES,
     ...QUIZ_TYPES,
     ...FARKLE_TYPES.filter((type) => type !== "farkleTurn"),
     ...GOMOKU_TYPES,
@@ -192,7 +200,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...SCRATCH_RUSH_TYPES],
         required: true,
     },
     review: {
@@ -200,7 +208,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES].includes(this.type);
+            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -233,6 +241,11 @@ const notificationSchema = new Schema({
         level: {type: Number},
         net: {type: Number},
         previous: {type: Number},
+    },
+    // Box Office Scratch's Golden Rush: when the window starts and ends.
+    rush: {
+        from: {type: Date},
+        to: {type: Date},
     },
     // Kino Poker: a win's hands won and best hand.
     poker: {
@@ -297,6 +310,7 @@ Notification.FORREST_TYPES = FORREST_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
 Notification.LOAN_TYPES = LOAN_TYPES;
 Notification.SITE_EVENT_TYPES = SITE_EVENT_TYPES;
+Notification.SCRATCH_RUSH_TYPES = SCRATCH_RUSH_TYPES;
 Notification.EVENT_RSVP_TYPES = EVENT_RSVP_TYPES;
 
 module.exports = Notification;

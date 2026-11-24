@@ -2,7 +2,8 @@ const cron = require("node-cron");
 const { sweep } = require("../utils/orca/jobs");
 
 // Every minute: Lord Gang Orca's jobs past 00:00 (Helsinki) expire, members
-// in favour mode get the day's four new ones, and job dislikes 48 hours old
+// in favour mode get the day's four new ones, members in the red get their
+// debt jobs topped up to ten (utils/orca/debt.js), and job dislikes 48 hours old
 // come off again (utils/orca/jobs.js sweep). His page deals the day's jobs
 // itself too, if it's opened before the sweep gets there.
 let task = null;

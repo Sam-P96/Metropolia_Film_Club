@@ -736,6 +736,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are let go every 10 minutes (`jobs/forrestSweep.js`).
 - Box Office Scratch has a new hidden rule for the Golden Ticket
   (`backend/games/happyHours.js`).
+- Box Office Scratch: 90% of what every ticket costs goes into its own
+  jackpot: 9 a Standard ticket, 18 a Premium, 27 a VIP (was 1, 2 and 3;
+  `jackpotShare` in `shared/scratch/config.js`).
+- Double Prize Weekend starts on Friday at 16:00 (was Saturday at 00:00)
+  and still runs to Sunday at midnight. While it's on, each member can buy
+  15 cards of each ticket a day (Helsinki days, so Friday evening is
+  Friday's): the Buy buttons say how many are left today, and the 16th is
+  refused (`GET /api/scratch/limits`). Its notification goes out at Friday
+  16:00.
+- The hidden rules of Box Office Scratch, Kino Farkle and the Slot Machine
+  have changed (`backend/games/happyHours.js`). When a jackpot has grown
+  very big, one member now and then hears about a Golden Rush, pinned to
+  the top of their Notifications while it lasts (`jobs/goldenRush.js`).
+- Double or Nothing: the bonus pot also grows by 500 on its own every day
+  at 12:00 Helsinki time, up to its 95,000 cap.
+- Lord Gang Orca and members in the red (P-PP below 0, from a Steal and
+  Defend fine they couldn't pay): he's open around the clock for begging,
+  and has 10 jobs for them, the same kinds as his favours. Each job's slot
+  gets a new one 2 days after it was handed over, done or not. Each job
+  done forgives a tenth of the lowest they've been since going into the red
+  (down to -1,000 and back up to -500: still 100 a job), never past 0. Out
+  of the red, the jobs left are cancelled and his usual hours are back
+  (`utils/orca/debt.js`; the wallet keeps its lowest as `debtLow` while in
+  the red).
 - Loan Shark: King Loan Shark lends up to 30x a member's daily PP (was 5x),
   missed payments double his rate up to 320% (was 160%), and Kaveri starts
   collecting well before the top. Where he starts is set in

@@ -36,6 +36,16 @@ const LORD_GANG_ORCA = {
         perDay: 4,
     },
 
+    // A member in the red (P-PP below 0: a Steal and Defend fine they
+    // couldn't pay; utils/orca/debt.js): he's open around the clock for
+    // begging, whatever the day or hour, and offers `jobs` jobs (the same
+    // kinds as favours), each in a slot of its own. A slot's job is
+    // replaced `refreshDays` after it was dealt, done or not. Each one done
+    // forgives `forgiveShare` of the lowest they've been since going into
+    // the red (rounded up), never past 0. Out of the red, everything's as
+    // usual again.
+    debt: { jobs: 10, refreshDays: 2, forgiveShare: 0.1 },
+
     jobs: {
         // The odds of each kind, out of 1.
         odds: { challenge: 0.4, review: 0.3, dislike: 0.2, like: 0.1 },

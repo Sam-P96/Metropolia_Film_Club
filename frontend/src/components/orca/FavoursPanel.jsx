@@ -6,7 +6,7 @@ import { formatDeadline } from '../../utils/farkle'
 // One job in his words, from the template (backend/data/
 // lordGangOrcaScripts.js jobs): {X} and {Y} become the members' names (links
 // to their profiles) and {review} a link to the review.
-function JobText({ job, template }) {
+export function JobText({ job, template }) {
   return template.split(/(\{X\}|\{Y\}|\{review\})/g).map((part, i) => {
     if (part === '{X}') return <Name key={i} user={job.x} />
     if (part === '{Y}') return <Name key={i} user={job.y} />

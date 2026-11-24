@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import GameBackdrop from '../components/GameBackdrop'
+import DebtPanel from '../components/orca/DebtPanel'
 import FavoursPanel from '../components/orca/FavoursPanel'
 import Chat from '../components/orca/Chat'
 import { SPEAKERS } from '../components/orca/speakers'
@@ -36,8 +37,9 @@ function Paid({ paid }) {
 }
 
 // /games/lord-gang-orca: the mob boss's back room. While he's open (Monday
-// to Friday, 16:00 to 23:59, Helsinki), ask him for PP; closed, whoever's
-// minding the place tells you why. His favours are always on show.
+// to Friday, 16:00 to 23:59, Helsinki, or any time at all while you're in
+// the red), ask him for PP; closed, whoever's minding the place tells you
+// why. His favours are always on show, and in the red, his debt jobs.
 // Everything is decided on the server (backend/utils/orca/).
 export default function LordGangOrca() {
   const [status, setStatus] = useState(null)
@@ -138,7 +140,7 @@ export default function LordGangOrca() {
                 status.open ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-200' : 'border-white/15 bg-white/5 text-white/70'
               }`}
             >
-              {status.open ? 'Open now · until 23:59' : `Closed · opens ${formatDeadline(status.nextOpening)}`}
+              {status.debt?.on ? 'Open around the clock · you’re in the red' :status.open ? 'Open now · until 23:59' : `Closed · opens ${formatDeadline(status.nextOpening)}`}
             </p>
           )}
         </header>
@@ -206,6 +208,7 @@ export default function LordGangOrca() {
           </div>
         )}
 
+        {status?.debt?.on && <DebtPanel debt={status.debt} />}
         {status && <FavoursPanel favour={status.favour} />}
       </div>
     </>

@@ -36,6 +36,7 @@ export default function OrcaCard({ className, loggedIn }) {
             Begs {data.begs.perDay - data.begs.used}/{data.begs.perDay}
           </span>
           {cooldown > 0 && <span className={`${chip} border-white/15 bg-white/5 text-white/80 tabular-nums`}>Next in {formatCountdown(cooldown)}</span>}
+          {data.debt?.on && <span className={`${chip} border-red-400/50 bg-red-500/15 text-red-200`}>In the red · open 24/7</span>}
           {data.favour.on && (
             <span className={`${chip} border-brand-gold/50 bg-brand-gold/10 text-brand-gold`}>
               Favours {data.favour.done}/{data.favour.needed} jobs

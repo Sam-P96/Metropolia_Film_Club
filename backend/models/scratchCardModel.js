@@ -47,6 +47,10 @@ const scratchCardSchema = new Schema(
         // doubled (a refund pays the price back and once more in P-PP).
         // The jackpot isn't.
         doublePrizes: {type: Boolean, default: false},
+        // The Helsinki date it was bought on ("2026-11-28"), for a Double
+        // Prize Weekend's cards a day (utils/scratch.js). Missing on cards
+        // from before that.
+        boughtDay: {type: String},
         prizePaid: {type: Boolean, default: false},
 
         // The Golden Ticket: found, how much of the jackpot it won, and
@@ -54,9 +58,9 @@ const scratchCardSchema = new Schema(
         goldenFound: {type: Boolean, default: false},
         jackpotAmount: {type: Number, default: null},
         jackpotPaid: {type: Boolean, default: false},
-        // Bought in the Golden Rush (games/happyHours.js), on the ticket
-        // it was on: dealt with one in 10 hiding the Golden Ticket. Its
-        // jackpot win stops the rush. Never sent to the page.
+        // Bought in a Golden Rush window (games/happyHours.js): dealt with
+        // one in 50 hiding the Golden Ticket instead of one in 200. Never
+        // sent to the page.
         goldenRush: {type: Boolean, default: false},
 
         // The member's id while this card is pending or active, missing once

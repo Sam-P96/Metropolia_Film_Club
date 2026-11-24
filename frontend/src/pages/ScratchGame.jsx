@@ -15,6 +15,7 @@ import { ticketTheme } from '../components/scratch/ticketThemes'
 import useJackpot from '../hooks/useJackpot'
 import useScratchCard from '../hooks/useScratchCard'
 import useTicketHours from '../hooks/useTicketHours'
+import useWeekendLimits from '../hooks/useWeekendLimits'
 import useWallet from '../hooks/useWallet'
 import { askTiltPermission } from '../utils/tilt'
 import { timeAgo } from '../utils/timeAgo'
@@ -176,9 +177,10 @@ function JackpotPanel({ jackpot, viewType, onLook }) {
 // glow from the review cards, CardShine). Dimmed and off while it can't be bought: not
 // enough points, a ticket printing, or for VIP, out of its hours ("Opens at
 // 16:00"), which `sale` (from the server) says; it switches on by itself
-// when the hours start. Pointing at it or focusing it shows its jackpot
-// (`onLook`).
-function BuyButton({ type, wallet, buying, sale, onBuy, onLook }) {
+// when the hours start. In a Double Prize Weekend, `left` is how many of
+// this ticket they can still buy today (off at 0). Pointing at it or
+// focusing it shows its jackpot (`onLook`).
+function BuyButton({ type, wallet, buying, sale, left = null, onBuy, onLook }) {
   const kind = ticketType(type)
   const theme = ticketTheme(type)
   const price = kind.price
@@ -187,12 +189,15 @@ function BuyButton({ type, wallet, buying, sale, onBuy, onLook }) {
   const short = total !== null && total < price
   // A ticket sold at certain hours stays off until the server says it's on.
   const closed = Boolean(kind.hours) && !sale?.open
-  const disabled = Boolean(buying) || short || !wallet || closed
+  const soldOut = left === 0
+  const disabled = Boolean(buying) || short || !wallet || closed || soldOut
 
   let detail = null
   if (kind.hours && sale && !sale.open) detail = `Opens at ${kind.hours.opens}`
+  else if (soldOut) detail = 'None left today'
   else if (!buying && wallet && !short && !closed) {
-    detail = [fromPp && `${fromPp} PP`, price - fromPp && `${price - fromPp} P-PP`].filter(Boolean).join(' + ')
+    const paying = [fromPp && `${fromPp} PP`, price - fromPp && `${price - fromPp} P-PP`].filter(Boolean).join(' + ')
+    detail = left === null ? paying : `${paying} · ${left} left today`
   }
 
   // An iPhone only lets a page ask for the phone's tilt from inside a tap,
@@ -250,8 +255,9 @@ function BuyButton({ type, wallet, buying, sale, onBuy, onLook }) {
 }
 
 // Buying a ticket: a button for each type, cheapest first. `hours` is
-// whether each is on sale (useTicketHours).
-function BuyPanel({ wallet, buying, hours, onBuy, onLook, again }) {
+// whether each is on sale (useTicketHours); `limits`, in a Double Prize
+// Weekend, how many of each they can still buy today (useWeekendLimits).
+function BuyPanel({ wallet, buying, hours, limits, onBuy, onLook, again }) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -267,7 +273,16 @@ function BuyPanel({ wallet, buying, hours, onBuy, onLook, again }) {
       </p>
       <div className="flex w-full flex-col items-center gap-3">
         {TICKET_TYPES.map((type) => (
-          <BuyButton key={type} type={type} wallet={wallet} buying={buying} sale={hours?.[type] ?? null} onBuy={onBuy} onLook={onLook} />
+          <BuyButton
+            key={type}
+            type={type}
+            wallet={wallet}
+            buying={buying}
+            sale={hours?.[type] ?? null}
+            left={limits?.on ? limits.left[type] : null}
+            onBuy={onBuy}
+            onLook={onLook}
+          />
         ))}
       </div>
       {TIMED.map((type) => (
@@ -297,6 +312,9 @@ export default function ScratchGame() {
   // Double Prize Weekend (shared/events.js): the banner and the doubled
   // prize table. What a card actually pays comes from the server.
   const doubled = useSiteEvent(doublePrizeWeekend)
+  // In one, the cards of each ticket left today: asked again with each new
+  // card, and as the weekend starts or ends.
+  const limits = useWeekendLimits(`${card?._id ?? ''}|${doubled}`)
 
   const viewType = looking ?? (card ? ticketTypeOf(card) : DEFAULT_TICKET_TYPE)
 
@@ -361,14 +379,14 @@ export default function ScratchGame() {
                 ) : card ? (
                   <ScratchTicket key={card._id} game={game} />
                 ) : (
-                  <BuyPanel key="buy" wallet={wallet} buying={buying} hours={hours} onBuy={buyTicket} onLook={setLooking} />
+                  <BuyPanel key="buy" wallet={wallet} buying={buying} hours={hours} limits={limits} onBuy={buyTicket} onLook={setLooking} />
                 )}
               </AnimatePresence>
             </div>
 
             <AnimatePresence>
               {finished && (
-                <BuyPanel key="again" wallet={wallet} buying={buying} hours={hours} onBuy={buyTicket} onLook={setLooking} again />
+                <BuyPanel key="again" wallet={wallet} buying={buying} hours={hours} limits={limits} onBuy={buyTicket} onLook={setLooking} again />
               )}
             </AnimatePresence>
 

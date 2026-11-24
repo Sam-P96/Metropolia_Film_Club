@@ -16,9 +16,14 @@ const doublePotSchema = new Schema({
     // Every bet sitting in the pot (games that weren't won since the last
     // win or reset): what the Monday reset splits.
     totalLost: {type: Number, default: 0},
-    // Grows from Monday resets (up to the cap in shared/double/config.js),
-    // and only empties when someone wins it.
+    // Grows from Monday resets and by itself every day at 12:00 (up to the
+    // cap in shared/double/config.js), and only empties when someone wins
+    // it.
     bonusPot: {type: Number, default: 0},
+    // The 12:00 (Helsinki) the bonus pot last grew by itself: it grows for
+    // each one since (utils/double.js settle). Missing on a pot from before
+    // it grew by itself: it starts from the next 12:00.
+    bonusGrownAt: {type: Date},
     // Members who lost a round this pot: out until someone wins or Monday.
     banList: {type: [{type: Schema.Types.ObjectId, ref: "User"}], default: []},
     // At most one member, sitting out one turn after two draws.

@@ -69,7 +69,7 @@ export default function HowItWorks() {
               </li>
               <li>
                 The bonus pot: win when the bet is at least {bonus.betMultiple} times the week&apos;s starting bet, and you win the whole bonus
-                pot too.
+                pot too. It grows by {bonus.daily.toLocaleString('en-US')} on its own every day at 12:00 Helsinki time.
               </li>
               <li>
                 Every Monday at 12:00 Helsinki time the pot starts over. {bonus.share >= 1 ? 'Everything' : `${Math.round(bonus.share * 100)}%`} of
