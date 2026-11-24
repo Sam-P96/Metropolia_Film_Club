@@ -4,6 +4,10 @@ import ResonanceIcon from '../resonance/ResonanceIcon'
 import StyledAvatar from '../cosmetics/StyledAvatar'
 import StyledUsername from '../cosmetics/StyledUsername'
 import { useNameEffectShown } from '../firstPlace/firstPlaceStore'
+import PetSprite from '../catflix/PetSprite'
+import useApi from '../../hooks/useApi'
+import { getCatflixPet } from '../../services/catflix'
+import { getCurrentUser } from '../../utils/currentUser'
 
 // The corners of the list's first and last rows. The lists don't hide their
 // overflow (that would cut off the particles of the cosmetics in their top
@@ -27,11 +31,17 @@ const EDGES = {
 // names show in full and wrap, styled or not, so wearing a style never
 // moves anything. `resonancePercent` shows the Resonance icon for a
 // made-up member (the developer test tool). The list it's in is bg-list.
+//
+// The top 3's Catflix No Chill pets stand on their banners, where it starts
+// to fade, when the row is wide enough (from tablet width): the name gets
+// a fixed width there so the pet always has its own space. Phones leave
+// them out. Pets are for members, so only logged-in visitors see them.
 export default function LeaderboardRow({ user, position, subtitle, score, edge = null, cosmetics = user.cosmetics, resonancePercent }) {
   const nameEffect = useNameEffectShown(user._id)
   const styledName = Boolean(cosmetics?.name) || nameEffect
   const styled = styledName || Boolean(cosmetics?.border)
   const corners = EDGES[edge] ?? { row: '', banner: '' }
+  const pet = useApi(() => getCatflixPet(user._id), [user._id], { enabled: position <= 3 && Boolean(getCurrentUser()) }).data
 
   return (
     <li>
@@ -48,7 +58,7 @@ export default function LeaderboardRow({ user, position, subtitle, score, edge =
 
         <StyledAvatar borderId={cosmetics?.border} user={user} rank={position} />
 
-        <div className="min-w-0 flex-1">
+        <div className={`min-w-0 flex-1 ${pet ? 'md:w-44 md:flex-none lg:w-52' : ''}`}>
           <p
             className={`flex min-w-0 items-center gap-1.5 font-medium transition-colors group-hover:text-brand-gold ${styledName ? '' : 'drop-shadow'}`}
           >
@@ -59,6 +69,14 @@ export default function LeaderboardRow({ user, position, subtitle, score, edge =
           </p>
           <p className="truncate text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{subtitle ?? user.memberTitle}</p>
         </div>
+
+        {/* Feet on the row's bottom edge (the -mb-4 undoes its py-4). */}
+        {pet && (
+          <>
+            <PetSprite skinId={pet.skinId} size={56} label={`${user.username}'s pet, ${pet.name}`} className="-mb-4 hidden self-end md:block" />
+            <span className="hidden flex-1 md:block" />
+          </>
+        )}
 
         {score}
       </Link>

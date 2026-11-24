@@ -10,6 +10,7 @@ import RecentReviews from '../components/profile/RecentReviews'
 import FavouriteFilms from '../components/profile/FavouriteFilms'
 import FilmSearchPicker from '../components/profile/FilmSearchPicker'
 import Watchlist from '../components/profile/Watchlist'
+import ProfilePet from '../components/catflix/ProfilePet'
 import { getUser, getUserFilms, getUserReviews, updateMe, exportMyData, deleteMe } from '../services/users'
 import useApi from '../hooks/useApi'
 import { refreshSoulResonance } from '../hooks/useSoulResonance'
@@ -372,6 +373,9 @@ function ProfileView({ profileUser, isOwner, onSaved, onFollowChange }) {
             onCancel={handleCancel}
           />
         )}
+
+        {/* Their Catflix No Chill pet, with "Visit Pet". */}
+        <ProfilePet userId={profileUser._id} isOwner={isOwner} />
 
         <div className="mt-14">
           {/* Their PP and P-PP in a pill on the same line as the heading. */}

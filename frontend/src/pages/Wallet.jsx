@@ -49,6 +49,12 @@ const REASONS = {
   crashProtect: 'Box Office Crash: half back (5+ players)',
   forrestEntry: 'Forrest Bounce entry',
   forrestCashOut: 'Forrest Bounce: cashed out',
+  catflixShop: 'Catflix No Chill shop',
+  ruinRunEntry: 'Ruin Run bet',
+  ruinRunCashOut: 'Ruin Run: cashed out',
+  kittyRaceBet: 'Kitty Race bet',
+  kittyRaceWin: 'Kitty Race: your cat won!',
+  kittyRaceRefund: 'Kitty Race: bet back',
   quizPrize: 'Daily Quiz: won the weekly draw!',
   quizStreak: 'Daily Quiz: 7 day streak bonus',
 }
@@ -61,6 +67,8 @@ function labelFor(row) {
   if (row.reason === 'loanBorrow') return `Borrowed from ${name}`
   if (row.reason === 'loanRepay') return `Paid ${name} back`
   if (row.reason === 'loanRepaid') return `${name} paid you back`
+  if (row.reason === 'catflixGift') return `Catflix No Chill: ${name}’s cat stole this for you`
+  if (row.reason === 'catflixStolen') return `Catflix No Chill: your cat gave this to ${name}`
   return REASONS[row.reason] ?? row.reason
 }
 

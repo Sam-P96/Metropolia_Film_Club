@@ -35,6 +35,8 @@ const forrestRouter = require("./routes/forrestRouter");
 const orcaRouter = require("./routes/orcaRouter");
 const quizRouter = require("./routes/quizRouter");
 const adminRouter = require("./routes/adminRouter");
+const petForgeRouter = require("./routes/petForgeRouter");
+const catflixRouter = require("./routes/catflixRouter");
 const firstPlaceRouter = require("./routes/firstPlaceRouter");
 const { refuseGameBans } = require("./middleware/gameBans");
 const { recountDislikes } = require("./utils/pvp");
@@ -44,6 +46,7 @@ const { startFarkleSweep } = require("./jobs/farkleSweep");
 const { startScratchSweep } = require("./jobs/scratchSweep");
 const { startGoldenRush } = require("./jobs/goldenRush");
 const { startForrestSweep } = require("./jobs/forrestSweep");
+const { startCatflixSweep } = require("./jobs/catflixSweep");
 const { startResonanceSweep } = require("./jobs/resonanceSweep");
 const { startStealSweep } = require("./jobs/stealSweep");
 const { startLoanSweep } = require("./jobs/loanSweep");
@@ -90,6 +93,9 @@ app.use(compression());
 // The Daily Quiz's bulk upload of questions can be long: it gets more
 // room than the 100 KB everything else has (routes/quizRouter.js).
 app.use("/api/quiz/questions/bulk", express.json({ limit: "5mb" }));
+// Pet Forge's animation uploads (GIFs, up to 5 MB, sent as base64):
+// routes/petForgeRouter.js.
+app.use("/api/pet-forge/assets", express.json({ limit: "8mb" }));
 app.use(express.json());
 
 // Logs every request that takes over half a second, with how long it took,
@@ -141,6 +147,12 @@ connected
 connected
     .then(() => startForrestSweep())
     .catch((error) => console.error("Couldn't start the Forrest sweep:", error.message));
+
+// Catflix No Chill: Kitty Races due to start by themselves, and Ruin Runs
+// nobody came back to finish (jobs/catflixSweep.js).
+connected
+    .then(() => startCatflixSweep())
+    .catch((error) => console.error("Couldn't start the Catflix sweep:", error.message));
 
 // Resonance: everyone's taste matches, worked out again at 04:00
 // (jobs/resonanceSweep.js).
@@ -258,9 +270,14 @@ app.use("/api/pool", refuseGameBans, poolRouter);
 app.use("/api/crash", refuseGameBans, crashRouter);
 app.use("/api/forrest", refuseGameBans, forrestRouter);
 app.use("/api/orca", refuseGameBans, orcaRouter);
+// Catflix No Chill: pets, their care, the Room Room and the pet shop.
+app.use("/api/catflix", refuseGameBans, catflixRouter);
 app.use("/api/quiz", quizRouter);
 // The admin panel: admins only (routes/adminRouter.js).
 app.use("/api/admin", adminRouter);
+// Pet Forge, the admin panel's pet maker: its page and animation files for
+// anyone, everything it saves for admins (routes/petForgeRouter.js).
+app.use("/api/pet-forge", petForgeRouter);
 // First Place: who's #1 on each ranking, and their name effect's settings
 // (routes/firstPlaceRouter.js).
 app.use("/api/first-place", firstPlaceRouter);

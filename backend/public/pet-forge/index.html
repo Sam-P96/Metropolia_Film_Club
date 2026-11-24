@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pet Forge</title>
+<!--
+  Pet Forge, the admin panel's tool for making Catflix No Chill's pets
+  (frontend/src/pages/PetForge.jsx shows this page in a frame; the server
+  hands it out: backend/routes/petForgeRouter.js). Made from the prototype
+  in shared/prototype/Pet _Forge.html.
+
+  Base forms, their animations and registered forms are saved on the
+  server. Everything else here (pets, PP, packs, cards, auras, the profile)
+  is a sandbox kept in this browser, for trying things out: nothing done
+  in it touches the real site. The code is in forge.js; the GIF reading
+  and writing in gif.js (omggif, MIT licence).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="forge.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Pet <span>Forge</span></h1>
+    <div class="status" id="status"><i></i><span>Connecting…</span></div>
+  </div>
+  <nav class="tabs">
+    <a href="#studio" id="tabStudio">Studio</a>
+    <a href="#forms" id="tabForms">Registered forms <b id="regCount">0</b></a>
+    <a href="#room" id="tabRoom">Room</a>
+    <a href="#race" id="tabRace">Race</a>
+    <a href="#run" id="tabRun">Run</a>
+    <a href="#pet" id="tabPet">Pet</a>
+    <a href="#shop" id="tabShop">Shop</a>
+    <a href="#profile" id="tabProfile">Profile</a>
+  </nav>
+
+  <!-- ===================== STUDIO ===================== -->
+  <section id="studio">
+    <div class="panel formbar">
+      <label for="formSel">Base form</label>
+      <select id="formSel"></select>
+      <button class="btn" id="newFormBtn">＋ New base form</button>
+      <label for="faceSel" title="Which way the art looks, so pets turn the right way when walking">Faces</label>
+      <select id="faceSel" style="flex:none;min-width:0"><option value="left">← Left</option><option value="right">Right →</option></select>
+      <label title="How high or low this base form stands on the ground in the Room, Race, Run and Pet room. Applies to every recolor.">Ground</label>
+      <span class="step" id="sinkStep" title="Move the pet up or down so its feet touch its shadow"><button data-d="-1" aria-label="Raise">▲</button><output id="sinkOut">0</output><button data-d="1" aria-label="Lower">▼</button></span>
+      <label title="How far left or right this base form stands over its shadow in the Room, Race, Run and Pet room, in the way the art faces (a pet turned round has it mirrored). Applies to every recolor.">Left/right</label>
+      <span class="step" id="nudgeStep" title="Move the pet left or right so it stands centred over its shadow"><button data-d="-1" aria-label="Left">◀</button><output id="nudgeOut">0</output><button data-d="1" aria-label="Right">▶</button></span>
+      <button class="btn danger" id="delFormBtn">Delete</button>
+      <div id="newRow"><input type="text" id="newName" placeholder="Base form name, e.g. Cat" maxlength="40"><button class="btn acc" id="createFormBtn">Create</button><button class="btn" id="cancelNewBtn">Cancel</button></div>
+    </div>
+
+    <div class="layout">
+      <div class="col">
+        <div class="panel">
+          <div class="stage bg-checker" id="stage">
+            <canvas class="px" id="bigCanvas" width="64" height="64"></canvas>
+            <div class="empty" id="stageEmpty" hidden>Upload an animation below to start.</div>
+            <div class="badge" id="stageLabel">IDLE</div>
+            <div class="badge alt" id="origBadge">ORIGINAL</div>
+          </div>
+          <div class="controls">
+            <button class="btn" id="playBtn">❚❚ Pause</button><button class="btn" id="restartBtn" title="Play from the first frame">↺ Restart</button>
+            <div class="seg" id="speedSeg"><button data-v="0.5">½×</button><button data-v="1" aria-pressed="true">1×</button><button data-v="2">2×</button></div>
+            <div class="seg" id="bgSeg"><button data-v="checker" aria-pressed="true">▦</button><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="grass">Grass</button></div>
+            <span class="sp"></span>
+            <button class="btn" id="cmpBtn">Hold: original</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Animations — one shared palette</h3>
+          <div class="slots" id="slots"></div>
+          <p class="note">Every color change applies to all animations in this base form. Tap an animation to show it big.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Coats — applied to the fur colors</h3>
+          <div class="coats" id="coats"></div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="panel">
+          <h3>Register this form</h3>
+          <div class="editing" id="editingBar"><span id="editingTxt"></span><span class="sp"></span><button class="lnk" id="stopEditBtn">Stop editing</button></div>
+          <div class="rarity" id="raritySel" role="radiogroup" aria-label="Rarity"></div>
+          <div class="reg">
+            <input type="text" id="regName" placeholder="Name, e.g. Mochi" maxlength="40">
+            <button class="btn acc" id="regBtn">Register form</button>
+            <button class="btn" id="updBtn" hidden>Update</button>
+          </div>
+          <p class="note" id="regNote">Saves only the color changes (a few hundred bytes), not new GIFs. The base form’s animations are stored once.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Fur shift — applies to checked colors</h3>
+          <div class="sl"><label for="sH">Hue</label><input type="range" id="sH" min="-180" max="180" value="0"><output id="oH">0°</output></div>
+          <div class="hue"></div>
+          <div class="sl"><label for="sS">Saturation</label><input type="range" id="sS" min="0" max="200" value="100"><output id="oS">100%</output></div>
+          <div class="sl"><label for="sL">Lightness</label><input type="range" id="sL" min="-100" max="100" value="0"><output id="oL">0</output></div>
+        </div>
+
+        <div class="panel">
+          <div class="row-flex" style="margin-bottom:8px"><h3 style="margin:0">Palette</h3><span class="sp"></span><button class="lnk" id="resetAll">Reset all</button></div>
+          <p class="note" style="margin:0 0 10px">Tap an original swatch to flash where it’s used in every animation. ☑ = fur group (saved with the base form).</p>
+          <div class="pal" id="pal"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ROOM ===================== -->
+  <section id="room" hidden>
+    <div class="panel roombar">
+      <label for="mineSel">You are</label><select id="mineSel"></select>
+      <span class="lbl">Pets in room</span>
+      <span class="step big"><button id="roomMinus" aria-label="Fewer pets">−</button><output id="roomN">6</output><button id="roomPlus" aria-label="More pets">+</button></span>
+      <button class="btn" id="roomShuffle">Shuffle</button>
+      <button class="btn auratog" id="roomAuraTog" aria-pressed="true" title="Show or hide pet auras">✨ Auras on</button>
+      <span class="lbl">Room</span>
+      <div class="seg" id="roomSeg"><button data-v="theatre">🎬 Theatre</button><button data-v="graveyard">🪦 Graveyard</button><button data-v="catpark">🐈 Cat park</button><button data-v="school">🏫 School</button><button data-v="cafeteria">🍽️ Cafeteria</button><button data-v="christmas">🎄 Christmas</button></div>
+      <span class="lbl">Weather</span>
+      <div class="seg" id="roomWxSeg"><button data-v="sunny">☀️ Clear</button><button data-v="rain">🌧️ Rainy</button><button data-v="thunder">⛈️ Thunder</button><button data-v="snow">❄️ Snow</button></div>
+      <p class="note" id="roomNote" style="width:100%;margin:2px 0 0"></p>
+    </div>
+    <div class="roomwrap" id="roomWrap">
+      <canvas id="roomCanvas"></canvas>
+      <div class="roommenu" id="roomMenu" hidden>
+        <div class="mn" id="menuName"></div>
+        <div class="mb"><button data-act="play">🎾 Play</button><button data-act="pet">✋ Pet</button><button data-act="bully">💢 Bully</button><button data-act="date">🏡 Play Date</button></div>
+      </div>
+      <div class="empty roomempty" id="roomEmpty" hidden>No pets yet — add a base form with an Idle animation in the Studio.</div>
+    </div>
+    <p class="note">Tap the floor to walk there. Tap another pet to Play, Pet, Bully — or go on a Play Date to their room. Your pet has the orange ring.</p>
+  </section>
+
+  <!-- ===================== RACE ===================== -->
+  <section id="race" hidden>
+    <div class="panel roombar">
+      <button class="btn acc" id="raceStart">▶ Start race</button>
+      <button class="btn" id="raceShuffle" title="Pick new random guests">New guests</button>
+      <span class="lbl">Map</span>
+      <div class="seg" id="mapSeg"><button data-v="stadium">🏟️ Stadium</button><button data-v="river">🌉 Riverside</button><button data-v="ruins">🛕 Ruins</button><button data-v="theatre">🎬 Theatre</button></div>
+      <span class="lbl">Weather</span>
+      <div class="seg" id="weatherSeg"><button data-v="sunny">☀️ Sunny</button><button data-v="rain">🌧️ Rainy</button><button data-v="thunder">⛈️ Thunder</button></div>
+      <p class="note" style="width:100%;margin:2px 0 0">10 pets: your registered forms first, random guests fill the rest. The winner is picked at random. Races last about a minute, with the lead changing hands along the way (1 in 10 races, the winner leads from start to finish; 3 in 10, the winner charges out of the middle of the pack in the last 5 seconds). After the finish, 1st is happy, 2nd–5th are angry, 6th–10th are sad.</p>
+    </div>
+    <!-- In the game (Catflix No Chill) only: bets, solo races and friends' races (forge.js "Kitty Race, in the game") -->
+    <div class="panel livepanel" id="raceLive" hidden></div>
+    <div class="roomwrap" id="raceWrap"><canvas id="raceCanvas"></canvas><div class="empty roomempty" id="raceEmpty" hidden>No pets yet — add a base form in the Studio.</div></div>
+    <div class="panel" style="margin-top:16px"><h3 id="raceResultsTitle">Line-up</h3><ol class="results" id="raceResults"></ol></div>
+  </section>
+
+  <!-- ===================== RUN (minigame) ===================== -->
+  <section id="run" hidden>
+    <div class="panel roombar">
+      <label for="runPet">Runner</label><select id="runPet"></select>
+      <span class="lbl">Touch controls</span>
+      <div class="seg" id="runCtlSeg"><button data-v="tap">👆 Tap lanes</button><button data-v="swipe">👋 Swipe</button></div>
+      <span class="lbl">Best</span><b id="runBest" style="color:var(--acc)">0 m</b>
+      <p class="note" style="width:100%;margin:2px 0 0"><span id="runHelp"></span> Hit an enemy pet and you lose a heart (you have 3); with no hearts left, the next one knocks you out. Grab hearts on the road to heal. A bag of pet food makes enemy pets 50% more likely (it stacks); a lightning bolt brings a 30-second storm that zaps every pet on screen and every one that shows up after, and each one gives you its +25% speed boost without stopping you or costing a heart. Jump rubble, cracks and gaps; dodge cars and falling debris (once debris has landed you can jump over it). Speed goes up by 2% of the starting speed every second, and by 25% after each enemy encounter.</p>
+    </div>
+    <!-- In the game (Catflix No Chill) the stage fills the screen, which holds still, and the menu over the game picks
+         the bet and shows each run's result, like Forrest Bounce's (forge.js "Ruin Run, in the game") -->
+    <div class="gamestage" id="runStage">
+      <div class="runwrap" id="runWrap"><canvas id="runCanvas" tabindex="0" aria-label="Ruin Run game"></canvas><div class="runmenu" id="runMenu" hidden></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== PET ROOM ===================== -->
+  <section id="pet" hidden>
+    <div class="panel visitbar" id="visitBar" hidden><span>🏡 <b id="visitWho"></b></span><span class="note" id="visitLoveLbl" style="margin:0"></span>
+      <div class="bar vbar"><i id="visitLove"></i></div><b id="visitLoveN">0</b><span class="sp"></span><button class="btn acc" id="visitHome">Go home</button>
+      <p class="note" style="width:100%;margin:2px 0 0">Feed them to raise their love for <b>you</b> — their owner’s love doesn’t change. Your pet (★) tags along.</p></div>
+    <div class="panel roombar" id="petBarMain">
+      <label for="petSel">Pet</label><select id="petSel"></select>
+      <button class="btn" id="petNew">🥚 New egg</button>
+      <label for="petSkin" hidden>Skin</label><select id="petSkin" hidden></select>
+      <label for="petStyle">Room</label><select id="petStyle" title="Style of this pet's room"></select>
+      <button class="btn auratog" id="petAuraTog" aria-pressed="true" title="Show or hide pet auras">✨ Auras on</button>
+      <span class="sp"></span><button class="btn danger" id="petDel">Delete pet</button>
+      <div id="petNewRow"><input type="text" id="newPetName" placeholder="Pet name, e.g. Mochi" maxlength="30"><select id="newPetSkin"></select><button class="btn acc" id="petCreate">Create</button><button class="btn" id="petNewCancel">Cancel</button></div>
+    </div>
+    <div class="layout petlayout">
+      <div class="col">
+        <div class="roomwrap petwrap" id="petWrap"><canvas id="petCanvas"></canvas><div class="empty roomempty" id="petEmpty">No pet yet — press 🥚 New egg and tap it 100 times to hatch a cat.</div>
+          <div class="eggname" id="eggName" hidden><div id="eggWhat"></div><div class="eggrow"><input type="text" id="eggNameIn" maxlength="30" placeholder="Name your cat"><button class="btn acc" id="eggNameGo">Name it</button></div></div></div>
+        <div class="controls">
+          <span class="lbl">Tool</span>
+          <div class="seg" id="petTools"><button data-v="hand">✋ Hand</button><button data-v="brush">🪮 Brush</button><button data-v="food">🍖 Food ×0</button><button data-v="scoop">🪣 Scooper</button></div>
+          <span class="sp"></span>
+          <button class="btn" id="petPraise">🌟 Praise</button><button class="btn danger" id="petScold">📢 Scold</button>
+        </div>
+        <p class="note">Pick a tool. Hand / Brush: press and drag across your pet — it gets happy a couple of seconds later. Food (uses 1 serving — buy more in the Shop): tap the wall to drop a snack, or tap the floor to set down a full bowl — your pet walks over and eats. Scooper: tap a poop to clean it up. Scolding a happy pet makes it sad; scolding an unhappy one makes it angry.</p>
+      </div>
+      <div class="col">
+        <div class="panel"><h3>Aura</h3><div class="auralist" id="petAuraList"></div>
+          <p class="note">Equip an aura crystal you own. It shows on this pet here and in the Room (wherever its skin appears). Buy crystals in the Shop.</p></div>
+        <div class="panel deckpanel"><h3>Spell Deck</h3>
+          <div class="deckrow"><button class="deckbtn" id="deckBtn" type="button" title="Open your Spell Deck"><canvas id="deckBackCv"></canvas><span>Open deck</span></button>
+            <div class="deckside"><canvas id="deckCurCv" class="deckcur" hidden></canvas><div><div id="deckWearing"></div><div class="note" id="deckInfo" style="margin:4px 0 0"></div></div></div></div>
+          <p class="note">Cards you pull from booster packs in the Shop go into your deck. Open it, pick a card and press Cast to change your pet’s skin.</p></div>
+        <div class="panel"><h3>Stats</h3><div id="petStats"></div>
+          <label class="field" style="margin-top:12px"><input type="checkbox" id="petEdit"> Edit stats (for testing)</label>
+          <p class="note">Stats are saved with the pet. Actions don’t change them yet.</p></div>
+      </div>
+    </div>
+    <div class="deckmodal" id="deckModal" hidden role="dialog" aria-modal="true" aria-labelledby="deckTitle">
+      <div class="deckbox">
+        <div class="deckhead"><h3 id="deckTitle">Spell Deck</h3><span class="note" id="deckCount" style="margin:0"></span><span class="sp"></span><button class="btn" id="forgeBtn" title="Fuse 3 cards into 1 card of a higher rarity">⚒ Spell Forge</button><button class="btn" id="deckClose" aria-label="Close">✕</button></div>
+        <div class="deckdetail" id="deckDetail">
+          <div class="ddcard"><canvas id="ddCard"></canvas></div>
+          <div class="ddright">
+            <div class="ddskin"><canvas class="px" id="ddSkin" width="192" height="144"></canvas></div>
+            <div class="ddfoot"><div><div class="ddname" id="ddName"></div><div class="rlabel" id="ddRarity"></div></div><button class="btn acc" id="ddCast">✨ Cast</button></div>
+          </div>
+        </div>
+        <div class="forgepanel" id="forgePanel" hidden>
+          <div class="fslots" id="fSlots"></div>
+          <div class="frow2"><div class="finfo" id="fInfo"></div><button class="btn acc" id="fGo">⚒ Forge</button></div>
+          <div class="fstage" id="fStage" hidden></div>
+        </div>
+        <div class="deckgrid" id="deckGrid"></div>
+        <p class="note" id="deckEmpty" hidden>No cards yet — open booster packs in the Shop to fill your deck.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SHOP (gacha) ===================== -->
+  <section id="shop" hidden>
+    <div class="panel shopbar"><span class="ppcoin" aria-hidden="true"></span><span class="ppbal"><b id="ppBal">0</b> PP</span><span class="sp"></span>
+      <button class="btn" id="ppAdd" title="Prototype helper">＋ 100,000 PP (testing)</button></div>
+    <div class="layout">
+      <div class="col">
+        <div class="panel"><h3>Booster packs</h3><div class="offers" id="shopOffers"></div>
+          <p class="note">Buy a pack, then open it from <b>Your packs</b>. Each card is rolled on its own from your registered forms.</p></div>
+        <div class="panel"><h3>Aura crystals</h3><div class="crystals" id="shopCrystals"></div>
+          <p class="note">A crystal unlocks an aura for your pet. Auras only show on your profile — try them on in the Profile tab.</p></div>
+        <div class="panel"><h3>Pet supplies</h3><div class="supply"><canvas id="foodIcon"></canvas><div><b>Pet food</b><div class="note" style="margin:2px 0 0">3 servings · each one fills a bowl or drops a snack. You have <b id="foodHave">0</b>.</div></div>
+          <span class="sp"></span><button class="btn acc" id="foodBuy">Buy · 100 PP</button></div></div>
+        <div class="panel"><h3>Your packs</h3><div class="mypacks" id="myPacks"></div></div>
+      </div>
+      <div class="col">
+        <div class="panel"><h3>Odds per card</h3><div id="shopOdds"></div>
+          <p class="note">If a rarity has no registered forms yet, that card becomes a Common. Forms without a rarity count as Common.</p></div>
+        <div class="panel"><h3>Collection</h3><p id="shopColl" style="margin:0"></p><p class="note">Pulled cards go straight into the Spell Deck in the Pet tab.</p></div>
+      </div>
+    </div>
+    <div class="gachamodal" id="gachaModal" hidden role="dialog" aria-modal="true" aria-label="Open a booster pack">
+      <button class="btn gclose" id="gachaClose" aria-label="Close">✕</button>
+      <button class="bigpack" id="gachaPack" type="button" aria-label="Open the pack"><canvas></canvas></button>
+      <div class="gcards" id="gachaCards" hidden></div>
+      <div class="ghint" id="gachaHint"></div>
+      <button class="btn" id="gachaRevealAll" hidden>Reveal all</button>
+      <div class="gdone" id="gachaDone" hidden><div id="gachaSum"></div><div class="gbtns"><button class="btn acc" id="gachaAgain">Open another</button><a class="btn" href="#pet" id="gachaToDeck">Go to Spell Deck</a></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== PROFILE (aura test) ===================== -->
+  <section id="profile" hidden>
+    <div class="layout">
+      <div class="col">
+        <div class="panel profcard">
+          <div class="profwrap" id="profWrap"><canvas id="profCanvas"></canvas></div>
+          <div class="profplate"><div class="profname" id="profName">Player</div><div class="note" id="profSub" style="margin:2px 0 0"></div></div>
+        </div>
+        <p class="note">This is how your pet shows up on your profile page. Auras only appear here.</p>
+      </div>
+      <div class="col">
+        <div class="panel"><h3>Profile</h3>
+          <label class="field" style="display:block;margin-bottom:10px">Display name<br><input type="text" id="profNameIn" maxlength="24" placeholder="Player" style="width:100%;margin-top:4px"></label>
+          <label class="field" style="display:block">Skin (testing: any registered form)<br><select id="profSkinSel" style="width:100%;margin-top:4px"></select></label></div>
+        <div class="panel"><h3>Aura</h3><div class="auralist" id="auraList"></div>
+          <div class="row-flex" style="margin-top:12px"><button class="btn acc" id="profSave">Set as my profile</button></div><p class="note" id="profNote"></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== REGISTERED FORMS ===================== -->
+  <section id="forms" hidden>
+    <div class="detail panel" id="detail">
+      <div>
+        <div class="stage bg-checker" id="dStage"><canvas class="px" id="dCanvas" width="64" height="64"></canvas></div>
+      </div>
+      <div>
+        <h2 id="dName"></h2>
+        <div class="note" id="dSub" style="margin-top:2px"></div>
+        <div class="rarity" id="dRarity" role="radiogroup" aria-label="Rarity" style="margin:10px 0 0"></div>
+        <div class="statebtns" id="dStates"></div>
+        <div class="row-flex">
+          <button class="btn acc" id="dEdit">Edit in Studio</button>
+          <button class="btn" id="dGif">Export GIF</button>
+          <button class="btn" id="dCopy">Copy JSON</button>
+          <span class="sp"></span>
+          <button class="btn danger" id="dDel">Delete</button>
+        </div>
+        <h3 style="margin-top:16px">What’s stored in the database</h3>
+        <pre class="json" id="dJson"></pre>
+      </div>
+    </div>
+    <div class="ggrid" id="ggrid"></div>
+    <div class="empty" id="gEmpty" hidden>No registered forms yet. Recolor a base form in the Studio and press <b>Register form</b>.</div>
+  </section>
+</div>
+<div class="toast" id="toast" style="z-index:20"></div>
+<script src="gif.js"></script>
+<!-- Ruin Run's engine, shared with the server (it plays every run in the game again) -->
+<script src="ruin-engine.js"></script>
+<script src="forge.js"></script>
+</body>
+</html>

@@ -18,6 +18,7 @@ import DoubleNotice from '../double/DoubleNotice'
 import SlotNotice from '../slots/SlotNotice'
 import CrashNotice, { CrashInvite } from '../crash/CrashNotice'
 import ForrestNotice from '../forrest/ForrestNotice'
+import CatflixNotice from '../catflix/CatflixNotice'
 import StealNotice from '../steal/StealNotice'
 import PokerNotice from '../poker/PokerNotice'
 import LoanNotice from '../loanShark/LoanNotice'
@@ -1036,6 +1037,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'crashBigWin' || item.type === 'crashResult') return <CrashNotice item={item} />
   if (item.type === 'crashInvite') return <CrashInvite item={item} />
   if (item.type.startsWith('forrest')) return <ForrestNotice item={item} />
+  if (item.type.startsWith('catflix')) return <CatflixNotice item={item} />
   if (item.type === 'quizWinner' || item.type === 'quizStreak') return <QuizNotice item={item} />
   if (item.type === 'blackFriday' || item.type === 'doublePrizes') return <SiteEventNotice item={item} />
   if (item.type.startsWith('steal')) return <StealNotice item={item} />
