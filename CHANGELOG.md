@@ -394,6 +394,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Catflix No Chill's Play Dates: the pet room shows the other cat's stats
   beside your cat's, in a second Stats box, each headed with the cat's name
   ("your cat" / "their cat"). Their cat's love is its love for you.
+- Catflix No Chill's toys on a Play Date: each knock of your ball by the
+  cat you're visiting also raises its love for you by 1 (as well as its +5
+  happiness). Your own cat's knocks are as before
+  (`shared/catflix/rules.js` toys.loveForVisitor).
 - Ruin Run (Catflix No Chill) has a start screen before the game, each time
   its tab opens: Play, How to Play (the controls, what ends a run, speed,
   bets and cash-outs, in a pop-up window) and the best runs, each member's

@@ -7,7 +7,8 @@ const { CatflixError, changePet } = require("./pets");
 // Catflix No Chill's toys (shared/catflix/rules.js toys): balls bought in the
 // shop (shop.js), dropped in a pet room on the page, where the pets knock
 // them about. The page plays the pets and the ball; every knock it reports
-// counts here: +5 happiness for the pet that knocked it, and one knock off
+// counts here: +5 happiness for the pet that knocked it (and, for someone
+// else's pet on a Play Date, +1 to its love for whoever owns the ball), and one knock off
 // the ball, which is gone once it has none left. At most one knock is
 // counted a player every knockEveryMs, so knocks can't be hurried along.
 
@@ -35,7 +36,18 @@ async function knock(actorId, petId, kind, now = new Date()) {
 
     let pet;
     try {
-        pet = await changePet({ _id: petId }, (current) => ({ meters: { ...current.meters, happiness: Math.min(CATFLIX.meterMax, current.meters.happiness + TOYS.happiness) } }), now);
+        pet = await changePet(
+            { _id: petId },
+            (current) => {
+                const meters = { ...current.meters, happiness: Math.min(CATFLIX.meterMax, current.meters.happiness + TOYS.happiness) };
+                if (String(current.owner) === String(actorId)) return { meters };
+                // Someone else's pet (a Play Date): it loves the one whose ball it is a little more.
+                const loveBy = new Map(current.loveBy instanceof Map ? current.loveBy : Object.entries(current.loveBy ?? {}));
+                loveBy.set(String(actorId), Math.min(CATFLIX.meterMax, (loveBy.get(String(actorId)) ?? 0) + TOYS.loveForVisitor));
+                return { meters, loveBy };
+            },
+            now
+        );
     } catch (error) {
         await CatflixPlayer.updateOne({ user: actorId }, { $inc: { [path]: 1 } });
         throw error;
