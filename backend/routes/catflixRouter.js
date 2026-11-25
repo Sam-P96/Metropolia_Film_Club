@@ -60,10 +60,12 @@ const { CATFLIX } = require("../../shared/catflix/rules.js");
 //   POST /run/:id/finish { inputs, endTick }   played again here: { run, pet }
 //   POST /run/:id/cashout       POST /run/:id/discard
 // Nekomusume: Kitty Race (utils/catflix/kittyRace.js): every answer carries
-// `races` ({ mine, open }), `points` and the race's `rules`.
-//   GET  /race                  their race, and their friends' open ones
+// `races` ({ mine, open, live }), `points` and the race's `rules`.
+//   GET  /race                  their race, their friends' open ones, and races on now to watch
 //   POST /race       { bet, solo }   open one, on a random track (solo: it starts at once)
 //   POST /race/:id/join { bet } POST /race/:id/leave   POST /race/:id/start
+//   GET  /race/:id              one race, to watch (polled while it plays): { race }
+//   POST /race/:id/throw { item, lane }   a cheat item thrown at a cat: { race, player }
 const router = express.Router();
 router.use("/app", express.static(path.join(__dirname, "..", "public", "pet-forge"), { maxAge: 0 }));
 // Every pet's looks, for anyone too: the Games page shows the game's logo (the
@@ -206,8 +208,8 @@ const withRaces = (work) =>
     handle(async (req) => {
         await work(req);
         const [races, points] = await Promise.all([kittyRace.racesFor(req.user._id), ruinRun.pointsOf(req.user._id)]);
-        const { racers, maxBet, bets, pays, lobbyMinutes } = kittyRace.RULES;
-        return { races, points, rules: { racers, maxBet, bets, pays, lobbyMinutes } };
+        const { racers, maxBet, bets, pays, lobbyMinutes, winnerMs, cheats } = kittyRace.RULES;
+        return { races, points, rules: { racers, maxBet, bets, pays, lobbyMinutes, winnerMs, cheats } };
     });
 router.get("/race", withRaces(() => null));
 router.post("/race", withRaces((req) => kittyRace.openRace(req.user._id, { bet: Number(req.body?.bet), solo: req.body?.solo === true })));
@@ -218,6 +220,14 @@ router.post(
     withRaces((req) => {
         if (!mongoose.isValidObjectId(req.params.id)) throw new pets.CatflixError("That race isn't waiting to start.", 404);
         return kittyRace.startRace(req.params.id, { by: req.user._id });
+    })
+);
+router.get("/race/:id", handle(async (req) => ({ race: await kittyRace.watchRace(req.params.id) })));
+router.post(
+    "/race/:id/throw",
+    handle(async (req) => {
+        const race = await kittyRace.throwItem(req.user._id, req.params.id, { item: req.body?.item, lane: req.body?.lane });
+        return { race: kittyRace.raceView(race), player: shop.playerView(await shop.playerOf(req.user._id)) };
     })
 );
 

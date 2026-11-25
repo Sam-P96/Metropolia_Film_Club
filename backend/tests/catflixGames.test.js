@@ -389,11 +389,16 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
     // ---- Kitty Race ----
 
     // Randomness for the race's start: `first` for the winner's place in the
-    // field (0: the first member in it; 9: the last house cat), 0 after.
+    // field (0: the first member in it; 9: the last house cat), 0 after (so
+    // every mishap, and no house cat throwing a cheat item).
     const fixed = (first) => {
         let calls = 0;
         return () => (calls++ === 0 ? first : 0);
     };
+    // The moment `ms` into a race (its clock: 0 at the off, after the countdown).
+    const raceTime = (race, ms) => new Date(new Date(race.startAt).getTime() + CATFLIX.kittyRace.countdownMs + ms);
+    // When cheat items can't change a race any more, and its winner's paid.
+    const settleMs = CATFLIX.kittyRace.winnerMs - CATFLIX.kittyRace.cheats.lateMs;
 
     test("Kitty Race alone: 9 house cats, every cat the same chance, and a win pays 10 times the bet", async () => {
         const user = await member({ pp: 60, ppp: 1000 });
@@ -405,7 +410,13 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(String(race.racers[race.order[0]].owner), String(user._id), "theirs won");
         assert.deepEqual([...race.order].sort((a, b) => a - b), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert.equal(race.entries[0].payout, 1000);
-        // Paid 60 PP + 40 P-PP; back: the 60 PP, and 940 P-PP.
+        // Paid 60 PP + 40 P-PP; paid out once cheat items can't change who wins (15 s before the winner's finish):
+        // the 60 PP back, and 940 P-PP.
+        assert.deepEqual(await walletOf(user), { pp: 0, ppp: 960 });
+        assert.equal(await kittyRace.settleDue(raceTime(race, settleMs - 1)), 0, "not yet");
+        assert.equal(await kittyRace.settleDue(raceTime(race, settleMs)), 1);
+        assert.deepEqual(await walletOf(user), { pp: 60, ppp: 1900 });
+        assert.equal(await kittyRace.settleDue(raceTime(race, settleMs + 60000)), 0, "once");
         assert.deepEqual(await walletOf(user), { pp: 60, ppp: 1900 });
         assert.ok(race.startAt > new Date() && race.endsAt > race.startAt);
         assert.ok(Object.keys(CATFLIX.kittyRace.maps).includes(race.map));
@@ -418,34 +429,63 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.deepEqual([...seen].sort(), Object.keys(CATFLIX.kittyRace.maps).sort());
     });
 
-    test("Kitty Race mishaps: a brawl in 20% of races (neighbours, mid-race), celebrating too soon in 20%; never the winner, so every cat keeps the same chance", async () => {
+    test("Kitty Race mishaps: brawls (sometimes two, four cats), celebrating too soon, lightning in the rain, giving up; any time along the track, all in one race at once; never the winner, so every cat keeps the same chance", async () => {
         const crypto = require("crypto");
-        const runs = 4000;
-        let brawls = 0;
-        let parties = 0;
+        const odds = CATFLIX.kittyRace.mishaps;
+        const runs = 5000;
+        const seen = { brawl: 0, two: 0, party: 0, struck: 0, quit: 0, all: 0 };
+        const times = { brawl: [], struck: [] };
         for (let i = 0; i < runs; i++) {
             const winner = crypto.randomInt(10);
-            const m = kittyRace.mishapsFor(10, winner, crypto.randomInt);
-            if (m?.brawl) {
-                brawls += 1;
-                const { attacker, victim, atMs } = m.brawl;
-                assert.equal(Math.abs(attacker - victim), 1, "next-door lanes");
-                assert.ok(![attacker, victim].includes(winner), "never the winner");
-                assert.ok(atMs >= CATFLIX.kittyRace.mishaps.brawlFrom && atMs <= CATFLIX.kittyRace.mishaps.brawlTo, "mid-race");
+            const m = kittyRace.mishapsFor(10, winner, crypto.randomInt, "rain");
+            if (!m) continue;
+            const lanes = [...m.brawls.flatMap((brawl) => [brawl.attacker, brawl.victim]), m.celebrate?.lane, m.lightning?.lane, m.quit?.lane].filter((lane) => lane !== undefined);
+            assert.equal(new Set(lanes).size, lanes.length, "never two mishaps to one cat");
+            assert.ok(!lanes.includes(winner), "never the winner");
+            for (const brawl of m.brawls) {
+                assert.equal(Math.abs(brawl.attacker - brawl.victim), 1, "next-door lanes");
+                assert.ok(brawl.atMs >= odds.brawlFrom && brawl.atMs <= odds.brawlTo);
+                times.brawl.push(brawl.atMs);
             }
-            if (m?.celebrate) {
-                parties += 1;
-                assert.ok(m.celebrate.lane !== winner && m.celebrate.lane !== m.brawl?.attacker && m.celebrate.lane !== m.brawl?.victim);
+            if (m.lightning) {
+                assert.ok(m.lightning.atMs >= odds.lightningFrom && m.lightning.atMs <= odds.lightningTo);
+                times.struck.push(m.lightning.atMs);
             }
+            seen.brawl += m.brawls.length > 0;
+            seen.two += m.brawls.length === 2;
+            seen.party += Boolean(m.celebrate);
+            seen.struck += Boolean(m.lightning);
+            seen.quit += Boolean(m.quit);
+            if (m.quit) assert.ok(m.quit.atMs >= odds.quitFrom && m.quit.atMs <= odds.quitTo);
+            seen.all += m.brawls.length > 0 && Boolean(m.celebrate) && Boolean(m.lightning) && Boolean(m.quit);
         }
-        for (const [what, count] of [["brawls", brawls], ["too-soon celebrations", parties]]) assert.ok(Math.abs(count / runs - 0.2) < 0.03, `${what}: ${((count / runs) * 100).toFixed(1)}%`);
+        const share = (n) => n / runs;
+        assert.ok(Math.abs(share(seen.brawl) - 0.2) < 0.025, `a brawl in ${(share(seen.brawl) * 100).toFixed(1)}% of races`);
+        assert.ok(Math.abs(share(seen.two) - 0.04) < 0.012, `two brawls (four cats) in ${(share(seen.two) * 100).toFixed(1)}%`);
+        assert.ok(Math.abs(share(seen.party) - 0.2) < 0.025, `too soon in ${(share(seen.party) * 100).toFixed(1)}%`);
+        assert.ok(Math.abs(share(seen.struck) - 0.5) < 0.03, `lightning in ${(share(seen.struck) * 100).toFixed(1)}% of rainy races`);
+        assert.ok(Math.abs(share(seen.quit) - 0.1) < 0.02, `giving up in ${(share(seen.quit) * 100).toFixed(1)}%`);
+        assert.ok(seen.all > 0, "all of them in one race, sometimes");
+        // Anywhere along the track: early, middle and late all come up.
+        for (const [what, list, from, to] of [["brawls", times.brawl, odds.brawlFrom, odds.brawlTo], ["lightning", times.struck, odds.lightningFrom, odds.lightningTo]]) {
+            const third = (to - from) / 3;
+            const thirds = [0, 1, 2].map((k) => list.filter((t) => t >= from + k * third && t < from + (k + 1) * third).length);
+            assert.ok(thirds.every((n) => n > list.length * 0.25), `${what} spread along the race: ${thirds}`);
+        }
+        for (const weather of ["sunny", "snow", null]) {
+            for (let i = 0; i < 300; i++) assert.equal(kittyRace.mishapsFor(10, 0, crypto.randomInt, weather)?.lightning ?? null, null, `no lightning: ${weather}`);
+        }
 
-        // In a race: the one who celebrated too soon comes in after the rest, the brawl's two last; the winner's paid all the same.
+        // In a race (every roll 0: two brawls and too soon, and lightning if it's raining): the one who celebrated too
+        // soon comes in after the rest, then the ones who never finished; the winner's paid all the same.
         const user = await member({ pp: 1000 });
         const race = await kittyRace.openRace(user._id, { bet: 100, solo: true }, { random: fixed(0) });
-        const { brawl, celebrate } = race.mishaps;
-        assert.ok(brawl && celebrate, "both, with every roll 0");
-        assert.deepEqual(race.order.slice(-3), [celebrate.lane, brawl.attacker, brawl.victim]);
+        const { brawls, celebrate, lightning, quit } = race.mishaps;
+        assert.equal(brawls.length, 2, "four cats brawling");
+        assert.ok(celebrate && quit);
+        assert.equal(Boolean(lightning), ["rain", "thunder"].includes(race.weather), `lightning only in the rain (${race.weather})`);
+        const unlucky = [celebrate.lane, quit.lane, ...(lightning ? [lightning.lane] : []), ...brawls.flatMap((brawl) => [brawl.attacker, brawl.victim])];
+        assert.deepEqual(race.order.slice(-unlucky.length), unlucky, "celebrated too soon, then the ones who never finished");
         assert.equal(String(race.racers[race.order[0]].owner), String(user._id));
         assert.equal(race.entries[0].payout, 1000);
         const view = (await call(user, "GET", "/race")).body.races.mine;
@@ -458,6 +498,7 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         const race = await kittyRace.openRace(user._id, { bet: 100, solo: true }, { random: fixed(9) });
         assert.equal(race.racers[race.order[0]].owner, null, "a house cat won");
         assert.equal(race.entries[0].payout, 0);
+        assert.equal(await kittyRace.settleRace(race._id), true);
         assert.deepEqual(await walletOf(user), { pp: 400, ppp: 0 });
         assert.equal((await jackpots()) - jackpotBefore, 90);
         assert.equal((await call(user, "POST", "/race", { bet: 5001, solo: true })).status, 400, "5,000 at most");
@@ -495,7 +536,9 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(race.phase, "countdown");
         assert.equal(race.racers.length, 10);
         assert.equal(race.racers.filter((racer) => racer.owner).length, 2);
-        const winner = race.racers[race.order[0]].owner;
+        // The winner: first after any cheat items the house cats threw (one can knock out the cat that was going to win).
+        const winner = race.racers[race.finish[0]].owner;
+        await kittyRace.settleRace(race.id);
         for (const [user, bet] of [[host, 300], [friend, 200]]) {
             const entry = race.entries.find((e) => e.user === String(user._id));
             const won = winner === String(user._id);
@@ -523,5 +566,153 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         const looked = await call(friend, "GET", "/race");
         assert.equal(looked.status, 200);
         assert.equal((await CatflixRace.findById(id).lean()).status, "started", "started by itself");
+    });
+
+    // ---- Kitty Race's cheat items ----
+
+    const give = (user, cheats) => require("../models/catflixPlayerModel").updateOne({ user: user._id }, { $set: { ...Object.fromEntries(Object.entries(cheats).map(([kind, n]) => [`cheats.${kind}`, n])) } }, { upsert: true });
+    const cheatsOf = async (user) => (await require("../models/catflixPlayerModel").findOne({ user: user._id }).lean())?.cheats;
+    // A race between `host` and `friend` (friends), started with every roll 0 (no mishaps by the luck of it: those
+    // are turned off here; no house cat throws), and set so the host's cat wins and the friend's comes in second.
+    async function twoCatRace(host, friend, { hostBet = 100, friendBet = 100 } = {}) {
+        await friends(host, friend);
+        const { id } = (await call(host, "POST", "/race", { bet: hostBet })).body.races.mine;
+        await call(friend, "POST", `/race/${id}/join`, { bet: friendBet });
+        const started = await kittyRace.startRace(id, { by: host._id, random: fixed(0) });
+        const lane = (user) => started.racers.findIndex((racer) => String(racer.owner) === String(user._id));
+        const [h, f] = [lane(host), lane(friend)];
+        const order = [h, f, ...started.order.filter((l) => l !== h && l !== f)];
+        await CatflixRace.updateOne({ _id: id }, { $set: { order, finish: order, mishaps: null, entries: started.entries.map((e) => ({ ...e, payout: String(e.user) === String(host._id) ? e.bet * 10 : 0 })) } });
+        return { race: await CatflixRace.findById(id).lean(), h, f };
+    }
+
+    test("Cheat items: the pet shop sells TNT and a Banana Peel, 200 PP each (PP first, then P-PP)", async () => {
+        const user = await member({ pp: 150, ppp: 500 });
+        const bought = await call(user, "POST", "/shop/buy", { item: "cheat", kind: "tnt" });
+        assert.equal(bought.status, 200);
+        assert.deepEqual(bought.body.player.cheats, { tnt: 1, banana: 0 });
+        assert.deepEqual(await walletOf(user), { pp: 0, ppp: 450 }, "150 PP, then 50 P-PP");
+        assert.deepEqual((await call(user, "POST", "/shop/buy", { item: "cheat", kind: "banana" })).body.player.cheats, { tnt: 1, banana: 1 });
+        assert.deepEqual((await call(user, "POST", "/shop/buy", { item: "cheat", kind: "banana" })).body.player.cheats, { tnt: 1, banana: 2 }, "as many as they like");
+        assert.equal((await call(user, "POST", "/shop/buy", { item: "cheat", kind: "anvil" })).status, 400);
+        assert.equal((await call(user, "POST", "/shop/buy", { item: "cheat", kind: "tnt" })).status, 400, "not enough points");
+        assert.deepEqual(await cheatsOf(user), { tnt: 1, banana: 2 });
+    });
+
+    test("Cheat items: TNT that hits the cat that was going to win knocks it out, and the next in line wins, the thrower's too; paid once nothing can change it", async () => {
+        const host = await member({ pp: 1000 });
+        const friend = await member({ pp: 1000 });
+        await give(friend, { tnt: 2 });
+        const { race, h, f } = await twoCatRace(host, friend, { hostBet: 300, friendBet: 200 });
+        assert.equal((await kittyRace.throwItem(friend._id, race._id, { item: "tnt", lane: h }, { now: raceTime(race, -500) }).catch((e) => e)).status, 409, "not before the off");
+
+        const thrown = await kittyRace.throwItem(friend._id, race._id, { item: "tnt", lane: h }, { now: raceTime(race, 20000), random: () => 0 });
+        const t = thrown.throws.at(-1);
+        assert.deepEqual({ ...t, by: String(t.by) }, { by: String(friend._id), username: friend.username, from: f, item: "tnt", target: h, atMs: 20000, landsMs: 20000 + CATFLIX.kittyRace.cheats.flightMs, hit: true });
+        assert.equal(thrown.finish[0], f, "the friend's cat, next in line, wins");
+        assert.equal(thrown.finish.at(-1), h, "the host's cat, knocked out, last");
+        assert.deepEqual(thrown.order, race.order, "the race plays out from the same script");
+        assert.deepEqual(thrown.entries.map((e) => [String(e.user), e.payout]), [[String(host._id), 0], [String(friend._id), 2000]]);
+        assert.deepEqual(await cheatsOf(friend), { tnt: 1, banana: 0 });
+        assert.equal((await kittyRace.throwItem(friend._id, race._id, { item: "tnt", lane: h }, { now: raceTime(race, 21000) }).catch((e) => e)).status, 409, "one a race");
+        assert.deepEqual(await cheatsOf(friend), { tnt: 1, banana: 0 }, "and that one wasn't taken");
+
+        // Every page gets it, watching or in it.
+        const stranger = await member();
+        const watched = await call(stranger, "GET", `/race/${race._id}`);
+        assert.equal(watched.status, 200);
+        assert.deepEqual(watched.body.race.throws.map((x) => [x.by, x.target, x.hit]), [[String(friend._id), h, true]]);
+        assert.equal(watched.body.race.finish[0], f);
+        // Paid once cheat items can't change it: the friend's 200 back, and 1,800 P-PP.
+        assert.deepEqual(await walletOf(friend), { pp: 800, ppp: 0 });
+        await kittyRace.settleDue(raceTime(race, settleMs));
+        assert.deepEqual(await walletOf(friend), { pp: 1000, ppp: 1800 });
+        assert.deepEqual(await walletOf(host), { pp: 700, ppp: 0 });
+    });
+
+    test("Cheat items: in the last 15 s they always miss; a miss changes nothing; not at your own cat; no item, no throw; none once the winner's home", async () => {
+        const host = await member({ pp: 1000 });
+        const friend = await member({ pp: 1000 });
+        await give(host, { banana: 1 });
+        await give(friend, { banana: 1 });
+        const { race, h, f } = await twoCatRace(host, friend);
+        const late = CATFLIX.kittyRace.winnerMs - CATFLIX.kittyRace.cheats.lateMs;
+        assert.equal((await kittyRace.throwItem(host._id, race._id, { item: "banana", lane: h }, { now: raceTime(race, 5000) }).catch((e) => e)).status, 400, "not your own cat");
+        assert.equal((await kittyRace.throwItem(host._id, race._id, { item: "tnt", lane: f }, { now: raceTime(race, 5000) }).catch((e) => e)).status, 409, "no TNT");
+        const missed = await kittyRace.throwItem(friend._id, race._id, { item: "banana", lane: h }, { now: raceTime(race, late), random: () => 0 });
+        assert.equal(missed.throws.at(-1).hit, false, "15 s before the winner's finish: a miss, every time");
+        assert.equal(missed.finish[0], h, "the host's cat still wins");
+        // A throw before then misses in 1 of 5: a roll of 80 to 99.
+        const early = await kittyRace.throwItem(host._id, race._id, { item: "banana", lane: f }, { now: raceTime(race, 1000), random: () => 80 });
+        assert.equal(early.throws.at(-1).hit, false);
+        assert.deepEqual(early.finish, race.order);
+        const third = await member();
+        await give(third, { tnt: 1 });
+        assert.equal((await kittyRace.throwItem(third._id, race._id, { item: "tnt", lane: f }, { now: raceTime(race, CATFLIX.kittyRace.winnerMs) }).catch((e) => e)).status, 409, "the winner's home");
+    });
+
+    test("Cheat items, watching: anyone can watch any race on now, and throw at members' cats whose owners have PvP on (only those)", async () => {
+        const host = await member({ pp: 1000 });
+        const friend = await member({ pp: 1000 });
+        await User.updateOne({ _id: host._id }, { $set: { pvp: true } });
+        const { race, h, f } = await twoCatRace(host, friend);
+        assert.deepEqual([race.racers[h].pvp, race.racers[f].pvp], [true, false], "as their owners had it at the start");
+        const fan = await member({ pet: false });
+        await give(fan, { tnt: 1, banana: 1 });
+        const looked = (await call(fan, "GET", "/race")).body.races;
+        assert.ok(looked.live.some((r) => r.id === String(race._id)), "on now, to watch");
+        assert.ok(!(await call(host, "GET", "/race")).body.races.live.some((r) => r.id === String(race._id)), "not in your own list: it's yours");
+        const house = race.racers.findIndex((racer) => !racer.owner);
+        const no = (lane) => kittyRace.throwItem(fan._id, race._id, { item: "tnt", lane }, { now: raceTime(race, 9000) }).catch((e) => e.status);
+        assert.equal(await no(f), 403, "PvP off");
+        assert.equal(await no(house), 403, "a house cat");
+        const hit = await kittyRace.throwItem(fan._id, race._id, { item: "tnt", lane: h }, { now: raceTime(race, 9000), random: () => 0 });
+        assert.deepEqual([hit.throws.at(-1).from, hit.throws.at(-1).hit, hit.finish[0]], [null, true, f]);
+        const thrown = await call(fan, "POST", `/race/${race._id}/throw`, { item: "banana", lane: h });
+        assert.equal(thrown.status, 409, "one a race, watching too");
+    });
+
+    test("Cheat items: never one that would leave no cat to cross the line", async () => {
+        const host = await member({ pp: 1000 });
+        const friend = await member({ pp: 1000 });
+        await User.updateOne({ _id: host._id }, { $set: { pvp: true } });
+        const { race, h, f } = await twoCatRace(host, friend);
+        // Every other cat stopped by a mishap: the host's cat the only one left to finish.
+        const rest = race.order.filter((lane) => lane !== h);
+        const brawls = [[rest[0], rest[1]], [rest[2], rest[3]], [rest[4], rest[5]], [rest[6], rest[7]]].map(([attacker, victim]) => ({ attacker, victim, atMs: 10000 }));
+        await CatflixRace.updateOne({ _id: race._id }, { $set: { mishaps: { brawls, celebrate: null, lightning: { lane: rest[8], atMs: 12000 }, quit: null } } });
+        const fan = await member({ pet: false });
+        await give(fan, { tnt: 1 });
+        const thrown = await kittyRace.throwItem(fan._id, race._id, { item: "tnt", lane: h }, { now: raceTime(race, 20000), random: () => 0 });
+        assert.equal(thrown.throws.at(-1).hit, false, "it misses: the cat jumps it");
+        assert.equal(thrown.finish[0], h);
+        assert.ok(rest.includes(f));
+    });
+
+    test("Cheat items, house cats: each throws in 30% of races, at another cat, any time to the winner's finish; 80% hit before the last 15 s, never after", () => {
+        const crypto = require("crypto");
+        const odds = CATFLIX.kittyRace.cheats;
+        const winnerMs = CATFLIX.kittyRace.winnerMs;
+        const runs = 4000;
+        let thrown = 0, early = 0, earlyHits = 0, lateHits = 0;
+        for (let i = 0; i < runs; i++) {
+            const racers = [{ owner: "someone" }, ...Array.from({ length: 9 }, () => ({ owner: null }))];
+            const order = [...Array(10).keys()].sort(() => crypto.randomInt(3) - 1);
+            const throws = kittyRace.houseThrows({ racers, order, mishaps: null, settledAt: null }, crypto.randomInt);
+            thrown += throws.length;
+            for (const t of throws) {
+                assert.ok(t.from >= 1 && t.target !== t.from, "a house cat, at another cat");
+                assert.ok(t.atMs >= odds.houseFrom && t.atMs < winnerMs);
+                assert.equal(t.landsMs, t.atMs + odds.flightMs);
+                if (t.atMs < winnerMs - odds.lateMs) (early += 1), (earlyHits += t.hit);
+                else lateHits += t.hit;
+            }
+            const finish = kittyRace.finishOrder(order, throws);
+            const out = throws.filter((t) => t.hit).map((t) => t.target);
+            assert.deepEqual(finish.slice(0, 10 - new Set(out).size), order.filter((lane) => !out.includes(lane)), "the rest in their order, the knocked out after them");
+        }
+        assert.ok(Math.abs(thrown / (runs * 9) - odds.houseCat) < 0.02, `${((thrown / (runs * 9)) * 100).toFixed(1)}% of house cats threw`);
+        assert.ok(Math.abs(earlyHits / early - odds.hit) < 0.03, `${((earlyHits / early) * 100).toFixed(1)}% hit`);
+        assert.equal(lateHits, 0, "the last 15 s: all misses");
     });
 });

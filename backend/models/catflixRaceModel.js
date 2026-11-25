@@ -6,8 +6,10 @@ const Schema = mongoose.Schema;
 //   open       waiting: its host (and, if it isn't solo, the host's friends)
 //              are in with their bets, taken as they joined
 //   started    the server picked the field, the lanes and the finishing
-//              order, and paid the winner, all at once; the race plays out
-//              in everyone's page from `startAt` to `endsAt`
+//              order, all at once; the race plays out in everyone's page
+//              from `startAt` to `endsAt`. Cheat items thrown while it runs
+//              can change who wins, so the winner's paid (`settledAt`) once
+//              they can't any more (utils/catflix/kittyRace.js settleRace)
 //   cancelled  the host left before the start: every bet went back
 // `version` goes up with every change to the entries, so the start (which
 // reads them, then saves) can tell if someone joined or left in between.
@@ -33,12 +35,33 @@ const entrySchema = new Schema(
 );
 
 // A cat in a lane: a member's pet (`owner`), or a house cat (no owner).
+// `pvp`: its owner had PvP on when the race started (those watching can only
+// throw cheat items at those cats).
 const racerSchema = new Schema(
     {
         owner: { type: Schema.Types.ObjectId, ref: "User", default: null },
         username: { type: String, default: "" },
         name: { type: String, required: true },
         skinId: { type: String, default: null },
+        pvp: { type: Boolean, default: false },
+    },
+    { _id: false }
+);
+
+// A cheat item thrown (utils/catflix/kittyRace.js): by a member (`by`;
+// `from`: their cat's lane, or null watching) or a house cat (no `by`,
+// `from` its lane), at the cat in lane `target`; thrown `atMs` into the race,
+// it gets there at `landsMs`, and hit or missed.
+const throwSchema = new Schema(
+    {
+        by: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        username: { type: String, default: "" },
+        from: { type: Number, default: null },
+        item: { type: String, required: true },
+        target: { type: Number, required: true },
+        atMs: { type: Number, required: true },
+        landsMs: { type: Number, required: true },
+        hit: { type: Boolean, default: false },
     },
     { _id: false }
 );
@@ -57,8 +80,15 @@ const catflixRaceSchema = new Schema(
         // race with, and when it plays.
         racers: { type: [racerSchema], default: [] },
         order: { type: [Number], default: [] },
+        // The cheat items thrown, and the finishing order after them: `order`
+        // with every cat they knocked out moved to the back (the pages play
+        // the race from `order`, and stop those cats where they're hit).
+        throws: { type: [throwSchema], default: [] },
+        finish: { type: [Number], default: [] },
         // Its mishaps (utils/catflix/kittyRace.js mishapsFor), by lane:
-        // { brawl: { attacker, victim, atMs } | null, celebrate: { lane } | null }.
+        // { brawls: [{ attacker, victim, atMs }] (none, one or two),
+        //   celebrate: { lane } | null, lightning: { lane, atMs } | null,
+        //   quit: { lane, atMs (when it leads) } | null }.
         mishaps: { type: Schema.Types.Mixed, default: null },
         seed: { type: Number, default: 0 },
         startAt: { type: Date, default: null },

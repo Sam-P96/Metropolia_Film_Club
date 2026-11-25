@@ -356,7 +356,38 @@ html.fit section .roombar{margin:0;flex-shrink:0;padding:8px 12px;justify-conten
 html.fit .gamestage{flex:1;min-height:0;container-type:size;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px}
 html.fit #roomWrap{margin:0;flex:none;width:min(100cqw,calc((100cqh - 64px) * 1254 / 1004))}   /* 64px: the bar under it */
 html.fit .gamestage>.roombar{flex:none}
-html.fit #raceWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh * 16 / 9))}
+html.fit #raceWrap{margin:0;flex:none;width:min(100cqw,calc((100cqh - 56px) * 16 / 9))}   /* 56px: the cheat box under it */
+/* Kitty Race's cheat box, under the race (as wide as it): a crate button and what's happening; its menu (your cheat
+   items as crates, then the lanes) opens over the bottom of the race, never taller than the race */
+.cheatbar{position:relative;flex:none;display:flex;align-items:center;gap:10px;width:min(100cqw,calc((100cqh - 56px) * 16 / 9));min-height:46px}
+.cheatbtn{flex:none;display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+  font:700 14px Inter,sans-serif;cursor:pointer}   /* the site's font: the pixel font's C reads as an O this small */
+.cheatbtn canvas{width:38px;height:30px;image-rendering:pixelated}
+.cheatbtn:disabled{opacity:.5;cursor:default}
+.cheatbtn[aria-expanded=true]{border-color:var(--acc)}
+.cheatmsg{flex:1;min-width:0;font-size:13px;line-height:1.3;color:var(--mute)}
+.cheatmenu{position:absolute;left:0;right:0;bottom:calc(100% + 10px);z-index:5;box-sizing:border-box;max-height:min(280px,calc(100cqw * 9 / 16),calc(100cqh - 56px));overflow:auto;
+  overscroll-behavior:contain;background:rgba(22,14,30,.94);border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.cheatmenu[hidden]{display:none}
+.cheathead{display:flex;align-items:center;gap:8px;font:700 15px Inter,sans-serif}
+.cheathead b{flex:1;min-width:0}
+.cheathead .btn{padding:4px 10px}
+.crates{display:flex;flex-wrap:wrap;gap:10px}
+.crate{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 10px;border-radius:10px;border:2px solid #5a3a1e;background:#2a1b10;color:#ffe9c4;
+  font:700 13px 'Pixelify Sans',monospace;letter-spacing:.08em;cursor:pointer}
+.crate canvas{width:57px;height:45px;image-rendering:pixelated}
+.crate em{font-style:normal;color:var(--acc)}
+.crate:hover,.crate:focus-visible{border-color:var(--acc)}
+.cheatlanes{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.cheatlanes button{display:flex;align-items:center;gap:6px;min-width:0;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:13px;text-align:left;cursor:pointer}
+.cheatlanes button b{font-family:'Pixelify Sans',monospace}
+.cheatlanes button i{flex:none;width:8px;height:8px;border-radius:2px}
+.cheatlanes button span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cheatlanes button em{font-style:normal;font-size:11px;color:var(--mute)}
+.cheatlanes button:disabled{opacity:.45;cursor:default}
+.cheatlanes button:not(:disabled):hover{border-color:var(--acc)}
+.cheatshop{display:flex;flex-direction:column;gap:12px}
+.cheatshop .supply canvas{width:38px;height:30px}
 html.fit #runWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh - 96px),640px);max-width:none}   /* 96px: the buttons under it */
 /* Ruin Run's buttons under the game, as wide as it: lane up over lane down, centred in the room left of JUMP, which is
    on the right (a third of the row, so the lane buttons have room for their full width on a phone too) */

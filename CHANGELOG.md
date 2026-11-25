@@ -866,6 +866,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rest go past, and comes in behind them. The server picks them with the
   winner (backend/utils/catflix/kittyRace.js mishapsFor); every page plays
   them the same; the results say who brawled and who celebrated too soon.
+- Kitty Race mishaps, more of them, any of them in the same race: a brawl
+  can break out anywhere along the track (8 to 52 seconds in), and in 20%
+  of races with one, two more cats brawl somewhere else (four in all). The
+  attacker leaps into its neighbour's lane, lands in front of it and turns
+  round to face it, and its neighbour is knocked back a step, so both are
+  in view; neither flickers. In the rain or a thunderstorm, 50% of races
+  have a cat struck by lightning (8 to 55 seconds in): it turns pitch black
+  and sad, and stops there. And in 10% of races a cat takes the lead (15 to
+  45 seconds in), two cats overtake it, and it gives up: it stops, sad. None
+  of them is ever the winner (shared/catflix/rules.js kittyRace.mishaps).
+- Kitty Race cheat items: the pet shop sells TNT and a Banana Peel, 200 PP
+  each (PP first, then P-PP). Open the cheat box under a race (pixel-art
+  crates of what you have), pick one, then the lane to throw it at: one a
+  race. TNT flies high, flipping end over end, and goes off in a big blast;
+  a Banana Peel lands on the track in front of its cat. Thrown before the
+  last 15 seconds before the winner's finish, it knocks that cat out 4
+  times in 5 (it stops, sad, and loses; TNT blows it back, a Banana Peel
+  makes it slip); if that cat was going to win, the
+  next cat in line wins, even the thrower's. Later, it always misses: the
+  cat jumps it. House cats throw too, each in 30% of races. Anyone can watch
+  a race on now (Races on now, in Kitty Race), and watching, throw only at
+  members' cats whose owners have PvP on. Every page polls the race each
+  second while it plays, so a throw lands at the same moment for everyone
+  (backend/utils/catflix/kittyRace.js throwItem, houseThrows, watchRace).
+  Because items can change who wins, the winner is now paid 45 seconds in,
+  once they can't any more (settleRace, settleDue; the minute sweep pays any
+  race nobody's looking at), not as the race starts.
+- Kitty Race: your cat's lane is green.
 - Kino Farkle against Clanker: stakes go up to 3,000 points (from 1,500),
   with 2,000 and 3,000 quick stakes. In a game played for more than 2,000,
   Clanker's three dice come up 1-1-1 one percentage point more often (1.46%

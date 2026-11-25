@@ -1,12 +1,14 @@
 const cron = require("node-cron");
 const { sweepRuns } = require("../utils/catflix/ruinRun");
-const { startDue } = require("../utils/catflix/kittyRace");
+const { startDue, settleDue } = require("../utils/catflix/kittyRace");
 const { giftRound } = require("../utils/catflix/gifts");
 const { sweepTrades } = require("../utils/catflix/trades");
 
 // Every minute, for Catflix No Chill: Kitty Races whose friends have had
 // their 5 minutes to join start by themselves (utils/catflix/kittyRace.js
-// startDue; anyone looking at the races starts them too), and Ruin Runs
+// startDue; anyone looking at the races starts them too), started races
+// past the point cheat items can change them pay their winners (settleDue;
+// anyone looking pays them sooner), and Ruin Runs
 // nobody came back to finish (a page closed mid-run) are let go, their bets
 // to the Box Office Scratch jackpots (utils/catflix/ruinRun.js sweepRuns).
 // And once a play day (the first sweep after 12:00 Helsinki), friends' cats
@@ -19,6 +21,8 @@ async function runSweep() {
     try {
         const started = await startDue();
         if (started) console.log(`Catflix sweep: ${started} Kitty Race${started === 1 ? "" : "s"} started.`);
+        const paid = await settleDue();
+        if (paid) console.log(`Catflix sweep: ${paid} Kitty Race${paid === 1 ? "" : "s"} paid out.`);
         const count = await sweepRuns();
         if (count) console.log(`Catflix sweep: ${count} unfinished Ruin Run${count === 1 ? "" : "s"} let go.`);
         const ended = await sweepTrades();

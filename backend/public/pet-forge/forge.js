@@ -307,7 +307,7 @@ function liveApply(d){
   if(d.pet){LV.egg=null;try{localStorage.removeItem('catflix.egg');}catch(_){}}   // hatched: no egg any more
   const pl=LV.player||{};
   playerDocs.set('me',{pp:LV.points,cards:{...(pl.cards||{})},packs:{single:0,triple:0,blackGold:0,...(pl.packs||{})},pending:pl.pending||null,
-    auras:Object.fromEntries((pl.auras||[]).map(k=>[k,true])),profile:{},egg:LV.egg,food:pl.food||0,balls:{...(pl.balls||{})}});
+    auras:Object.fromEntries((pl.auras||[]).map(k=>[k,true])),profile:{},egg:LV.egg,food:pl.food||0,balls:{...(pl.balls||{})},cheats:{...(pl.cheats||{})}});
   onPetsChange();onPlayerChange();liveSyncPoop();
 }
 // Everything again, after a buy or a cast: and the site's wallet in the nav bar hears about it.
@@ -1442,7 +1442,43 @@ const RACE={W:384,H:216,MW:1960,n:10,startX:44,finishX:1890,laneTop:121,laneH:8.
   angryUpTo:5,
   reactMs:250};          // each pet starts its happy / angry / sad animation this long after crossing the line
 const raceReaction=r=>r.place===1?'love':r.place<=RACE.angryUpTo?'angry':'sad';          // places 2..angryUpTo get angry, the rest get sad
-const RC={map:(()=>{try{const m=localStorage.getItem('forge.raceMap');return ['stadium','river','ruins','theatre'].includes(m)?m:'stadium';}catch(e){return 'stadium';}})(),weather:(()=>{try{const w=localStorage.getItem('forge.weather');return ['sunny','rain','thunder'].includes(w)?w:'sunny';}catch(e){return 'sunny';}})(),phase:'ready',racers:[],guests:[],t0:0,order:[],bg:null,canvas:null,ctx:null,lo:null,lctx:null,running:false,last:0,building:0,finishedAt:0,cam:0,wire:false,leader:null};
+// Kitty Race's cheat items (shared/catflix/rules.js kittyRace.cheats; in the game, the server's): a stick of TNT or a
+// Banana Peel thrown at a cat (`a`: what it is, with its article). It gets there `flightMs` later. Thrown before the last `lateMs` before the winner's finish, it knocks
+// the cat out in `hit` of throws (it stops there, sad, and loses; if it was going to win, the next in line wins);
+// later, it always misses (the cat jumps it). Each house cat throws one in `houseCat` of races (Pet Forge's sandbox
+// rolls them for every cat).
+const CHEATS={items:{tnt:{name:'TNT',a:'TNT',price:200},banana:{name:'Banana Peel',a:'a Banana Peel',price:200}},hit:.8,lateMs:15000,flightMs:2500,houseCat:.3,houseFrom:4000};
+const cheatRules=()=>LIVE&&KR.rules&&KR.rules.cheats?KR.rules.cheats:CHEATS;
+// Their pixel art, facing right: one character a pixel ('.' clear).
+const CHEAT_ART={
+  tnt:{pal:{d:'#5a1010',l:'#ff6a5a',r:'#d62a2a',D:'#8f1a1a',w:'#f2e6c8',k:'#3a2a2a',f:'#6b5a45',o:'#ff8a2a',y:'#ffe14a'},rows:[   // a red stick, its fuse lit
+    '...........y',
+    '.........fo.',
+    'dlllwwwlld..',
+    'drrrwkwrrd..',
+    'dDDDwwwDDd..']},
+  banana:{pal:{y:'#ffd93a',l:'#fff1a8',d:'#6b4a12',o:'#c98f14'},rows:[   // a banana peel, splayed open
+    '....dd.....',
+    '...yyyy....',
+    '..yllllyy..',
+    '.yy.ll.yyy.',
+    'oo..yy...oo']}};
+function drawCheatArt(g,kind,x,y,{flip=false,k=1}={}){const A=CHEAT_ART[kind],w=A.rows[0].length;
+  A.rows.forEach((row,j)=>{for(let i=0;i<w;i++){const c=A.pal[row[flip?w-1-i:i]];if(c){g.fillStyle=c;g.fillRect(x+i*k,y+j*k,k,k);}}});}
+// A cheat item's art on a canvas of its own (to turn it round as it flies), made once.
+const CHEAT_SPR={};
+function cheatSprite(kind){if(!CHEAT_SPR[kind]){const A=CHEAT_ART[kind],c=document.createElement('canvas');c.width=A.rows[0].length;c.height=A.rows.length;
+  drawCheatArt(c.getContext('2d'),kind,0,0);CHEAT_SPR[kind]=c;}return CHEAT_SPR[kind];}
+// A cheat box: a wooden crate (pixel art) with its item on the front, `k` times its size; no `kind`: a "?" on it.
+function paintCrate(cv,kind,k=3){const W=19,H=15;cv.width=W*k;cv.height=H*k;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;
+  const px=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x*k,y*k,w*k,h*k);};
+  px(0,0,W,H,'#4a2e16');px(1,1,W-2,H-2,'#a8703c');                                   // its frame and planks
+  px(1,1,W-2,1,'#cf9558');px(1,1,1,H-2,'#cf9558');                                   // lit edges
+  for(const y of [5,10])px(1,y,W-2,1,'#7e5128');                                      // the joins between planks
+  for(const [x,y] of [[2,2],[W-3,2],[2,H-3],[W-3,H-3]])px(x,y,1,1,'#2e1c0c');         // nails
+  if(kind){const A=CHEAT_ART[kind];drawCheatArt(g,kind,Math.floor((W-A.rows[0].length)/2)*k,Math.floor((H-A.rows.length)/2)*k,{k});}
+  else ['.###.','#...#','...#.','..#..','.....','..#..'].forEach((row,j)=>{for(let i=0;i<5;i++)if(row[i]==='#'){px(8+i,5+j,1,1,'#2e1c0c');px(7+i,4+j,1,1,'#ffcf3f');}});}
+const RC={map:(()=>{try{const m=localStorage.getItem('forge.raceMap');return ['stadium','river','ruins','theatre'].includes(m)?m:'stadium';}catch(e){return 'stadium';}})(),weather:(()=>{try{const w=localStorage.getItem('forge.weather');return ['sunny','rain','thunder'].includes(w)?w:'sunny';}catch(e){return 'sunny';}})(),phase:'ready',racers:[],guests:[],t0:0,order:[],bg:null,canvas:null,ctx:null,lo:null,lctx:null,running:false,last:0,building:0,finishedAt:0,cam:0,wire:false,leader:null,throws:[],finish:null};
 
 /* ---------- pixel-art map (drawn once, 1960 px long) ---------- */
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
@@ -1701,7 +1737,7 @@ class Racer{
 }
 async function raceSync(){
   if(LIVE){const m=KR.races&&KR.races.mine;   // the game's races are the server's: a started one not showing yet goes first
-    if(m&&m.status==='started'&&KR.playing!==m.id)return raceLivePlay(m);
+    if(m&&m.status==='started'&&KR.playing!==m.id&&!KR.played.has(m.id))return raceLivePlay(m);
     return raceLiveLineup();}
   const tok=++RC.building;const roster=roomRoster(RACE.n,RC.guests);
   const forms=await Promise.all(roster.map(r=>getForm(r.baseFormId)));if(tok!==RC.building)return;
@@ -1716,8 +1752,8 @@ async function raceSync(){
 // "(guest)" in Pet Forge's sandbox; in the game, whose cat it is, or a house cat.
 function raceWho(r){if(!LIVE)return r.guest?' <small>(guest)</small>':'';return r.owner?` <small>${esc(r.owner)}’s</small>`:' <small title="A house cat" aria-label="house cat">🏠</small>';}
 function raceReset(){
-  RC.phase='ready';RC.order=[];RC.cam=0;RC.leader=null;
-  RC.racers.forEach((r,i)=>{r.lane=i;r.x=RACE.startX-6;r.done=false;r.reacting=0;r.place=0;r.setState('idle');});
+  RC.phase='ready';RC.order=[];RC.cam=0;RC.leader=null;RC.throws=[];RC.finish=null;
+  RC.racers.forEach((r,i)=>{r.lane=i;r.x=RACE.startX-6;r.done=false;r.reacting=0;r.place=0;r.knock=null;r.knockedAt=0;r.dodges=[];r.setState('idle');});
   $('raceResultsTitle').textContent='Line-up';
   $('raceResults').innerHTML=RC.racers.map(r=>`<li><b>Lane ${r.lane+1}</b> ${r.rarity?rarityDot(r.rarity):''}<span>${esc(r.name)}${raceWho(r)}</span></li>`).join('');
   $('raceStart').textContent='▶ Start race';$('raceStart').disabled=!RC.racers.length;
@@ -1747,12 +1783,35 @@ function holdAt(r,t){const h=r.hold;if(!h||t<=h.t0||t>=h.t3)return 0;
 function rawX(r,t){let x=baseX(r,t)+spreadAt(r,t)-holdAt(r,t);for(const s of r.surges)x+=surgeAt(s,t);
   if(t<r.T)x+=r.nA*Math.sin(2*Math.PI*t/r.nP+r.nPh)*Math.sin(Math.PI*t/r.T);  // gentle jostling, zero at start and finish
   return Math.min(x,RACE.finishX+4);}
+// Where the script has a cat `t` ms in: running, or where it stopped (a mishap, a cheat item). The same on every page.
+function scriptX(r,t){const stop=Math.min(t,...[r.knock&&r.knock.at,r.brawl&&r.brawl.at,r.struck&&r.struck.at,r.quit&&r.quit.at].filter(v=>typeof v==='number'));
+  const x=rawX(r,stop);return r.cele?Math.min(x,r.cele.stopX):x;}
+// Cheat items thrown (the server's, by lane, or the sandbox's), each taken in once: its cat stops where it's hit (raceUpdate),
+// or jumps it (raceDraw).
+function raceThrows(list){const byLane=i=>RC.racers.find(r=>r.lane===i);
+  for(const t of (list||[]).slice(RC.throws.length)){const target=byLane(t.target);
+    const T={item:t.item,from:t.from===null||t.from===undefined?null:byLane(t.from),who:t.username||'',mine:!!t.by&&t.by===myUserId(),target,at:t.atMs,lands:t.landsMs,hit:!!t.hit};
+    RC.throws.push(T);if(!target)continue;
+    if(T.hit){if(!target.knock||target.knock.at>T.lands)target.knock={at:T.lands,item:T.item};}else(target.dodges=target.dodges||[]).push(T.lands);}
+  raceRefinish();}
+// The finishing order after cheat items (the server's in the game; worked out the same way in the sandbox): every cat
+// one knocked out to the back, so if it was going to win, the next in line wins. Each cat's place follows.
+function raceRefinish(){let fin;
+  if(LIVE&&RC.race&&RC.race.finish)fin=RC.race.finish.map(i=>RC.racers.find(r=>r.lane===i)).filter(Boolean);
+  else{const out=[];for(const T of [...RC.throws].sort((a,b)=>a.lands-b.lands))if(T.hit&&T.target&&!out.includes(T.target))out.push(T.target);fin=[...RC.order.filter(r=>!out.includes(r)),...out];}
+  if(fin.length!==RC.order.length)return;RC.finish=fin;fin.forEach((r,i)=>r.place=i+1);}
+const raceWinner=()=>(RC.finish||RC.order)[0];
+// Where a cheat item starts out: its thrower's cat, or, thrown by someone watching, the stands behind its cat.
+function throwFrom(T){if(T.from)return {x:scriptX(T.from,T.at),y:laneFeet(T.from.lane)-10};
+  return {x:scriptX(T.target,T.lands)-(T.item==='tnt'?50:30),y:96};}
 // `rand`: where the randomness comes from; `given`: the finishing order (winner first). In the game both come from
 // the server (the race's seed and order), so every page watching plays exactly the same race. `mishaps`, if any (the
-// server's in the game, never the winner; raceBegin rolls its own in Pet Forge's sandbox): { brawl: { attacker,
-// victim, at } (racers, and ms into the race), celebrate: a racer }. A brawl's two stop there for good, fighting; the
-// one celebrating too soon leads into the finish, stops just short of the line to celebrate while the rest go past,
-// then crosses behind them.
+// server's in the game, never the winner; raceBegin rolls its own in Pet Forge's sandbox): { brawls: [{ attacker,
+// victim, at }] (racers, and ms into the race: none, one or two), celebrate: a racer, lightning: { racer, at } (only
+// when it's raining), quit: { racer, at } (when it leads) }, any of them together. A brawl's two stop there for good,
+// fighting; the one celebrating too soon leads into the finish, stops just short of the line to celebrate while the
+// rest go past, then crosses behind them; one struck by lightning stops there for good, pitch black and sad; one giving
+// up takes the lead at its time, and once two cats have come past it, stops there, sad.
 function planRace(rand=Math.random,given=null,mishaps=null){
   const R=rand,rnd=(a,b)=>a+R()*(b-a),pick=a=>a[Math.floor(R()*a.length)];
   const mix=a=>{const o=[...a];for(let i=o.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[o[i],o[j]]=[o[j],o[i]];}return o;};   // a fair shuffle, the same in every browser
@@ -1760,13 +1819,16 @@ function planRace(rand=Math.random,given=null,mishaps=null){
   // finish: some races are a photo finish, others string out more naturally
   const tight=R()<.4,gap=tight?[150,450]:[300,1600];
   order.forEach((r,i)=>{if(i)T+=rnd(gap[0],gap[1]);r.T=T;r.place=i+1;r.surges=[];r.nA=rnd(3,8);r.nP=rnd(5000,9000);r.nPh=rnd(0,6.28);});
-  order.forEach(r=>{r.brawl=null;r.cele=null;r.brawling=0;r.celebrating=0;r.crossT=0;});
+  order.forEach(r=>{r.brawl=null;r.cele=null;r.brawling=0;r.celebrating=0;r.crossT=0;r.pounce=0;r.laneShift=0;r.faceBack=false;r.brawlX=undefined;r.struck=null;r.struckAt=0;r.quit=null;r.quitAt=0;r.knock=null;r.knockedAt=0;r.dodges=[];});
+  RC.bolt=null;RC.throws=[];RC.finish=null;
   const M=mishaps||{};
-  if(M.celebrate){const c=M.celebrate,rest=order.filter(r=>r!==c&&!(M.brawl&&(r===M.brawl.attacker||r===M.brawl.victim)));
+  const stopped=[...(M.brawls||[]).flatMap(b=>[b.attacker,b.victim]),M.lightning&&M.lightning.racer,M.quit&&M.quit.racer];   // never finish
+  if(M.celebrate){const c=M.celebrate,rest=order.filter(r=>r!==c&&!stopped.includes(r));
     c.cele={stopX:RACE.finishX-Math.round(rnd(12,20)),goAt:rest[rest.length-1].T+rnd(1000,1600)};   // stops short of the line; crosses after the rest
     c.T=order[0].T-rnd(1800,2600);}                                                                  // well clear in front: it leads into the finish, and celebrates there a moment before the winner comes past
-  if(M.brawl){const {attacker:a,victim:b,at}=M.brawl;a.brawl={at,attacker:true,foe:b};b.brawl={at,attacker:false,foe:a};}
-  RC.order=order;RC.wire=!M.celebrate&&R()<RACE.wireChance;   // nobody leads wire-to-wire past a cat celebrating in front
+  for(const {attacker:a,victim:b,at} of M.brawls||[]){a.brawl={at,attacker:true,foe:b};b.brawl={at,attacker:false,foe:a};}
+  if(M.lightning)M.lightning.racer.struck={at:M.lightning.at};
+  RC.order=order;RC.wire=!M.celebrate&&!M.quit&&R()<RACE.wireChance;   // nobody leads wire-to-wire past a cat celebrating, or one giving up, in front
   // early spread, unrelated to who wins: evenly spaced slots across the pack, shuffled, with jitter
   const S=rnd(110,160),slots=mix(order),rise=rnd(4000,6500),fadeFrom=rnd(.5,.62),fadeTo=rnd(.88,.95);
   slots.forEach((r,k)=>{r.spread={o:(k/(slots.length-1||1)-.5)*S+rnd(-8,8),rise,fadeFrom,fadeTo};});
@@ -1797,33 +1859,86 @@ function planRace(rand=Math.random,given=null,mishaps=null){
     const D=Math.max(30,rawX(w,tm)-mid+rnd(0,8));
     const t1=tm-rnd(2500,4000),t0=t1-Math.max(6000,D*Math.PI/2/(0.4*v(w)));          // drift back gently (never backwards)
     w.hold={D,t0,t1,t2:tm,t3:w.T-200};}
+  // Giving up: a surge takes it to the front at its time; as it fades two cats come past, and that's where it stops
+  // (worked out here, from the same script, so every page stops it at the same moment).
+  if(M.quit){const q=M.quit.racer,tp=M.quit.at;
+    const stopAt=o=>o.brawl?o.brawl.at:o.struck?o.struck.at:Infinity;
+    const xAt=(o,t)=>{const B=o.brawl;                                                                       // where each really is
+      if(B&&t>=B.at)return B.attacker?Math.max(rawX(o,B.at),rawX(B.foe,B.at))+40:rawX(o,B.at);              // a pouncer lands in front of its foe
+      const x=rawX(o,Math.min(t,stopAt(o)));return o.cele?Math.min(x,o.cele.stopX):x;};
+    q.surges=q.surges.filter(su=>su.t1<tp-6000);                                                            // its own later surges out of the way
+    const lead=Math.max(...order.filter(o=>o!==q).map(o=>xAt(o,tp)));
+    const A=Math.max(10,lead-rawX(q,tp)+rnd(14,30)),rise=rnd(3500,5500),hold=rnd(800,1600);
+    const fall=Math.max(rnd(5000,7000),A*Math.PI/2/(0.6*v(q)));
+    q.surges.push({t0:tp-rise,tp,th:tp+hold,t1:tp+hold+fall,A});
+    // two cats still running come past it (not a stopped one it's left behind, nor one leaping in a brawl)
+    const passing=t=>order.filter(o=>o!==q&&t<stopAt(o)&&xAt(o,t)>rawX(q,t)).length;
+    let tq=tp+9000;
+    for(let t=tp;t<tp+30000;t+=50)if(passing(t)>=2){tq=Math.max(t,tp+hold);break;}
+    q.quit={at:tq,ledAt:tp};}
 }
 // Pet Forge's sandbox rolls mishaps the way the game's server does (backend/utils/catflix/kittyRace.js mishapsFor:
-// 20% a brawl between next-door lanes 20 to 40 s in, 20% a celebration too soon, never the winner), to see them.
+// 20% a brawl between next-door lanes 8 to 52 s in, and then 20% a second one; 20% a celebration too soon; and in the
+// rain or a thunderstorm 50% a lightning strike 8 to 55 s in; 10% one giving up after leading 15 to 45 s in; never the
+// winner, never two to one cat), to see them; and cheat items thrown, as the house cats throw them.
 function sandboxRace(){
   const lanes=RC.racers.length,win=Math.floor(Math.random()*lanes),byLane=i=>RC.racers.find(r=>r.lane===i);
-  let brawl=null,cele=null;
-  if(Math.random()<.2){const pairs=[];for(let i=0;i+1<lanes;i++)if(i!==win&&i+1!==win)pairs.push(i);
-    if(pairs.length){const i=pick(pairs),[a,b]=Math.random()<.5?[i,i+1]:[i+1,i];brawl={attacker:a,victim:b,at:20000+Math.random()*20000};}}
-  if(Math.random()<.2){const left=RC.racers.map(r=>r.lane).filter(i=>i!==win&&(!brawl||(i!==brawl.attacker&&i!==brawl.victim)));if(left.length)cele=pick(left);}
-  const unlucky=[cele,brawl&&brawl.attacker,brawl&&brawl.victim].filter(v=>v!==null&&v!==undefined&&v!==false);
+  const taken=new Set([win]),free=()=>RC.racers.map(r=>r.lane).filter(i=>!taken.has(i));
+  const brawls=[];
+  for(let n=0;n<2&&Math.random()<.2;n++){const pairs=[];for(let i=0;i+1<lanes;i++)if(!taken.has(i)&&!taken.has(i+1))pairs.push(i);
+    if(!pairs.length)break;const i=pick(pairs),[a,b]=Math.random()<.5?[i,i+1]:[i+1,i];brawls.push({attacker:a,victim:b,at:8000+Math.random()*44000});taken.add(i).add(i+1);}
+  let cele=null,zap=null;
+  if(Math.random()<.2){const left=free();if(left.length){cele=pick(left);taken.add(cele);}}
+  if(['rain','thunder'].includes(effWeather())&&Math.random()<.5){const left=free();if(left.length){zap={lane:pick(left),at:8000+Math.random()*47000};taken.add(zap.lane);}}
+  let quit=null;
+  if(Math.random()<.1){const left=free();if(left.length){quit={lane:pick(left),at:15000+Math.random()*30000};taken.add(quit.lane);}}
+  const unlucky=[...(cele!==null?[cele]:[]),...(quit?[quit.lane]:[]),...(zap?[zap.lane]:[]),...brawls.flatMap(b=>[b.attacker,b.victim])];
   const rest=RC.racers.map(r=>r.lane).filter(i=>i!==win&&!unlucky.includes(i)).sort(()=>Math.random()-.5);
-  planRace(Math.random,[win,...rest,...unlucky].map(byLane),{brawl:brawl?{attacker:byLane(brawl.attacker),victim:byLane(brawl.victim),at:brawl.at}:null,celebrate:cele!==null?byLane(cele):null});
+  planRace(Math.random,[win,...rest,...unlucky].map(byLane),{brawls:brawls.map(b=>({attacker:byLane(b.attacker),victim:byLane(b.victim),at:b.at})),
+    celebrate:cele!==null?byLane(cele):null,lightning:zap?{racer:byLane(zap.lane),at:zap.at}:null,quit:quit?{racer:byLane(quit.lane),at:quit.at}:null});
+  // ...and every cat throws a cheat item in 30% of races, the way the game's house cats do (kittyRace.js houseThrows)
+  const order=[win,...rest,...unlucky],C=CHEATS,thrown=[];
+  const stopAt=i=>{const b=brawls.find(b=>b.attacker===i||b.victim===i);return b?b.at:zap&&zap.lane===i?zap.at:Infinity;};
+  const never=new Set([...brawls.flatMap(b=>[b.attacker,b.victim]),zap&&zap.lane,quit&&quit.lane]);
+  for(const from of order){if(Math.random()>=C.houseCat)continue;const at=C.houseFrom+Math.random()*(RACE.winnerMs-C.houseFrom);
+    const targets=order.filter(i=>i!==from&&stopAt(i)>at+C.flightMs);if(stopAt(from)<=at||!targets.length)continue;
+    thrown.push({from,item:Math.random()<.5?'tnt':'banana',target:pick(targets),atMs:at,landsMs:at+C.flightMs,hit:false});}
+  thrown.sort((a,b)=>a.atMs-b.atMs);
+  for(const t of thrown)t.hit=t.atMs<RACE.winnerMs-C.lateMs&&Math.random()<C.hit&&order.some(i=>i!==t.target&&!never.has(i)&&!thrown.some(o=>o.hit&&o.target===i));
+  raceThrows(thrown);
 }
 function raceBegin(){
   if(!RC.racers.length)return;raceReset();sandboxRace();
   RC.phase='countdown';RC.t0=performance.now();$('raceStart').disabled=true;$('raceStart').textContent='Racing…';
 }
 function raceUpdate(dt,now){
-  if(RC.phase==='countdown'&&now-RC.t0>=3000){RC.phase='running';RC.t0+=3000;RC.racers.forEach(r=>r.setState('walk'));}
+  if(RC.phase==='countdown'&&now-RC.t0>=3000){RC.phase='running';RC.t0+=3000;RC.racers.forEach(r=>r.setState('walk'));raceCheatRender();}   // the cheat box opens at the off
   if(RC.phase==='running'){const el=now-RC.t0;let all=true;
     const win=RC.order[0];
     for(const r of RC.order){                         // winner first so the wire-to-wire cap can use its position
+      if(r.knock&&el>=r.knock.at){                     // knocked out by a cheat item: it stops there for good, sad
+        if(!r.knockedAt){r.knockedAt=now;r.knockX=r.brawling||r.struckAt||r.quitAt||r.celebrating?r.x:Math.max(r.x,scriptX(r,r.knock.at));
+          r.brawling=0;r.pounce=0;r.celebrating=0;r.setState('sad');}
+        const u=Math.min(1,(now-r.knockedAt)/(r.knock.item==='tnt'?420:640)),e=1-(1-u)*(1-u);
+        r.x=r.knockX+(r.knock.item==='tnt'?-16:8)*e;   // TNT blows it back; on a Banana Peel it slides on a little
+        continue;}
+      if(r.quit&&el>=r.quit.at){                       // gave up: it led, two came past it; it stops there for good, sad
+        if(!r.quitAt){r.quitAt=now;r.x=Math.max(r.x,rawX(r,r.quit.at));r.setState('sad');}
+        continue;}
+      if(r.struck&&el>=r.struck.at){                   // struck by lightning: it stops there for good, pitch black and sad (raceDraw)
+        if(!r.struckAt){r.struckAt=now;r.x=Math.max(r.x,rawX(r,r.struck.at));r.setState('sad');RC.bolt={x:r.x,lane:r.lane,t:now,seed:r.lane*7919+Math.round(r.struck.at)};}
+        continue;}
       if(r.brawl&&el>=r.brawl.at){                     // a brawl: both stop there, for good, and nobody waits for them
-        if(!r.brawling){r.brawling=now;r.x=Math.max(r.x,rawX(r,r.brawl.at));r.pounceFrom=r.x;r.setState(r.brawl.attacker?'angry':'sad');}
-        if(r.brawl.attacker){                          // the attacker pounces on its neighbour, wherever it is (ahead or behind), and lands beside it
-          const foe=r.brawl.foe,fx=foe.brawling?foe.x:Math.max(foe.x,rawX(foe,r.brawl.at)),to=fx+(r.pounceFrom<fx?-6:6);
-          const u=Math.min(1,(now-r.brawling)/450);r.x=r.pounceFrom+(to-r.pounceFrom)*(u*u*(3-2*u));r.pounce=u<1?u:0;}
+        if(!r.brawling){r.brawling=now;r.x=Math.max(r.x,rawX(r,r.brawl.at));r.pounceFrom=r.x;r.brawlX=r.x;r.setState('angry');}
+        const foe=r.brawl.foe;
+        if(r.brawl.attacker){
+          // It pounces (the leap's in raceDraw) into its neighbour's lane, landing just in front of it, and turns round to
+          // face it: the two face each other, the way a bump in Ruin Run looks.
+          const fx=foe.brawling?foe.brawlX:foe.knockedAt?foe.x:Math.max(foe.x,rawX(foe,r.brawl.at)),to=fx+Math.round((r.form.crop.w+foe.form.crop.w)*.38)+2;
+          const u=Math.min(1,(now-r.brawling)/450),e=u*u*(3-2*u);
+          r.x=r.pounceFrom+(to-r.pounceFrom)*e;r.pounce=u<1?u:0;r.laneShift=(foe.lane-r.lane)*e;
+          r.faceBack=u>=1||to<r.pounceFrom;}           // in the air it faces the way it leaps; down, back at its neighbour
+        else{const t=now-r.brawling-450,p=t<=0?0:Math.min(1,t/260);r.x=r.brawlX-10*(1-(1-p)*(1-p));}   // knocked back as it lands, easing out: both in view
         continue;}
       if(r.cele){const C=r.cele;                       // celebrating too soon
         if(el<C.goAt){r.x=Math.max(r.x,Math.min(rawX(r,el),C.stopX));
@@ -1835,7 +1950,8 @@ function raceUpdate(dt,now){
         r.done=true;if(!r.reacting&&el-r.crossT-900>=RACE.reactMs){r.reacting=now;r.setState('sad');}
         if(!r.reacting)all=false;continue;}
       if(el<r.T){let x=rawX(r,el);
-        if(RC.wire&&r!==win&&!win.done)x=Math.min(x,win.x-7);   // nobody gets past the winner
+        if(RC.wire&&r!==win&&!win.done&&!win.knockedAt)x=Math.min(x,win.x-7);   // nobody gets past the winner...
+        else if(RC.wire&&win.knockedAt&&now-win.knockedAt<3000)x=Math.min(x,r.x+dt*.1);   // ...knocked out: the rest catch up, not in one jump
         r.x=Math.max(r.x,x);all=false;}                          // never step backwards
       else{const over=Math.min(1,(el-r.T)/RACE.reactMs);r.x=Math.max(r.x,RACE.finishX+4+Math.sin(over*Math.PI/2)*6);  // short coast past the line
         r.done=true;
@@ -1846,17 +1962,20 @@ function raceUpdate(dt,now){
   for(const r of RC.racers)r.step(dt);
   // camera follows the leader, keeping it about 60% across the screen; when a brawl breaks out, it swings back to
   // watch it for a moment first
-  const fight=RC.phase==='running'&&RC.racers.find(r=>r.brawling&&r.brawl.attacker&&now-r.brawling<2600);
+  const fight=RC.phase==='running'&&RC.racers.find(r=>(r.brawling&&r.brawl.attacker&&now-r.brawling<2600)||(r.struckAt&&now-r.struckAt<2600)||(r.knockedAt&&now-r.knockedAt<2200));   // a brawl, lightning, a cheat item
   const target=fight?fight.x-RACE.W*.45:RC.phase==='running'||RC.phase==='results'?Math.max(...RC.racers.map(r=>r.x))-RACE.W*.62:0;
   const goal=Math.max(0,Math.min(RACE.MW-RACE.W,target));RC.cam+=(goal-RC.cam)*Math.min(1,dt/250);
 }
 function raceFinish(){
   RC.phase='results';RC.finishedAt=performance.now();
-  const brawl=RC.order.some(r=>r.brawl),party=RC.order.some(r=>r.cele);
-  $('raceResultsTitle').textContent=brawl&&party?'Results — a brawl, and a celebration too soon!':brawl?'Results — a brawl broke out!':party?'Results — someone celebrated too soon!'
-    :RC.wire?'Results — led from start to finish!':RC.comeback?'Results — a late charge from the pack!':'Results';
-  $('raceResults').innerHTML=RC.order.map(r=>{const medal=['🥇','🥈','🥉'][r.place-1]||`<b>${r.place}.</b>`;
-    const [icon,word]=r.brawl?['💢','brawled']:r.cele?['🎉','celebrated too soon']:r.place===1?['💗','happy']:r.place<=RACE.angryUpTo?['💢','angry']:['💧','sad'];
+  const fights=RC.order.filter(r=>r.brawl&&r.brawl.attacker).length,brawl=fights>0,party=RC.order.some(r=>r.cele),zap=RC.order.some(r=>r.struck),gave=RC.order.some(r=>r.quit);
+  const blasts=RC.order.filter(r=>r.knock&&r.knock.item==='tnt').length,peels=RC.order.filter(r=>r.knock&&r.knock.item==='banana').length;
+  const what=[blasts&&(blasts>1?`${blasts} TNT blasts`:'a TNT blast'),peels&&(peels>1?`${peels} slips on banana peels`:'a slip on a banana peel'),
+    fights>1?'two brawls':brawl&&'a brawl',zap&&'a lightning strike',gave&&'a cat giving up',party&&'a celebration too soon'].filter(Boolean);
+  $('raceResultsTitle').textContent=what.length>1?`Results — ${what.slice(0,-1).join(', ')} and ${what[what.length-1]}!`:blasts||peels?`Results — ${what[0]}!`:fights>1?'Results — two brawls broke out!':brawl?'Results — a brawl broke out!':zap?'Results — struck by lightning!'
+    :gave?'Results — one gave up!':party?'Results — someone celebrated too soon!':RC.wire?'Results — led from start to finish!':RC.comeback?'Results — a late charge from the pack!':'Results';
+  $('raceResults').innerHTML=(RC.finish||RC.order).map(r=>{const medal=['🥇','🥈','🥉'][r.place-1]||`<b>${r.place}.</b>`;
+    const [icon,word]=r.knock?(r.knock.item==='tnt'?['🧨','blown up by TNT']:['🍌','slipped on a banana peel']):r.quit?['😢','gave up']:r.struck?['⚡','struck by lightning']:r.brawl?['💢','brawled']:r.cele?['🎉','celebrated too soon']:r.place===1?['💗','happy']:r.place<=RACE.angryUpTo?['💢','angry']:['💧','sad'];
     return `<li>${medal} ${r.rarity?rarityDot(r.rarity):''}<span>${esc(r.name)}${raceWho(r)}</span><em>${raceMoney(r)||(LIVE?`<span title="${word}" aria-label="${word}">${icon}</span>`:`${icon} ${word}`)}</em></li>`;}).join('');   // in the game's pop-up: the mood's emoji, so names fit
   $('raceStart').disabled=false;$('raceStart').textContent='↻ Race again';
   if(LIVE)raceLiveDone();
@@ -1870,30 +1989,75 @@ function raceSize(){const w=$('raceWrap').clientWidth;if(!w)return;const dpr=Mat
 new ResizeObserver(raceSize).observe($('raceWrap'));
 const laneFeet=i=>Math.round(RACE.laneTop+i*RACE.laneH+5);
 const ordinal=n=>{const s=['TH','ST','ND','RD'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+// A pet's frame in one flat colour (pitch black: struck by lightning), on a canvas of its own.
+const RSIL=document.createElement('canvas'),RSILg=RSIL.getContext('2d');
+// A stick of TNT going off at (x, y) on screen, `u` 0 to 1 over its 0.7 s: a bright heart, a burst of fire, then smoke.
+function raceBoom(g,x,y,u){const R=4+u*17;
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2,d=R*(.55+.11*((i*7)%5));const bx=Math.round(x+Math.cos(a)*d),by=Math.round(y+Math.sin(a)*d*.7),s=u<.6?4:3;
+    g.fillStyle=u<.3?(i%2?'#ffe14a':'#ff8a2a'):u<.6?(i%3?'#ff8a2a':'#e0433a'):`rgba(90,90,96,${(1-u).toFixed(2)})`;g.fillRect(bx-(s>>1),by-(s>>1),s,s);}
+  if(u<.45){const c=Math.round(8*(1-u/.45))+3;g.fillStyle=u<.2?'#fff6c8':'#ffcf3f';g.fillRect(Math.round(x)-(c>>1),Math.round(y)-(c>>1),c,c);}}
+function raceSil(f,cr,col){RSIL.width=cr.w;RSIL.height=cr.h;RSILg.clearRect(0,0,cr.w,cr.h);RSILg.drawImage(f,cr.x,cr.y,cr.w,cr.h,0,0,cr.w,cr.h);
+  RSILg.globalCompositeOperation='source-atop';RSILg.fillStyle=col;RSILg.fillRect(0,0,cr.w,cr.h);RSILg.globalCompositeOperation='source-over';return RSIL;}
 function raceDraw(now){
   RC.bgs=RC.bgs||{};const key=RC.map+'|'+effWeather();if(!RC.bgs[key])RC.bgs[key]=drawRaceMap(RC.map,effWeather());
   const g=RC.lctx;g.imageSmoothingEnabled=false;const cam=Math.round(RC.cam);
   g.drawImage(RC.bgs[key],cam,0,RACE.W,RACE.H,0,0,RACE.W,RACE.H);
+  // your cat's lane, in green (in the game)
+  for(const r of RC.racers)if(r.mine){const y=Math.round(RACE.laneTop-3+r.lane*RACE.laneH),h=Math.round(RACE.laneTop-3+(r.lane+1)*RACE.laneH)-y;
+    g.fillStyle='rgba(70,215,105,.32)';g.fillRect(0,y,RACE.W,h);}
+  const clock=RC.phase==='running'||RC.phase==='results'?now-RC.t0:-1;   // ms into the race
+  // a Banana Peel on the track, waiting for its cat (and still there after)
+  for(const T of RC.throws)if(T.target&&T.item==='banana'&&clock>=T.lands-900){const x=Math.round(scriptX(T.target,T.lands))-cam;
+    if(x>-12&&x<RACE.W+12)drawCheatArt(g,'banana',x-5,laneFeet(T.target.lane)-4);}
   const byLane=[...RC.racers].sort((a,b)=>a.lane-b.lane);
   for(const r of byLane){const A=r.anim(r.state),f=A.frames[r.cur]||A.frames[0],cr=r.form.crop;
-    const sx=Math.round(r.x)-cam;const fy=laneFeet(r.lane);let dx=sx-Math.round(cr.w/2)+nudgeOf(r.form),dy=fy-(cr.h-1)+sinkOf(r.form);
+    const sx=Math.round(r.x)-cam;const fy=laneFeet(r.lane)+Math.round((r.laneShift||0)*RACE.laneH);let dx=sx-Math.round(cr.w/2)+nudgeOf(r.form),dy=fy-(cr.h-1)+sinkOf(r.form);
     r._sx=sx;if(sx<-cr.w||sx>RACE.W+cr.w)continue;
     if(A.hover)dy-=Math.round(HOVER_AMP*(.6+(Math.sin(r.clock/HOVER_MS*Math.PI*2)+1)/2));
     if(A.shake)dx+=Math.round(Math.sin(r.clock/SHAKE_MS*Math.PI*2)*A.shakeAmt);
     if(A.ushake)dy+=Math.round(Math.sin(r.clock/USHAKE_MS*Math.PI*2)*A.ushakeAmt);
     if(r.reacting&&r.place===1)dy-=Math.round(Math.abs(Math.sin((now-r.reacting)/600*Math.PI))*5);
     if(r.pounce)dy-=Math.round(Math.sin(r.pounce*Math.PI)*8);                                         // the pounce's leap
-    if(r.brawling&&!r.pounce){dx+=Math.round(Math.sin((now-r.brawling)/45)*1.5);                      // scuffling
-      if(r.brawl.attacker)dy+=Math.round((r.brawl.foe.lane-r.lane)*RACE.laneH*.45);}                 // the attacker lunges into its neighbour's lane
+    if(r.brawling&&!r.pounce){const toward=r.brawl.attacker?-1:1,beat=Math.max(0,Math.sin((now-r.brawling)/160+(r.brawl.attacker?0:Math.PI)));
+      dx+=Math.round(beat*2*toward);}                                                                // the fight: each lunging at the other in turn, smoothly
     if(r.celebrating)dy-=Math.round(Math.abs(Math.sin((now-r.celebrating)/280*Math.PI))*7);          // jumping for joy, too soon
+    for(const d of r.dodges||[]){const u=(clock-d+260)/560;if(u>0&&u<1)dy-=Math.round(Math.sin(u*Math.PI)*12);}   // jumping a cheat item that missed
+    let spin=false;
+    if(r.knockedAt){const u=(now-r.knockedAt)/(r.knock.item==='tnt'?420:640);
+      if(u<1){if(r.knock.item==='tnt')dy-=Math.round(Math.sin(u*Math.PI)*12);else spin=Math.floor(u*8)%2===1;}}   // blown off its feet; slipping round and round
     g.fillStyle='rgba(60,30,10,.35)';g.fillRect(Math.round(sx-cr.w*.28),fy,Math.round(cr.w*.56),2);
-    g.save();if(r.artFaces()!==1){g.translate(sx*2,0);g.scale(-1,1);}
-    g.drawImage(f,cr.x,cr.y,cr.w,cr.h,dx,dy,cr.w,cr.h);g.restore();r._top=dy+topPad(r);}
-  // a brawl's dust cloud, between the two
-  for(const r of RC.racers)if(r.brawling&&r.brawl.attacker){const foe=r.brawl.foe,cx=Math.round((r.x+foe.x)/2)-cam,cy=Math.round((laneFeet(r.lane)+laneFeet(foe.lane))/2)-7;
+    g.save();if(((r.artFaces()!==1)!==!!r.faceBack)!==spin){g.translate(sx*2,0);g.scale(-1,1);}   // facing right, the way they run (a brawl's attacker, back)
+    if(r.struckAt)g.drawImage(raceSil(f,cr,'#000000'),dx,dy);else g.drawImage(f,cr.x,cr.y,cr.w,cr.h,dx,dy,cr.w,cr.h);   // struck: pitch black, steady
+    g.restore();r._top=dy+topPad(r);
+    const smoked=r.struckAt||(r.knockedAt&&r.knock.item==='tnt'?r.knockedAt:0);   // struck by lightning, or blown up by TNT
+    if(smoked)for(let i=0;i<3;i++){const p=((now-smoked)/1400+i/3)%1;   // wisps of smoke, rising slowly
+      g.fillStyle=`rgba(90,90,96,${(.55*(1-p)).toFixed(2)})`;g.fillRect(sx-3+i*3+Math.round(Math.sin(p*6+i)*2),Math.round(r._top+4-p*14),2,2);}}
+  // a lightning strike: one bolt down onto the cat (the same zigzag every frame), and one flash of the sky, fading
+  const B=RC.bolt;if(B&&now-B.t<450){const t=now-B.t,tx=Math.round(B.x)-cam,ty=laneFeet(B.lane)-14,rr=seeded(B.seed);
+    if(t<220){g.fillStyle=`rgba(235,240,255,${(.7*(1-t/220)).toFixed(2)})`;g.fillRect(0,0,RACE.W,RACE.H);}
+    let x=tx+Math.round((rr()-.5)*40),y=0;const pts=[[x,0]];
+    while(y<ty){y=Math.min(ty,y+8+Math.floor(rr()*12));x+=Math.round((tx-x)*.35+(rr()-.5)*12);if(y>=ty)x=tx;pts.push([x,y]);}
+    const a=t<300?1:1-(t-300)/150;
+    for(const [w,col] of [[3,`rgba(150,190,255,${(.55*a).toFixed(2)})`],[1,`rgba(255,255,255,${a.toFixed(2)})`]]){g.fillStyle=col;
+      for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i],n=Math.max(1,Math.abs(x1-x0),y1-y0);
+        for(let q=0;q<=n;q++)g.fillRect(Math.round(x0+(x1-x0)*q/n)-(w>>1),Math.round(y0+(y1-y0)*q/n),w,1);}}}
+  // a brawl's dust, kicked up at their feet between the two (moving smoothly, under their faces)
+  for(const r of RC.racers)if(r.brawling&&r.brawl.attacker&&!r.pounce){const foe=r.brawl.foe,cx=Math.round((r.x+foe.x)/2)-cam,cy=laneFeet(foe.lane)-2;
     if(cx<-20||cx>RACE.W+20)continue;
-    for(let i=0;i<12;i++){const a=(now/90+i*.53)%(Math.PI*2),rr=5+((i*7+Math.floor(now/110))%6);
-      g.fillStyle=i%3?'rgba(226,214,200,.8)':'rgba(150,140,130,.75)';g.fillRect(cx+Math.round(Math.cos(a)*rr),cy+Math.round(Math.sin(a)*rr*.6),3,2);}}
+    for(let i=0;i<10;i++){const a=now/700+i*.63,rr=6+2*Math.sin(now/260+i);
+      g.fillStyle=i%3?'rgba(226,214,200,.7)':'rgba(150,140,130,.65)';g.fillRect(cx+Math.round(Math.cos(a)*rr),cy-Math.round(Math.abs(Math.sin(a))*rr*.45),3,2);}}
+  // cheat items in the air (from the thrower, along an arc, to where its cat will be when it gets there), and going off
+  for(const T of RC.throws){if(!T.target||clock<T.at)continue;const ex=scriptX(T.target,T.lands),fy=laneFeet(T.target.lane);
+    if(T.item==='tnt'){const E={x:T.hit?ex:ex+10,y:T.hit?fy-7:fy-2};   // a miss lands just in front, and its cat jumps the blast
+      if(clock<T.lands){const S=throwFrom(T),at=q=>({x:S.x+(E.x-S.x)*q,y:S.y+(E.y-S.y)*q-Math.sin(q*Math.PI)*70}),p=(clock-T.at)/(T.lands-T.at),P=at(p);   // thrown high
+        for(let i=1;i<=4;i++){const Q=at(Math.max(0,p-i*.025));g.fillStyle=i%2?`rgba(255,225,74,${(.8-i*.17).toFixed(2)})`:`rgba(255,138,42,${(.8-i*.17).toFixed(2)})`;
+          g.fillRect(Math.round(Q.x)-cam,Math.round(Q.y),1,1);}   // sparks off its fuse
+        const rx=Math.round(P.x)-cam,ry=Math.round(P.y);
+        if(rx>-20&&rx<RACE.W+20){g.save();g.translate(rx,ry);g.rotate(p*Math.PI*2*5*(E.x<S.x?-1:1));g.drawImage(cheatSprite('tnt'),-6,-2);g.restore();}}   // end over end, five times
+      else if(clock<T.lands+700)raceBoom(g,E.x-cam,E.y,(clock-T.lands)/700);}
+    else{const land=T.lands-900;   // a Banana Peel lands on the track a moment before its cat gets there
+      if(clock<land){const S=throwFrom(T),p=(clock-T.at)/(land-T.at),x=S.x+(ex-S.x)*p,y=S.y+(fy-2-S.y)*p-Math.sin(p*Math.PI)*36;
+        drawCheatArt(g,'banana',Math.round(x)-5-cam,Math.round(y)-3,{flip:Math.floor(p*10)%2===1});}}}   // tumbling through the air
   weatherStep(RC.dt||16,now,g,cam);   // rain, splashes, lightning on top of the pets
   // progress bar (pixel style): one dot per pet in its own colour, the leader's dot is bigger
   const bx=60,bw=264,by=6;g.fillStyle='rgba(20,10,5,.55)';g.fillRect(bx-3,by-3,bw+6,8);g.fillStyle='#e9dcc3';g.fillRect(bx,by,bw,2);
@@ -1908,19 +2072,27 @@ function raceDraw(now){
   G.textAlign='center';G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;G.fillStyle='#ffffff';
   for(let x=RACE.startX+300,m=1;x<RACE.finishX-60;x+=300,m++){const sx=x-cam;if(sx>-10&&sx<RACE.W+10)G.fillText(String(m*300),(sx+1)*k,100*k);}
   G.textAlign='left';G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;
-  RC.racers.forEach(r=>{const y=laneFeet(r.lane)-2;G.fillStyle='rgba(20,10,5,.55)';G.fillRect(1*k,(y-3)*k,10*k,6*k);G.fillStyle='#f4f1ea';G.fillText(String(r.lane+1),3*k,y*k);});
+  RC.racers.forEach(r=>{const y=laneFeet(r.lane)-2;G.fillStyle=r.mine?'rgba(46,160,80,.95)':'rgba(20,10,5,.55)';G.fillRect(1*k,(y-3)*k,10*k,6*k);G.fillStyle='#f4f1ea';G.fillText(String(r.lane+1),3*k,y*k);});
   // clock + leader
-  if(RC.phase==='running'||RC.phase==='results'){const el=RC.phase==='running'?now-RC.t0:RC.order[0].T;const s=Math.floor(el/1000);
+  if(RC.phase==='running'||RC.phase==='results'){const el=RC.phase==='running'?now-RC.t0:raceWinner().T;const s=Math.floor(el/1000);
     G.font=`700 ${6*k}px 'Pixelify Sans', monospace`;G.fillStyle='rgba(20,10,5,.6)';G.fillRect(330*k,1*k,52*k,11*k);G.fillStyle='#ffe066';G.textAlign='center';
     G.fillText(`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`,356*k,6.5*k);
     if(RC.phase==='running'&&RC.leader){G.textAlign='left';G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;const t='LEAD: '+RC.leader.name.toUpperCase();
       const w=G.measureText(t).width;G.fillStyle='rgba(20,10,5,.6)';G.fillRect(2*k,14*k,w+4*k,8*k);G.fillStyle='#ffffff';G.fillText(t,4*k,18*k);}}
-  // 💢 over a brawl; 🎉 over a cat celebrating too soon (and TOO SOON! once the winner's gone past)
+  // cheat items: who threw what at whom while it flies, then HIT! or MISSED! as it gets there
+  if(RC.phase==='running'){let line=0;G.textAlign='left';G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;
+    for(const T of RC.throws){if(!T.target||clock<T.at||clock>T.lands+1800||line>=3)continue;
+      const who=T.mine?'YOU':(T.who||(T.from?T.from.name:'SOMEONE')).toUpperCase(),there=clock>=T.lands;
+      const t=`${who} THREW ${((cheatRules().items[T.item]||{}).a||T.item).toUpperCase()} AT ${T.target.name.toUpperCase()}${there?(T.hit?': HIT!':': MISSED!'):''}`;
+      const y=27+line*9,w=G.measureText(t).width;G.fillStyle='rgba(20,10,5,.7)';G.fillRect(2*k,(y-4)*k,w+4*k,8*k);
+      G.fillStyle=there?(T.hit?'#ff9a7a':'#a8e6a8'):'#ffe066';G.fillText(t,4*k,y*k);line++;}}
+  // 💢 over a brawl; 🎉 over a cat celebrating too soon (and TOO SOON! once the winner's gone past); 💫 over one knocked out
   G.textAlign='center';
   for(const r of RC.racers){const on=r._sx>-20&&r._sx<RACE.W+20;if(!on)continue;
-    if(r.brawling&&Math.floor((now-r.brawling)/300)%2===0){G.font=`${8*k}px sans-serif`;G.fillText('💢',r._sx*k,(r._top-5)*k);}
+    if(r.brawling&&!r.pounce){G.font=`${7*k}px sans-serif`;G.fillText('💢',r._sx*k,(r._top-4)*k);}   // steady, over each of them
+    if(r.knockedAt&&now-r.knockedAt>300){G.font=`${7*k}px sans-serif`;G.fillText('💫',r._sx*k,(r._top-4)*k);}
     if(r.celebrating){G.font=`${8*k}px sans-serif`;G.fillText('🎉',r._sx*k,(r._top-12)*k);
-      if(RC.order[0].done){G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;const t='TOO SOON!',w=G.measureText(t).width+4*k;
+      if(raceWinner().done){G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;const t='TOO SOON!',w=G.measureText(t).width+4*k;
         G.fillStyle='rgba(20,10,5,.75)';G.fillRect(r._sx*k-w/2,(r._top-24)*k,w,7*k);G.fillStyle='#ffcf3f';G.fillText(t,r._sx*k,(r._top-20.5)*k);}}}
   if(RC.phase==='countdown'){const left=3-Math.floor((now-RC.t0)/1000);bigText(left>0?String(left):'GO!',k);}
   else if(RC.phase==='running'&&now-RC.t0<700)bigText('GO!',k);
@@ -2430,10 +2602,12 @@ async function runLiveFinish(){const run=RL.run;if(!run)return;RL.run=null;RL.fi
   catch(e){RL.error=true;RL.message=e.message;runLiveLoad();}finally{RL.finishing=false;runLiveRender();}}
 
 /* ---------- Nekomusume: Kitty Race, in the game: races the server runs (backend/utils/catflix/kittyRace.js) ----------
-   The server picks the field, the lanes, the winner (every cat the same chance) and the whole finishing order, and pays
-   the winner as it starts. Every page then plays the same race: planRace from the race's seed, in that order, from its
-   start time on the server's clock. */
+   The server picks the field, the lanes, the winner (every cat the same chance) and the whole finishing order as it
+   starts. Every page then plays the same race: planRace from the race's seed, in that order, from its start time on the
+   server's clock, polling it every second while it plays for cheat items thrown (they land at the same moment on every
+   page). Anyone can watch a race on now. */
 const KR={races:null,rules:null,custom:false,busy:false,playing:null,timer:0,skew:0,lineKey:null,
+  played:new Set(),tick:0,watch:null,cheat:{open:false,item:null,busy:false},
   bet:(()=>{try{const b=+localStorage.getItem('catflix.raceBet');return Number.isInteger(b)&&b>0?b:100;}catch(e){return 100;}})()};
 function myUserId(){try{return String(JSON.parse(localStorage.getItem('user')||'null')?._id||'')||null;}catch(_){return null;}}
 const serverNow=()=>Date.now()+KR.skew;
@@ -2446,7 +2620,7 @@ function raceMoney(r){if(!LIVE||!RC.race||!r.ownerId)return '';const e=RC.race.e
 function raceLiveTake(d){if(!d)return;
   if(d.points!==undefined)LV.points=d.points;if(d.rules)KR.rules=d.rules;KR.races=d.races;
   const mine=d.races&&d.races.mine;if(mine&&mine.serverNow)KR.skew=Date.parse(mine.serverNow)-Date.now();
-  if(mine&&mine.status==='started'&&KR.playing!==mine.id)raceLivePlay(mine);
+  if(mine&&mine.status==='started'&&KR.playing!==mine.id&&!KR.played.has(mine.id))raceLivePlay(mine);   // (not one played here already: after watching someone's)
   else if((mine&&mine.status==='open')||!KR.playing)raceLiveLineup();
   raceLiveRender();}
 async function raceLiveLoad(){try{raceLiveTake(await cfx('/race'));}catch(e){toast(e.message);}}
@@ -2472,8 +2646,11 @@ function raceLiveRender(){
       ${KR.custom?`<input type="number" id="raceCustom" min="1" max="${R.maxBet}" step="1" value="${KR.bet}" aria-label="Your bet, 1 to ${fmt(R.maxBet)} PP">`:''}<span class="note">You have ${fmt(LV.points)} points.</span></div>
       <div class="row"><button class="btn acc" id="raceSolo">🏁 Race now, against house cats</button><button class="btn" id="raceOpen">👥 Open a race for friends</button></div>`;
     html+=d.open.length?`<h3 style="margin:4px 0 0">Friends’ races</h3><ul>${d.open.map(r=>`<li><span>${esc(hostName(r))}’s race <em>${esc(trackName(r.map))} · ${r.entries.length} of ${R.racers} in</em></span><button class="btn acc" data-join="${esc(r.id)}">Join: ${fmt(KR.bet)} PP</button></li>`).join('')}</ul>`
-      :'<p class="note">No friends’ races open right now.</p>';}
-  html+=`<p class="note">${R.racers} cats race for about a minute, on a track picked at random, and every cat has the same chance. Bet up to ${fmt(R.maxBet)} PP on yours: if it wins you get ${R.pays} times your bet (your bet back, the rest in P-PP). Most of what’s lost goes to the Box Office Scratch jackpots. After the finish, 1st is happy, 2nd to 5th are angry, 6th to 10th are sad.</p>`;
+      :'<p class="note">No friends’ races open right now.</p>';
+    const onNow=d.live||[];
+    if(onNow.length)html+=`<h3 style="margin:4px 0 0">Races on now</h3><ul>${onNow.map(r=>`<li><span>${esc(hostName(r))}’s race <em>${esc(trackName(r.map))} · ${r.solo?'against house cats':`${r.entries.length} racing`}</em></span><button class="btn" data-watch="${esc(r.id)}">👀 Watch</button></li>`).join('')}</ul>`;}
+  html+=`<p class="note">${R.racers} cats race for about a minute, on a track picked at random, and every cat has the same chance. Bet up to ${fmt(R.maxBet)} PP on yours: if it wins you get ${R.pays} times your bet (your bet back, the rest in P-PP). Most of what’s lost goes to the Box Office Scratch jackpots. After the finish, 1st is happy, 2nd to 5th are angry, 6th to 10th are sad.</p>
+    <p class="note">Cheat items: open the cheat box under the race to throw TNT or a Banana Peel (from the Shop) at a cat, one a race. Before the last 15 seconds it knocks the cat out 4 times in 5, and if that cat was going to win, the next in line wins (even yours). Later, it always misses. House cats throw them too. Watching someone’s race, you can only throw at cats whose owners have PvP on.</p>`;
   el.innerHTML=html;
   const seg=$('raceBetSeg');if(seg)seg.onclick=e=>{const b=e.target.closest('button');if(!b)return;
     if(b.dataset.bet==='custom')KR.custom=true;else{KR.custom=false;KR.bet=+b.dataset.bet;try{localStorage.setItem('catflix.raceBet',KR.bet);}catch(_){}}raceLiveRender();};
@@ -2483,6 +2660,8 @@ function raceLiveRender(){
   on('raceOpen',()=>raceLiveAct('/race',{bet:KR.bet,solo:false}));
   if(mine){on('raceGo',()=>raceLiveAct(`/race/${mine.id}/start`,undefined,{wallet:false}));on('raceLeave',()=>raceLiveAct(`/race/${mine.id}/leave`));}
   el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>raceLiveAct(`/race/${b.dataset.join}/join`,{bet:KR.bet}));
+  el.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>raceLiveWatch(b.dataset.watch));
+  raceCheatRender();
 }
 // The cats on the line before a race: the open race's, or just yours.
 // A started race on its way in (raceLivePlay loading its cats): the line-up mustn't take its place.
@@ -2490,17 +2669,17 @@ const raceComing=()=>{const m=KR.races&&KR.races.mine;return !!m&&m.status==='st
 async function raceLiveLineup(){
   if(RC.phase==='running'||RC.phase==='countdown'||raceComing())return;
   const mine=KR.races&&KR.races.mine&&KR.races.mine.status==='open'?KR.races.mine:null,me=PR.id&&petDocs.get(PR.id);
-  const want=mine?mine.entries.map(e=>({name:e.name,skinId:e.skinId,owner:e.username})):me?[{name:me.name,skinId:me.skinId,owner:''}]:[];
+  const want=mine?mine.entries.map(e=>({name:e.name,skinId:e.skinId,owner:e.username,mine:e.user===myUserId()})):me?[{name:me.name,skinId:me.skinId,owner:'',mine:true}]:[];
   const key=JSON.stringify(want);if(KR.lineKey===key&&RC.phase!=='results')return;KR.lineKey=key;
   const list=[];
   for(const [i,x] of want.entries()){const reg=regDocs.get(x.skinId);if(!reg||!baseDocs.has(reg.baseFormId))continue;const f=await getForm(reg.baseFormId);if(!f||!f.firstState())continue;
-    list.push(new Racer({id:'line'+i,name:x.name,form:f,map:mapFromChanges(f,reg.changes),guest:false,rarity:reg.rarity,owner:x.owner}));}
+    list.push(new Racer({id:'line'+i,name:x.name,form:f,map:mapFromChanges(f,reg.changes),guest:false,rarity:reg.rarity,owner:x.owner,mine:x.mine}));}
   if(RC.phase==='running'||RC.phase==='countdown'||raceComing()||KR.lineKey!==key)return;
   RC.racers=list;RC.race=null;raceReset();$('raceEmpty').hidden=true;
 }
 // A started race: its cats in their lanes, scripted from its seed in its order, joined wherever it's got to.
 async function raceLivePlay(race){
-  KR.playing=race.id;const me=myUserId(),list=[];
+  KR.playing=race.id;const me=myUserId(),list=[];if(race.serverNow)KR.skew=Date.parse(race.serverNow)-Date.now();
   const fallback=[...regDocs.values()].find(r=>baseDocs.has(r.baseFormId));
   for(const [lane,x] of race.racers.entries()){let reg=regDocs.get(x.skinId);if(!reg||!baseDocs.has(reg.baseFormId))reg=fallback;if(!reg)break;
     const f=await getForm(reg.baseFormId);if(!f||!f.firstState())break;
@@ -2510,16 +2689,65 @@ async function raceLivePlay(race){
   RC.map=race.map;RC.weather=race.weather||'sunny';WX.drops=[];WX.splashes=[];
   [...$('mapSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===RC.map));
   const M=race.mishaps;   // by lane, from the server
-  const mishaps=M?{brawl:M.brawl?{attacker:list[M.brawl.attacker],victim:list[M.brawl.victim],at:M.brawl.atMs}:null,celebrate:M.celebrate?list[M.celebrate.lane]:null}:null;
+  const mishaps=M?{brawls:(M.brawls||[]).map(b=>({attacker:list[b.attacker],victim:list[b.victim],at:b.atMs})),celebrate:M.celebrate?list[M.celebrate.lane]:null,
+    lightning:M.lightning?{racer:list[M.lightning.lane],at:M.lightning.atMs}:null,quit:M.quit?{racer:list[M.quit.lane],at:M.quit.atMs}:null}:null;
   RC.racers=list;raceReset();planRace(RE.generator(race.seed),race.order.map(i=>list[i]),mishaps);
-  RC.race=race;RC.phase='countdown';RC.t0=performance.now()-(serverNow()-Date.parse(race.startAt));
-  RC.map=race.map;
-  $('raceResultsTitle').textContent='Line-up';raceLiveRender();
+  RC.race=race;raceThrows(race.throws);   // cheat items thrown so far; more as they come (raceLiveTick)
+  RC.phase='countdown';RC.t0=performance.now()-(serverNow()-Date.parse(race.startAt));
+  RC.map=race.map;KR.played.add(race.id);KR.cheat.open=false;KR.cheat.item=null;
+  $('raceResultsTitle').textContent='Line-up';raceLiveRender();raceLiveTick();
 }
+// While a race plays, every second: cheat items thrown since, and what they've done to the finishing order.
+function raceLiveTick(){clearTimeout(KR.tick);
+  KR.tick=setTimeout(async()=>{const race=RC.race;if(!LIVE||!race||(RC.phase!=='countdown'&&RC.phase!=='running'))return;
+    try{const d=await cfx(`/race/${race.id}`);if(RC.race&&RC.race.id===d.race.id){RC.race=d.race;raceThrows(d.race.throws);}}catch(_){}
+    raceCheatRender();raceLiveTick();},1000);}
+// Watching someone's race (anyone's, on now).
+async function raceLiveWatch(id){try{const d=await cfx(`/race/${id}`);KR.watch=id;await raceLivePlay(d.race);}catch(e){toast(e.message);}}
 // Every cat's in: how it went for you, and the wallet in the nav bar catches up.
-function raceLiveDone(){const race=RC.race;if(!race)return;const e=myEntry(race);
+async function raceLiveDone(){const race=RC.race;if(!race)return;const e=myEntry(race);clearTimeout(KR.tick);
   if(e)toast(e.payout>0?`Your cat won! +${fmt(e.payout)} PP`:`Not this time: ${fmt(e.bet)} PP gone`);
-  liveWallet();raceLiveLoad();}
+  else{const w=raceWinner();if(w)toast(`${w.name} won${w.owner?` for ${w.owner}`:''}!`);}   // watching
+  KR.watch=null;await raceLiveLoad();liveWallet();}
+
+/* ---------- Kitty Race's cheat box (in the game), under the race: your cheat items as pixel-art crates; pick one, then
+   the lane to throw it at. One a race; the server says whether it hits (kittyRace.js throwItem). ---------- */
+function raceCheatState(){const race=RC.race,me=myUserId(),R=cheatRules(),winMs=(KR.rules&&KR.rules.winnerMs)||RACE.winnerMs;
+  const live=!!race&&(RC.phase==='countdown'||RC.phase==='running'),el=RC.phase==='running'?performance.now()-RC.t0:-1;
+  const have=(LV.player&&LV.player.cheats)||{},kinds=Object.keys(R.items).filter(k=>have[k]>0);
+  const thrown=live&&(race.throws||[]).some(t=>t.by===me),mineT=live?RC.throws.find(t=>t.mine):null;
+  return {race,R,winMs,live,el,have,kinds,thrown,mineT,racing:live&&!!myEntry(race),can:live&&RC.phase==='running'&&el<winMs&&!thrown&&kinds.length>0};}
+function raceCheatRender(){if(!$('cheatBar'))return;const S=raceCheatState(),C=KR.cheat;
+  if(!S.can){C.open=false;C.item=null;}
+  const btn=$('cheatBtn');btn.disabled=!S.can;btn.setAttribute('aria-expanded',String(C.open));
+  const items=S.kinds.map(k=>`${S.R.items[k].name} ×${S.have[k]}`).join(' and ');
+  let msg;
+  if(!S.live)msg=items?`You have ${items}: open the cheat box during a race to throw one.`:'Buy TNT or a Banana Peel in the Shop, to throw in a race.';
+  else if(S.mineT){const T=S.mineT,name=T.target?T.target.name:'it';msg=S.el<T.lands?`Your ${S.R.items[T.item].name} is on its way to ${name}…`:T.hit?`💥 Hit! ${name} is out.`:`Missed: ${name} jumped it.`;}
+  else if(S.thrown)msg='You’ve thrown yours this race.';
+  else if(RC.phase==='countdown')msg='Wait for the off…';
+  else if(S.el>=S.winMs)msg='Too late: the winner’s home.';
+  else if(!items)msg='No cheat items: the Shop sells them.';
+  else if(S.el>=S.winMs-S.R.lateMs)msg='Last 15 s: anything thrown now misses!';
+  else msg=S.racing?'One throw a race, at any cat but yours.':`Watching ${hostName(S.race)}’s race: throw at cats with PvP on.`;
+  $('cheatMsg').textContent=msg;
+  const menu=$('cheatMenu');menu.hidden=!C.open;if(C.open&&menu.dataset.step!==(C.item||'items'))raceCheatMenu(S);}
+function raceCheatMenu(S){const menu=$('cheatMenu'),C=KR.cheat;menu.dataset.step=C.item||'items';
+  const close='<button type="button" class="btn" data-x aria-label="Close">✕</button>';
+  if(!C.item){menu.innerHTML=`<div class="cheathead"><b>Cheat box</b>${close}</div><div class="crates">${S.kinds.map(k=>
+      `<button type="button" class="crate" data-item="${k}"><canvas data-crate="${k}" aria-hidden="true"></canvas><span>${esc(S.R.items[k].name)}</span><em>×${S.have[k]}</em></button>`).join('')}</div>`;
+    menu.querySelectorAll('canvas[data-crate]').forEach(cv=>paintCrate(cv,cv.dataset.crate,3));return;}
+  const out=r=>r.knockedAt||r.brawling||r.struckAt||r.quitAt;
+  menu.innerHTML=`<div class="cheathead"><button type="button" class="btn" data-back aria-label="Back">‹</button><b>Throw your ${esc(S.R.items[C.item].name)} at…</b>${close}</div>
+    <div class="cheatlanes">${[...RC.racers].sort((a,b)=>a.lane-b.lane).map(r=>{const info=S.race.racers[r.lane]||{};
+      const why=r.mine?'yours':!S.racing&&!info.pvp?(info.owner?'PvP off':'house cat'):out(r)?'out':'';
+      return `<button type="button" data-lane="${r.lane}" ${why?'disabled':''}><b>${r.lane+1}</b><i style="background:${r.dotColor()}"></i><span>${esc(r.name)}</span>${why?`<em>${why}</em>`:''}</button>`;}).join('')}</div>`;}
+async function raceThrow(item,lane){const C=KR.cheat,race=RC.race;if(C.busy||!race)return;C.busy=true;
+  try{const d=await cfx(`/race/${race.id}/throw`,{method:'POST',body:{item,lane}});
+    if(d.player){LV.player=d.player;const doc=playerDocs.get('me');if(doc)doc.cheats={...(d.player.cheats||{})};}   // one fewer
+    if(RC.race&&RC.race.id===d.race.id){RC.race=d.race;raceThrows(d.race.throws);}
+    C.open=false;C.item=null;}
+  catch(e){toast(e.message);}finally{C.busy=false;raceCheatRender();}}
 
 /* ===================================================================
    PET ROOM — a pet is its own thing (name + stats) that WEARS a skin
@@ -3042,9 +3270,9 @@ const GACHA={startPP:500000,testPP:100000,
   packs:{single:{l:'Single Pack',n:1,price:100000},triple:{l:'Triple Pack',n:3,price:200000},blackGold:{l:'Black & Gold Pack',n:7,price:400000}},
   odds:[['common',40],['uncommon',30],['rare',19],['epic',10],['legendary',1]]};   // % per card
 const playerDocs=new Map();
-const ME=()=>{const d=playerDocs.get('me')||{};return {pp:Number.isFinite(d.pp)?d.pp:GACHA.startPP,cards:{...(d.cards||{})},packs:{single:0,triple:0,blackGold:0,...(d.packs||{})},pending:d.pending||null,auras:{...(d.auras||{})},profile:{...(d.profile||{})},egg:d.egg||null,food:Number.isFinite(d.food)?d.food:0,balls:{...(d.balls||{})}};};
+const ME=()=>{const d=playerDocs.get('me')||{};return {pp:Number.isFinite(d.pp)?d.pp:GACHA.startPP,cards:{...(d.cards||{})},packs:{single:0,triple:0,blackGold:0,...(d.packs||{})},pending:d.pending||null,auras:{...(d.auras||{})},profile:{...(d.profile||{})},egg:d.egg||null,food:Number.isFinite(d.food)?d.food:0,balls:{...(d.balls||{})},cheats:{tnt:0,banana:0,...(d.cheats||{})}};};
 const fmtPP=n=>Math.round(n).toLocaleString('en-US');
-function savePlayer(p){if(LIVE){LV.egg=p.egg||null;try{localStorage.setItem('catflix.egg',JSON.stringify(LV.egg));}catch(_){}return Promise.resolve();}return writeDoc('player','me',{pp:p.pp,cards:p.cards,packs:p.packs,pending:p.pending||null,auras:p.auras||{},profile:p.profile||{},egg:p.egg||null,food:p.food||0,balls:p.balls||{},updatedAt:Date.now()});}
+function savePlayer(p){if(LIVE){LV.egg=p.egg||null;try{localStorage.setItem('catflix.egg',JSON.stringify(LV.egg));}catch(_){}return Promise.resolve();}return writeDoc('player','me',{pp:p.pp,cards:p.cards,packs:p.packs,pending:p.pending||null,auras:p.auras||{},profile:p.profile||{},egg:p.egg||null,food:p.food||0,balls:p.balls||{},cheats:p.cheats||{},updatedAt:Date.now()});}
 function onPlayerChange(){renderShop();renderDeckPanel();renderProfile();renderPetAura();eggSync();renderToyPicker();const fb=$('petTools').querySelector('[data-v=food]');if(fb)fb.textContent=`🍖 Food ×${ME().food}`;}
 
 // which cards are in your Spell Deck: every card you pulled, plus whatever your pet is already wearing
@@ -3126,9 +3354,18 @@ $('shopToys').addEventListener('click',async e=>{const b=e.target.closest('[data
   if(me.balls[k]>0)return toast('One at a time: wear it out first');if(me.pp<T.price)return toast('Not enough PP');
   me.pp-=T.price;me.balls[k]=T.dur;try{await savePlayer(me);toast(`${T.l} bought — drop it in a pet room with 🎾 Toy`);}catch(_){toast('Could not buy (do you have edit access?)');}});
 
+// The shop's Kitty Race cheat items: TNT and a Banana Peel, as many as you like.
+function renderCheats(){const el=$('shopCheats');if(!el)return;const me=ME(),R=cheatRules();
+  el.innerHTML=Object.entries(R.items).map(([k,t])=>`<div class="supply"><canvas data-crate="${k}" aria-hidden="true"></canvas><div><b>${esc(t.name)}</b><div class="note" style="margin:2px 0 0">You have <b>${me.cheats[k]||0}</b></div></div>
+      <span class="sp"></span><button class="btn acc" data-cheat-buy="${k}" ${me.pp<t.price?'disabled':''}>Buy · ${fmtPP(t.price)} PP</button></div>`).join('');
+  el.querySelectorAll('canvas[data-crate]').forEach(cv=>paintCrate(cv,cv.dataset.crate,2));}
+$('shopCheats').addEventListener('click',async e=>{const b=e.target.closest('[data-cheat-buy]');if(!b||b.disabled)return;const k=b.dataset.cheatBuy,T=cheatRules().items[k],me=ME();
+  if(LIVE){if(await liveCall('/shop/buy',{item:'cheat',kind:k},`${T.name} bought: throw it from the cheat box in a Kitty Race`))await liveRefresh();return;}
+  if(me.pp<T.price)return toast('Not enough PP');me.pp-=T.price;me.cheats[k]=(me.cheats[k]||0)+1;try{await savePlayer(me);toast(`${T.name} bought`);}catch(_){toast('Could not buy (do you have edit access?)');}});
+
 /* ---------- shop page ---------- */
 function renderShop(){
-  if(!$('shop'))return;const me=ME();renderCrystals();renderToys();
+  if(!$('shop'))return;const me=ME();renderCrystals();renderToys();renderCheats();
   $('foodHave').textContent=me.food;$('foodBuy').disabled=me.pp<100;
   if(!renderShop.icon){renderShop.icon=1;const cv=$('foodIcon'),spr=runSprites().food;cv.width=spr.width*4;cv.height=spr.height*4;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(spr,0,0,cv.width,cv.height);}
   $('ppBal').textContent=fmtPP(me.pp);
@@ -3989,7 +4226,20 @@ function liveLayout(){
   placesBtn.onclick=()=>{pop.hidden=false;};$('roomPopClose').onclick=()=>{pop.hidden=true;};
   pop.addEventListener('click',e=>{if(e.target===pop||e.target.closest('#roomSeg button'))pop.hidden=true;});   // a place picked, or a tap outside
   // Kitty Race: the game; its menu (bets, races, results) is a pop-up window over it, away while a race plays.
-  const race=$('race');race.querySelector('.roombar').hidden=true;liveStage($('raceWrap'));
+  const race=$('race');race.querySelector('.roombar').hidden=true;const raceStage=liveStage($('raceWrap'));
+  // Under it, the cheat box (raceCheatRender): its menu opens over the bottom of the race, so the race stays in sight.
+  const cb=document.createElement('div');cb.className='cheatbar';cb.id='cheatBar';
+  cb.innerHTML='<button type="button" class="cheatbtn" id="cheatBtn" aria-haspopup="true" aria-expanded="false" disabled><canvas id="cheatCrate" aria-hidden="true"></canvas><span>Cheat</span><b aria-hidden="true">▾</b></button>'+
+    '<span class="cheatmsg" id="cheatMsg" aria-live="polite"></span><div class="cheatmenu" id="cheatMenu" hidden></div>';
+  raceStage.append(cb);paintCrate($('cheatCrate'),null,2);
+  $('cheatBtn').onclick=()=>{const C=KR.cheat;C.open=!C.open;C.item=null;$('cheatMenu').dataset.step='';raceCheatRender();};
+  $('cheatMenu').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const C=KR.cheat;
+    if(b.hasAttribute('data-x')){C.open=false;C.item=null;}
+    else if(b.hasAttribute('data-back'))C.item=null;
+    else if(b.dataset.item)C.item=b.dataset.item;
+    else if(b.dataset.lane!==undefined)return raceThrow(C.item,+b.dataset.lane);
+    raceCheatRender();});
+  document.addEventListener('pointerdown',e=>{const C=KR.cheat;if(C.open&&!e.target.closest('#cheatBar')){C.open=false;C.item=null;raceCheatRender();}});   // a tap anywhere else closes it
   const rbox=livePop(race,'racePop','Kitty Race');
   const res=document.createElement('div');res.id='raceResultsBox';res.hidden=true;const panel=$('raceResults').closest('.panel');
   res.append($('raceResultsTitle'),$('raceResults'));panel.remove();rbox.append(res);
