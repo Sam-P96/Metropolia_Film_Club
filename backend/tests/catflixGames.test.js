@@ -417,6 +417,40 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.deepEqual([...seen].sort(), Object.keys(CATFLIX.kittyRace.maps).sort());
     });
 
+    test("Kitty Race mishaps: a brawl in 20% of races (neighbours, mid-race), celebrating too soon in 20%; never the winner, so every cat keeps the same chance", async () => {
+        const crypto = require("crypto");
+        const runs = 4000;
+        let brawls = 0;
+        let parties = 0;
+        for (let i = 0; i < runs; i++) {
+            const winner = crypto.randomInt(10);
+            const m = kittyRace.mishapsFor(10, winner, crypto.randomInt);
+            if (m?.brawl) {
+                brawls += 1;
+                const { attacker, victim, atMs } = m.brawl;
+                assert.equal(Math.abs(attacker - victim), 1, "next-door lanes");
+                assert.ok(![attacker, victim].includes(winner), "never the winner");
+                assert.ok(atMs >= CATFLIX.kittyRace.mishaps.brawlFrom && atMs <= CATFLIX.kittyRace.mishaps.brawlTo, "mid-race");
+            }
+            if (m?.celebrate) {
+                parties += 1;
+                assert.ok(m.celebrate.lane !== winner && m.celebrate.lane !== m.brawl?.attacker && m.celebrate.lane !== m.brawl?.victim);
+            }
+        }
+        for (const [what, count] of [["brawls", brawls], ["too-soon celebrations", parties]]) assert.ok(Math.abs(count / runs - 0.2) < 0.03, `${what}: ${((count / runs) * 100).toFixed(1)}%`);
+
+        // In a race: the one who celebrated too soon comes in after the rest, the brawl's two last; the winner's paid all the same.
+        const user = await member({ pp: 1000 });
+        const race = await kittyRace.openRace(user._id, { bet: 100, solo: true }, { random: fixed(0) });
+        const { brawl, celebrate } = race.mishaps;
+        assert.ok(brawl && celebrate, "both, with every roll 0");
+        assert.deepEqual(race.order.slice(-3), [celebrate.lane, brawl.attacker, brawl.victim]);
+        assert.equal(String(race.racers[race.order[0]].owner), String(user._id));
+        assert.equal(race.entries[0].payout, 1000);
+        const view = (await call(user, "GET", "/race")).body.races.mine;
+        assert.deepEqual(view.mishaps, race.mishaps, "every page gets them");
+    });
+
     test("Kitty Race alone, lost: 90% of the bet to the scratch jackpots", async () => {
         const user = await member({ pp: 500 });
         const jackpotBefore = await jackpots();

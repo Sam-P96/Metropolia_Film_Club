@@ -57,6 +57,9 @@ const catflixRaceSchema = new Schema(
         // race with, and when it plays.
         racers: { type: [racerSchema], default: [] },
         order: { type: [Number], default: [] },
+        // Its mishaps (utils/catflix/kittyRace.js mishapsFor), by lane:
+        // { brawl: { attacker, victim, atMs } | null, celebrate: { lane } | null }.
+        mishaps: { type: Schema.Types.Mixed, default: null },
         seed: { type: Number, default: 0 },
         startAt: { type: Date, default: null },
         endsAt: { type: Date, default: null },

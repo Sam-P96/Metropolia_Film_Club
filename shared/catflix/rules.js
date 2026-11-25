@@ -191,6 +191,13 @@ export const CATFLIX = {
       ruins: { name: 'Ruins' },
       theatre: { name: 'Theatre', indoor: true },
     },
+    // Mishaps, each in that share of races, never to the winner (so every
+    // cat still has the same chance): a brawl, a cat attacking the cat in
+    // the next lane mid-race (`brawlFrom` to `brawlTo` ms in), both stopping
+    // there and losing, last; and celebrating too soon, a cat leading into
+    // the finish that stops just short of the line to celebrate while the
+    // rest go past, and comes in behind them.
+    mishaps: { brawl: 0.2, celebrate: 0.2, brawlFrom: 20000, brawlTo: 40000 },
     // The house cats' names.
     houseCats: ['Mochi', 'Tofu', 'Nori', 'Miso', 'Yuzu', 'Taro', 'Kiki', 'Momo', 'Sushi', 'Boba', 'Udon', 'Kuro', 'Shiro', 'Sora', 'Hana', 'Kinako'],
   },

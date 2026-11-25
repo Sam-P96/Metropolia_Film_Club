@@ -141,7 +141,7 @@ describe("Trade Spell", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbNa
         assert.deepEqual(done.body.trades, [], "nothing open");
         assert.deepEqual(await cardsOf(sam), { legend1: 1 });
         assert.deepEqual(await cardsOf(ana), { common1: 1 });
-        assert.deepEqual(await walletOf(sam), { pp: 100, ppp: 1000 }, "300 of theirs, as they paid it (100 PP, 200 P-PP), for the 200 put in");
+        assert.deepEqual(await walletOf(sam), { pp: 0, ppp: 1100 }, "300 of theirs (paid 100 PP and 200 P-PP), all as P-PP, for the 200 put in");
         assert.deepEqual(await walletOf(ana), { pp: 0, ppp: 400 });
         assert.equal((await notes(sam, "tradeCounter")).length, 0);
         assert.equal((await notes(ana, "tradeDone")).length, 1);
