@@ -51,8 +51,8 @@ function DoublePrizesNotice({ item }) {
         </div>
         <p className="rainbow-text mt-2 font-['Bebas_Neue'] text-4xl leading-none tracking-wide">Double Prize Weekend</p>
         <p className="mt-2 text-white/80">
-          Every prize is <strong className="text-white">doubled</strong> on cards bought this weekend, from Friday 16:00 until Sunday at midnight. The
-          jackpots stay as they are. {DOUBLE_PRIZES.cardsPerDay} cards of each ticket a day.
+          Prizes are <strong className="text-white">doubled</strong> on your first {DOUBLE_PRIZES.cardsPerDay} cards of each ticket every day this
+          weekend, from Friday 16:00 until Sunday at midnight. The jackpots stay as they are.
         </p>
         <Link
           to="/games/scratch"

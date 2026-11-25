@@ -54,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     else opens in a pop-up window over it (Explore's places, Kitty Race's
     bets, races and results). Explore's auras switch and place button are
     under the game window.
-  - Ruin Run (Games → Ruin Run, or its tab): your pet runs through a ruined
+  - Ruin Run (its tab in Catflix No Chill; not a card of its own on the
+    Games page): your pet runs through a ruined
     city, 2% faster every second and 25% faster after each enemy pet. Like
     Forrest Bounce, a menu over the game picks the bet: 1, 10, 30, 50, 100
     or any amount up to 10,000 PP (PP first, then P-PP), with one switch
@@ -68,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     server (`backend/public/pet-forge/ruin-engine.js`): the server picks
     the seed and plays the run again from what the player pressed, so the
     speed it pays for is its own.
-  - Nekomusume: Kitty Race (Games → Kitty Race, or its tab): ten cats race,
+  - Nekomusume: Kitty Race (its tab in Catflix No Chill; not a card of its
+    own on the Games page): ten cats race,
     yours among them, on a track picked at random. Bet up to 5,000 PP;
     every cat has the same chance,
     and yours winning pays 10 times the bet (the bet back, the rest in
@@ -826,11 +828,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   jackpot: 9 a Standard ticket, 18 a Premium, 27 a VIP (was 1, 2 and 3;
   `jackpotShare` in `shared/scratch/config.js`).
 - Double Prize Weekend starts on Friday at 16:00 (was Saturday at 00:00)
-  and still runs to Sunday at midnight. While it's on, each member can buy
-  15 cards of each ticket a day (Helsinki days, so Friday evening is
-  Friday's): the Buy buttons say how many are left today, and the 16th is
-  refused (`GET /api/scratch/limits`). Its notification goes out at Friday
-  16:00.
+  and still runs to Sunday at midnight. While it's on, only a member's
+  first 15 cards of each ticket a day are doubled (Helsinki days, so Friday
+  evening is Friday's); any more they buy are ordinary cards, never
+  refused. The Buy buttons say how many doubled cards are left today, then
+  "normal prizes" (`GET /api/scratch/limits`). Its notification goes out at
+  Friday 16:00.
 - The hidden rules of Box Office Scratch, Kino Farkle and the Slot Machine
   have changed (`backend/games/happyHours.js`). When a jackpot has grown
   very big, one member now and then hears about a Golden Rush, pinned to

@@ -11,7 +11,7 @@ router.get("/hours", getHours);
 // Their card: the one to show, a new one, and what they do with it. The
 // controller checks each card is theirs.
 router.get("/card", requireAuth, getCurrentCard);
-// In a Double Prize Weekend: the cards of each ticket they've left today.
+// In a Double Prize Weekend: the doubled cards of each ticket left today.
 router.get("/limits", requireAuth, getLimits);
 router.post("/cards", requireAuth, postCard);
 router.post("/cards/:id/scratch", requireAuth, postScratch);

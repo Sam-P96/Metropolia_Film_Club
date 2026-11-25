@@ -908,26 +908,81 @@ describe("the scratch routes", { skip: !uri ? "set MONGO_TEST_URI to run these" 
         assert.equal(after.doublePrizes, true);
     });
 
-    test("in the weekend, 15 cards of each ticket a day: the 16th is refused, nothing taken; the other tickets and the next day are their own", async () => {
+    // What a card bought got, from the database (the page never sees `goldenRush`).
+    const boostsOf = async (card) => {
+        const saved = await ScratchCard.findById(card._id).lean();
+        return { doublePrizes: saved.doublePrizes, rush: saved.goldenRush };
+    };
+
+    test("in the weekend, the first 15 cards of each ticket a day are doubled (with the Golden Rush's odds in one); more are ordinary cards, never refused", async () => {
         const { buyCard, weekendLimits } = require("../utils/scratch");
         const user = await member(1000);
+        const [window] = windowsFor("goldenRush", "2026-01-17");
+        const inRush = helsinkiTime("2026-01-17", window.from + 5);
         assert.deepEqual(await weekendLimits(user._id, SATURDAY), { on: true, perDay: 15, left: { standard: 15, premium: 15, vip: 15 } });
-        for (let i = 0; i < 15; i++) await putAway(await flat(buyCard(user._id, "standard", SATURDAY)));
+        for (let i = 0; i < 14; i++) await putAway(await flat(buyCard(user._id, "standard", SATURDAY)));
+        const fifteenth = await flat(buyCard(user._id, "standard", inRush));
+        assert.deepEqual(await boostsOf(fifteenth), { doublePrizes: true, rush: true }, "doubled, and the rush's odds");
+        await putAway(fifteenth);
         assert.deepEqual((await weekendLimits(user._id, SATURDAY)).left, { standard: 0, premium: 15, vip: 15 });
 
-        const wallet = await walletOf(user);
-        await assert.rejects(buyCard(user._id, "standard", SATURDAY), (error) => {
-            assert.equal(error.status, 429);
-            assert.match(error.message, /15 Standard tickets a day each, and you've had today's/);
-            return true;
-        });
-        assert.deepEqual(await walletOf(user), wallet, "nothing taken");
-        assert.equal(await ScratchCard.countDocuments({ user: user._id }), 15);
+        // The 16th: bought as usual, but an ordinary card, even in the rush.
+        const sixteenth = await flat(buyCard(user._id, "standard", inRush));
+        assert.equal(sixteenth.doublePrizes, false);
+        assert.deepEqual(await boostsOf(sixteenth), { doublePrizes: false, rush: false });
+        await ScratchCard.updateOne({ _id: sixteenth._id }, { $set: { layout: layoutWith({ stars: [0, 1, 2, 3, 4] }) } });
+        for (const tile of [0, 1]) await scratch(user, sixteenth, tile);
+        assert.equal((await scratch(user, sixteenth, 2)).body.card.tier.ppp, 80, "normal prizes");
+        await putAway(sixteenth);
+        assert.equal(await ScratchCard.countDocuments({ user: user._id }), 16);
 
         await putAway(await flat(buyCard(user._id, "premium", SATURDAY)));
         assert.deepEqual((await weekendLimits(user._id, SATURDAY)).left, { standard: 0, premium: 14, vip: 15 });
         assert.deepEqual((await weekendLimits(user._id, SUNDAY)).left, { standard: 15, premium: 15, vip: 15 }, "Sunday's a new day");
-        await putAway(await flat(buyCard(user._id, "standard", SUNDAY)));
+        const { goldenOdds } = require("../utils/scratch");
+        assert.deepEqual(await boostsOf(await flat(buyCard(user._id, "standard", SUNDAY))), { doublePrizes: true, rush: goldenOdds(SUNDAY).rush });
+    });
+
+    test("on a weekday, the Golden Rush's odds for the first 15 cards of each ticket bought in its windows; more are ordinary; cards outside them don't count", async () => {
+        const { buyCard, weekendLimits } = require("../utils/scratch");
+        const user = await member(1000);
+        const day = "2026-01-14"; // a Wednesday
+        const [early, late] = windowsFor("goldenRush", day);
+        const at = (window, plus) => helsinkiTime(day, window.from + plus);
+
+        // Before the rush: an ordinary card, not counted.
+        assert.deepEqual(await boostsOf(await flat(buyCard(user._id, "standard", helsinkiTime(day, 9 * 60)))), { doublePrizes: false, rush: false });
+        await ScratchCard.updateMany({ user: user._id }, { $set: { status: "complete" }, $unset: { activeFor: 1 } });
+
+        for (let i = 0; i < 10; i++) {
+            const card = await flat(buyCard(user._id, "standard", at(early, i)));
+            assert.equal((await boostsOf(card)).rush, true, `card ${i + 1}`);
+            await putAway(card);
+        }
+        for (let i = 0; i < 5; i++) await putAway(await flat(buyCard(user._id, "standard", at(late, i))));
+        const sixteenth = await flat(buyCard(user._id, "standard", at(late, 30)));
+        assert.deepEqual(await boostsOf(sixteenth), { doublePrizes: false, rush: false }, "the 16th in a window: ordinary");
+        await putAway(sixteenth);
+
+        // Premium has its own 15; the next day starts again.
+        const premium = await flat(buyCard(user._id, "premium", at(late, 31)));
+        assert.equal((await boostsOf(premium)).rush, true);
+        await putAway(premium);
+        const [tomorrow] = windowsFor("goldenRush", "2026-01-15");
+        assert.equal((await boostsOf(await flat(buyCard(user._id, "standard", helsinkiTime("2026-01-15", tomorrow.from))))).rush, true);
+
+        // Never shown: on a weekday the page hears nothing about it.
+        assert.deepEqual(await weekendLimits(user._id, at(late, 30)), { on: false });
+    });
+
+    test("Friday's morning rush and Friday evening's doubled cards are counted apart", async () => {
+        const { buyCard, weekendLimits } = require("../utils/scratch");
+        const user = await member(1000);
+        const [early] = windowsFor("goldenRush", "2026-01-16");
+        for (let i = 0; i < 3; i++) await putAway(await flat(buyCard(user._id, "standard", helsinkiTime("2026-01-16", early.from + i))));
+        assert.deepEqual((await weekendLimits(user._id, FRIDAY_EVENING)).left, { standard: 15, premium: 15, vip: 15 });
+        const { goldenOdds } = require("../utils/scratch");
+        assert.deepEqual(await boostsOf(await flat(buyCard(user._id, "standard", FRIDAY_EVENING))), { doublePrizes: true, rush: goldenOdds(FRIDAY_EVENING).rush });
     });
 
     test("outside a weekend there's no limit, and the route says so", async () => {

@@ -26,9 +26,9 @@ function getHours(req, res) {
     res.json(hoursView());
 }
 
-// In a Double Prize Weekend, how many cards of each ticket they can still
-// buy today: { on, perDay, left: { standard, premium, vip } }, or
-// { on: false }.
+// In a Double Prize Weekend, how many doubled cards of each ticket they
+// have left today (any more are ordinary cards): { on, perDay, left:
+// { standard, premium, vip } }, or { on: false }.
 async function getLimits(req, res) {
     res.json(await weekendLimits(req.user._id));
 }
@@ -42,9 +42,7 @@ async function getCurrentCard(req, res) {
 // Buy a ticket, { type }: 'standard', 'premium' or 'vip' (Standard if it's
 // left out). 201 with the new card and its seal; 409 if they already have
 // one going (so a double tap only ever buys one); 400 if they don't have
-// the points or the type isn't one; 403 for a VIP ticket out of its hours;
-// 429 once they've had the day's cards of that type in a Double Prize
-// Weekend.
+// the points or the type isn't one; 403 for a VIP ticket out of its hours.
 async function postCard(req, res) {
     try {
         res.status(201).json(await buyCard(req.user._id, req.body?.type ?? DEFAULT_TICKET_TYPE));

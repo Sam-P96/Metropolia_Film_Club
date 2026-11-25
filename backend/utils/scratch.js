@@ -249,22 +249,46 @@ async function goldenRushNotice(now = new Date()) {
     return member;
 }
 
-// ---- Double Prize Weekend's daily cards ----
+// ---- The boosted cards a day ----
+// A member's first few cards of each ticket a day get the boosts going, and
+// any more are ordinary cards (normal prizes, 1 in 200), never refused:
+//   in a Double Prize Weekend  the first DOUBLE_PRIZES.cardsPerDay of each
+//                              ticket a day are doubled, and dealt the Golden
+//                              Rush's odds if one's on (shared/events.js).
+//                              The page shows how many are left.
+//   otherwise                  in a Golden Rush window, the first
+//                              HAPPY_HOURS.goldenRush.cardsPerDay of each
+//                              ticket a day bought in one get its odds. Never
+//                              shown anywhere, like the rush itself.
+// The two are counted apart, so a weekday rush never shows on the weekend's
+// count (Friday's morning rush and Friday evening's doubled cards).
 
 // How many `type` cards `userId` has bought today (the Helsinki date `now`
-// falls on) in a Double Prize Weekend.
-function weekendCardsToday(userId, type, now) {
-    return ScratchCard.countDocuments({ user: userId, ticketType: type, doublePrizes: true, boughtDay: helsinkiDay(now) });
+// falls on) that match `boost` (doublePrizes: true, or goldenRush: true).
+function boostedToday(userId, type, now, boost) {
+    return ScratchCard.countDocuments({ user: userId, ticketType: type, boughtDay: helsinkiDay(now), ...boost });
 }
 
-// In a Double Prize Weekend, each member can buy DOUBLE_PRIZES.cardsPerDay
-// cards of each ticket a day (shared/events.js). For the page: { on, perDay,
-// left: { standard, premium, vip } }, or { on: false } outside one.
+// What a `type` card `userId` buys at `now` gets: { doublePrizes, rush }.
+async function boostsFor(userId, type, now) {
+    const { rush } = goldenOdds(now);
+    if (doublePrizeWeekend(now).on) {
+        const doubled = await boostedToday(userId, type, now, { doublePrizes: true });
+        return doubled < DOUBLE_PRIZES.cardsPerDay ? { doublePrizes: true, rush } : { doublePrizes: false, rush: false };
+    }
+    if (!rush) return { doublePrizes: false, rush: false };
+    const rushed = await boostedToday(userId, type, now, { goldenRush: true });
+    return { doublePrizes: false, rush: rushed < HAPPY_HOURS.goldenRush.cardsPerDay };
+}
+
+// In a Double Prize Weekend, how many doubled cards of each ticket they have
+// left today, for the page: { on, perDay, left: { standard, premium, vip } },
+// or { on: false } outside one (the Golden Rush's count is never told).
 async function weekendLimits(userId, now = new Date()) {
     if (!doublePrizeWeekend(now).on) return { on: false };
     const perDay = DOUBLE_PRIZES.cardsPerDay;
-    const bought = await Promise.all(TICKET_TYPES.map((type) => weekendCardsToday(userId, type, now)));
-    return { on: true, perDay, left: Object.fromEntries(TICKET_TYPES.map((type, i) => [type, Math.max(0, perDay - bought[i])])) };
+    const doubled = await Promise.all(TICKET_TYPES.map((type) => boostedToday(userId, type, now, { doublePrizes: true })));
+    return { on: true, perDay, left: Object.fromEntries(TICKET_TYPES.map((type, i) => [type, Math.max(0, perDay - doubled[i])])) };
 }
 
 // ---- Opening hours ----
@@ -346,16 +370,16 @@ async function currentCard(userId) {
 }
 
 // A new ticket of type `type` (a key in config.js ticketTypes), if it's on
-// sale at `now`: a VIP ticket only in its hours, by the clocks in Helsinki,
-// and in a Double Prize Weekend only DOUBLE_PRIZES.cardsPerDay of each type
-// a day. It's dealt with the Golden Ticket odds of that moment
-// (goldenOdds). The card is made first, as "pending", holding their
-// activeFor: it's unique, so a second Buy tap (or a card already going)
-// fails here, before anything is taken. Then the price is taken, PP first
-// and then P-PP, and the card goes live. If taking the price fails (not
-// enough points), the card is deleted again. Each ticket sold adds its
-// share of the price to its type's jackpot. Returns the card, with its
-// seal (`hash`).
+// sale at `now`: a VIP ticket only in its hours, by the clocks in Helsinki.
+// Whether it's doubled, and dealt the Golden Rush's odds, goes by the boosts
+// of that moment and how many boosted cards of its type they've had today
+// (boostsFor); past those it's an ordinary card. The card is made first, as
+// "pending", holding their activeFor: it's unique, so a second Buy tap (or
+// a card already going) fails here, before anything is taken. Then the
+// price is taken, PP first and then P-PP, and the card goes live. If taking
+// the price fails (not enough points), the card is deleted again. Each
+// ticket sold adds its share of the price to its type's jackpot. Returns
+// the card, with its seal (`hash`).
 async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
     if (!isTicketType(type)) {
         throw new ScratchError(`Pick a ticket: ${TICKET_TYPES.join(", ")}.`);
@@ -365,16 +389,9 @@ async function buyCard(userId, type = DEFAULT_TICKET_TYPE, now = new Date()) {
         throw new ScratchError(`${kind.name} tickets are on sale ${describeHours(kind.hours)}.`, 403);
     }
     // Only one card can be going at once (activeFor), so counting first
-    // can't let two through past the limit.
-    const doublePrizes = doublePrizeWeekend(now).on;
-    if (doublePrizes && (await weekendCardsToday(userId, type, now)) >= DOUBLE_PRIZES.cardsPerDay) {
-        throw new ScratchError(
-            `It's a Double Prize Weekend: ${DOUBLE_PRIZES.cardsPerDay} ${kind.name} tickets a day each, and you've had today's. More at midnight.`,
-            429
-        );
-    }
-
-    const odds = goldenOdds(now);
+    // can't let two boosted cards through past the count.
+    const { doublePrizes, rush } = await boostsFor(userId, type, now);
+    const odds = { oneIn: rush ? goldenOdds(now).oneIn : SCRATCH.goldenTicketOneIn, rush };
     const layout = newLayout(undefined, { goldenOneIn: odds.oneIn });
     const { salt, hash } = sealLayout(layout);
 
