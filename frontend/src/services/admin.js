@@ -16,6 +16,20 @@ export function sendPpp({ userId, amount, note }) {
   return api('/admin/grants', { method: 'POST', body: { userId, amount, note } })
 }
 
+// Award booster packs: every member, A to Z, 30 at a time ({ members,
+// hasMore }), narrowed to usernames containing `q`; `skip` is how many are
+// already shown.
+export function getMembers(q = '', skip = 0) {
+  const params = new URLSearchParams({ ...(q && { q }), ...(skip && { skip: String(skip) }) })
+  return api(`/admin/members${params.size ? `?${params}` : ''}`)
+}
+
+// A Catflix No Chill booster pack (`kind`: 'single', 'triple' or
+// 'blackGold') for `userId`: { awarded }.
+export function awardPack(userId, kind) {
+  return api('/admin/packs', { method: 'POST', body: { userId, kind } })
+}
+
 // Runs today's 12:00 PP payout now, for everyone not paid today yet.
 export function runPayoutNow() {
   return api('/wallet/payout', { method: 'POST' })

@@ -278,6 +278,10 @@ const SERVER_COLS=new Set(['baseForms','registeredForms']);
 // tabs (Studio, Registered forms, Profile) aren't shown.
 const LIVE=/\/catflix\//.test(location.pathname);
 const LV={points:0,player:null,prices:{},room:null,egg:null};
+// Opened in a window over the site's Notifications to open an awarded pack (#open=<kind>): only the pack opening shows.
+const EMBED=LIVE&&/^#open=/.test(location.hash);
+// Tells the page around it (components/catflix/PackOpener.jsx): "closed", or "goto" somewhere on the site.
+function embedSay(what,extra={}){if(EMBED&&window.parent!==window)window.parent.postMessage({catflix:'pack',what,...extra},location.origin);}
 // A call to the game's part of the server: resolves to its answer, or throws its reason.
 async function cfx(path,{method='GET',body}={}){
   const t=authToken();
@@ -371,6 +375,10 @@ async function liveStart(){
     Object.entries(forms.registeredForms||{}).forEach(([id,doc])=>regDocs.set(id,doc));
     store.mode='online';setStatus();onBaseChange();onRegChange();liveApply(me);
     if(!location.hash||location.hash==='#room')roomLive();
+    // "Open now" on an awarded pack in the site's Notifications opens this page at #open=<kind>, in a window over them:
+    // straight into opening one (the shop's own way), and it tells the page around it when it's done (embedSay).
+    const open=/^#open=(single|triple|blackGold)$/.exec(location.hash);
+    if(open){if((ME().packs[open[1]]||0)>0)packStage(open[1]);else{toast('No packs like that left to open');embedSay('closed');}}
     // "Visit Pet" on a member's profile opens here with #visit=<their pet's id>: a Play Date in their room
     // (or your own pet's room, when it's yours).
     const visit=/^#visit=([0-9a-f]{24})$/.exec(location.hash);
@@ -2972,10 +2980,12 @@ function gachaFlip(el,p){
     $('gachaSum').innerHTML=`Added to your Spell Deck${best?` · best pull: <span class="rlabel" style="--rc:${best.c}">${best.l}</span>`:''}`;
     $('gachaDone').hidden=false;const me=ME();$('gachaAgain').hidden=!(me.packs[GO.kind]>0);}
 }
-$('gachaClose').onclick=()=>{$('gachaModal').hidden=true;};
+$('gachaClose').onclick=()=>{$('gachaModal').hidden=true;embedSay('closed');};
+// Opened over the site's Notifications (#open=<kind>): "Go to Spell Deck" takes the whole site to the Pet room.
+$('gachaToDeck').addEventListener('click',e=>{if(!EMBED)return;e.preventDefault();embedSay('goto',{to:'/games/catflix#pet'});});
 $('gachaAgain').onclick=()=>packStage(GO.kind);
 $('gachaRevealAll').onclick=()=>{[...$('gachaCards').children].forEach((el,i)=>setTimeout(()=>el.click(),i*220));};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('gachaModal').hidden&&!GO.busy)$('gachaModal').hidden=true;});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('gachaModal').hidden&&!GO.busy){$('gachaModal').hidden=true;embedSay('closed');}});
 
 /* ================= Auras: bought as crystals in the Shop, shown only on the profile ================= */
 const AURAS={
@@ -3668,7 +3678,7 @@ function petStop(){PR.running=false;}
 
 /* ================= tabs (hash) ================= */
 function route(){const tabs=LIVE?['room','pet','race','run','shop']:['studio','forms','room','race','run','pet','shop','profile'];
-  let h=location.hash.slice(1)||(LIVE?'room':'studio');if(!tabs.includes(h))h=LIVE?'room':'studio';
+  let h=location.hash.slice(1)||(LIVE?'room':'studio');if(EMBED)h='shop';if(!tabs.includes(h))h=LIVE?'room':'studio';
   if(LIVE&&h==='room'&&route.last!=='room'&&store.mode==='online')roomLive();   // a new set of pets every time you come in
   const intoRace=LIVE&&h==='race'&&route.last!=='race',intoRun=LIVE&&h==='run'&&route.last!=='run';
   // Explore, Kitty Race and Ruin Run: no scrolling (it would move the game under your finger); the game fills the

@@ -425,6 +425,32 @@ async function repostEvent(req, res) {
     res.json({sentTo: await noteRepostedEvent(event)});
 }
 
+// ---- Reward Mode (admins): Black & Gold booster packs for attending (utils/catflix/awards.js) ----
+
+const awards = require("../utils/catflix/awards");
+const { CatflixError } = require("../utils/catflix/pets");
+
+// Runs `work`, answering with what it gives, or with why not.
+const awarding = (work) => async (req, res) => {
+    try {
+        res.json(await work(req));
+    } catch (error) {
+        if (!(error instanceof CatflixError)) throw error;
+        res.status(error.status).json({error: error.message});
+    }
+};
+
+// Who has been awarded a pack for this event: { awards: { userId: count } }.
+const getEventAwards = awarding(async (req) => ({awards: await awards.awardsFor(req.params.id)}));
+
+// { userId }: a Black & Gold pack for them, for attending. A member can be
+// awarded from an event page once every 30 seconds (429 sooner).
+const awardMember = awarding(async (req) => ({awards: await awards.awardForEvent(req.user._id, req.params.id, req.body?.userId)}));
+
+// { list: "attending" | "interested" }: a pack for everyone on that list,
+// private profiles too: { awarded, skipped, awards }.
+const awardEveryone = awarding((req) => awards.awardEveryone(req.user._id, req.params.id, req.body?.list));
+
 module.exports = {
     getEvents,
     getEvent,
@@ -436,4 +462,7 @@ module.exports = {
     createEvent,
     updateEvent,
     deleteEvent,
+    getEventAwards,
+    awardMember,
+    awardEveryone,
 };

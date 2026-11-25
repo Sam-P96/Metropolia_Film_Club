@@ -377,6 +377,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   your RSVP back takes it back. It goes as far as your profile's privacy
   lets it: every follower for a public profile, only friends for
   friends-only, and nobody for a private one.
+- Reward Mode on an event's page, for admins: an On / Off switch at the top
+  right, above Promote, Edit and Delete. On, every member in the Attending
+  and Interested lists has an Award button in place of their seat: a Black
+  & Gold Spell Pack (Catflix No Chill) for attending. Once they've had one
+  it says "Awarded", and pressing it again asks first; a member can be
+  awarded once every 30 seconds. "Award All Attending" and "Award All
+  Interested" award everyone on the list (private profiles too, anyone
+  awarded in the last 30 seconds skipped) after two confirmations.
+  Awarded members get a notification, "You have received a Black & Gold
+  Spell Pack for attending <the event>", with Open Now (the game's own pack
+  opening, in a window over the page) and Go To Pet Room
+  (`backend/utils/catflix/awards.js`, `GET/POST /api/events/:id/awards`,
+  `POST /api/events/:id/awards/all`; each award kept in
+  `models/packAwardModel.js`).
+- Award booster packs in the admin panel: every member, A to Z, searchable,
+  each with an Award button (after a confirmation) for the pack picked:
+  Black & Gold, Triple or Single. They get the notification too, from the
+  admin (`GET /api/admin/members`, `POST /api/admin/packs`).
 - Member screenings: any member can host an event of their own, listed in a
   new Member screenings section on the club events page (and with every
   other event on the All events page). The member who made one can edit and delete it until

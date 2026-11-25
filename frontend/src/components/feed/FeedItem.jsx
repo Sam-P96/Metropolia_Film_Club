@@ -24,6 +24,7 @@ import PokerNotice from '../poker/PokerNotice'
 import LoanNotice from '../loanShark/LoanNotice'
 import SiteEventNotice from './SiteEventNotice'
 import GoldenRushNotice from '../scratch/GoldenRushNotice'
+import PackAwardNotice from '../catflix/PackAwardNotice'
 import { useBannerMedia } from '../../hooks/useBannerMedia'
 import BannerFill from '../profile/BannerFill'
 import { getCurrentUser, getCurrentUserId } from '../../utils/currentUser'
@@ -1032,6 +1033,7 @@ function FeedItem({ item, light = false, onCutDeleted }) {
   if (item.type === 'gift' || item.type === 'adminGrant') return <GiftNotice item={item} light={light} />
   if (item.type === 'scratchWin' || item.type === 'scratchJackpot') return <ScratchNotice item={item} />
   if (item.type === 'goldenRush') return <GoldenRushNotice item={item} />
+  if (item.type === 'packAward') return <PackAwardNotice item={item} />
   if (item.type === 'doublePlay' || item.type === 'doubleWin') return <DoubleNotice item={item} />
   if (item.type === 'slotTriple' || item.type === 'slotJackpot') return <SlotNotice item={item} />
   if (item.type === 'crashBigWin' || item.type === 'crashResult') return <CrashNotice item={item} />

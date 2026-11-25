@@ -34,6 +34,9 @@ const catflixPlayerSchema = new Schema(
             yarn: { type: Number, default: null },
         },
         knockedAt: { type: Date, default: null },
+        // The last pack an admin awarded them from an event page: no more
+        // than one every 30 seconds (utils/catflix/awards.js).
+        awardedAt: { type: Date, default: null },
         auras: { type: [String], default: [] },
         styles: { type: [String], default: [] },
         // The free egg, cracked open (its 100 taps done) but not named yet:

@@ -62,6 +62,21 @@ export function repostEvent(id) {
   return api(`/events/${encodeURIComponent(id)}/repost`, { method: 'POST' })
 }
 
+// Admins, in the event page's Reward Mode (backend/utils/catflix/awards.js):
+// who has been awarded a Black & Gold booster pack for this event,
+// { awards: { userId: count } }; one member's, answered the same way; and
+// everyone on a list ('attending' or 'interested'), answered with
+// { awarded, skipped, awards }.
+export function getEventAwards(id) {
+  return api(`/events/${encodeURIComponent(id)}/awards`)
+}
+export function awardMember(id, userId) {
+  return api(`/events/${encodeURIComponent(id)}/awards`, { method: 'POST', body: { userId } })
+}
+export function awardEveryone(id, list) {
+  return api(`/events/${encodeURIComponent(id)}/awards/all`, { method: 'POST', body: { list } })
+}
+
 // Moderators and admins: promote a member screening to an official club
 // event (true), or demote it back (false). Resolves to { official }.
 export async function setEventOfficial(id, official) {

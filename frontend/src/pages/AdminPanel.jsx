@@ -2,6 +2,7 @@ import '@fontsource/bebas-neue'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import AwardPacks from '../components/admin/AwardPacks'
 import GrantLog from '../components/admin/GrantLog'
 import SendPpp from '../components/admin/SendPpp'
 import { runPayoutNow } from '../services/admin'
@@ -77,6 +78,24 @@ function GrantsCard({ version }) {
         <p className="mt-1 text-sm text-white/60">Every send with the Send P-PP tool, by every admin, newest first.</p>
       </div>
       <GrantLog version={version} />
+    </section>
+  )
+}
+
+// Award booster packs (components/admin/AwardPacks.jsx), in a card: every
+// member, searchable, and a Catflix No Chill booster pack for any of them.
+function PacksCard() {
+  return (
+    <section className={`${CARD} flex flex-col gap-4`} aria-labelledby="award-packs">
+      <div>
+        <h2 id="award-packs" className={HEADING}>
+          Award <span className="text-brand-gold">booster packs</span>
+        </h2>
+        <p className="mt-1 text-sm text-white/60">
+          A Catflix No Chill Spell Pack for any member, as a present. It goes straight into their packs, and they get a notification to open it from.
+        </p>
+      </div>
+      <AwardPacks />
     </section>
   )
 }
@@ -175,7 +194,7 @@ function PayoutNow() {
 
 // /admin: the admin panel, for admins (any admin, whatever their name; the
 // server checks everything it does). Sending P-PP to members, every send
-// by every admin, the daily payout on demand, and every other admin tool
+// by every admin, booster packs for members, the daily payout on demand, and every other admin tool
 // on the site, to go to from here. Not in the nav: an admin's name on
 // their own profile links here.
 export default function AdminPanel() {
@@ -200,6 +219,8 @@ export default function AdminPanel() {
         <SendCard onSent={() => setSends((count) => count + 1)} />
         <GrantsCard version={sends} />
       </div>
+
+      <PacksCard />
 
       <section className="flex flex-col gap-3" aria-labelledby="admin-tools">
         <h2 id="admin-tools" className={HEADING}>

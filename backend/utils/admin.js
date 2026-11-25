@@ -73,4 +73,36 @@ async function recentGrants(before = null) {
     return { grants, hasMore: rows.length > GRANTS_PAGE };
 }
 
-module.exports = { AdminError, GRANTS_PAGE, MAX_GRANT, MAX_NOTE, grantPpp, recentGrants };
+// ---- Award booster packs ----
+
+// How many members a page of the list holds.
+const MEMBERS_PAGE = 30;
+
+// Every member, A to Z, a page at a time, for the Award booster packs tool:
+// `q` narrows it to usernames containing it (any case). `skip`: how many
+// already shown. Resolves to { members, hasMore }.
+async function membersList(q = "", skip = 0) {
+    const text = typeof q === "string" ? q.trim().slice(0, 40) : "";
+    const from = Number.isInteger(skip) && skip > 0 ? skip : 0;
+    const query = text ? { username: { $regex: text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } } : {};
+    const rows = await User.find(query).select(MEMBER_FIELDS).collation({ locale: "en", strength: 2 }).sort({ username: 1, _id: 1 }).skip(from).limit(MEMBERS_PAGE + 1).lean();
+    return { members: rows.slice(0, MEMBERS_PAGE).map(userSummary), hasMore: rows.length > MEMBERS_PAGE };
+}
+
+// A booster pack of `kind` (shared/catflix/rules.js packs) for `userId`,
+// from `adminId`, to open in Catflix No Chill; they get a notification with
+// it (utils/catflix/awards.js). Resolves to { user, kind }.
+async function awardPackFromPanel(adminId, userId, kind) {
+    const { awardPack } = require("./catflix/awards");
+    const { CatflixError } = require("./catflix/pets");
+    try {
+        await awardPack(adminId, userId, { kind });
+    } catch (error) {
+        if (error instanceof CatflixError) throw new AdminError(error.message, error.status);
+        throw error;
+    }
+    const user = await User.findById(userId).select(MEMBER_FIELDS).lean();
+    return { user: userSummary(user), kind };
+}
+
+module.exports = { AdminError, GRANTS_PAGE, MAX_GRANT, MAX_NOTE, MEMBERS_PAGE, grantPpp, recentGrants, membersList, awardPackFromPanel };

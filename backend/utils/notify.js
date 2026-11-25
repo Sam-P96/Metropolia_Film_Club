@@ -348,6 +348,13 @@ function noteGoldenRush(recipient, from, to) {
     return Notification.create({ recipient, type: "goldenRush", rush: { from, to }, pinned: true });
 }
 
+// An admin (`adminId`) awarded `recipient` a Catflix No Chill booster pack
+// of `kind` (utils/catflix/awards.js): for attending the event called
+// `eventTitle`, or from the admin panel (null).
+function notePackAward(recipient, adminId, kind, eventTitle = null) {
+    return Notification.create({ recipient, type: "packAward", actors: [adminId], packKind: kind, ...(eventTitle && { note: eventTitle }) });
+}
+
 // The Slot Machine (utils/slots.js): `playerId` tripled what they put in
 // this session. Big news: every member hears about it, the player included.
 async function noteSlotTriple(playerId) {
@@ -821,6 +828,7 @@ module.exports = {
     noteQuizStreak,
     noteSiteEvent,
     noteGoldenRush,
+    notePackAward,
     noteDoubleResult,
     notePokerWin,
     noteStealAttacked,
