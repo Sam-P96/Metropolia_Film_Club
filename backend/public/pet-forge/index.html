@@ -197,7 +197,7 @@
           <span class="sp"></span>
           <button class="btn" id="petPraise">🌟 Praise</button><button class="btn danger" id="petScold">📢 Scold</button>
         </div>
-        <p class="note">Pick a tool. Hand / Brush: press and drag across your pet — it gets happy a couple of seconds later. Food (uses 1 serving — buy more in the Shop): tap the wall to drop a snack, or tap the floor to set down a full bowl — your pet walks over and eats. Scooper: tap a poop to clean it up. Toy: pick one of your balls and tap the floor to drop it — the pets knock it about, +5 happiness a knock, until it wears out. Tap its button again to take it back. Scolding a happy pet makes it sad; scolding an unhappy one makes it angry.</p>
+        <p class="note">Pick a tool. Hand / Brush: press and drag across your pet — it gets happy a couple of seconds later. Food (uses 1 serving — buy more in the Shop): tap the wall to drop a snack, or tap the floor to set down a full bowl — your pet walks over and eats. Scooper: tap a poop to clean it up. Toy: pick one of your balls and tap the floor to drop it — the pets knock it about, +5 happiness a knock (on a Play Date, their cat also loves you 1 more each knock), until it wears out. Tap its button again to take it back. Scolding a happy pet makes it sad; scolding an unhappy one makes it angry.</p>
       </div>
       <div class="col">
         <div class="panel"><h3>Aura</h3><div class="auralist" id="petAuraList"></div>
@@ -206,9 +206,14 @@
           <div class="deckrow"><button class="deckbtn" id="deckBtn" type="button" title="Open your Spell Deck"><canvas id="deckBackCv"></canvas><span>Open deck</span></button>
             <div class="deckside"><canvas id="deckCurCv" class="deckcur" hidden></canvas><div><div id="deckWearing"></div><div class="note" id="deckInfo" style="margin:4px 0 0"></div></div></div></div>
           <p class="note">Cards you pull from booster packs in the Shop go into your deck. Open it, pick a card and press Cast to change your pet’s skin.</p></div>
-        <div class="panel"><h3>Stats</h3><div id="petStats"></div>
+        <!-- On a Play Date: your cat's stats and theirs, side by side, each with its name at the top (forge.js renderStats) -->
+        <div class="statpair" id="statPair">
+        <div class="panel"><h3 id="petStatsTitle">Stats</h3><div id="petStats"></div>
           <label class="field" style="margin-top:12px"><input type="checkbox" id="petEdit"> Edit stats (for testing)</label>
           <p class="note">Stats are saved with the pet. Actions don’t change them yet.</p></div>
+        <div class="panel" id="visitStatsPanel" hidden><h3 id="visitStatsTitle"></h3><div id="visitStats"></div>
+          <p class="note" id="visitStatsNote"></p></div>
+        </div>
       </div>
     </div>
     <div class="deckmodal" id="deckModal" hidden role="dialog" aria-modal="true" aria-labelledby="deckTitle">

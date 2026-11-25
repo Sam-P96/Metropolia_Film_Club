@@ -280,14 +280,22 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         const theirs = await withPet(owner, { happiness: 30 });
         const mine = await withPet(visitor, { happiness: 30 });
         await call(visitor, "POST", "/shop/buy", { item: "ball", kind: "soccer" });
-        assert.equal((await knock(visitor, theirs, "soccer")).body.pet.meters.happiness, 35, "their pet");
+        const hit = await knock(visitor, theirs, "soccer");
+        assert.equal(hit.body.pet.meters.happiness, 35, "their pet");
+        assert.equal(hit.body.pet.loveForMe, 1, "and it loves you a little more: +1 a knock");
         const quick = await call(visitor, "POST", "/toy/knock", { petId: mine._id, ball: "soccer" });
         assert.equal(quick.status, 429, "too soon after the last");
         assert.equal((await meters(mine)).happiness, 30);
-        assert.equal((await knock(visitor, mine, "soccer")).body.pet.meters.happiness, 35, "and yours, tagging along");
-        assert.equal((await CatflixPlayer.findOne({ user: visitor._id }).lean()).balls.soccer, 18);
+        const loveBefore = (await CatflixPet.findById(mine._id).lean()).love;
+        const own = await knock(visitor, mine, "soccer");
+        assert.equal(own.body.pet.meters.happiness, 35, "and yours, tagging along");
+        assert.equal(own.body.pet.love, loveBefore, "your own pet's love isn't what a knock changes");
+        assert.equal((await knock(visitor, theirs, "soccer")).body.pet.loveForMe, 2, "+1 again on the next knock");
+        assert.equal((await CatflixPet.findById(theirs._id).lean()).loveBy[String(visitor._id)], 2);
+        assert.equal((await CatflixPet.findById(theirs._id).lean()).loveBy[String(owner._id)], undefined, "its owner's love is its own meter");
+        assert.equal((await CatflixPlayer.findOne({ user: visitor._id }).lean()).balls.soccer, 17);
         assert.equal((await knock(visitor, { _id: new mongoose.Types.ObjectId() }, "soccer")).status, 404);
-        assert.equal((await CatflixPlayer.findOne({ user: visitor._id }).lean()).balls.soccer, 18, "no knock used");
+        assert.equal((await CatflixPlayer.findOne({ user: visitor._id }).lean()).balls.soccer, 17, "no knock used");
     });
 
     test("the Room Room: Play, Pet and Bully, once an hour each, for each pet", async () => {

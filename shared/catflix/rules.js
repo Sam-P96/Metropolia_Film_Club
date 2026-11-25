@@ -53,6 +53,8 @@ export const CATFLIX = {
   // (backend/utils/catflix/toys.js).
   toys: {
     happiness: 5,
+    // A knock by someone else's pet (on a Play Date): its love for you goes up this much.
+    loveForVisitor: 1,
     knockEveryMs: 1000,
     balls: {
       beach: { name: 'Beach ball', price: 1000, durability: 10 },

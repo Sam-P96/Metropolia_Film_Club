@@ -295,6 +295,14 @@ pre.json{background:#100e18;border:1px solid var(--line);border-radius:10px;padd
 .petlayout{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
 /* ...and one column on a phone, like .layout (this rule comes later, so it needs its own) */
 @media (max-width:880px){.petlayout{grid-template-columns:1fr}}
+/* the Stats box, and on a Play Date the other cat's beside it, each headed with the cat's name */
+.col>.statpair{margin-top:16px}
+.statpair.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.statpair.two .panel{padding:12px}
+.statpair h3:has(.statname){display:flex;flex-direction:column;gap:1px;text-transform:none;letter-spacing:0}
+.statname{font:700 17px 'Pixelify Sans',monospace;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.statwho{font:600 11px Inter,sans-serif;text-transform:uppercase;letter-spacing:.09em;color:var(--mute)}
+.statpair.two .sth{font-size:13px;gap:6px}.statpair.two .sth span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stat{margin:10px 0}.sth{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}.sth b{font:600 13px ui-monospace,monospace;color:var(--mute)}
 .bar{height:12px;border-radius:6px;background:#120f1b;border:1px solid var(--line);overflow:hidden}.bar i{display:block;height:100%;border-radius:6px;transition:width .3s}
 .stat input[type=range]{margin-top:6px}

@@ -2918,8 +2918,9 @@ function paintPack(cv,kind,k=3){cv.width=PACK.W*k;cv.height=PACK.H*k;const g=cv.
   if(kind==='triple'||kind==='blackGold'){const n=kind==='triple'?'×3':'×7';g.font=`700 ${7*k}px 'Pixelify Sans', monospace`;g.fillStyle='#ffe9a8';g.strokeStyle=kind==='triple'?'#24124a':'#000000';g.lineWidth=k;g.strokeText(n,38*k,12*k);g.fillText(n,38*k,12*k);}}
 
 /* ---------- toys: balls (shared/catflix/rules.js toys; in the game the server counts the knocks: backend/utils/catflix/toys.js) ---------- */
-// What each costs and how many knocks it lasts, and the happiness a knock gives, as the server has them. `i`: its picker emoji.
-const TOYS={happiness:5,balls:{beach:{l:'Beach ball',i:'🏐',price:1000,dur:10},soccer:{l:'Soccer ball',i:'⚽',price:2000,dur:20},
+// What each costs and how many knocks it lasts, the happiness a knock gives, and the love for you a knock by someone
+// else's pet gives (a Play Date), as the server has them. `i`: its picker emoji.
+const TOYS={happiness:5,loveForVisitor:1,balls:{beach:{l:'Beach ball',i:'🏐',price:1000,dur:10},soccer:{l:'Soccer ball',i:'⚽',price:2000,dur:20},
   basketball:{l:'Basketball',i:'🏀',price:3000,dur:30},yarn:{l:'Yarn ball',i:'🧶',price:10000,dur:100}}};
 // Each ball as 7×7 pixel art, with a second frame for rolling.
 const BALL_ART={
@@ -3378,7 +3379,7 @@ async function visitLoad(){ // host = main pet in the room, your pet = buddy
 }
 function endPlayDate(){if(!PR.visit)return;if(LIVE)petDocs.delete(PR.visit.hostId);PR.visit=null;PR.buddy=null;PR.items=[];PR.target=null;PR.eat=null;PR.actor=null;PR.actorKey=null;PR.afx=null;PR.pos={x:80,y:PET.floorY};visitUi();petLoadActor();}
 // (The toy picker too: a Play Date starting or ending clears the room's toys.)
-function visitUi(){renderToyPicker();const v=PR.visit;$('visitBar').hidden=!v;$('petBarMain').classList.toggle('visiting',!!v);if(!v)return;
+function visitUi(){renderToyPicker();renderStats();const v=PR.visit;$('visitBar').hidden=!v;$('petBarMain').classList.toggle('visiting',!!v);if(!v)return;
   const love=loveForMe(v);$('visitWho').textContent=`Play date at ${v.name}’s room`;$('visitLove').style.width=love+'%';$('visitLoveN').textContent=love;
   $('visitLoveLbl').textContent=`${v.name} ♥ you`;}
 async function visitFed(now){ // the host just finished food you put down
@@ -3433,11 +3434,24 @@ async function petLoadActor(){
   const f=await getForm(r.baseFormId);if(!f||!f.firstState())return;
   PR.actorKey=key;PR.actor=new Racer({id:PR.id,name:p.name,form:f,map:mapFromChanges(f,r.changes),guest:false});PR.actor.setState('idle');
 }
+// A stats box's bars. `edit`: with the sliders (your own pet, testing). `known`: only the stats it has (a sandbox
+// neighbour cat only has its love), the rest shown as —. `labels`: other names for some (their cat's love is for you).
+function statRows(st,{edit=false,known=false,labels={}}={}){
+  return STATS.map(s=>{const miss=known&&st[s.k]==null,v=miss?0:Math.round(st[s.k]??50),l=labels[s.k]||s.l;
+    return `<div class="stat"><div class="sth"><span>${s.i} ${esc(l)}</span><b>${miss?'—':v}</b></div>
+    <div class="bar"><i style="width:${v}%;background:${s.c}"></i></div>
+    ${edit!==null?`<input type="range" min="0" max="100" value="${v}" data-k="${s.k}" ${edit?'':'hidden'} aria-label="${esc(l)}">`:''}</div>`;}).join('');}
 function renderStats(){
   const p=PR.id&&petDocs.get(PR.id);const st=(p&&p.stats)||{};
-  $('petStats').innerHTML=STATS.map(s=>{const v=Math.round(st[s.k]??50);return `<div class="stat"><div class="sth"><span>${s.i} ${s.l}</span><b>${v}</b></div>
-    <div class="bar"><i style="width:${v}%;background:${s.c}"></i></div>
-    <input type="range" min="0" max="100" value="${v}" data-k="${s.k}" ${$('petEdit').checked?'':'hidden'} aria-label="${s.l}"></div>`;}).join('');
+  // A Play Date: their cat's stats beside yours, each box headed with the cat's name.
+  const v=PR.visit,host=v&&visitHostDoc(v);
+  $('statPair').classList.toggle('two',!!v);$('visitStatsPanel').hidden=!v;
+  $('petStatsTitle').innerHTML=v?`<span class="statname">${esc((p&&p.name)||'Your cat')}</span><span class="statwho">your cat</span>`:'Stats';
+  if(v){$('visitStatsTitle').innerHTML=`<span class="statname">${esc(v.name)}</span><span class="statwho">their cat</span>`;
+    const hst=host&&host.stats?host.stats:{love:loveForMe(v)};
+    $('visitStats').innerHTML=statRows(hst,{edit:null,known:!(host&&host.stats),labels:{love:'Love for you'}});
+    $('visitStatsNote').textContent=`How ${v.name} is doing. Its love here is how much it loves you: feed it, or give it a toy (+1 a knock), to raise it.`;}
+  $('petStats').innerHTML=statRows(st,{edit:$('petEdit').checked});
   $('petStats').querySelectorAll('input[type=range]').forEach(inp=>{inp.oninput=()=>{inp.parentElement.querySelector('b').textContent=inp.value;inp.parentElement.querySelector('.bar i').style.width=inp.value+'%';};
     inp.onchange=()=>{const p2=petDocs.get(PR.id);if(!p2)return;const stats={...(p2.stats||{}),[inp.dataset.k]:+inp.value};writeDoc('pets',PR.id,{...p2,stats}).catch(()=>toast('Could not save'));};});
 }
@@ -3585,7 +3599,11 @@ async function knockCount(b,petId){
     catch(e){if(e.status===409)ballWornOut(b);}   // gone already (worn out elsewhere); too soon (429): just not counted
     return;}
   const me=ME(),left=(me.balls[b.kind]||0)-1;me.balls[b.kind]=left>0?left:null;savePlayer(me).catch(()=>{});
-  const p=petDocs.get(petId);if(p){const st=p.stats||{};writeDoc('pets',petId,{...p,stats:{...st,happiness:Math.min(100,(st.happiness??50)+TOYS.happiness)}}).catch(()=>{});}
+  // On a Play Date, the pet you're visiting knocking your ball loves you a little more.
+  const p=petDocs.get(petId),v=PR.visit,visiting=!!v&&petId===v.hostId;
+  const love=d=>visiting?{loveBy:{...(d.loveBy||{}),me:Math.min(100,((d.loveBy&&d.loveBy.me)||0)+TOYS.loveForVisitor)}}:{};
+  if(p){const st=p.stats||{};writeDoc('pets',petId,{...p,stats:{...st,happiness:Math.min(100,(st.happiness??50)+TOYS.happiness)},...love(p)}).then(()=>{if(visiting)visitUi();}).catch(()=>{});}
+  else if(visiting&&v.hostType==='neighbor'){const d=visitHostDoc(v)||{name:v.name};writeDoc('neighbors',v.hostId,{...d,...love(d)}).then(visitUi).catch(()=>{});}
   if(left<=0)ballWornOut(b);}
 function ballWornOut(b){const at=PR.items.indexOf(b);if(at<0)return;PR.items.splice(at,1);
   petSparkle(b.x,b.y-4,Object.values(BALL_ART[b.kind].pal));petPix('sparkle',b.x,b.y-6,700);toast(`Your ${TOYS.balls[b.kind].l} wore out`);renderToyPicker();}
