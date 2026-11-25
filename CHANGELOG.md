@@ -994,6 +994,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Opening a booster pack on a phone: a Black & Gold pack's seven cards ran
+  off the screen, covering the ✕ and pushing "Open another" and "Go to Spell
+  Deck" out of reach, with no way to scroll. The cards are now smaller on a
+  phone (four to a row), the window scrolls when it still doesn't fit, and
+  the ✕ always stays on top. No blue box any more when you tap the pack or
+  flip a card (the phone's tap highlight).
 - Opening a booster pack: no bright rectangle round the pack any more (the
   browser's focus outline, drawn because the pack is focused when the
   opening screen comes up). With the keyboard, the pack's glow brightens

@@ -3002,7 +3002,7 @@ $('gachaPack').onclick=async()=>{
   }
   const pb=$('gachaPack');pb.classList.add('shake');$('gachaHint').textContent='';
   await new Promise(r=>setTimeout(r,650));pb.classList.add('burst');await new Promise(r=>setTimeout(r,260));pb.hidden=true;
-  const box=$('gachaCards');box.hidden=false;box.innerHTML='';
+  const box=$('gachaCards');box.hidden=false;box.innerHTML='';box.classList.toggle('many',GO.pulls.length>4);
   GO.pulls.forEach((p,i)=>{const r=regDocs.get(p.id),rr=rarityOf(r&&r.rarity);
     const el=document.createElement('button');el.type='button';el.className='gcard deal';el.style.setProperty('--rc',rr.c);el.style.animationDelay=(i*140)+'ms';el.dataset.r=rr.k;
     el.setAttribute('aria-label','Face-down card — click to reveal');
