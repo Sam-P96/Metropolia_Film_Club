@@ -10,6 +10,7 @@ const pets = require("../utils/catflix/pets");
 const shop = require("../utils/catflix/shop");
 const toys = require("../utils/catflix/toys");
 const visits = require("../utils/catflix/visits");
+const trades = require("../utils/catflix/trades");
 const ruinRun = require("../utils/catflix/ruinRun");
 const kittyRace = require("../utils/catflix/kittyRace");
 const { WalletError } = require("../utils/wallet");
@@ -34,6 +35,13 @@ const { CATFLIX } = require("../../shared/catflix/rules.js");
 //   POST /visit/:petId/here     still in its room (every few seconds)
 //   POST /visit/:petId/leave    gone home
 //   GET  /guests                the cats visiting yours right now: { pets }
+//   GET  /trades                Trade Spell: your open trades and your friends
+//   GET  /trades/:id            one of your trades (open or not): { trade }
+//   POST /trades  { to, card, points }        offer a friend a card (and points)
+//   POST /trades/:id/counter { card, points } answer an offer
+//   POST /trades/:id/accept                   take the answer
+//   POST /trades/:id/decline                  turn it down, or take your offer back
+//   (each move answers with your trades and friends, and `player` and `points`)
 //   GET  /room?map=             a visit to the Room Room
 //   POST /room/act   { targetId, action }   play, pet or bully
 //   POST /shop/buy   { item, kind | aura | style }   (a ball: { item: "ball", kind })
@@ -125,6 +133,27 @@ router.get(
 router.post("/visit/:petId/here", handle(async (req) => (await visits.here(req.user._id, req.params.petId), {})));
 router.post("/visit/:petId/leave", handle(async (req) => (await visits.leave(req.user._id, req.params.petId), {})));
 router.get("/guests", handle(async (req) => ({ pets: await visits.guestsOf(req.user._id) })));
+
+// ---- Trade Spell ----
+const withTrades = (work) =>
+    handle(async (req) => {
+        await work(req);
+        const [list, player, points] = await Promise.all([trades.tradesOf(req.user._id), shop.playerOf(req.user._id), ruinRun.pointsOf(req.user._id)]);
+        return { ...list, player: shop.playerView(player), points };
+    });
+router.get("/trades", withTrades(() => null));
+router.get(
+    "/trades/:id",
+    handle(async (req) => {
+        const trade = await trades.tradeOf(req.user._id, req.params.id);
+        if (!trade) throw new pets.CatflixError("That trade isn't there any more.", 404);
+        return { trade };
+    })
+);
+router.post("/trades", withTrades((req) => trades.offer(req.user._id, req.body ?? {})));
+router.post("/trades/:id/counter", withTrades((req) => trades.counter(req.user._id, req.params.id, req.body ?? {})));
+router.post("/trades/:id/accept", withTrades((req) => trades.accept(req.user._id, req.params.id)));
+router.post("/trades/:id/decline", withTrades((req) => trades.decline(req.user._id, req.params.id)));
 
 router.get("/room", handle((req) => pets.roomVisit(req.user._id, String(req.query.map ?? ""))));
 

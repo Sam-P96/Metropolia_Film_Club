@@ -96,6 +96,9 @@ const Schema = mongoose.Schema;
 //   catflixGift      a friend's cat that loves them stole this from its
 //                    owner (`other`) for them, in P-PP (gifts.js)
 //   catflixStolen    their cat stole this PP from them for a friend (`other`)
+//   catflixTrade     points put into a Trade Spell trade with `other`, or
+//                    `other`'s points from one that was taken (trades.js)
+//   catflixTradeBack points held in a trade that didn't happen, back
 const walletTxSchema = new Schema({
     user: {type: Schema.Types.ObjectId, ref: "User", required: true},
     reason: {
@@ -110,7 +113,7 @@ const walletTxSchema = new Schema({
             "pokerBuyIn", "pokerCashOut",
             "loanSharkBorrow", "loanSharkRepay", "loanOffer", "loanOfferBack", "loanBorrow", "loanRepay", "loanRepaid", "loanCollector", "blackMarket",
             "gomokuBet", "gomokuWin", "gomokuRefund", "gomokuShop",
-            "catflixShop", "ruinRunEntry", "ruinRunCashOut", "kittyRaceBet", "kittyRaceWin", "kittyRaceRefund", "catflixGift", "catflixStolen",
+            "catflixShop", "ruinRunEntry", "ruinRunCashOut", "kittyRaceBet", "kittyRaceWin", "kittyRaceRefund", "catflixGift", "catflixStolen", "catflixTrade", "catflixTradeBack",
             "poolBet", "poolWin", "poolRefund", "poolSideBet", "poolSideWin", "poolSideRefund", "poolShop",
             "crashBet", "crashWin", "crashRefund", "crashProtect", "forrestEntry", "forrestCashOut", "orcaBeg", "orcaForgive",
             "quizPrize", "quizStreak", "adminGrant",

@@ -384,6 +384,9 @@ async function liveStart(){
     if(open){if((ME().packs[open[1]]||0)>0)packStage(open[1]);else{toast('No packs like that left to open');embedSay('closed');}}
     // "Visit Pet" on a member's profile opens here with #visit=<their pet's id>: a Play Date in their room
     // (or your own pet's room, when it's yours).
+    // A Trade Spell notification opens here with #trade=<its id>: the pet room, with that trade open.
+    const trade=/^#trade=([0-9a-f]{24})$/.exec(location.hash);
+    if(trade){history.replaceState(null,'','#pet');route();tradeOpen(trade[1]);}
     const visit=/^#visit=([0-9a-f]{24})$/.exec(location.hash);
     if(visit){if(visit[1]===PR.id)location.hash='pet';
       else startPlayDate({id:visit[1]}).then(()=>{if(!PR.visit){history.replaceState(null,'','#room');roomLive();}});}   // couldn't (no pet yet): the Room Room
@@ -2730,7 +2733,7 @@ async function renderDeckModal(){
   if(!DK.sel||!regDocs.has(DK.sel))DK.sel=cards[0]?cards[0][0]:null;
   $('deckTitle').textContent=F.on?'Spell Forge':'Spell Deck';
   $('deckCount').textContent=F.on?'':`${cards.length} card${cards.length===1?'':'s'}`;
-  $('forgeBtn').textContent=F.on?'← Back to deck':'⚒ Spell Forge';$('forgeBtn').hidden=!!me.pending;$('forgeBtn').disabled=F.busy;
+  $('forgeBtn').textContent=F.on?'← Back to deck':'⚒ Spell Forge';$('forgeBtn').hidden=!!me.pending;$('forgeBtn').disabled=F.busy;$('tradeBtn').hidden=!LIVE||F.on||!!me.pending;
   $('deckClose').disabled=!!me.pending;
   $('forgePanel').hidden=!F.on;$('deckEmpty').hidden=!!cards.length||F.on;
   const grid=$('deckGrid');grid.innerHTML='';
@@ -2831,6 +2834,110 @@ async function forgeTake(){
   stage.append(el,again);$('deckModal').classList.add('quake');setTimeout(()=>$('deckModal').classList.remove('quake'),500);
 }
 $('forgeBtn').onclick=()=>{const F=DK.forge;if(F.busy||ME().pending)return;F.on=!F.on;F.sel=[];F.result=null;renderDeckModal();};
+
+/* ---------- Trade Spell (the game only): trade a card, and PP if you like, with a friend (backend/utils/catflix/trades.js) ----------
+   You offer a friend one of your cards (and PP); they have 3 days to answer with what they'll give for it (a card, a card
+   and PP, or just PP); then you have 3 days to take it. Whatever each side puts in is held in the trade until it's done
+   (or back, if it isn't). Views: your open trades ('list'), a new offer ('new'), answering an offer ('answer'), and
+   taking an answer or not ('review'). The site's Notifications link straight to a trade (#trade=<id>). */
+const TR={data:null,view:'list',id:null,busy:false,card:null,points:0,to:null,q:''};
+const trTrade=()=>TR.data&&TR.data.trades.find(t=>t.id===TR.id);
+// How many of a card you can put in a trade: all but the one your pet's wearing.
+function trSpare(id){const me=ME(),p=PR.id&&petDocs.get(PR.id);return (me.cards[id]||0)-(p&&p.skinId===id?1:0);}
+function trLeft(until){const ms=new Date(until).getTime()-Date.now();if(ms<=0)return 'ending now';const h=Math.floor(ms/3600000);
+  return h>=48?`${Math.floor(h/24)} days left`:h>=1?`${h} hour${h===1?'':'s'} left`:'under an hour left';}
+const trPts=n=>`${fmt(n)} PP`;
+// One side of a trade: its card (a tile, filled in by trCards) with its name and rarity, and its PP.
+function trSideHtml(s,empty='Nothing yet'){
+  if(!s)return `<div class="trside empty">${esc(empty)}</div>`;
+  return `<div class="trside">${s.card?`<span class="trcard" data-card="${esc(s.card)}"></span><b>${esc(s.cardName||'')}</b><span class="rlabel" style="--rc:${rarityOf(s.rarity).c}">${rarityOf(s.rarity).l}</span>`:''}${s.points>0?`<span class="trpp">+ ${trPts(s.points)}</span>`:''}</div>`;}
+function trCards(box){box.querySelectorAll('.trcard[data-card]').forEach(el=>{const id=el.dataset.card;if(regDocs.has(id))el.replaceWith(cardTile(id,{k:1}));});}
+// Your cards to choose from (`sel` picked; `onPick(id)`, or null to leave it out), each with how many you can put in.
+function trCardGrid(box,sel,onPick){const grid=document.createElement('div');grid.className='deckgrid trgrid';
+  const cards=deckCards().filter(([id])=>(ME().cards[id]||0)>0).sort((a,b)=>RSTARS[rarityOf(b[1].rarity).k]-RSTARS[rarityOf(a[1].rarity).k]);
+  for(const [id] of cards){const n=trSpare(id);
+    grid.appendChild(cardTile(id,{k:1,pressed:sel===id,dim:n<=0,badge:`<span class="cnt">×${Math.max(0,n)}</span>${n<=0?'<span class="eq">Worn</span>':''}`,onclick:()=>onPick(sel===id?null:id)}));}
+  if(!grid.children.length)grid.innerHTML='<p class="note" style="margin:0">No cards in your deck yet: open booster packs in the Shop.</p>';
+  box.appendChild(grid);}
+async function trLoad(){try{const d=await cfx('/trades');TR.data=d;liveApply({player:d.player,points:d.points});}catch(e){toast(e.message);}}
+async function tradeOpen(id=null){
+  if(!LIVE)return;$('tradeModal').hidden=false;TR.view='list';TR.id=null;$('tradeBody').innerHTML='<p class="note">Loading…</p>';
+  await trLoad();
+  if(id){const t=TR.data&&TR.data.trades.find(x=>x.id===id);
+    if(t&&t.yourTurn){TR.id=id;TR.view=t.status==='offered'?'answer':'review';TR.card=null;TR.points=0;}
+    else if(!t)toast('That trade’s over');}
+  trRender();$('tradeClose').focus();}
+function tradeClose(){$('tradeModal').hidden=true;}
+// A move: the server answers with your trades, friends, cards and points.
+async function trMove(path,body,said){if(TR.busy)return;TR.busy=true;trRender();
+  try{const d=await cfx(path,{method:'POST',body});TR.data=d;liveApply({player:d.player,points:d.points});liveWallet();TR.view='list';TR.id=null;toast(said);}
+  catch(e){toast(e.message);}finally{TR.busy=false;trRender();}}
+function trRender(){
+  const box=$('tradeBody');if(!box||$('tradeModal').hidden)return;const D=TR.data;
+  if(!D){box.innerHTML='<p class="note">Couldn’t load your trades.</p>';return;}
+  const t=trTrade();if((TR.view==='answer'||TR.view==='review')&&!t)TR.view='list';
+  $('tradeTitle').textContent={list:'Trade Spell',new:'New offer',answer:'Answer an offer',review:'Their answer'}[TR.view];
+  const back='<button class="btn" data-do="list">← Your trades</button>';
+  if(TR.view==='list'){
+    const rows=D.trades.map(x=>{const other=x.mine?x.to:x.from,yours=x.mine?x.offer:x.counter,theirs=x.mine?x.counter:x.offer;
+      const what=x.status==='offered'?(x.mine?`Waiting for <b>${esc(other.username)}</b> to answer`:`<b>${esc(other.username)}</b> offers you this`)
+        :(x.mine?`<b>${esc(other.username)}</b> answered: take it?`:`Waiting for <b>${esc(other.username)}</b> to take your answer`);
+      const act=x.yourTurn?`<button class="btn acc" data-do="open" data-id="${x.id}">${x.status==='offered'?'Answer':'Look'}</button>`
+        :x.mine&&x.status==='offered'?`<button class="btn danger" data-do="cancel" data-id="${x.id}" ${TR.busy?'disabled':''}>Take back</button>`:'';
+      return `<div class="trrow${x.yourTurn?' turn':''}"><div class="trwho"><span>${what}</span><span class="note">${trLeft(x.expiresAt)}</span></div>
+        <div class="trsides">${trSideHtml(theirs,x.mine?'Their answer':'')}<span class="trx" aria-hidden="true">⇄</span>${trSideHtml(yours,'Your answer')}</div>
+        <div class="trlabels"><span>${esc(other.username)} gives</span><span></span><span>You give</span></div><div class="tract">${act}</div></div>`;}).join('');
+    box.innerHTML=`<div class="trtop"><p class="note" style="margin:0">Trade a card, and PP if you like, with a friend (someone you follow who follows you back). They have 3 days to answer, then you have 3 days to take it. What you put in is held until it’s done, or comes back if it isn’t.</p>
+      <button class="btn acc" data-do="new" ${D.friends.length?'':'disabled'}>＋ New offer</button></div>
+      ${D.friends.length?'':'<p class="note">You need a friend to trade with: follow someone who follows you back.</p>'}
+      ${rows||'<p class="note">No trades open.</p>'}`;
+    trCards(box);}
+  else if(TR.view==='new'){
+    const q=TR.q.trim().toLowerCase(),friends=D.friends.filter(f=>!q||f.username.toLowerCase().includes(q)),to=D.friends.find(f=>String(f._id)===String(TR.to));
+    box.innerHTML=`<div class="trstep"><h4>1. Your card</h4><div id="trPick"></div></div>
+      <div class="trstep"><h4>2. PP too? <span class="note">(optional)</span></h4><input type="number" id="trPts" min="0" step="1" value="${TR.points||''}" placeholder="0" aria-label="PP to add"> <span class="note">You have ${fmt(LV.points)}.</span></div>
+      <div class="trstep"><h4>3. Friend</h4><input type="search" id="trQ" placeholder="Search your friends" value="${esc(TR.q)}" aria-label="Search your friends">
+        <div class="trfriends">${friends.map(f=>`<button type="button" class="trfriend" data-to="${f._id}" aria-pressed="${String(f._id)===String(TR.to)}">${esc(f.username)}</button>`).join('')||'<span class="note">No friends match.</span>'}</div></div>
+      <div class="trgo">${back}<button class="btn acc" data-do="send" ${TR.card&&to&&!TR.busy?'':'disabled'}>Send offer${to?` to ${esc(to.username)}`:''}</button></div>`;
+    trCardGrid($('trPick'),TR.card,id=>{TR.card=id;trRender();});
+    const pts=$('trPts');pts.oninput=()=>{TR.points=Math.max(0,Math.floor(+pts.value)||0);};
+    const qi=$('trQ');qi.oninput=()=>{TR.q=qi.value;const at=qi.selectionStart;trRender();const n=$('trQ');n.focus();n.setSelectionRange(at,at);};}
+  else if(TR.view==='answer'){
+    box.innerHTML=`<p><b>${esc(t.from.username)}</b> offers you:</p><div class="trsides one">${trSideHtml(t.offer)}</div><p class="note">${trLeft(t.expiresAt)} to answer.</p>
+      <div class="trstep"><h4>What you’ll give for it</h4><p class="note" style="margin:0 0 8px">A card, a card and PP, or just PP. Pick a card (tap it again to leave it out) and/or add PP.</p><div id="trPick"></div>
+        <div style="margin-top:8px"><input type="number" id="trPts" min="0" step="1" value="${TR.points||''}" placeholder="0" aria-label="PP to give"> PP <span class="note">You have ${fmt(LV.points)}.</span></div></div>
+      <div class="trgo">${back}<button class="btn danger" data-do="decline" ${TR.busy?'disabled':''}>Turn it down</button><button class="btn acc" data-do="counter" ${TR.busy?'disabled':''}>Send answer</button></div>`;
+    trCards(box);trCardGrid($('trPick'),TR.card,id=>{TR.card=id;trRender();});
+    const pts=$('trPts');pts.oninput=()=>{TR.points=Math.max(0,Math.floor(+pts.value)||0);};}
+  else if(TR.view==='review'){
+    box.innerHTML=`<p><b>${esc(t.to.username)}</b> answered your offer. Take the trade?</p>
+      <div class="trsides">${trSideHtml(t.counter)}<span class="trx" aria-hidden="true">⇄</span>${trSideHtml(t.offer)}</div>
+      <div class="trlabels"><span>You get</span><span></span><span>You give</span></div><p class="note">${trLeft(t.expiresAt)} to decide. Turn it down and you both get back what you put in.</p>
+      <div class="trgo">${back}<button class="btn danger" data-do="decline" ${TR.busy?'disabled':''}>Turn it down</button><button class="btn acc" data-do="accept" ${TR.busy?'disabled':''}>Take the trade</button></div>`;
+    trCards(box);}
+}
+$('tradeBody').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
+  const f=b.dataset.to;if(f){TR.to=f;trRender();return;}
+  const d=b.dataset.do;if(!d)return;
+  if(d==='list'){TR.view='list';TR.id=null;trRender();}
+  else if(d==='new'){TR.view='new';TR.card=null;TR.points=0;TR.to=null;TR.q='';trRender();}
+  else if(d==='open'){const t=TR.data.trades.find(x=>x.id===b.dataset.id);if(!t)return;TR.id=t.id;TR.view=t.status==='offered'?'answer':'review';TR.card=null;TR.points=0;trRender();}
+  else if(d==='cancel'){if(await askConfirm({title:'Take your offer back?',text:'Your card and PP come back to you.',yes:'Take it back'}))trMove(`/trades/${b.dataset.id}/decline`,{},'Offer taken back: your card and PP are back');}
+  else if(d==='send'){const to=TR.data.friends.find(x=>String(x._id)===String(TR.to)),r=regDocs.get(TR.card);if(!to||!r)return;
+    if(await askConfirm({title:`Offer ${to.username} a trade?`,text:`Your ${r.name}${TR.points?` and ${trPts(TR.points)}`:''}, held until they answer (3 days) and you decide (3 more).`,yes:'Send offer'}))
+      trMove('/trades',{to:TR.to,card:TR.card,points:TR.points},`Offer sent to ${to.username}`);}
+  else if(d==='counter'){const t=trTrade();if(!t)return;if(!TR.card&&!TR.points){toast('Pick a card, add PP, or both');return;}const r=TR.card&&regDocs.get(TR.card);
+    if(await askConfirm({title:`Send ${t.from.username} your answer?`,text:`${r?`Your ${r.name}`:''}${r&&TR.points?' and ':''}${TR.points?trPts(TR.points):''} for their offer, held until they decide (3 days).`,yes:'Send answer'}))
+      trMove(`/trades/${t.id}/counter`,{card:TR.card,points:TR.points},`Answer sent to ${t.from.username}`);}
+  else if(d==='accept'){const t=trTrade();if(t&&await askConfirm({title:'Take the trade?',text:`You get ${t.to.username}’s side, and they get yours. This can’t be undone.`,yes:'Take the trade'}))
+    trMove(`/trades/${t.id}/accept`,{},'Trade done: it’s in your Spell Deck');}
+  else if(d==='decline'){const t=trTrade();if(t&&await askConfirm({title:'Turn the trade down?',text:'Everything put in goes back to whoever put it in.',yes:'Turn it down'}))
+    trMove(`/trades/${t.id}/decline`,{},'Trade turned down');}
+});
+$('tradeBtn').onclick=()=>tradeOpen();
+$('tradeClose').onclick=tradeClose;
+$('tradeModal').addEventListener('click',e=>{if(e.target===$('tradeModal'))tradeClose();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('tradeModal').hidden&&$('askModal').hidden)tradeClose();});
 $('fGo').onclick=forgeGo;
 
 $('deckBtn').onclick=deckOpen;$('deckClose').onclick=deckClose;

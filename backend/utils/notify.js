@@ -18,7 +18,7 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", ...Object.values(Notification.EVENT_RSVP_TYPES), "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
-    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES,
+    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES, ...Notification.TRADE_TYPES,
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the

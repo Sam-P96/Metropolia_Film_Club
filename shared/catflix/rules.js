@@ -28,6 +28,13 @@ export const CATFLIX = {
   ],
   // The Spell Forge: this many cards of one rarity make one of the next.
   forgeCards: 3,
+  // Trade Spell: a card (and points, if you like) offered to a friend, who
+  // has `answerDays` to say what they'll give for it (a card, a card and
+  // points, or just points); then you have `answerDays` to take it. Each
+  // side's card and points are held while the trade's open. At most
+  // `openMax` open trades a member has started, and `maxPoints` points a
+  // side.
+  trades: { answerDays: 3, openMax: 10, maxPoints: 1000000 },
 
   // Aura crystals: each unlocks an aura for your pet. Half price in the
   // Black Friday Sale (shared/events.js).

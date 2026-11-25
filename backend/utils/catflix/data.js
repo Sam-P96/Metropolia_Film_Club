@@ -6,6 +6,7 @@ const CatflixRunDay = require("../../models/catflixRunDayModel");
 const CatflixPresence = require("../../models/catflixPresenceModel");
 const CatflixRace = require("../../models/catflixRaceModel");
 const { leaveRace } = require("./kittyRace");
+const CatflixTrade = require("../../models/catflixTradeModel");
 
 // A member's Catflix No Chill, for their data export and for deleting their
 // account (controllers/userControllers.js).
@@ -13,13 +14,14 @@ const { leaveRace } = require("./kittyRace");
 // Everything kept about them: their pet, their things, what they did to
 // other pets this past day, their Ruin Runs and their Kitty Races.
 async function catflixDataOf(userId) {
-    const [pet, player, actions, runs, runDays, races] = await Promise.all([
+    const [pet, player, actions, runs, runDays, races, trades] = await Promise.all([
         CatflixPet.findOne({ owner: userId }).select("-__v").lean(),
         CatflixPlayer.findOne({ user: userId }).select("-_id -__v").lean(),
         CatflixAction.find({ actor: userId }).select("-_id -__v -actor").lean(),
         CatflixRun.find({ user: userId }).sort({ startedAt: -1 }).select("-seed -user -__v").lean(),
         CatflixRunDay.find({ user: userId }).sort({ day: -1 }).select("day cashOuts -_id").lean(),
         CatflixRace.find({ "entries.user": userId }).sort({ createdAt: -1 }).lean(),
+        CatflixTrade.find({ $or: [{ from: userId }, { to: userId }] }).sort({ createdAt: -1 }).select("-__v").lean(),
     ]);
     return {
         pet,
@@ -27,6 +29,7 @@ async function catflixDataOf(userId) {
         actions,
         ruinRuns: runs,
         ruinRunDays: runDays,
+        trades: trades.map((trade) => ({ at: trade.createdAt, status: trade.status, started: String(trade.from) === String(userId), offer: trade.offer, counter: trade.counter })),
         kittyRaces: races.map((race) => ({
             at: race.createdAt,
             status: race.status,
@@ -46,6 +49,9 @@ async function forgetCatflixPlayer(userId) {
     await CatflixRace.updateMany({ "entries.user": userId }, { $set: { "entries.$[e].user": null, "entries.$[e].username": "" } }, { arrayFilters: [{ "e.user": userId }] });
     await CatflixRace.updateMany({ "racers.owner": userId }, { $set: { "racers.$[r].owner": null, "racers.$[r].username": "" } }, { arrayFilters: [{ "r.owner": userId }] });
     await CatflixRace.updateMany({ host: userId }, { $set: { host: null } });
+
+    // Their open trades end, the other side's things back to them.
+    await require("./trades").forgetTrades(userId);
 
     const pet = await CatflixPet.findOne({ owner: userId }).select("_id").lean();
     await Promise.all([

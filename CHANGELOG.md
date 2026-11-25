@@ -394,6 +394,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Catflix No Chill's Play Dates: the pet room shows the other cat's stats
   beside your cat's, in a second Stats box, each headed with the cat's name
   ("your cat" / "their cat"). Their cat's love is its love for you.
+- Trade Spell in Catflix No Chill: a button beside Spell Forge in the Spell
+  Deck. Offer a friend (someone you follow who follows you back; search
+  them by name) one of your cards, and PP if you like. They get a
+  notification pinned to the top of their Notifications and have 3 days to
+  answer with what they'll give for it: a card, a card and PP, or just PP.
+  Then you get one, pinned, and 3 days to take the trade or turn it down;
+  you can take an offer back before they answer. Everything each side puts
+  in is held from the moment they do (out of the deck and wallet: PP first,
+  then P-PP) and handed across when the trade's taken, or back if it's
+  turned down, taken back or not answered in time (they hear about that
+  too). Never the only copy of the card your cat's wearing; 10 open trades
+  at most. The trade's notifications open it in the game
+  (`models/catflixTradeModel.js`, `utils/catflix/trades.js`,
+  `/api/catflix/trades`; "Trade Spell" receipts in the Wallet).
 - Catflix No Chill's Play Dates go both ways: while someone's on a Play Date
   with your cat, their cat is in your pet room too, wandering about with
   its name (and aura and mood), with a note when it arrives, and gone once

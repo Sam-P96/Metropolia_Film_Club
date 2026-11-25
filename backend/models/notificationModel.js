@@ -181,6 +181,16 @@ const FORREST_TYPES = ["forrestCashOut", "forrestBigWin", "forrestBest", "forres
 // lost), previous (the best speed it beat) }.
 const RUIN_TYPES = ["ruinCashOut", "ruinBigWin", "ruinBest", "ruinRecord"];
 
+// Catflix No Chill's Trade Spell (utils/catflix/trades.js), about `trade`,
+// with `actors[0]` the other member:
+//   tradeOffer     they offered you a card (and points): pinned until you
+//                  answer or it ends
+//   tradeCounter   they answered your offer: pinned until you take it or not
+//   tradeDone      they took your answer: the trade's done
+//   tradeDeclined  they turned it down: what you put in is back
+//   tradeExpired   it wasn't answered in time: what you put in is back
+const TRADE_TYPES = ["tradeOffer", "tradeCounter", "tradeDone", "tradeDeclined", "tradeExpired"];
+
 // Catflix No Chill (utils/catflix/gifts.js): a friend's cat that loves you
 // stole some of its owner's PP for you.
 //   catflixGift    to you: `actors[0]` is its owner; `amount` P-PP is yours
@@ -211,6 +221,7 @@ const GAME_TYPES = [
     ...CRASH_TYPES,
     ...FORREST_TYPES,
     ...RUIN_TYPES,
+    ...TRADE_TYPES,
     ...CATFLIX_TYPES,
     ...PACK_AWARD_TYPES,
     ...SCRATCH_RUSH_TYPES,
@@ -227,7 +238,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...RUIN_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...RUIN_TYPES, ...TRADE_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES],
         required: true,
     },
     review: {
@@ -235,7 +246,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...RUIN_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
+            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...RUIN_TYPES, ...TRADE_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -269,6 +280,8 @@ const notificationSchema = new Schema({
         net: {type: Number},
         previous: {type: Number},
     },
+    // Catflix No Chill's Trade Spell: the trade.
+    trade: {type: Schema.Types.ObjectId, ref: "CatflixTrade"},
     // Catflix No Chill's Ruin Run: the run.
     ruin: {
         bet: {type: Number},
@@ -351,6 +364,7 @@ Notification.GAME_TYPES = GAME_TYPES;
 Notification.CRASH_TYPES = CRASH_TYPES;
 Notification.FORREST_TYPES = FORREST_TYPES;
 Notification.RUIN_TYPES = RUIN_TYPES;
+Notification.TRADE_TYPES = TRADE_TYPES;
 Notification.CATFLIX_TYPES = CATFLIX_TYPES;
 Notification.PACK_AWARD_TYPES = PACK_AWARD_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;

@@ -49,7 +49,7 @@ const FEED_FILTERS = {
     events: ["event", ...Object.values(Notification.EVENT_RSVP_TYPES)],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES, ...Notification.CATFLIX_TYPES, ...Notification.PACK_AWARD_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES, ...Notification.TRADE_TYPES, ...Notification.CATFLIX_TYPES, ...Notification.PACK_AWARD_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
 };
 // What Reviews, Cuts and Games show whatever else they leave out: club
 // events, and big news (a trending review, a jackpot, a Double or Nothing
@@ -193,6 +193,15 @@ async function hydrate(rows, viewer) {
     // Events from before member screenings have no `official`; they're official.
     const eventById = byId(events.map((event) => ({ ...event, official: event.official !== false })));
     // Their unopened booster packs, for awarded packs' "Open now".
+    // Trade Spell: each trade, as the viewer sees it (one that's gone: nothing to show).
+    const tradeRows = rows.filter((row) => Notification.TRADE_TYPES.includes(row.type) && row.trade);
+    const tradeBy = new Map();
+    if (tradeRows.length) {
+        const CatflixTrade = require("../models/catflixTradeModel");
+        const { tradeViews } = require("../utils/catflix/trades");
+        const found = await CatflixTrade.find({ _id: { $in: tradeRows.map((row) => row.trade) } }).lean();
+        for (const view of await tradeViews(found, viewer._id)) tradeBy.set(view.id, view);
+    }
     const packs = rows.some((row) => row.type === "packAward") ? ((await CatflixPlayer.findOne({ user: viewer._id }).select("packs").lean())?.packs ?? {}) : {};
 
     return rows.flatMap((row) => {
@@ -364,6 +373,12 @@ async function hydrate(rows, viewer) {
         // Catflix No Chill: a booster pack an admin gave them (for attending
         // `eventTitle`, or from the admin panel), and how many of that kind
         // they have to open. The admin may have left since.
+        if (Notification.TRADE_TYPES.includes(row.type)) {
+            const trade = tradeBy.get(String(row.trade));
+            if (!trade) return [];
+            return [{ _id: row._id, type: row.type, at: row.at, pinned: Boolean(row.pinned), actors: members, trade }];
+        }
+
         if (row.type === "packAward") {
             const kind = row.packKind ?? "blackGold";
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, pack: { kind, unopened: packs[kind] ?? 0 }, eventTitle: row.note ?? null }];

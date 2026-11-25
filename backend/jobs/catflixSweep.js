@@ -2,6 +2,7 @@ const cron = require("node-cron");
 const { sweepRuns } = require("../utils/catflix/ruinRun");
 const { startDue } = require("../utils/catflix/kittyRace");
 const { giftRound } = require("../utils/catflix/gifts");
+const { sweepTrades } = require("../utils/catflix/trades");
 
 // Every minute, for Catflix No Chill: Kitty Races whose friends have had
 // their 5 minutes to join start by themselves (utils/catflix/kittyRace.js
@@ -10,6 +11,8 @@ const { giftRound } = require("../utils/catflix/gifts");
 // to the Box Office Scratch jackpots (utils/catflix/ruinRun.js sweepRuns).
 // And once a play day (the first sweep after 12:00 Helsinki), friends' cats
 // that love you may steal for you (utils/catflix/gifts.js giftRound).
+// Trade Spell trades not answered in time end, everything held in them
+// back (utils/catflix/trades.js sweepTrades).
 let task = null;
 
 async function runSweep() {
@@ -18,6 +21,8 @@ async function runSweep() {
         if (started) console.log(`Catflix sweep: ${started} Kitty Race${started === 1 ? "" : "s"} started.`);
         const count = await sweepRuns();
         if (count) console.log(`Catflix sweep: ${count} unfinished Ruin Run${count === 1 ? "" : "s"} let go.`);
+        const ended = await sweepTrades();
+        if (ended) console.log(`Catflix sweep: ${ended} trade${ended === 1 ? "" : "s"} not answered in time.`);
         const gifts = await giftRound();
         if (gifts) console.log(`Catflix sweep: ${gifts} cat${gifts === 1 ? "" : "s"} stole for a friend today.`);
     } catch (error) {
