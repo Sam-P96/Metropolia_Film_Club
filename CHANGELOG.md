@@ -391,6 +391,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`backend/utils/catflix/awards.js`, `GET/POST /api/events/:id/awards`,
   `POST /api/events/:id/awards/all`; each award kept in
   `models/packAwardModel.js`).
+- Ruin Run (Catflix No Chill) has a start screen before the game, each time
+  its tab opens: Play, How to Play (the controls, what ends a run, speed,
+  bets and cash-outs, in a pop-up window) and the best runs, each member's
+  fastest run with the distance it got (fastest first, then furthest; the
+  top 10, free runs included), with your own row picked out, your best,
+  your cash-outs left and a run waiting, if there is one. Back, in the
+  game's menu, returns to it. And like Forrest Bounce, Ruin Run sends
+  notifications: a cash-out goes to the player's followers (what they won
+  or lost), one paying 5 times the bet or more goes to every member as a
+  big win, and a new best speed (their own, or the site record) goes to
+  every member; a member's first run sets their best quietly. A run that
+  sets a best says so when it's over (`ruinCashOut`, `ruinBigWin`,
+  `ruinBest`, `ruinRecord`; the board and `bestRun` in `GET
+  /api/catflix/run`).
 - Award booster packs in the admin panel: every member, A to Z, searchable,
   each with an Award button (after a confirmation) for the pack picked:
   Black & Gold, Triple or Single. They get the notification too, from the

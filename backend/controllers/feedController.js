@@ -49,7 +49,7 @@ const FEED_FILTERS = {
     events: ["event", ...Object.values(Notification.EVENT_RSVP_TYPES)],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.CATFLIX_TYPES, ...Notification.PACK_AWARD_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES, ...Notification.CATFLIX_TYPES, ...Notification.PACK_AWARD_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
 };
 // What Reviews, Cuts and Games show whatever else they leave out: club
 // events, and big news (a trending review, a jackpot, a Double or Nothing
@@ -347,6 +347,18 @@ async function hydrate(rows, viewer) {
                 previous: row.forrest?.previous ?? 0,
             };
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, forrest }];
+        }
+
+        // Catflix No Chill's Ruin Run: a cash-out, or a new best speed.
+        if (Notification.RUIN_TYPES.includes(row.type)) {
+            const ruin = {
+                bet: row.ruin?.bet ?? 0,
+                speed: row.ruin?.speed ?? 100,
+                metres: row.ruin?.metres ?? 0,
+                net: row.ruin?.net ?? 0,
+                previous: row.ruin?.previous ?? 0,
+            };
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, ruin }];
         }
 
         // Catflix No Chill: a booster pack an admin gave them (for attending

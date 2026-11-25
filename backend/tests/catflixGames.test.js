@@ -242,6 +242,112 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
         assert.equal(await confidenceOf(user), Math.min(100, confidence + 1), "it still counts for the pet");
     });
 
+    // ---- Ruin Run's best runs and notifications ----
+
+    const until = async (check, ms = 5000) => {
+        for (let waited = 0; waited < ms; waited += 20) {
+            if (await check()) return;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        throw new Error("timed out");
+    };
+    // A run played some other time: free play, its speed and distance.
+    const pastRun = (user, speed, metres, extra = {}) =>
+        CatflixRun.create({ user: user._id, day: "2026-01-01", seed: 1, bet: 0, free: true, status: "discarded", finishedAt: new Date(), ticks: 600, speed, metres, ...extra });
+    // A run started and played like the page, not sent yet: what it'll come to.
+    async function playedRun(user) {
+        const started = await call(user, "POST", "/run", { bet: 1 });
+        assert.equal(started.status, 200);
+        const played = await playRun(user, started.body.run.id, started.body.run.seed);
+        return { ...played, id: started.body.run.id, speed: engine.speedPercent(played.s.mult) };
+    }
+    const notes = (type, user) => require("../models/notificationModel").countDocuments({ type, actors: user._id });
+
+    test("Ruin Run's best runs: one a member, fastest first, then furthest; runs never played don't count", async () => {
+        const [slow, far, fast, quitter] = [await member({ pet: false }), await member({ pet: false }), await member({ pet: false }), await member({ pet: false })];
+        await pastRun(slow, 5180, 900);
+        await pastRun(slow, 5150, 2000);
+        await pastRun(far, 5180, 1200);
+        await pastRun(fast, 5240, 500);
+        // Let go before it came back: the replay never gave it ticks.
+        await pastRun(quitter, 9000, 0, { ticks: 0, free: false, bet: 10 });
+
+        const { body } = await call(slow, "GET", "/run");
+        assert.deepEqual(
+            body.status.leaderboard.slice(0, 3).map((entry) => [entry.user.username, entry.speed, entry.metres]),
+            [[fast.username, 5240, 500], [far.username, 5180, 1200], [slow.username, 5180, 900]]
+        );
+        assert.ok(!body.status.leaderboard.some((entry) => entry.user.username === quitter.username));
+        assert.equal(body.status.leaderboard[0].user.email, undefined, "only their name and picture");
+        assert.deepEqual(body.status.bestRun, { speed: 5180, metres: 900 }, "their own best, by speed");
+        assert.equal((await call(quitter, "GET", "/run")).body.status.bestRun, null);
+        await CatflixRun.deleteMany({ speed: { $gte: 5000 } });
+    });
+
+    test("Ruin Run: a new best speed goes out to every member, beating everyone's is the site record, and a first run is quiet", async () => {
+        const members = await User.countDocuments();
+        const someoneElse = await member({ pet: false });
+
+        // A first run, someone faster: nothing goes out.
+        const newbie = await member({ pp: 10 });
+        const first = await playedRun(newbie);
+        await pastRun(someoneElse, first.speed + 100, 10);
+        const quiet = await first.finish();
+        assert.deepEqual(quiet.body.best, { personal: false, site: false, previous: 0 });
+
+        // Their own best beaten, someone faster: every member hears.
+        const rookie = await member({ pp: 10 });
+        const second = await playedRun(rookie);
+        await pastRun(rookie, second.speed - 1, 10);
+        await pastRun(someoneElse, second.speed + 100, 10);
+        const beat = await second.finish();
+        assert.deepEqual(beat.body.best, { personal: true, site: false, previous: second.speed - 1 });
+        await until(async () => (await notes("ruinBest", rookie)) === members + 3);
+        const note = await require("../models/notificationModel").findOne({ type: "ruinBest", actors: rookie._id }).lean();
+        assert.deepEqual(note.ruin, { speed: second.speed, metres: engine.metres(second.s), previous: second.speed - 1 });
+
+        // Faster than everyone: the site record.
+        const ace = await member({ pp: 10 });
+        const third = await playedRun(ace);
+        await CatflixRun.deleteMany({ ticks: { $gt: 0 }, speed: { $gte: third.speed } });
+        await pastRun(ace, third.speed - 1, 10);
+        const record = await third.finish();
+        assert.deepEqual(record.body.best, { personal: true, site: true, previous: third.speed - 1 });
+        await until(async () => (await notes("ruinRecord", ace)) === members + 4);
+        assert.equal(await notes("ruinBest", ace), 0, "the record says it all");
+        assert.equal((await notes("ruinBest", newbie)) + (await notes("ruinRecord", newbie)), 0, "still nothing for the first run");
+    });
+
+    test("Ruin Run: a cash-out goes to the player's followers; 5 times the bet or more goes to everyone", async () => {
+        const Notification = require("../models/notificationModel");
+        const player = await member({ pp: 100 });
+        const fan = await member({ pet: false });
+        const stranger = await member({ pet: false });
+        await Follow.create({ follower: fan._id, following: player._id });
+
+        // Worth 12 on a 10 PP bet (what its speed paid, set here: a played run's speed is whatever it was).
+        const started = await call(player, "POST", "/run", { bet: 10 });
+        const { finish, s } = await playRun(player, started.body.run.id, started.body.run.seed);
+        await finish();
+        await CatflixRun.updateOne({ _id: started.body.run.id }, { $set: { worth: 12 } });
+        assert.equal((await call(player, "POST", `/run/${started.body.run.id}/cashout`)).status, 200);
+        await until(async () => (await Notification.countDocuments({ type: "ruinCashOut", actors: player._id })) > 0);
+        const note = await Notification.findOne({ type: "ruinCashOut", actors: player._id }).lean();
+        assert.equal(String(note.recipient), String(fan._id));
+        assert.equal(note.amount, 12);
+        assert.deepEqual(note.ruin, { bet: 10, speed: engine.speedPercent(s.mult), metres: engine.metres(s), net: 2 });
+        assert.equal(await Notification.countDocuments({ recipient: stranger._id, type: { $in: ["ruinCashOut", "ruinBigWin"] } }), 0);
+
+        // Worth 50 on 10: big news, for every member.
+        const big = await call(player, "POST", "/run", { bet: 10 });
+        await (await playRun(player, big.body.run.id, big.body.run.seed)).finish();
+        await CatflixRun.updateOne({ _id: big.body.run.id }, { $set: { worth: 50 } });
+        assert.equal((await call(player, "POST", `/run/${big.body.run.id}/cashout`)).status, 200);
+        await until(async () => (await Notification.countDocuments({ type: "ruinBigWin", actors: player._id })) === (await User.countDocuments()));
+        assert.equal((await Notification.findOne({ type: "ruinBigWin", recipient: stranger._id }).lean()).ruin.net, 40);
+        assert.equal(await Notification.countDocuments({ type: "ruinCashOut", actors: player._id }), 1, "the big one only once, as big news");
+    });
+
     // ---- A friend's cat that loves you ----
 
     test("A friend's cat with 80+ love for you: a 5% chance a day of stealing 5% of its owner's PP for you, as P-PP", async () => {

@@ -144,7 +144,10 @@ export const CATFLIX = {
   // they're used it's free play (no bet, nothing paid) until 12:00. Every
   // run your pet finishes gives it +`confidence` confidence. The server
   // plays every run again to check it (backend/public/pet-forge/ruin-engine.js).
-  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 10000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1 },
+  // Like Forrest Bounce's, a cash-out goes out to the player's followers,
+  // and to every member if it paid `bigWinTimes` the bet or more (350%
+  // speed); a new best speed goes out to every member.
+  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 10000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1, bigWinTimes: 5 },
 
   // Nekomusume: Kitty Race: `racers` cats race, yours among them, and you
   // bet up to `maxBet` on it (PP first, then P-PP). Every cat has the same

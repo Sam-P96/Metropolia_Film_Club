@@ -8,6 +8,7 @@ const CatflixRunDay = require("../../models/catflixRunDayModel");
 const { WalletError, changeWallet, playDay, spend } = require("../wallet");
 const { splitPayout } = require("../forrest");
 const { feedFromRuinRun } = require("../jackpotFeed");
+const { noteRuinCashOut, noteRuinBest } = require("../notify");
 const { CatflixError, changePet, petView } = require("./pets");
 const { CATFLIX, ruinPayout } = require("../../../shared/catflix/rules.js");
 const engine = require("../../public/pet-forge/ruin-engine.js");
@@ -18,7 +19,8 @@ const engine = require("../../public/pet-forge/ruin-engine.js");
 // and each member's best. Every balance change goes through utils/wallet.js.
 // Everything a run loses goes to the Box Office Scratch jackpots
 // (config/jackpotFeed.js): see letGo. Run like Forrest Bounce's
-// (utils/forrest.js): the same day, cash-outs and free play.
+// (utils/forrest.js): the same day, cash-outs and free play, the best runs
+// on the start screen, and the same notifications (utils/notify.js).
 
 const RULES = CATFLIX.ruinRun;
 // A run can't have played more ticks than the clock allows since it started,
@@ -31,6 +33,47 @@ const RUN_LIFETIME_MS = (engine.MAX_TICKS / engine.TICK_HZ) * 1000 + 5 * 60 * 10
 const ABANDONED_MS = RUN_LIFETIME_MS + 5 * 60 * 1000;
 
 const isId = (id) => mongoose.isValidObjectId(id);
+
+// How many of the site's best runs the start screen shows.
+const LEADERBOARD_SIZE = 10;
+// The order runs rank in: the speed when they ended, then how far they got
+// (the earlier run first, for a tie).
+const BEST_FIRST = { speed: -1, metres: -1, finishedAt: 1 };
+
+// ---- The best runs ----
+// Every run that was played (the server's replay gave it ticks: never one
+// let go before it came back, or one faster than the clock), free play
+// included, like Forrest Bounce's.
+
+// The best run of those `filter` picks: { speed, metres }, or null.
+const bestRunOf = (filter) => CatflixRun.findOne({ ticks: { $gt: 0 }, ...filter }).sort(BEST_FIRST).select("speed metres").lean();
+
+// The site's best runs, best first, one a member (their best):
+// [{ user, speed, metres, at }].
+async function leaderboard(limit = LEADERBOARD_SIZE) {
+    const rows = await CatflixRun.aggregate([
+        { $match: { ticks: { $gt: 0 }, user: { $ne: null } } },
+        { $sort: BEST_FIRST },
+        { $group: { _id: "$user", speed: { $first: "$speed" }, metres: { $first: "$metres" }, at: { $first: "$finishedAt" } } },
+        { $sort: { speed: -1, metres: -1, at: 1 } },
+        { $limit: limit },
+    ]);
+    const users = await User.find({ _id: { $in: rows.map((row) => row._id) } }).select("username avatarUrl").lean();
+    const byId = new Map(users.map((user) => [String(user._id), user]));
+    return rows
+        .filter((row) => byId.has(String(row._id)))
+        .map((row) => ({ user: byId.get(String(row._id)), speed: row.speed, metres: row.metres, at: row.at }));
+}
+
+// Whether `run` (just played) beat a best: `site` if it beat every other run
+// (the site record), `personal` if it beat a run they'd played before (a
+// first run sets one quietly). `previous`: their best speed before it (0:
+// none).
+async function bestsBeaten(userId, run) {
+    const [mine, top] = await Promise.all([bestRunOf({ user: userId, _id: { $ne: run._id } }), bestRunOf({ _id: { $ne: run._id } })]);
+    const previous = mine?.speed ?? 0;
+    return { personal: previous > 0 && run.speed > previous, site: run.speed > (top?.speed ?? 0), previous };
+}
 
 function runView(run) {
     return {
@@ -46,17 +89,22 @@ function runView(run) {
     };
 }
 
-// What the page shows: { cashOutsLeft, best (metres), waiting (a run still
-// to be cashed out or thrown away, after a refresh), rules }.
+// What the page shows: { cashOutsLeft, best (metres), bestRun (their best
+// speed: { speed, metres }, or null), leaderboard, waiting (a run still to be
+// cashed out or thrown away, after a refresh), rules }.
 async function statusOf(userId, day = playDay()) {
-    const [today, player, waiting] = await Promise.all([
+    const [today, player, bestRun, top, waiting] = await Promise.all([
         CatflixRunDay.findOne({ user: userId, day }).select("cashOuts").lean(),
         CatflixPlayer.findOne({ user: userId }).select("runBest").lean(),
+        bestRunOf({ user: userId }),
+        leaderboard(),
         CatflixRun.findOne({ user: userId, status: "finished" }).sort({ finishedAt: -1 }).lean(),
     ]);
     return {
         cashOutsLeft: Math.max(0, RULES.cashOutsPerDay - (today?.cashOuts ?? 0)),
         best: player?.runBest ?? 0,
+        bestRun: bestRun ? { speed: bestRun.speed, metres: bestRun.metres } : null,
+        leaderboard: top,
         waiting: waiting ? runView(waiting) : null,
         rules: RULES,
     };
@@ -118,8 +166,9 @@ function checkInputs(inputs, endTick) {
 
 // A run is over on the page: `inputs` (what the player did) and `endTick`
 // (the ticks it played). Played again here: that's the speed. Their pet
-// gains confidence for the run, and a new best is kept. Resolves to
-// { run, pet }.
+// gains confidence for the run, and a new best is kept. A new best speed
+// goes out to everyone. Resolves to { run, pet, best: { personal, site,
+// previous } }.
 async function finishRun(userId, runId, { inputs, endTick } = {}, now = new Date()) {
     if (!isId(runId)) throw new CatflixError("That run is over.", 404);
     checkInputs(inputs, endTick);
@@ -154,6 +203,12 @@ async function finishRun(userId, runId, { inputs, endTick } = {}, now = new Date
     if (!finished) throw new CatflixError("That run is over.", 404);
 
     await CatflixPlayer.updateOne({ user: userId }, { $max: { runBest: result.metres } }, { upsert: true });
+    const best = await bestsBeaten(userId, finished);
+    if (best.site || best.personal) {
+        noteRuinBest(userId, { speed: finished.speed, metres: finished.metres, previous: best.previous, site: best.site }).catch((error) =>
+            console.error("Ruin Run couldn't send a best:", error)
+        );
+    }
     let pet = null;
     try {
         pet = await changePet({ owner: userId }, (current) => ({ meters: { ...current.meters, confidence: Math.min(CATFLIX.meterMax, current.meters.confidence + RULES.confidence) } }), now);
@@ -161,11 +216,12 @@ async function finishRun(userId, runId, { inputs, endTick } = {}, now = new Date
         // No pet any more (or it's busy): the run still counts.
         if (!(error instanceof CatflixError)) throw error;
     }
-    return { run: runView(finished), pet: pet ? petView(pet, userId) : null };
+    return { run: runView(finished), pet: pet ? petView(pet, userId) : null, best };
 }
 
 // Cashes a finished run out: one of today's cash-outs, and what its speed
-// is worth. Less back than the bet: the difference goes to the scratch
+// is worth. Their followers hear what they won or lost (every member, for
+// a big win). Less back than the bet: the difference goes to the scratch
 // jackpots.
 async function cashOut(userId, runId) {
     if (!isId(runId)) throw new CatflixError("That run can't be cashed out.", 404);
@@ -190,6 +246,8 @@ async function cashOut(userId, runId) {
     }
     if (total > 0) await changeWallet(userId, () => payout, { reason: "ruinRunCashOut", catflix: run._id });
     await feedFromRuinRun(lostBy(cashed, total));
+
+    noteRuinCashOut(cashed, total).catch((error) => console.error("Ruin Run couldn't send a cash-out:", error));
     return { run: runView(cashed), payout: total };
 }
 
@@ -219,4 +277,4 @@ async function pointsOf(userId) {
     return (user?.wallet?.pp ?? 0) + (user?.wallet?.ppp ?? 0);
 }
 
-module.exports = { WalletError, statusOf, startRun, finishRun, cashOut, discard, sweepRuns, pointsOf, RUN_LIFETIME_MS };
+module.exports = { WalletError, statusOf, leaderboard, startRun, finishRun, cashOut, discard, sweepRuns, pointsOf, RUN_LIFETIME_MS };

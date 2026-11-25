@@ -18,7 +18,7 @@ const VOTE_TYPES = ["like", "dislike"];
 const FROM_ONE_MEMBER = [
     "review", "trending", "reply", "follow", "pvp", ...Object.values(Notification.EVENT_RSVP_TYPES), "cut", "cutReply", "gift", "scratchWin", "scratchJackpot",
     "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES,
-    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES,
+    "loanJob", "loanRepay", "loanRepaid", "loanBorrowed", "quizWinner", ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES,
 ];
 
 // The Farkle notifications that wait for the member to act, pinned to the
@@ -449,6 +449,30 @@ async function noteForrestBest(userId, { fruit, score, level, previous, site }) 
     await sendToEach(members, { type: site ? "forrestRecord" : "forrestBest", forrest: { fruit, score, level, previous }, actors: [userId] });
 }
 
+// Catflix No Chill's Ruin Run (utils/catflix/ruinRun.js), as Forrest
+// Bounce's: a run cashed out. 5 times the bet or more (ruinRun.bigWinTimes)
+// is big news: every member hears it, the player included. Anything less
+// goes to the player's followers: what came back, and what they won or
+// lost on it.
+async function noteRuinCashOut(run, total) {
+    const { CATFLIX } = require("../../shared/catflix/rules.js");
+    const big = run.bet > 0 && total >= CATFLIX.ruinRun.bigWinTimes * run.bet;
+    const recipients = big ? await User.find().distinct("_id") : await Follow.find({ following: run.user }).distinct("follower");
+    await sendToEach(recipients, {
+        type: big ? "ruinBigWin" : "ruinCashOut",
+        amount: total,
+        ruin: { bet: run.bet, speed: run.speed, metres: run.metres, net: total - run.bet },
+        actors: [run.user],
+    });
+}
+
+// Ruin Run: a new best speed, the site's (`site`) or their own. Every
+// member hears it.
+async function noteRuinBest(userId, { speed, metres, previous, site }) {
+    const members = await User.find().distinct("_id");
+    await sendToEach(members, { type: site ? "ruinRecord" : "ruinBest", ruin: { speed, metres, previous }, actors: [userId] });
+}
+
 // Steal and Defend (utils/steal/attacks.js). `attackerId` has started an
 // attack on `victimId`: they hear about it straight away, so there's time
 // to swap items.
@@ -794,6 +818,8 @@ module.exports = {
     noteCatflixGift,
     noteForrestCashOut,
     noteForrestBest,
+    noteRuinCashOut,
+    noteRuinBest,
     noteCrashResults,
     noteCrashInvite,
     TRENDING_LIKES,

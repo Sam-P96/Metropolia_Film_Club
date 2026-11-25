@@ -170,6 +170,17 @@ const CRASH_TYPES = ["crashBigWin", "crashResult", "crashInvite"];
 // level, net (won or lost), previous (the best it beat) }.
 const FORREST_TYPES = ["forrestCashOut", "forrestBigWin", "forrestBest", "forrestRecord"];
 
+// Catflix No Chill's Ruin Run (utils/notify.js), like Forrest Bounce's:
+//   ruinCashOut  `actors[0]`, whom they follow, cashed a run out: `amount`
+//                came back
+//   ruinBigWin   `actors[0]` cashed out 5 times their bet or more: every
+//                member hears
+//   ruinBest     `actors[0]` beat their own best speed (every member)
+//   ruinRecord   `actors[0]` beat the site's best speed (every member)
+// `ruin`: { bet (0: free play), speed (a percent), metres, net (won or
+// lost), previous (the best speed it beat) }.
+const RUIN_TYPES = ["ruinCashOut", "ruinBigWin", "ruinBest", "ruinRecord"];
+
 // Catflix No Chill (utils/catflix/gifts.js): a friend's cat that loves you
 // stole some of its owner's PP for you.
 //   catflixGift    to you: `actors[0]` is its owner; `amount` P-PP is yours
@@ -199,6 +210,7 @@ const EVENT_RSVP_TYPES = { attending: "eventAttending", interested: "eventIntere
 const GAME_TYPES = [
     ...CRASH_TYPES,
     ...FORREST_TYPES,
+    ...RUIN_TYPES,
     ...CATFLIX_TYPES,
     ...PACK_AWARD_TYPES,
     ...SCRATCH_RUSH_TYPES,
@@ -215,7 +227,7 @@ const notificationSchema = new Schema({
     recipient: {type: Schema.Types.ObjectId, ref: "User", required: true},
     type: {
         type: String,
-        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES],
+        enum: ["like", "dislike", "review", "trending", "reply", "follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...RUIN_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES],
         required: true,
     },
     review: {
@@ -223,7 +235,7 @@ const notificationSchema = new Schema({
         ref: "Review",
         default: null,
         required() {
-            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
+            return !["follow", "event", ...Object.values(EVENT_RSVP_TYPES), "pvp", "cut", "cutReply", "payout", "gift", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...FARKLE_TYPES, ...GOMOKU_TYPES, ...POOL_TYPES, ...STEAL_TYPES, ...LOAN_TYPES, ...QUIZ_TYPES, ...ADMIN_TYPES, ...SITE_EVENT_TYPES, ...CRASH_TYPES, ...FORREST_TYPES, ...RUIN_TYPES, ...CATFLIX_TYPES, ...PACK_AWARD_TYPES, ...SCRATCH_RUSH_TYPES].includes(this.type);
         },
     },
     match: {type: Schema.Types.ObjectId, ref: "FarkleMatch", default: null},
@@ -254,6 +266,14 @@ const notificationSchema = new Schema({
         score: {type: Number},
         fruit: {type: Number},
         level: {type: Number},
+        net: {type: Number},
+        previous: {type: Number},
+    },
+    // Catflix No Chill's Ruin Run: the run.
+    ruin: {
+        bet: {type: Number},
+        speed: {type: Number},
+        metres: {type: Number},
         net: {type: Number},
         previous: {type: Number},
     },
@@ -330,6 +350,7 @@ Notification.QUIZ_TYPES = QUIZ_TYPES;
 Notification.GAME_TYPES = GAME_TYPES;
 Notification.CRASH_TYPES = CRASH_TYPES;
 Notification.FORREST_TYPES = FORREST_TYPES;
+Notification.RUIN_TYPES = RUIN_TYPES;
 Notification.CATFLIX_TYPES = CATFLIX_TYPES;
 Notification.PACK_AWARD_TYPES = PACK_AWARD_TYPES;
 Notification.STEAL_TYPES = STEAL_TYPES;
