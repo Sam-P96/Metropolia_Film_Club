@@ -835,6 +835,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Catflix No Chill's booster packs cost twice as much: Single Pack 100,000,
+  Triple Pack 200,000 and Black & Gold Pack 400,000 points (were 50,000,
+  100,000 and 200,000).
 - Film Browser: open a film from a search or filtered list and press Back,
   and every film you'd loaded is there straight away, scrolled to where you
   were (no loading page one again and clicking "Load more" back down). The

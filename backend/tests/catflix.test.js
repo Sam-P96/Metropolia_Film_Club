@@ -416,7 +416,7 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         assert.match((await call(rich, "POST", "/packs/open", { kind: "single" })).body.error, /no Single Packs/);
         await call(rich, "POST", "/shop/buy", { item: "pack", kind: "single" });
         await call(rich, "POST", "/shop/buy", { item: "pack", kind: "blackGold" });
-        assert.deepEqual(await walletOf(rich), { pp: 350000, ppp: 1500000 }, "50,000 and 200,000, PP first");
+        assert.deepEqual(await walletOf(rich), { pp: 100000, ppp: 1500000 }, "100,000 and 400,000, PP first");
         const single = await call(rich, "POST", "/packs/open", { kind: "single" });
         assert.equal(single.body.cards.length, 1);
         assert.equal(single.body.cards[0].isNew, true);
@@ -432,7 +432,7 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         await call(rich, "POST", "/shop/buy", { item: "aura", aura: "rain" });
         const twice = await call(rich, "POST", "/shop/buy", { item: "aura", aura: "rain" });
         assert.equal(twice.status, 409);
-        assert.equal((await walletOf(rich)).pp + (await walletOf(rich)).ppp, 1850000 - 800000, "charged once");
+        assert.equal((await walletOf(rich)).pp + (await walletOf(rich)).ppp, 1600000 - 800000, "charged once");
         assert.equal((await WalletTx.countDocuments({ user: rich._id, reason: "catflixShop" })), 3);
 
         const poor = await member({ pp: 1000 });

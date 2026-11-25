@@ -14,9 +14,9 @@ export const CATFLIX = {
   // Booster packs: each card is rolled on its own (odds below) from the
   // registered forms. A rarity with no forms yet gives a common instead.
   packs: {
-    single: { name: 'Single Pack', cards: 1, price: 50000 },
-    triple: { name: 'Triple Pack', cards: 3, price: 100000 },
-    blackGold: { name: 'Black & Gold Pack', cards: 7, price: 200000 },
+    single: { name: 'Single Pack', cards: 1, price: 100000 },
+    triple: { name: 'Triple Pack', cards: 3, price: 200000 },
+    blackGold: { name: 'Black & Gold Pack', cards: 7, price: 400000 },
   },
   // % a card, by rarity.
   odds: [

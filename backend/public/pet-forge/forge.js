@@ -2874,7 +2874,7 @@ function castDrawHi(G,k,now){ // the card itself + the flash (full resolution)
 
 /* ================= Gacha shop: buy booster packs, open them, flip cards to reveal ================= */
 const GACHA={startPP:500000,testPP:100000,
-  packs:{single:{l:'Single Pack',n:1,price:50000},triple:{l:'Triple Pack',n:3,price:100000},blackGold:{l:'Black & Gold Pack',n:7,price:200000}},
+  packs:{single:{l:'Single Pack',n:1,price:100000},triple:{l:'Triple Pack',n:3,price:200000},blackGold:{l:'Black & Gold Pack',n:7,price:400000}},
   odds:[['common',40],['uncommon',30],['rare',19],['epic',10],['legendary',1]]};   // % per card
 const playerDocs=new Map();
 const ME=()=>{const d=playerDocs.get('me')||{};return {pp:Number.isFinite(d.pp)?d.pp:GACHA.startPP,cards:{...(d.cards||{})},packs:{single:0,triple:0,blackGold:0,...(d.packs||{})},pending:d.pending||null,auras:{...(d.auras||{})},profile:{...(d.profile||{})},egg:d.egg||null,food:Number.isFinite(d.food)?d.food:0,balls:{...(d.balls||{})}};};
