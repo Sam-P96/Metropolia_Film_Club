@@ -28,6 +28,7 @@ const {
 const {
     BOT_NAME,
     BOT_STAKE,
+    botTripleOnes,
     PVP_MIN_STAKE,
     clankerStarts,
     WINNING_SCORES,
@@ -141,7 +142,7 @@ async function startBotMatch(req, res) {
     const firstRoll = crypto.randomInt(1, 7);
     const botFirst = clankerStarts(firstRoll);
     const opening = newGame({ target, first: botFirst ? BOT_SEAT : MEMBER_SEAT });
-    const game = botFirst ? playBot(opening, BOT_SEAT, cryptoDice, { bustChance: clankerBustChance() }) : opening;
+    const game = botFirst ? playBot(opening, BOT_SEAT, cryptoDice, { bustChance: clankerBustChance(), tripleOnes: botTripleOnes(stake) }) : opening;
     const saved = await saveGame(match, game, {
         [`players.${MEMBER_SEAT}.paid`]: { pp: 0 - paid.pp, ppp: 0 - paid.ppp },
         lastMoveAt: new Date(),
@@ -196,7 +197,7 @@ async function makeMove(req, res) {
     try {
         const move = { type: req.body?.type, keep: req.body?.keep ?? [] };
         game = applyMove(gameOf(match), seatOf(match, userId), move);
-        if (match.mode === "bot") game = playBot(game, BOT_SEAT, cryptoDice, { bustChance: clankerBustChance() });
+        if (match.mode === "bot") game = playBot(game, BOT_SEAT, cryptoDice, { bustChance: clankerBustChance(), tripleOnes: botTripleOnes(match.stake) });
     } catch (error) {
         if (error instanceof MoveError) {
             return res.status(error.status).json({ error: error.message });

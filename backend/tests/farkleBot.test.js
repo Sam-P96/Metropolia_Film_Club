@@ -13,7 +13,40 @@ process.env.SECRET ??= "farkle-bot-test-secret";
 const mongoose = require("mongoose");
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { botPrize, clankerStarts } = require("../../shared/farkle/rules.js");
+const { botPrize, clankerStarts, botTripleOnes } = require("../../shared/farkle/rules.js");
+const { TRIPLE_ONES, rollWithTripleOnes, newGame, playBot } = require("../games/farkle/engine");
+
+describe("Farkle against Clanker: big stakes (no database)", () => {
+    test("above 2,000 points, Clanker's three dice come up 1-1-1 one percentage point more often", () => {
+        assert.deepEqual([botTripleOnes(2), botTripleOnes(2000), botTripleOnes(2001), botTripleOnes(3000)], [0, 0, 0.01, 0.01]);
+        const natural = () => [2, 3, 4];
+        // random(1,000,000): below the line, 1-1-1; from it on, the dice as rolled.
+        const line = Math.ceil((0.01 / (1 - TRIPLE_ONES)) * 1_000_000);
+        assert.deepEqual(rollWithTripleOnes(3, 0.01, natural, () => line - 1), [1, 1, 1]);
+        assert.deepEqual(rollWithTripleOnes(3, 0.01, natural, () => line), [2, 3, 4]);
+        // How often, all told: the swaps, plus 1 in 216 of the rest.
+        const chance = line / 1_000_000 + (1 - line / 1_000_000) * TRIPLE_ONES;
+        assert.ok(Math.abs(chance - (TRIPLE_ONES + 0.01)) < 1e-5, `1-1-1 ${(chance * 100).toFixed(3)}% of the time`);
+        // Only ever three dice, and only with a big stake.
+        for (const count of [1, 2, 4, 5, 6]) assert.notDeepEqual(rollWithTripleOnes(count, 0.01, (n) => Array(n).fill(2), () => 0), [1, 1, 1]);
+        assert.deepEqual(rollWithTripleOnes(3, 0, natural, () => 0), [2, 3, 4]);
+    });
+
+    test("in Clanker's turn: three dice left, and the 1-1-1 comes up", () => {
+        // Six dice: 2-2-2 (200), three left to roll; then whatever those three are; then a Farkle on six.
+        const scripted = () => {
+            let sixes = 0;
+            return (count) => (count === 6 ? (sixes++ === 0 ? [2, 2, 2, 3, 4, 6] : [2, 2, 3, 3, 4, 6]) : [2, 3, 4]);
+        };
+        const rolled = (game) => game.lastTurns.at(-1).steps.map((step) => step.dice.join(""));
+        const big = playBot(newGame({ target: 8000, first: 0 }), 0, scripted(), { tripleOnes: botTripleOnes(3000), random: () => 0 });
+        assert.deepEqual(rolled(big), ["222346", "111", "223346"], "1-1-1, then hot dice, then a Farkle");
+        const unlucky = playBot(newGame({ target: 8000, first: 0 }), 0, scripted(), { tripleOnes: botTripleOnes(3000), random: () => 999999 });
+        assert.deepEqual(rolled(unlucky), ["222346", "234"]);
+        const small = playBot(newGame({ target: 8000, first: 0 }), 0, scripted(), { tripleOnes: botTripleOnes(2000), random: () => 0 });
+        assert.deepEqual(rolled(small), ["222346", "234"], "2,000 or less: the dice as rolled");
+    });
+});
 
 const uri = process.env.MONGO_TEST_URI;
 const dbName = uri ? new URL(uri).pathname.slice(1) : "";
@@ -85,11 +118,11 @@ describe("Farkle against Clanker: who starts", { skip: !uri ? "set MONGO_TEST_UR
         assert.deepEqual([...seen].sort(), [false, true]);
     });
 
-    test("stakes against Clanker go up to 1,500", async () => {
-        assert.equal((await call("POST", "/bot", { target: 8000, stake: 1501 })).status, 400);
-        const started = await call("POST", "/bot", { target: 8000, stake: 1500 });
+    test("stakes against Clanker go up to 3,000", async () => {
+        assert.equal((await call("POST", "/bot", { target: 8000, stake: 3001 })).status, 400);
+        const started = await call("POST", "/bot", { target: 8000, stake: 3000 });
         assert.equal(started.status, 201, JSON.stringify(started.body));
-        assert.equal(started.body.prize, clankerStarts(started.body.firstRoll) ? 3000 : 2250);
+        assert.equal(started.body.prize, clankerStarts(started.body.firstRoll) ? 6000 : 4500);
         await call("POST", `/matches/${started.body._id}/moves`, { version: started.body.version, type: "resign" });
     });
 });

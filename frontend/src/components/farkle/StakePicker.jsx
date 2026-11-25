@@ -4,7 +4,7 @@ import CoinIcon from '../wallet/CoinIcon'
 import { BOT_MODE, BOT_NAME, BOT_STAKE, WINNING_SCORES, botPrize, formatPoints } from '../../../../shared/farkle/rules.js'
 
 const CARD = 'rounded-2xl border border-white/10 bg-plum/40 p-5 shadow-xl shadow-black/40 backdrop-blur-md sm:p-6'
-const QUICK_STAKES = [10, 50, 100, 250, 500, 1000, 1500]
+const QUICK_STAKES = [10, 50, 100, 250, 500, 1000, 1500, 2000, 3000]
 
 const choiceClasses = (on) =>
   `cursor-pointer rounded-xl border px-3 py-2 text-sm tabular-nums transition-colors disabled:cursor-default disabled:opacity-40 ${

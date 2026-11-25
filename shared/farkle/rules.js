@@ -18,7 +18,19 @@ export const CLANKER_STARTS_UP_TO = 3
 export const clankerStarts = (roll) => roll <= CLANKER_STARTS_UP_TO
 
 // What a game against the bot can be played for, in points.
-export const BOT_STAKE = { min: 2, max: 1500 }
+export const BOT_STAKE = { min: 2, max: 3000 }
+
+// Big stakes against the bot: above `above` points, whenever Clanker rolls
+// three dice they come up 1-1-1 (1,000 points) `tripleOnes` more of the
+// time, on top of the natural 1 in 216: 0.46% becomes 1.46%.
+export const BOT_BIG_STAKE = { above: 2000, tripleOnes: 0.01 }
+
+// How much more often Clanker's three dice come up 1-1-1 in a game played
+// for `stake` (0 to 1; 0 at 2,000 or less). The server rolls with it
+// (backend/games/farkle/engine.js playBot).
+export function botTripleOnes(stake) {
+  return stake > BOT_BIG_STAKE.above ? BOT_BIG_STAKE.tripleOnes : 0
+}
 
 // What beating the bot pays, all in P-PP. When the player starts: the
 // stake back plus half of it, rounded down (100 -> 150, 25 -> 37). When
