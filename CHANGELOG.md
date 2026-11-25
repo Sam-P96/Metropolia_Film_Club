@@ -394,6 +394,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Catflix No Chill's Play Dates: the pet room shows the other cat's stats
   beside your cat's, in a second Stats box, each headed with the cat's name
   ("your cat" / "their cat"). Their cat's love is its love for you.
+- Catflix No Chill's Play Dates go both ways: while someone's on a Play Date
+  with your cat, their cat is in your pet room too, wandering about with
+  its name (and aura and mood), with a note when it arrives, and gone once
+  they go home or leave the room (up to 6 at once). The visitor's page says
+  it's still there every 10 seconds; one not heard from for 45 seconds has
+  gone (`models/catflixPresenceModel.js`, `utils/catflix/visits.js`,
+  `POST /api/catflix/visit/:petId/here` and `/leave`,
+  `GET /api/catflix/guests`).
 - Catflix No Chill's moods: a cat with happiness below 20 idles in its sad
   animation, in Explore and the pet room (yours, the one you're visiting,
   and yours tagging along). A cat with no happiness left (0) only turns up

@@ -3,6 +3,7 @@ const CatflixPlayer = require("../../models/catflixPlayerModel");
 const CatflixAction = require("../../models/catflixActionModel");
 const CatflixRun = require("../../models/catflixRunModel");
 const CatflixRunDay = require("../../models/catflixRunDayModel");
+const CatflixPresence = require("../../models/catflixPresenceModel");
 const CatflixRace = require("../../models/catflixRaceModel");
 const { leaveRace } = require("./kittyRace");
 
@@ -53,6 +54,7 @@ async function forgetCatflixPlayer(userId) {
         CatflixAction.deleteMany({ $or: [{ actor: userId }, ...(pet ? [{ pet: pet._id }] : [])] }),
         CatflixRun.deleteMany({ user: userId }),
         CatflixRunDay.deleteMany({ user: userId }),
+        CatflixPresence.deleteMany({ $or: [{ visitor: userId }, ...(pet ? [{ host: pet._id }] : [])] }),
         CatflixPet.updateMany({ [`loveBy.${userId}`]: { $exists: true } }, { $unset: { [`loveBy.${userId}`]: 1 } }, { timestamps: false }),
         CatflixPet.updateMany({ "lastScold.by": userId }, { $set: { "lastScold.by": null, "lastScold.at": null } }, { timestamps: false }),
     ]);

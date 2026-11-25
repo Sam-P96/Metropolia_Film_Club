@@ -9,6 +9,7 @@ const forge = require("../utils/petForge");
 const pets = require("../utils/catflix/pets");
 const shop = require("../utils/catflix/shop");
 const toys = require("../utils/catflix/toys");
+const visits = require("../utils/catflix/visits");
 const ruinRun = require("../utils/catflix/ruinRun");
 const kittyRace = require("../utils/catflix/kittyRace");
 const { WalletError } = require("../utils/wallet");
@@ -28,7 +29,11 @@ const { CATFLIX } = require("../../shared/catflix/rules.js");
 //   POST /egg/crack             the free egg's 100 taps done: { skinId }
 //   POST /egg/hatch  { name }   the free egg, hatched
 //   POST /care       { petId, kind }   feed, brush, scoop, praise, scold
-//   GET  /visit/:petId          another member's pet, for a Play Date
+//   GET  /visit/:petId          another member's pet, for a Play Date (and you're
+//                               in its room: its owner sees your cat there)
+//   POST /visit/:petId/here     still in its room (every few seconds)
+//   POST /visit/:petId/leave    gone home
+//   GET  /guests                the cats visiting yours right now: { pets }
 //   GET  /room?map=             a visit to the Room Room
 //   POST /room/act   { targetId, action }   play, pet or bully
 //   POST /shop/buy   { item, kind | aura | style }   (a ball: { item: "ball", kind })
@@ -113,9 +118,13 @@ router.get(
         const found = await CatflixPet.findById(req.params.petId).select("owner").lean();
         if (!found) throw new pets.CatflixError("That pet doesn't exist.", 404);
         const [pet, owner] = await Promise.all([pets.petOf(found.owner), User.findById(found.owner).select(MEMBER_FIELDS).lean()]);
+        await visits.here(req.user._id, found._id);
         return { pet: pets.petView(pet, req.user._id, owner ? userSummary(owner) : null) };
     })
 );
+router.post("/visit/:petId/here", handle(async (req) => (await visits.here(req.user._id, req.params.petId), {})));
+router.post("/visit/:petId/leave", handle(async (req) => (await visits.leave(req.user._id, req.params.petId), {})));
+router.get("/guests", handle(async (req) => ({ pets: await visits.guestsOf(req.user._id) })));
 
 router.get("/room", handle((req) => pets.roomVisit(req.user._id, String(req.query.map ?? ""))));
 

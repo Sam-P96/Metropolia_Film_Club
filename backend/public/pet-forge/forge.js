@@ -3370,7 +3370,7 @@ async function startPlayDate(c){
   if(!host&&!neighborDocs.has(c.id))await writeDoc('neighbors',c.id,{name:c.name,loveBy:{},createdAt:Date.now()}).catch(()=>{});
   }
   PR.items=[];PR.target=null;PR.eat=null;PR.pending=null;PR.react=null;PR.pos={x:104,y:PET.floorY};PR.face=-1;PR.actor=null;PR.actorKey=null;PR.afx=null;
-  PR.buddy={actor:null,key:null,pos:{x:46,y:PET.floorY+4},face:1,target:null,wanderAt:0,fx:null};
+  PR.buddy={actor:null,key:null,pos:{x:46,y:PET.floorY+4},face:1,target:null,wanderAt:0,fx:null};PR.guests.clear();
   location.hash='pet';await visitLoad();visitUi();liveSyncPoop();toast(`Play date at ${PR.visit.name}’s room!`);
 }
 async function visitLoad(){ // host = main pet in the room, your pet = buddy
@@ -3382,7 +3382,7 @@ async function visitLoad(){ // host = main pet in the room, your pet = buddy
   const mine=petDocs.get(PR.id),r=mine&&regDocs.get(mine.skinId),key=mine&&mine.skinId+'|'+JSON.stringify(r&&r.changes||{});
   if(r&&PR.buddy&&PR.buddy.key!==key){const f=await getForm(r.baseFormId);if(f){PR.buddy.actor=new Racer({id:PR.id,name:mine.name,form:f,map:mapFromChanges(f,r.changes),guest:false});PR.buddy.actor.setState('idle');PR.buddy.key=key;}}
 }
-function endPlayDate(){if(!PR.visit)return;if(LIVE)petDocs.delete(PR.visit.hostId);PR.visit=null;PR.buddy=null;PR.items=[];PR.target=null;PR.eat=null;PR.actor=null;PR.actorKey=null;PR.afx=null;PR.pos={x:80,y:PET.floorY};visitUi();petLoadActor();}
+function endPlayDate(){if(!PR.visit)return;if(LIVE){if(PR.visit.hostType==='pet')cfx('/visit/'+encodeURIComponent(PR.visit.hostId)+'/leave',{method:'POST'}).catch(()=>{});petDocs.delete(PR.visit.hostId);}PR.visit=null;PR.buddy=null;PR.items=[];PR.target=null;PR.eat=null;PR.actor=null;PR.actorKey=null;PR.afx=null;PR.pos={x:80,y:PET.floorY};visitUi();petLoadActor();presenceTick();}
 // (The toy picker too: a Play Date starting or ending clears the room's toys.)
 function visitUi(){renderToyPicker();renderStats();const v=PR.visit;$('visitBar').hidden=!v;$('petBarMain').classList.toggle('visiting',!!v);if(!v)return;
   const love=loveForMe(v);$('visitWho').textContent=`Play date at ${v.name}’s room`;$('visitLove').style.width=love+'%';$('visitLoveN').textContent=love;
@@ -3395,24 +3395,47 @@ async function visitFed(now){ // the host just finished food you put down
   try{await writeDoc(col,v.hostId,{...d,loveBy:{...(d.loveBy||{}),me:love}});}catch(_){}
   petBubble('love',1400);visitUi();toast(`${v.name} loves you a little more (♥ ${love})`);
 }
-function buddyStep(dt,now){const B=PR.buddy;if(!B||!B.actor)return;const a=B.actor;a.step(dt);
-  const chasing=ballChase(B,now,a.form.crop.w,'buddy');   // your pet plays with the ball too
+// A companion cat in the room: `B` is PR.buddy (yours on a Play Date) or one of PR.guests (a visitor's in your room,
+// which doesn't play with your toys: they're yours).
+function buddyStep(dt,now,B=PR.buddy){if(!B||!B.actor)return;const a=B.actor;a.step(dt);
+  const chasing=!B.guest&&ballChase(B,now,a.form.crop.w,'buddy');   // your pet plays with the ball too
   if(B.target){const t=B.target,dx=t.x-B.pos.x,dy=t.y-B.pos.y,d=Math.hypot(dx,dy),step=.02*dt;if(Math.abs(dx)>.5)B.face=dx>0?1:-1;
     if(d<=step){B.pos.x=t.x;B.pos.y=t.y;B.target=null;a.setState('idle');}else{B.pos.x+=dx/d*step;B.pos.y+=dy/d*step;if(a.state!=='walk')a.setState('walk');}}
   else if(!chasing&&now>=B.wanderAt){B.wanderAt=now+rnd(4000,9000);if(Math.random()<.6){   // hang out near the host
     const hx=PR.pos.x+(Math.random()<.5?-1:1)*rnd(22,40);B.target={x:Math.max(FLOOR.x0+6,Math.min(FLOOR.x1-6,hx)),y:Math.max(FLOOR.y0,Math.min(FLOOR.y1,PR.pos.y+rnd(-8,8)))};}
     else{B.face=PR.pos.x>B.pos.x?1:-1;}}}
-function buddyDraw(g,now){const B=PR.buddy,a=B&&B.actor;if(!a)return;const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;
+function buddyDraw(g,now,B=PR.buddy){const a=B&&B.actor;if(!a)return;const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;
   const cx=Math.round(B.pos.x),fy=Math.round(B.pos.y);let dx=cx-Math.round(cr.w/2)+nudgeOf(a.form),dy=fy-(cr.h-1)+sinkOf(a.form);
   if(A.hover)dy-=Math.round(HOVER_AMP*(.6+(Math.sin(a.clock/HOVER_MS*Math.PI*2)+1)/2));
   g.fillStyle='rgba(60,30,20,.3)';g.fillRect(cx-Math.round(cr.w*.3),fy,Math.round(cr.w*.6),2);
-  const flip=B.face!==a.artFaces(),ak=AURA_ON?petAura(petDocs.get(PR.id)):'';
+  const flip=B.face!==a.artFaces(),ak=AURA_ON?petAura(B.guest?B.doc:petDocs.get(PR.id)):'';
   if(ak){if(!B.fx||B.fx.kind!==ak)B.fx=newAuraFx(ak);const dtA=Math.min(50,now-(B.fxT||now));B.fxT=now;g.drawImage(auraRender(B.fx,f,cr,flip,now,dtA,topPad(a)),dx-B.fx.M-(flip?2*nudgeOf(a.form):0),dy-B.fx.M);}
   else{g.save();if(flip){g.translate(cx*2,0);g.scale(-1,1);}g.drawImage(f,cr.x,cr.y,cr.w,cr.h,dx,dy,cr.w,cr.h);g.restore();}
   B.tag={cx,ty:Math.min(PET.H-9,fy+4),name:a.name};}
-function buddyTag(G,k){const B=PR.buddy;if(!B||!B.tag)return;const {cx,ty,name}=B.tag;G.font=`700 ${6*k}px 'Pixelify Sans', monospace`;
-  const t='★ '+name,w=G.measureText(t).width+6*k;G.fillStyle='rgba(255,179,92,.85)';G.fillRect(cx*k-w/2,ty*k,w,8*k);G.fillStyle='#2a1700';G.fillText(t,cx*k,(ty+4)*k);}
+function buddyTag(G,k,B=PR.buddy){if(!B||!B.tag)return;const {cx,ty,name}=B.tag;G.font=`700 ${6*k}px 'Pixelify Sans', monospace`;
+  const t=(B.guest?'🏡 ':'★ ')+name,w=G.measureText(t).width+6*k;G.fillStyle=B.guest?'rgba(140,200,255,.85)':'rgba(255,179,92,.85)';G.fillRect(cx*k-w/2,ty*k,w,8*k);G.fillStyle='#2a1700';G.fillText(t,cx*k,(ty+4)*k);}
 $('visitHome').onclick=endPlayDate;
+
+/* ---------- Visitors: on a Play Date your cat is in their room for its owner to see too ----------
+   In the game, every 10 seconds while the pet room's showing: on a Play Date, the server hears you're still in that
+   room (backend/utils/catflix/visits.js); at home, it says whose cats are visiting yours, and they wander about your
+   room (PR.guests, drawn like your cat on a Play Date), each with its name. */
+PR.guests=new Map();
+async function presenceTick(){
+  if(!LIVE||$('pet').hidden)return;
+  if(PR.visit){if(PR.visit.hostType==='pet')cfx('/visit/'+encodeURIComponent(PR.visit.hostId)+'/here',{method:'POST'}).catch(()=>{});return;}
+  let d;try{d=await cfx('/guests');}catch(_){return;}
+  if(PR.visit)return;   // a Play Date started meanwhile
+  const seen=new Set();
+  for(const view of d.pets||[]){const id=String(view._id);seen.add(id);const doc=toPetDoc(view),r=regDocs.get(view.skinId);if(!r)continue;
+    let G=PR.guests.get(id);
+    if(!G){G={guest:true,actor:null,key:null,doc,pos:{x:rnd(FLOOR.x0+12,FLOOR.x1-12),y:rnd(FLOOR.y0,FLOOR.y1)},face:Math.random()<.5?-1:1,target:null,wanderAt:0,fx:null};
+      PR.guests.set(id,G);toast(`${view.name}${view.owner&&view.owner.username?` (${view.owner.username}’s cat)`:''} is visiting!`);}
+    G.doc=doc;const key=view.skinId+'|'+JSON.stringify(r.changes||{});
+    if(G.key!==key){const f=await getForm(r.baseFormId);if(f&&f.firstState()){G.actor=new Racer({id,name:view.name,form:f,map:mapFromChanges(f,r.changes),guest:true});G.actor.setState('idle');G.key=key;}}}
+  for(const id of [...PR.guests.keys()])if(!seen.has(id))PR.guests.delete(id);   // gone home
+}
+setInterval(presenceTick,10000);
 
 /* ---------- data ---------- */
 const petDocs=new Map();
@@ -3644,6 +3667,7 @@ function petStep(dt,now){
   if(PR.actor)PR.actor.low=lowMood((petDocs.get(PR.visit?PR.visit.hostId:PR.id)||{}).stats);
   if(PR.buddy&&PR.buddy.actor)PR.buddy.actor.low=lowMood((petDocs.get(PR.id)||{}).stats);
   if(PR.visit)buddyStep(dt,now);
+  else for(const G of PR.guests.values()){if(G.actor)G.actor.low=lowMood(G.doc.stats);buddyStep(dt,now,G);}   // visitors' cats in your room
   const a=PR.actor;if(!a)return;a.step(dt);
   // falling kibble
   for(const it of PR.items)if(it.fallTo!==undefined&&it.y<it.fallTo){it.vy+=dt*.0006;it.y=Math.min(it.fallTo,it.y+it.vy*dt);if(it.y>=it.fallTo){delete it.fallTo;petSparkle(it.x,it.y,['#c9874a','#f2c27a']);}}
@@ -3700,9 +3724,11 @@ function petDraw(now){
   castDrawLow(g,now);
   // draw items and the pet back-to-front so depth looks right
   const things=(eggActive()?[]:PR.items).map(it=>({y:it.fallTo!==undefined?it.fallTo:it.y,it}));if(a)things.push({y:PR.pos.y+.5,pet:true});
-  if(PR.visit&&PR.buddy)things.push({y:PR.buddy.pos.y+.4,buddy:true});things.sort((p,q)=>p.y-q.y);
+  if(PR.visit&&PR.buddy)things.push({y:PR.buddy.pos.y+.4,buddy:true});
+  if(!PR.visit)for(const G of PR.guests.values())if(G.actor)things.push({y:G.pos.y+.4,guest:G});things.sort((p,q)=>p.y-q.y);
   for(const t of things){
     if(t.buddy){buddyDraw(g,now);continue;}
+    if(t.guest){buddyDraw(g,now,t.guest);continue;}
     if(t.it){if(t.it.fallTo!==undefined){g.fillStyle='rgba(60,30,20,.25)';g.fillRect(Math.round(t.it.x)-3,t.it.fallTo,6,1);}drawItem(g,t.it,now);continue;}
     const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;const cx=Math.round(PR.pos.x),fy=Math.round(PR.pos.y);
     let dx=cx-Math.round(cr.w/2)+nudgeOf(a.form),dy=fy-(cr.h-1)+sinkOf(a.form);
@@ -3739,7 +3765,7 @@ function petDraw(now){
     const nx=PR.box.cx+(PR.face!==a.artFaces()?a._vOff:-a._vOff);   // centred on the art, not the crop box
     G.fillStyle='rgba(40,20,15,.7)';G.fillRect(nx*k-w/2,ty*k,w,8*k);G.fillStyle='#fff3e0';G.fillText(t,nx*k,(ty+4)*k);}
 
-  castDrawHi(G,k,now);eggHud(G,k,now);if(PR.visit)buddyTag(G,k);
+  castDrawHi(G,k,now);eggHud(G,k,now);if(PR.visit)buddyTag(G,k);else for(const V of PR.guests.values())buddyTag(G,k,V);
   if(PR.cursor&&a){G.font=`${10*k}px serif`;G.fillText(TOOLS[PR.tool].i,PR.cursor.x*k+4*k,PR.cursor.y*k-4*k);}
 }
 function petLoop(t){if(!PR.running)return;const dt=Math.min(100,t-(PR.last||t));PR.last=t;petStep(dt,t);petDraw(t);requestAnimationFrame(petLoop);}
@@ -3758,7 +3784,7 @@ function route(){const tabs=LIVE?['room','pet','race','run','shop']:['studio','f
   $('shop').hidden=h!=='shop';$('tabShop').classList.toggle('on',h==='shop');if(h==='shop')renderShop();if(h!=='shop')$('gachaModal').hidden=true;
   $('profile').hidden=h!=='profile';$('tabProfile').classList.toggle('on',h==='profile');if(h==='profile'){renderProfile();profStart();}else profStop();
   $('studio').hidden=h!=='studio';$('forms').hidden=h!=='forms';$('room').hidden=h!=='room';$('race').hidden=h!=='race';$('run').hidden=h!=='run';$('pet').hidden=h!=='pet';
-  $('tabPet').classList.toggle('on',h==='pet');if(h==='pet'){eggSync(true);petStart();}else petStop();
+  $('tabPet').classList.toggle('on',h==='pet');if(h==='pet'){eggSync(true);petStart();presenceTick();}else petStop();
   // Ruin Run (the game): its start screen each time the tab opens; the game runs once Play's pressed.
   $('tabRun').classList.toggle('on',h==='run');if(h==='run'){if(LIVE&&intoRun)runHome(true);else if(!(LIVE&&RL.home))runStartLoop();$('runBest').textContent=RN.best+' m';}else runStopLoop();
   $('tabStudio').classList.toggle('on',h==='studio');$('tabForms').classList.toggle('on',h==='forms');$('tabRoom').classList.toggle('on',h==='room');$('tabRace').classList.toggle('on',h==='race');
