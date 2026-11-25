@@ -2258,13 +2258,12 @@ const endTouch=e=>{if(e.pointerId!==G_.id)return;
 RNc.canvas.addEventListener('pointerup',endTouch);RNc.canvas.addEventListener('pointercancel',endTouch);
 
 /* ---------- Ruin Run, in the game: bets, cash-outs, and the server's replay (backend/utils/catflix/ruinRun.js) ----------
-   Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50 or 100 PP, any amount up to 5,000, or free play
+   Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50, 100, 500 or 1,000 PP, or free play
    once the day's 3 cash-outs are used) and starts the run; after it comes the server's result, to cash out or throw away.
    Every 1% of speed above 100% when the run ends pays back 2% of the bet, with no cap. The server plays every run again
    from its seed and what the player did, and pays what it got. The screen holds still while you play (html.fit).
    Before the game, each time the tab opens, its start screen (RL.home): Play, How to Play, and the site's best runs. */
-const RL={status:null,run:null,result:null,best:null,busy:false,finishing:false,custom:false,message:'',error:false,loadError:'',home:true,
-  bet:(()=>{try{const b=+localStorage.getItem('catflix.runBet');return Number.isInteger(b)&&b>0?b:10;}catch(e){return 10;}})()};
+const RL={status:null,run:null,result:null,best:null,busy:false,finishing:false,message:'',error:false,loadError:'',home:true};
 const fmt=n=>Number(n||0).toLocaleString('en-US');
 const ruinWorth=(bet,speed)=>Math.floor(bet*((RL.status&&RL.status.rules.backPerPercent)||2)*Math.max(0,speed-100)/100);   // shared/catflix/rules.js ruinPayout
 // The site's wallet in the nav bar catches up.
@@ -2297,7 +2296,7 @@ function runHomeRender(){
     <section class="board" aria-labelledby="runBoardTitle"><h3 id="runBoardTitle">Best runs</h3>${board}
       <p class="note">Each member’s fastest run: the speed it ended at, and how far it got. Free runs count too.</p></section></div>`;}
 // How to Play, in a pop-up window over the start screen.
-function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,backPerPercent:2,maxBet:5000,confidence:1,bigWinTimes:5};
+function runHowOpen(){const R=(RL.status&&RL.status.rules)||{bets:[1,10,30,50,100,500,1000],cashOutsPerDay:3,backPerPercent:2,confidence:1,bigWinTimes:5};
   const box=$('runHowPop').firstChild;
   box.innerHTML=`<div class="head"><h3>How to Play</h3><button class="btn" type="button" id="runHowClose" aria-label="Close">✕</button></div>
     <div class="howto"><p><b>Your pet runs</b> on its own through a ruined city, getting faster all the time. Keep it going for as long as you can.</p>
@@ -2307,7 +2306,7 @@ function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,ba
       <li>An enemy pet costs a heart (you have 3); with none left, the next one knocks you out. Grab hearts on the road to heal.</li>
       <li>A bag of pet food makes enemy pets 50% more likely (it stacks). A lightning bolt brings a 30-second storm that zaps every pet on screen: each still gives you its speed boost, without stopping you or costing a heart.</li></ul>
     <p><b>Speed is your score.</b> It goes up by 2% a second, and by 25% for each enemy pet. When the run ends, every 1% above 100% pays back ${R.backPerPercent}% of your bet, with no cap: 150% gives your bet back, 200% twice it.</p>
-    <p><b>Bets and cash-outs.</b> Bet 1 to ${fmt(R.maxBet)} PP (PP first, then P-PP). You can cash out ${R.cashOutsPerDay} runs a day (12:00 to 12:00); throw a run away to keep your cash-out for a better one. Once they’re used, it’s free play until 12:00. Every run gives your pet +${R.confidence} confidence.</p>
+    <p><b>Bets and cash-outs.</b> Bet ${R.bets.slice(0,-1).map(fmt).join(', ')} or ${fmt(R.bets.at(-1))} PP (PP first, then P-PP). You can cash out ${R.cashOutsPerDay} runs a day (12:00 to 12:00); throw a run away to keep your cash-out for a better one. Once they’re used, it’s free play until 12:00. Every run gives your pet +${R.confidence} confidence.</p>
     <p><b>Best runs.</b> Your fastest run goes on the board. Everyone hears about a new best speed; your followers hear about your cash-outs, and everyone about one that pays ${R.bigWinTimes} times the bet or more.</p></div>`;
   box.parentElement.hidden=false;$('runHowClose').focus({preventScroll:true});}
 function runHowClose(){const pop=$('runHowPop');if(!pop||pop.hidden)return;pop.hidden=true;const b=$('runHome').querySelector('[data-do=how]');if(b)b.focus({preventScroll:true});}
@@ -2331,26 +2330,21 @@ function runLiveRender(){
       <div class="row"><button class="pri" data-do="cash" ${st.cashOutsLeft<=0||RL.busy?'disabled':''}>Cash out +${fmt(r.worth)} PP</button><button class="sec" data-do="toss" ${RL.busy?'disabled':''}>Throw away</button></div>
       <p class="note">Cash-outs left today: ${st.cashOutsLeft}/${R.cashOutsPerDay}. Throwing a run away keeps your cash-out for a better one.</p>`;
     el.innerHTML=html+msg;}
-  else{const free=runFree(),pts=LV.points,noPet=!PR.id,off=noPet||RL.busy;if(RL.bet>R.maxBet)RL.bet=R.maxBet;   // a saved custom bet over today's most
+  else{const free=runFree(),pts=LV.points,noPet=!PR.id,off=noPet||RL.busy;
+    // The bets (1 to 1,000 PP: seven tiles) and free play: two rows of four.
     const tiles=R.bets.map(b=>`<button data-bet="${b}" ${off||free||pts<b?'disabled':''}><b>${fmt(b)} PP</b><small>200% pays ${fmt(ruinWorth(b,200))}</small></button>`).join('')
-      +`<button data-bet="custom" aria-pressed="${RL.custom}" ${off||free?'disabled':''}><b>Custom</b><small>up to ${fmt(R.maxBet)}</small></button>`
       +`<button data-bet="0" class="free" ${off||!free?'disabled':''}><b>Free</b><small>${free?'nothing paid':`after ${R.cashOutsPerDay} cash-outs`}</small></button>`;
     el.innerHTML=`${back}${msg}${noPet?'<p class="msg">Hatch your egg first (it’s in the Pet tab): your pet does the running.</p>':''}
       <p class="how">${RN.ctl==='swipe'?'Swipe up or down to change lane, tap to jump':'Tap a lane to move there, double-tap to jump'} (keys: ↑ ↓ and Space); hold the jump to go higher. The rest is in How to Play, on the start screen.</p>
       <p class="pay">Every 1% of speed above 100% pays back ${R.backPerPercent}% of your bet, with no cap: <b>150%</b> gives your bet back, <b>200%</b> twice it.</p>
       <div class="bets">${tiles}</div>
-      ${RL.custom&&!free?`<div class="row"><input type="number" id="runCustom" min="1" max="${R.maxBet}" step="1" value="${RL.bet}" aria-label="Your bet, 1 to ${fmt(R.maxBet)} PP"><button class="pri" data-do="custom" ${off||pts<RL.bet?'disabled':''}>Run for <span id="runCustomN">${fmt(RL.bet)}</span> PP</button></div>`:''}
       <p class="note">${free?`All ${R.cashOutsPerDay} cash-outs used today: free play until 12:00.`:`Cash-outs left today: ${st.cashOutsLeft}/${R.cashOutsPerDay}`} · Best ${st.bestRun?`${st.bestRun.speed}%`:'none yet'} · You have ${fmt(pts)} points · Each run: +${R.confidence} confidence for your pet</p>`;}
   el.onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
-    if(b.dataset.bet==='custom'){RL.custom=!RL.custom;runLiveRender();const i=$('runCustom');if(i)i.focus({preventScroll:true});return;}
-    if(b.dataset.bet!==undefined){RL.custom=false;runBegin(+b.dataset.bet);return;}
+    if(b.dataset.bet!==undefined){runBegin(+b.dataset.bet);return;}
     const d=b.dataset.do;
-    if(d==='custom')runBegin(RL.bet);else if(d==='cash')runLiveSettle('cashout');else if(d==='toss')runLiveSettle('discard');
+    if(d==='cash')runLiveSettle('cashout');else if(d==='toss')runLiveSettle('discard');
     else if(d==='again')runBegin(0);else if(d==='menu'){RL.result=null;RL.best=null;RL.message='';runReset();runLiveRender();}
     else if(d==='home')runHome(true);};
-  const inp=$('runCustom');
-  if(inp){inp.oninput=()=>{RL.bet=Math.max(1,Math.min(R.maxBet,Math.floor(+inp.value)||1));$('runCustomN').textContent=fmt(RL.bet);try{localStorage.setItem('catflix.runBet',RL.bet);}catch(_){}};
-    inp.onkeydown=e=>{if(e.key==='Enter')runBegin(RL.bet);};inp.onchange=()=>{inp.value=RL.bet;};}
 }
 async function runLiveSettle(how){const r=RL.result||(RL.status&&RL.status.waiting);if(RL.busy||!r)return;RL.busy=true;runLiveRender();
   try{const d=await cfx(`/run/${r.id}/${how}`,{method:'POST'});RL.result=null;RL.best=null;runLiveTake(d);liveWallet();RL.error=false;

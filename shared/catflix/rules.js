@@ -149,8 +149,8 @@ export const CATFLIX = {
   },
 
   // Ruin Run: your pet runs through the ruined city, faster and faster.
-  // You bet first (PP first, then P-PP): one of `bets`, or any whole
-  // number up to `maxBet`. When the run ends, every 1% of speed above 100%
+  // You bet first (PP first, then P-PP): one of `bets`, nothing in
+  // between. When the run ends, every 1% of speed above 100%
   // pays back `backPerPercent`% of the bet, with no cap: 150% speed gives
   // the bet back, 200% twice it, 300% four times it. Like Forrest Bounce,
   // `cashOutsPerDay` runs a play day (12:00 to 12:00 Helsinki) can be
@@ -161,7 +161,7 @@ export const CATFLIX = {
   // Like Forrest Bounce's, a cash-out goes out to the player's followers,
   // and to every member if it paid `bigWinTimes` the bet or more (350%
   // speed); a new best speed goes out to every member.
-  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 5000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1, bigWinTimes: 5 },
+  ruinRun: { bets: [1, 10, 30, 50, 100, 500, 1000], backPerPercent: 2, cashOutsPerDay: 3, confidence: 1, bigWinTimes: 5 },
 
   // Nekomusume: Kitty Race: `racers` cats race, yours among them, and you
   // bet up to `maxBet` on it (PP first, then P-PP). Every cat has the same
