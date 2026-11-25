@@ -391,6 +391,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`backend/utils/catflix/awards.js`, `GET/POST /api/events/:id/awards`,
   `POST /api/events/:id/awards/all`; each award kept in
   `models/packAwardModel.js`).
+- Catflix No Chill's Play Dates: the pet room shows the other cat's stats
+  beside your cat's, in a second Stats box, each headed with the cat's name
+  ("your cat" / "their cat"). Their cat's love is its love for you.
 - Ruin Run (Catflix No Chill) has a start screen before the game, each time
   its tab opens: Play, How to Play (the controls, what ends a run, speed,
   bets and cash-outs, in a pop-up window) and the best runs, each member's
