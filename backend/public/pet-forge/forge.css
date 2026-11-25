@@ -256,7 +256,7 @@ pre.json{background:#100e18;border:1px solid var(--line);border-radius:10px;padd
 .deckmodal{position:fixed;inset:0;z-index:50;background:rgba(8,6,14,.72);display:flex;align-items:center;justify-content:center;padding:16px}
 .deckmodal[hidden]{display:none}
 .deckbox{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px;width:min(760px,100%);max-height:calc(100vh - 32px);overflow:auto}
-.deckhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}.deckhead h3{margin:0;font:700 20px 'Pixelify Sans',monospace}.deckhead .sp{flex:1}
+.deckhead{display:flex;align-items:center;gap:8px 10px;margin-bottom:12px;flex-wrap:wrap}.deckhead h3{margin:0;font:700 20px 'Pixelify Sans',monospace}.deckhead .sp{flex:1}
 .deckdetail{display:grid;grid-template-columns:auto 1fr;gap:16px;border:2px solid color-mix(in srgb,var(--rc) 55%,var(--line));border-radius:22px;padding:14px;background:color-mix(in srgb,var(--rc) 7%,var(--panel2))}
 .deckdetail[hidden]{display:none}
 .ddcard canvas{width:144px;height:252px;image-rendering:pixelated;display:block;filter:drop-shadow(0 0 10px color-mix(in srgb,var(--rc) 45%,transparent))}
@@ -454,3 +454,33 @@ html.fit #runWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh - 96px),640px)
 .popwin .howto ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .popwin .howto>:last-child{margin-bottom:0}
 .popwin .howto b{color:var(--acc)}
+
+/* ---- Trade Spell (the game only): your open trades, a new offer, answering one, taking an answer ---- */
+/* over the Spell Deck it opens from */
+.trademodal{z-index:55}
+.trademodal .deckbox{width:min(680px,100%)}
+#tradeBody{display:flex;flex-direction:column;gap:12px}
+#tradeBody p{margin:0}
+.trtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.trtop .note{flex:1;min-width:220px}
+.trrow{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--panel2);display:flex;flex-direction:column;gap:8px}
+.trrow.turn{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.trwho{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}.trwho .note{margin:0}
+.trsides{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:stretch}
+.trsides.one{grid-template-columns:minmax(0,260px)}
+.trside{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;background:rgba(0,0,0,.18);border-radius:12px;padding:8px;min-width:0}
+.trside b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.trside.empty{justify-content:center;color:var(--mute);font-size:13px;border:1px dashed var(--line);background:none;min-height:90px}
+.trside .dkcard{padding:0;cursor:default}.trside .dkcard canvas{width:48px;height:84px}
+.trpp{font:700 15px 'Pixelify Sans',monospace;color:var(--acc)}
+.trx{align-self:center;font-size:20px;color:var(--mute)}
+.trlabels{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);text-align:center}
+.tract{display:flex;justify-content:flex-end;gap:8px}.tract:empty{display:none}
+.trstep{display:flex;flex-direction:column;gap:6px}
+.trstep h4{margin:0;font:600 13px Inter,sans-serif;color:var(--ink)}
+.trstep input{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 10px;font:500 14px Inter,sans-serif;max-width:220px}
+.trstep input[type=search]{max-width:none}
+.trgrid{margin-top:0;max-height:240px;overflow:auto}.trgrid .dkcard canvas{width:48px;height:84px}
+.trfriends{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow:auto}
+.trfriend{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 12px;font:600 13px Inter,sans-serif;cursor:pointer}
+.trfriend[aria-pressed=true]{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 18%,var(--panel2))}
+.trgo{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.trgo .btn:first-child{margin-right:auto}

@@ -346,13 +346,77 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         assert.ok(["sunny", "snow"].includes(api.body.weather.christmas));
     });
 
+    test("Play Dates: the owner's room shows the visitor's cat while they're there, and not once they've gone", async () => {
+        const CatflixPresence = require("../models/catflixPresenceModel");
+        await CatflixPresence.syncIndexes();
+        const owner = await member();
+        const ownersPet = await withPet(owner);
+        const [visitor, other] = [await member(), await member()];
+        const visitorsPet = await withPet(visitor);
+        await withPet(other);
+        const guests = async () => (await call(owner, "GET", "/guests")).body.pets;
+        assert.deepEqual(await guests(), [], "nobody yet");
+
+        assert.equal((await call(visitor, "GET", `/visit/${ownersPet._id}`)).status, 200);
+        const here = await guests();
+        assert.equal(here.length, 1);
+        assert.equal(String(here[0]._id), String(visitorsPet._id), "their cat, in your room");
+        assert.equal(here[0].owner.username, visitor.username);
+        assert.equal(here[0].mine, false);
+        assert.deepEqual(Object.keys(here[0].meters).sort(), ["confidence", "happiness", "hunger"]);
+
+        // Still there while they say so; gone once they haven't for 45 seconds.
+        await CatflixPresence.updateOne({ visitor: visitor._id }, { $set: { seenAt: new Date(Date.now() - 46000) } });
+        assert.deepEqual(await guests(), [], "not heard from: gone");
+        assert.equal((await call(visitor, "POST", `/visit/${ownersPet._id}/here`)).status, 200);
+        assert.equal((await guests()).length, 1, "back");
+
+        assert.equal((await call(other, "POST", `/visit/${ownersPet._id}/here`)).status, 200);
+        assert.equal((await guests()).length, 2, "two visitors at once");
+        assert.equal((await call(visitor, "POST", `/visit/${ownersPet._id}/leave`)).status, 200);
+        assert.deepEqual((await guests()).map((pet) => pet.owner.username), [other.username], "went home");
+
+        // Your own pet's room isn't a visit; nor is a pet that isn't there.
+        await call(owner, "POST", `/visit/${ownersPet._id}/here`);
+        assert.equal(await CatflixPresence.countDocuments({ visitor: owner._id }), 0);
+        assert.equal((await call(visitor, "POST", `/visit/${new mongoose.Types.ObjectId()}/here`)).status, 404);
+        assert.deepEqual((await call(visitor, "GET", "/guests")).body.pets, [], "nobody's visiting theirs");
+    });
+
+    test("the Room Room: a pet with no happiness left (0) is only ever on the graveyard, yours too", async () => {
+        const pets = require("../utils/catflix/pets");
+        const viewer = await member();
+        await withPet(viewer, { happiness: 60 });
+        const glum = await member();
+        const glumPet = await withPet(glum, { happiness: 0 });
+        // Saved at 3, but hungry for the last 10 hours: at 0 by now.
+        const fading = await member();
+        const fadingPet = await withPet(fading, { happiness: 3, hunger: 0 });
+        await setPet(fadingPet, { clock: new Date(Date.now() - 10 * 3600000), fullUntil: null });
+        for (const friend of [glum, fading]) await Follow.create([{ follower: viewer._id, following: friend._id }, { follower: friend._id, following: viewer._id }]);
+        const ids = (visit) => visit.pets.map((pet) => String(pet._id));
+
+        const school = await pets.roomVisit(viewer._id, "school", { random: () => 0.1 });
+        assert.ok(!ids(school).includes(String(glumPet._id)) && !ids(school).includes(String(fadingPet._id)), "not at school");
+        const graveyard = await pets.roomVisit(viewer._id, "graveyard", { random: () => 0.1 });
+        assert.ok(ids(graveyard).includes(String(glumPet._id)) && ids(graveyard).includes(String(fadingPet._id)), "on the graveyard");
+
+        const own = await call(glum, "GET", "/room?map=cafeteria");
+        assert.ok(!ids(own.body).includes(String(glumPet._id)), "their own, only on the graveyard too");
+        assert.equal(own.body.away, true);
+        const ownGrave = await call(glum, "GET", "/room?map=graveyard");
+        assert.equal(ids(ownGrave.body)[0], String(glumPet._id));
+        assert.equal(ownGrave.body.away, false);
+        assert.equal(school.away, false, "a happy pet's out everywhere");
+    });
+
     test("the shop: packs (cards rolled on the server), auras at 500,000 (Rain Cloud 800,000, half in the Black Friday Sale), food up to 100, room styles; never charged twice", async () => {
         const rich = await member({ pp: 600000, ppp: 1500000 });
         await withPet(rich);
         assert.match((await call(rich, "POST", "/packs/open", { kind: "single" })).body.error, /no Single Packs/);
         await call(rich, "POST", "/shop/buy", { item: "pack", kind: "single" });
         await call(rich, "POST", "/shop/buy", { item: "pack", kind: "blackGold" });
-        assert.deepEqual(await walletOf(rich), { pp: 350000, ppp: 1500000 }, "50,000 and 200,000, PP first");
+        assert.deepEqual(await walletOf(rich), { pp: 100000, ppp: 1500000 }, "100,000 and 400,000, PP first");
         const single = await call(rich, "POST", "/packs/open", { kind: "single" });
         assert.equal(single.body.cards.length, 1);
         assert.equal(single.body.cards[0].isNew, true);
@@ -368,7 +432,7 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         await call(rich, "POST", "/shop/buy", { item: "aura", aura: "rain" });
         const twice = await call(rich, "POST", "/shop/buy", { item: "aura", aura: "rain" });
         assert.equal(twice.status, 409);
-        assert.equal((await walletOf(rich)).pp + (await walletOf(rich)).ppp, 1850000 - 800000, "charged once");
+        assert.equal((await walletOf(rich)).pp + (await walletOf(rich)).ppp, 1600000 - 800000, "charged once");
         assert.equal((await WalletTx.countDocuments({ user: rich._id, reason: "catflixShop" })), 3);
 
         const poor = await member({ pp: 1000 });

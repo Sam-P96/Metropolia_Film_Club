@@ -339,23 +339,35 @@ async function friendIdsOf(userId) {
 // A visit to the Room Room on `map`: their pet and up to CATFLIX.room.pets
 // - 1 others, never the same pet twice, each a friend's half the time
 // (CATFLIX.room.friendShare) while there are friends' pets left to pick,
-// anyone's otherwise. Picked again every visit. With the weather on every
-// map for the next 4 hours. Resolves to { map, weather, pets }.
+// anyone's otherwise. Picked again every visit. A pet with no happiness left
+// (0) is only ever on the graveyard (CATFLIX.mood.gloomMap): theirs too
+// (`away`: it's at home on this map). With the weather on every map for
+// the next 4 hours. Resolves to { map, weather, pets, away }.
 async function roomVisit(userId, map = CATFLIX.room.defaultMap, { random = Math.random, now = new Date() } = {}) {
     const room = CATFLIX.maps[map] ? map : CATFLIX.room.defaultMap;
-    const mine = await petOf(userId, now);
+    const gloomy = room === CATFLIX.mood.gloomMap;
+    // Here at all: anywhere with some happiness, only the graveyard without.
+    const here = (pet) => gloomy || pet.meters.happiness > 0;
+    const caught = (pet) => ({ ...pet, ...(caughtUp(pet, now) ?? {}) });
+    const owned = await petOf(userId, now);
+    const mine = owned && here(owned) ? owned : null;
     const others = CATFLIX.room.pets - 1;
     const friends = await friendIdsOf(userId);
-    const [friendPets, otherPets] = await Promise.all([
-        CatflixPet.aggregate([{ $match: { owner: { $in: friends } } }, { $sample: { size: others } }]),
-        CatflixPet.aggregate([{ $match: { owner: { $nin: [...friends, new mongoose.Types.ObjectId(String(userId))] } } }, { $sample: { size: others } }]),
+    // Happiness only falls with time, so a pet saved at 0 is at 0 now; one saved above it may have got there since
+    // (caught up below), so twice as many are sampled.
+    const away = gloomy ? {} : { "meters.happiness": { $gt: 0 } };
+    const [friendSample, otherSample] = await Promise.all([
+        CatflixPet.aggregate([{ $match: { owner: { $in: friends }, ...away } }, { $sample: { size: others * 2 } }]),
+        CatflixPet.aggregate([{ $match: { owner: { $nin: [...friends, new mongoose.Types.ObjectId(String(userId))] }, ...away } }, { $sample: { size: others * 2 } }]),
     ]);
+    const friendPets = friendSample.map(caught).filter(here);
+    const otherPets = otherSample.map(caught).filter(here);
     const chosen = [];
     while (chosen.length < others && (friendPets.length || otherPets.length)) {
         const fromFriends = friendPets.length > 0 && (otherPets.length === 0 || random() < CATFLIX.room.friendShare);
         chosen.push(fromFriends ? friendPets.splice(Math.floor(random() * friendPets.length), 1)[0] : otherPets.splice(Math.floor(random() * otherPets.length), 1)[0]);
     }
-    const pets = [...(mine ? [mine] : []), ...chosen.map((pet) => ({ ...pet, ...(caughtUp(pet, now) ?? {}) }))];
+    const pets = [...(mine ? [mine] : []), ...chosen];
     const owners = await User.find({ _id: { $in: pets.map((pet) => pet.owner) } }).select(MEMBER_FIELDS).lean();
     const ownerById = new Map(owners.map((owner) => [String(owner._id), userSummary(owner)]));
     const friendSet = new Set(friends.map(String));
@@ -364,6 +376,7 @@ async function roomVisit(userId, map = CATFLIX.room.defaultMap, { random = Math.
         map: room,
         weather: Object.fromEntries(Object.keys(CATFLIX.maps).map((key) => [key, weatherFor(key, slot)])),
         pets: pets.map((pet) => ({ ...petView(pet, userId, ownerById.get(String(pet.owner)) ?? null), friend: friendSet.has(String(pet.owner)) })),
+        away: Boolean(owned && !mine),
     };
 }
 

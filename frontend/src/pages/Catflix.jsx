@@ -12,14 +12,15 @@ const GAME = '/api/catflix/app/'
 // Room Room, on the School), or wherever the link says: #pet (your pet's
 // room), #race (Nekomusume: Kitty Race), #run (Ruin Run), #shop,
 // or #visit=<a pet's id> ("Visit Pet" on a profile: a Play Date in that
-// pet's room, or your own pet's room if it's yours). The game is a page of its own, shown here
+// pet's room, or your own pet's room if it's yours), or #trade=<a trade's id>
+// (a Trade Spell notification: that trade, in your Spell Deck). The game is a page of its own, shown here
 // in a frame filling the screen under the nav bar, so its pixel-art look and
 // the site's never mix. When it spends PP, it says so, and the wallet in the
 // nav bar catches up.
 export default function Catflix() {
   const frame = useGameFrame()
   const { hash } = useLocation()
-  const tab = ['#room', '#pet', '#race', '#run', '#shop'].includes(hash) || /^#visit=[0-9a-f]{24}$/.test(hash) ? hash : '#room'
+  const tab = ['#room', '#pet', '#race', '#run', '#shop'].includes(hash) || /^#(visit|trade)=[0-9a-f]{24}$/.test(hash) ? hash : '#room'
 
   useEffect(() => {
     const onMessage = (event) => {

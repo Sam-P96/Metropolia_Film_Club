@@ -5,6 +5,9 @@ const RARITIES=[ // Fortnite-style colours
 const rarityOf=k=>RARITIES.find(r=>r.k===k)||RARITIES[0];
 const rarityDot=(k,size=10)=>{const r=rarityOf(k);return `<i class="rdot" style="--rc:${r.c};width:${size}px;height:${size}px" title="${r.l}"></i>`;};
 const STATES=[{k:'idle',l:'Idle',i:'💤'},{k:'sad',l:'Sad',i:'💧'},{k:'angry',l:'Angry',i:'💢'},{k:'love',l:'Love',i:'💗'},{k:'walk',l:'Walk',i:'🐾'}];
+// Happiness under this and a cat idles in its sad animation (shared/catflix/rules.js mood). `m`: its stats or meters.
+const MOOD={sadBelow:20};
+const lowMood=m=>!!m&&typeof m.happiness==="number"&&m.happiness<MOOD.sadBelow;
 // Coats: one click recolours the fur (coatLook below). Every kind looks at the base form's own fur first, so a coat
 // works on any base form, not just an orange cat:
 //   kind 'hue'    the fur turned to a colour: an absolute `hue`, or a `turn` round the colour wheel from the fur's
@@ -381,6 +384,9 @@ async function liveStart(){
     if(open){if((ME().packs[open[1]]||0)>0)packStage(open[1]);else{toast('No packs like that left to open');embedSay('closed');}}
     // "Visit Pet" on a member's profile opens here with #visit=<their pet's id>: a Play Date in their room
     // (or your own pet's room, when it's yours).
+    // A Trade Spell notification opens here with #trade=<its id>: the pet room, with that trade open.
+    const trade=/^#trade=([0-9a-f]{24})$/.exec(location.hash);
+    if(trade){history.replaceState(null,'','#pet');route();tradeOpen(trade[1]);}
     const visit=/^#visit=([0-9a-f]{24})$/.exec(location.hash);
     if(visit){if(visit[1]===PR.id)location.hash='pet';
       else startPlayDate({id:visit[1]}).then(()=>{if(!PR.visit){history.replaceState(null,'','#room');roomLive();}});}   // couldn't (no pet yet): the Room Room
@@ -799,6 +805,7 @@ class RoomCat{
     this.until=0;this.bubble=null;this.lock=false;this.task=null;this.hop=0;this.cache={};this.aiAt=performance.now()+rnd(800,4000);}
   artFaces(){const d=baseDocs.get(this.form.id);return d&&d.facing==='right'?1:-1;}
   anim(state){ // falls back to idle when a pet has no animation for that state
+    if(state==='idle'&&this.low&&this.form.anims.sad)state='sad';   // an unhappy cat (`low`: happiness under 20) idles sad
     const st=this.form.anims[state]?state:(this.form.anims.idle?'idle':this.form.firstState());
     if(!this.cache[st]){const a=this.form.anims[st],f=this.form;
       this.cache[st]={st,frames:bake(f,a,this.map),delays:a.delays,
@@ -886,7 +893,7 @@ async function roomSync(){
     let c=R.cats.find(k=>k.id===r.id);
     if(c){c.name=r.name;c.rarity=r.rarity;if(c.form!==f||JSON.stringify(c.map)!==JSON.stringify(map)){c.form=f;c.map=map;c.cache={};}}
     else c=new RoomCat({id:r.id,name:r.name,form:f,map,guest:r.guest,rarity:r.rarity});
-    c.liveAura=r.live?r.live.aura:null;c.owner=r.live?r.live.owner:null;c.friend=!!(r.live&&r.live.friend);
+    c.liveAura=r.live?r.live.aura:null;c.owner=r.live?r.live.owner:null;c.friend=!!(r.live&&r.live.friend);c.low=lowMood(r.live&&r.live.meters);
     next.push(c);});
   R.cats.forEach(c=>{if(!next.includes(c))next.forEach(o=>{if(o.task&&o.task.target===c)o.task=null;});});
   R.cats=next;R.cats.forEach(c=>c.cache={}); // re-read animation settings (hover, shakes, RLF) after any change
@@ -899,7 +906,7 @@ function renderRoomBar(){
   if(LIVE&&!LV.room){$('roomNote').textContent='Looking for pets…';const pb=$('roomPlacesBtn');if(pb)pb.textContent=`${ROOMS[RM.room].icon} ${ROOMS[RM.room].name}`;return;}   // until the server says who's here
   if(LIVE){const pb=$('roomPlacesBtn');if(pb)pb.textContent=`${ROOMS[RM.room].icon} ${ROOMS[RM.room].name}`;}
   if(LIVE){const n=R.cats.length,f=R.cats.filter(c=>c.friend).length;
-    $('roomNote').textContent=`${n} pet${n===1?'':'s'} here${f?`, ${f} of them your friends’`:''}. They change every time you come in. ${ROOMS[RM.room].indoor?'Indoors: no weather here.':'The weather changes every 4 hours.'}${R.mine?'':' Hatch your egg in the Pet tab to join in.'}`;return;}
+    $('roomNote').textContent=`${n} pet${n===1?'':'s'} here${f?`, ${f} of them your friends’`:''}. They change every time you come in. ${ROOMS[RM.room].indoor?'Indoors: no weather here.':'The weather changes every 4 hours.'}${R.mine?'':LV.room.away?' Your cat has no happiness left, so it only goes out to the Graveyard: cheer it up in the Pet tab.':' Hatch your egg in the Pet tab to join in.'}`;return;}
   const sel=$('mineSel');
   sel.innerHTML=R.cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.guest?' (guest)':''}</option>`).join('');
   if(R.mine)sel.value=R.mine.id;
@@ -1405,6 +1412,7 @@ $('roomMenu').addEventListener('click',async e=>{const b=e.target.closest('butto
   if(kind==='date'){startPlayDate(target);return;}
   // In the game the server decides first (once an hour each); the pets only act it out if it agrees.
   if(LIVE){const r=await liveCall('/room/act',{targetId:target.id,action:kind});if(!r)return;livePet(r.mine);livePet(r.theirs);
+    me.low=lowMood(r.mine&&r.mine.meters);target.low=lowMood(r.theirs&&r.theirs.meters);
     toast(kind==='play'?`${me.name} and ${target.name} played: both happier`:kind==='pet'?`${target.name} loved that: happier, and a little braver`
       :r.outcome==='won'?`${me.name} stood tall: more confident (both a little sadder)`:`${target.name} wasn’t having it: both lose confidence and happiness`);}
   if(me.task)me.task.target.lock=false;
@@ -2250,7 +2258,7 @@ const endTouch=e=>{if(e.pointerId!==G_.id)return;
 RNc.canvas.addEventListener('pointerup',endTouch);RNc.canvas.addEventListener('pointercancel',endTouch);
 
 /* ---------- Ruin Run, in the game: bets, cash-outs, and the server's replay (backend/utils/catflix/ruinRun.js) ----------
-   Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50 or 100 PP, any amount up to 10,000, or free play
+   Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50 or 100 PP, any amount up to 5,000, or free play
    once the day's 3 cash-outs are used) and starts the run; after it comes the server's result, to cash out or throw away.
    Every 1% of speed above 100% when the run ends pays back 2% of the bet, with no cap. The server plays every run again
    from its seed and what the player did, and pays what it got. The screen holds still while you play (html.fit).
@@ -2289,7 +2297,7 @@ function runHomeRender(){
     <section class="board" aria-labelledby="runBoardTitle"><h3 id="runBoardTitle">Best runs</h3>${board}
       <p class="note">Each member’s fastest run: the speed it ended at, and how far it got. Free runs count too.</p></section></div>`;}
 // How to Play, in a pop-up window over the start screen.
-function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,backPerPercent:2,maxBet:10000,confidence:1,bigWinTimes:5};
+function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,backPerPercent:2,maxBet:5000,confidence:1,bigWinTimes:5};
   const box=$('runHowPop').firstChild;
   box.innerHTML=`<div class="head"><h3>How to Play</h3><button class="btn" type="button" id="runHowClose" aria-label="Close">✕</button></div>
     <div class="howto"><p><b>Your pet runs</b> on its own through a ruined city, getting faster all the time. Keep it going for as long as you can.</p>
@@ -2323,7 +2331,7 @@ function runLiveRender(){
       <div class="row"><button class="pri" data-do="cash" ${st.cashOutsLeft<=0||RL.busy?'disabled':''}>Cash out +${fmt(r.worth)} PP</button><button class="sec" data-do="toss" ${RL.busy?'disabled':''}>Throw away</button></div>
       <p class="note">Cash-outs left today: ${st.cashOutsLeft}/${R.cashOutsPerDay}. Throwing a run away keeps your cash-out for a better one.</p>`;
     el.innerHTML=html+msg;}
-  else{const free=runFree(),pts=LV.points,noPet=!PR.id,off=noPet||RL.busy;
+  else{const free=runFree(),pts=LV.points,noPet=!PR.id,off=noPet||RL.busy;if(RL.bet>R.maxBet)RL.bet=R.maxBet;   // a saved custom bet over today's most
     const tiles=R.bets.map(b=>`<button data-bet="${b}" ${off||free||pts<b?'disabled':''}><b>${fmt(b)} PP</b><small>200% pays ${fmt(ruinWorth(b,200))}</small></button>`).join('')
       +`<button data-bet="custom" aria-pressed="${RL.custom}" ${off||free?'disabled':''}><b>Custom</b><small>up to ${fmt(R.maxBet)}</small></button>`
       +`<button data-bet="0" class="free" ${off||!free?'disabled':''}><b>Free</b><small>${free?'nothing paid':`after ${R.cashOutsPerDay} cash-outs`}</small></button>`;
@@ -2725,7 +2733,7 @@ async function renderDeckModal(){
   if(!DK.sel||!regDocs.has(DK.sel))DK.sel=cards[0]?cards[0][0]:null;
   $('deckTitle').textContent=F.on?'Spell Forge':'Spell Deck';
   $('deckCount').textContent=F.on?'':`${cards.length} card${cards.length===1?'':'s'}`;
-  $('forgeBtn').textContent=F.on?'← Back to deck':'⚒ Spell Forge';$('forgeBtn').hidden=!!me.pending;$('forgeBtn').disabled=F.busy;
+  $('forgeBtn').textContent=F.on?'← Back to deck':'⚒ Spell Forge';$('forgeBtn').hidden=!!me.pending;$('forgeBtn').disabled=F.busy;$('tradeBtn').hidden=!LIVE||F.on||!!me.pending;
   $('deckClose').disabled=!!me.pending;
   $('forgePanel').hidden=!F.on;$('deckEmpty').hidden=!!cards.length||F.on;
   const grid=$('deckGrid');grid.innerHTML='';
@@ -2826,6 +2834,110 @@ async function forgeTake(){
   stage.append(el,again);$('deckModal').classList.add('quake');setTimeout(()=>$('deckModal').classList.remove('quake'),500);
 }
 $('forgeBtn').onclick=()=>{const F=DK.forge;if(F.busy||ME().pending)return;F.on=!F.on;F.sel=[];F.result=null;renderDeckModal();};
+
+/* ---------- Trade Spell (the game only): trade a card, and PP if you like, with a friend (backend/utils/catflix/trades.js) ----------
+   You offer a friend one of your cards (and PP); they have 3 days to answer with what they'll give for it (a card, a card
+   and PP, or just PP); then you have 3 days to take it. Whatever each side puts in is held in the trade until it's done
+   (or back, if it isn't). Views: your open trades ('list'), a new offer ('new'), answering an offer ('answer'), and
+   taking an answer or not ('review'). The site's Notifications link straight to a trade (#trade=<id>). */
+const TR={data:null,view:'list',id:null,busy:false,card:null,points:0,to:null,q:''};
+const trTrade=()=>TR.data&&TR.data.trades.find(t=>t.id===TR.id);
+// How many of a card you can put in a trade: all but the one your pet's wearing.
+function trSpare(id){const me=ME(),p=PR.id&&petDocs.get(PR.id);return (me.cards[id]||0)-(p&&p.skinId===id?1:0);}
+function trLeft(until){const ms=new Date(until).getTime()-Date.now();if(ms<=0)return 'ending now';const h=Math.floor(ms/3600000);
+  return h>=48?`${Math.floor(h/24)} days left`:h>=1?`${h} hour${h===1?'':'s'} left`:'under an hour left';}
+const trPts=n=>`${fmt(n)} PP`;
+// One side of a trade: its card (a tile, filled in by trCards) with its name and rarity, and its PP.
+function trSideHtml(s,empty='Nothing yet'){
+  if(!s)return `<div class="trside empty">${esc(empty)}</div>`;
+  return `<div class="trside">${s.card?`<span class="trcard" data-card="${esc(s.card)}"></span><b>${esc(s.cardName||'')}</b><span class="rlabel" style="--rc:${rarityOf(s.rarity).c}">${rarityOf(s.rarity).l}</span>`:''}${s.points>0?`<span class="trpp">+ ${trPts(s.points)}</span>`:''}</div>`;}
+function trCards(box){box.querySelectorAll('.trcard[data-card]').forEach(el=>{const id=el.dataset.card;if(regDocs.has(id))el.replaceWith(cardTile(id,{k:1}));});}
+// Your cards to choose from (`sel` picked; `onPick(id)`, or null to leave it out), each with how many you can put in.
+function trCardGrid(box,sel,onPick){const grid=document.createElement('div');grid.className='deckgrid trgrid';
+  const cards=deckCards().filter(([id])=>(ME().cards[id]||0)>0).sort((a,b)=>RSTARS[rarityOf(b[1].rarity).k]-RSTARS[rarityOf(a[1].rarity).k]);
+  for(const [id] of cards){const n=trSpare(id);
+    grid.appendChild(cardTile(id,{k:1,pressed:sel===id,dim:n<=0,badge:`<span class="cnt">×${Math.max(0,n)}</span>${n<=0?'<span class="eq">Worn</span>':''}`,onclick:()=>onPick(sel===id?null:id)}));}
+  if(!grid.children.length)grid.innerHTML='<p class="note" style="margin:0">No cards in your deck yet: open booster packs in the Shop.</p>';
+  box.appendChild(grid);}
+async function trLoad(){try{const d=await cfx('/trades');TR.data=d;liveApply({player:d.player,points:d.points});}catch(e){toast(e.message);}}
+async function tradeOpen(id=null){
+  if(!LIVE)return;$('tradeModal').hidden=false;TR.view='list';TR.id=null;$('tradeBody').innerHTML='<p class="note">Loading…</p>';
+  await trLoad();
+  if(id){const t=TR.data&&TR.data.trades.find(x=>x.id===id);
+    if(t&&t.yourTurn){TR.id=id;TR.view=t.status==='offered'?'answer':'review';TR.card=null;TR.points=0;}
+    else if(!t)toast('That trade’s over');}
+  trRender();$('tradeClose').focus();}
+function tradeClose(){$('tradeModal').hidden=true;}
+// A move: the server answers with your trades, friends, cards and points.
+async function trMove(path,body,said){if(TR.busy)return;TR.busy=true;trRender();
+  try{const d=await cfx(path,{method:'POST',body});TR.data=d;liveApply({player:d.player,points:d.points});liveWallet();TR.view='list';TR.id=null;toast(said);}
+  catch(e){toast(e.message);}finally{TR.busy=false;trRender();}}
+function trRender(){
+  const box=$('tradeBody');if(!box||$('tradeModal').hidden)return;const D=TR.data;
+  if(!D){box.innerHTML='<p class="note">Couldn’t load your trades.</p>';return;}
+  const t=trTrade();if((TR.view==='answer'||TR.view==='review')&&!t)TR.view='list';
+  $('tradeTitle').textContent={list:'Trade Spell',new:'New offer',answer:'Answer an offer',review:'Their answer'}[TR.view];
+  const back='<button class="btn" data-do="list">← Your trades</button>';
+  if(TR.view==='list'){
+    const rows=D.trades.map(x=>{const other=x.mine?x.to:x.from,yours=x.mine?x.offer:x.counter,theirs=x.mine?x.counter:x.offer;
+      const what=x.status==='offered'?(x.mine?`Waiting for <b>${esc(other.username)}</b> to answer`:`<b>${esc(other.username)}</b> offers you this`)
+        :(x.mine?`<b>${esc(other.username)}</b> answered: take it?`:`Waiting for <b>${esc(other.username)}</b> to take your answer`);
+      const act=x.yourTurn?`<button class="btn acc" data-do="open" data-id="${x.id}">${x.status==='offered'?'Answer':'Look'}</button>`
+        :x.mine&&x.status==='offered'?`<button class="btn danger" data-do="cancel" data-id="${x.id}" ${TR.busy?'disabled':''}>Take back</button>`:'';
+      return `<div class="trrow${x.yourTurn?' turn':''}"><div class="trwho"><span>${what}</span><span class="note">${trLeft(x.expiresAt)}</span></div>
+        <div class="trsides">${trSideHtml(theirs,x.mine?'Their answer':'')}<span class="trx" aria-hidden="true">⇄</span>${trSideHtml(yours,'Your answer')}</div>
+        <div class="trlabels"><span>${esc(other.username)} gives</span><span></span><span>You give</span></div><div class="tract">${act}</div></div>`;}).join('');
+    box.innerHTML=`<div class="trtop"><p class="note" style="margin:0">Trade a card, and PP if you like, with a friend (someone you follow who follows you back). They have 3 days to answer, then you have 3 days to take it. What you put in is held until it’s done, or comes back if it isn’t.</p>
+      <button class="btn acc" data-do="new" ${D.friends.length?'':'disabled'}>＋ New offer</button></div>
+      ${D.friends.length?'':'<p class="note">You need a friend to trade with: follow someone who follows you back.</p>'}
+      ${rows||'<p class="note">No trades open.</p>'}`;
+    trCards(box);}
+  else if(TR.view==='new'){
+    const q=TR.q.trim().toLowerCase(),friends=D.friends.filter(f=>!q||f.username.toLowerCase().includes(q)),to=D.friends.find(f=>String(f._id)===String(TR.to));
+    box.innerHTML=`<div class="trstep"><h4>1. Your card</h4><div id="trPick"></div></div>
+      <div class="trstep"><h4>2. PP too? <span class="note">(optional)</span></h4><input type="number" id="trPts" min="0" step="1" value="${TR.points||''}" placeholder="0" aria-label="PP to add"> <span class="note">You have ${fmt(LV.points)}.</span></div>
+      <div class="trstep"><h4>3. Friend</h4><input type="search" id="trQ" placeholder="Search your friends" value="${esc(TR.q)}" aria-label="Search your friends">
+        <div class="trfriends">${friends.map(f=>`<button type="button" class="trfriend" data-to="${f._id}" aria-pressed="${String(f._id)===String(TR.to)}">${esc(f.username)}</button>`).join('')||'<span class="note">No friends match.</span>'}</div></div>
+      <div class="trgo">${back}<button class="btn acc" data-do="send" ${TR.card&&to&&!TR.busy?'':'disabled'}>Send offer${to?` to ${esc(to.username)}`:''}</button></div>`;
+    trCardGrid($('trPick'),TR.card,id=>{TR.card=id;trRender();});
+    const pts=$('trPts');pts.oninput=()=>{TR.points=Math.max(0,Math.floor(+pts.value)||0);};
+    const qi=$('trQ');qi.oninput=()=>{TR.q=qi.value;const at=qi.selectionStart;trRender();const n=$('trQ');n.focus();n.setSelectionRange(at,at);};}
+  else if(TR.view==='answer'){
+    box.innerHTML=`<p><b>${esc(t.from.username)}</b> offers you:</p><div class="trsides one">${trSideHtml(t.offer)}</div><p class="note">${trLeft(t.expiresAt)} to answer.</p>
+      <div class="trstep"><h4>What you’ll give for it</h4><p class="note" style="margin:0 0 8px">A card, a card and PP, or just PP. Pick a card (tap it again to leave it out) and/or add PP.</p><div id="trPick"></div>
+        <div style="margin-top:8px"><input type="number" id="trPts" min="0" step="1" value="${TR.points||''}" placeholder="0" aria-label="PP to give"> PP <span class="note">You have ${fmt(LV.points)}.</span></div></div>
+      <div class="trgo">${back}<button class="btn danger" data-do="decline" ${TR.busy?'disabled':''}>Turn it down</button><button class="btn acc" data-do="counter" ${TR.busy?'disabled':''}>Send answer</button></div>`;
+    trCards(box);trCardGrid($('trPick'),TR.card,id=>{TR.card=id;trRender();});
+    const pts=$('trPts');pts.oninput=()=>{TR.points=Math.max(0,Math.floor(+pts.value)||0);};}
+  else if(TR.view==='review'){
+    box.innerHTML=`<p><b>${esc(t.to.username)}</b> answered your offer. Take the trade?</p>
+      <div class="trsides">${trSideHtml(t.counter)}<span class="trx" aria-hidden="true">⇄</span>${trSideHtml(t.offer)}</div>
+      <div class="trlabels"><span>You get</span><span></span><span>You give</span></div><p class="note">${trLeft(t.expiresAt)} to decide. Turn it down and you both get back what you put in.</p>
+      <div class="trgo">${back}<button class="btn danger" data-do="decline" ${TR.busy?'disabled':''}>Turn it down</button><button class="btn acc" data-do="accept" ${TR.busy?'disabled':''}>Take the trade</button></div>`;
+    trCards(box);}
+}
+$('tradeBody').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
+  const f=b.dataset.to;if(f){TR.to=f;trRender();return;}
+  const d=b.dataset.do;if(!d)return;
+  if(d==='list'){TR.view='list';TR.id=null;trRender();}
+  else if(d==='new'){TR.view='new';TR.card=null;TR.points=0;TR.to=null;TR.q='';trRender();}
+  else if(d==='open'){const t=TR.data.trades.find(x=>x.id===b.dataset.id);if(!t)return;TR.id=t.id;TR.view=t.status==='offered'?'answer':'review';TR.card=null;TR.points=0;trRender();}
+  else if(d==='cancel'){if(await askConfirm({title:'Take your offer back?',text:'Your card and PP come back to you.',yes:'Take it back'}))trMove(`/trades/${b.dataset.id}/decline`,{},'Offer taken back: your card and PP are back');}
+  else if(d==='send'){const to=TR.data.friends.find(x=>String(x._id)===String(TR.to)),r=regDocs.get(TR.card);if(!to||!r)return;
+    if(await askConfirm({title:`Offer ${to.username} a trade?`,text:`Your ${r.name}${TR.points?` and ${trPts(TR.points)}`:''}, held until they answer (3 days) and you decide (3 more).`,yes:'Send offer'}))
+      trMove('/trades',{to:TR.to,card:TR.card,points:TR.points},`Offer sent to ${to.username}`);}
+  else if(d==='counter'){const t=trTrade();if(!t)return;if(!TR.card&&!TR.points){toast('Pick a card, add PP, or both');return;}const r=TR.card&&regDocs.get(TR.card);
+    if(await askConfirm({title:`Send ${t.from.username} your answer?`,text:`${r?`Your ${r.name}`:''}${r&&TR.points?' and ':''}${TR.points?trPts(TR.points):''} for their offer, held until they decide (3 days).`,yes:'Send answer'}))
+      trMove(`/trades/${t.id}/counter`,{card:TR.card,points:TR.points},`Answer sent to ${t.from.username}`);}
+  else if(d==='accept'){const t=trTrade();if(t&&await askConfirm({title:'Take the trade?',text:`You get ${t.to.username}’s side, and they get yours. This can’t be undone.`,yes:'Take the trade'}))
+    trMove(`/trades/${t.id}/accept`,{},'Trade done: it’s in your Spell Deck');}
+  else if(d==='decline'){const t=trTrade();if(t&&await askConfirm({title:'Turn the trade down?',text:'Everything put in goes back to whoever put it in.',yes:'Turn it down'}))
+    trMove(`/trades/${t.id}/decline`,{},'Trade turned down');}
+});
+$('tradeBtn').onclick=()=>tradeOpen();
+$('tradeClose').onclick=tradeClose;
+$('tradeModal').addEventListener('click',e=>{if(e.target===$('tradeModal'))tradeClose();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('tradeModal').hidden&&$('askModal').hidden)tradeClose();});
 $('fGo').onclick=forgeGo;
 
 $('deckBtn').onclick=deckOpen;$('deckClose').onclick=deckClose;
@@ -2869,7 +2981,7 @@ function castDrawHi(G,k,now){ // the card itself + the flash (full resolution)
 
 /* ================= Gacha shop: buy booster packs, open them, flip cards to reveal ================= */
 const GACHA={startPP:500000,testPP:100000,
-  packs:{single:{l:'Single Pack',n:1,price:50000},triple:{l:'Triple Pack',n:3,price:100000},blackGold:{l:'Black & Gold Pack',n:7,price:200000}},
+  packs:{single:{l:'Single Pack',n:1,price:100000},triple:{l:'Triple Pack',n:3,price:200000},blackGold:{l:'Black & Gold Pack',n:7,price:400000}},
   odds:[['common',40],['uncommon',30],['rare',19],['epic',10],['legendary',1]]};   // % per card
 const playerDocs=new Map();
 const ME=()=>{const d=playerDocs.get('me')||{};return {pp:Number.isFinite(d.pp)?d.pp:GACHA.startPP,cards:{...(d.cards||{})},packs:{single:0,triple:0,blackGold:0,...(d.packs||{})},pending:d.pending||null,auras:{...(d.auras||{})},profile:{...(d.profile||{})},egg:d.egg||null,food:Number.isFinite(d.food)?d.food:0,balls:{...(d.balls||{})}};};
@@ -3365,7 +3477,7 @@ async function startPlayDate(c){
   if(!host&&!neighborDocs.has(c.id))await writeDoc('neighbors',c.id,{name:c.name,loveBy:{},createdAt:Date.now()}).catch(()=>{});
   }
   PR.items=[];PR.target=null;PR.eat=null;PR.pending=null;PR.react=null;PR.pos={x:104,y:PET.floorY};PR.face=-1;PR.actor=null;PR.actorKey=null;PR.afx=null;
-  PR.buddy={actor:null,key:null,pos:{x:46,y:PET.floorY+4},face:1,target:null,wanderAt:0,fx:null};
+  PR.buddy={actor:null,key:null,pos:{x:46,y:PET.floorY+4},face:1,target:null,wanderAt:0,fx:null};PR.guests.clear();
   location.hash='pet';await visitLoad();visitUi();liveSyncPoop();toast(`Play date at ${PR.visit.name}’s room!`);
 }
 async function visitLoad(){ // host = main pet in the room, your pet = buddy
@@ -3377,7 +3489,7 @@ async function visitLoad(){ // host = main pet in the room, your pet = buddy
   const mine=petDocs.get(PR.id),r=mine&&regDocs.get(mine.skinId),key=mine&&mine.skinId+'|'+JSON.stringify(r&&r.changes||{});
   if(r&&PR.buddy&&PR.buddy.key!==key){const f=await getForm(r.baseFormId);if(f){PR.buddy.actor=new Racer({id:PR.id,name:mine.name,form:f,map:mapFromChanges(f,r.changes),guest:false});PR.buddy.actor.setState('idle');PR.buddy.key=key;}}
 }
-function endPlayDate(){if(!PR.visit)return;if(LIVE)petDocs.delete(PR.visit.hostId);PR.visit=null;PR.buddy=null;PR.items=[];PR.target=null;PR.eat=null;PR.actor=null;PR.actorKey=null;PR.afx=null;PR.pos={x:80,y:PET.floorY};visitUi();petLoadActor();}
+function endPlayDate(){if(!PR.visit)return;if(LIVE){if(PR.visit.hostType==='pet')cfx('/visit/'+encodeURIComponent(PR.visit.hostId)+'/leave',{method:'POST'}).catch(()=>{});petDocs.delete(PR.visit.hostId);}PR.visit=null;PR.buddy=null;PR.items=[];PR.target=null;PR.eat=null;PR.actor=null;PR.actorKey=null;PR.afx=null;PR.pos={x:80,y:PET.floorY};visitUi();petLoadActor();presenceTick();}
 // (The toy picker too: a Play Date starting or ending clears the room's toys.)
 function visitUi(){renderToyPicker();renderStats();const v=PR.visit;$('visitBar').hidden=!v;$('petBarMain').classList.toggle('visiting',!!v);if(!v)return;
   const love=loveForMe(v);$('visitWho').textContent=`Play date at ${v.name}’s room`;$('visitLove').style.width=love+'%';$('visitLoveN').textContent=love;
@@ -3390,24 +3502,47 @@ async function visitFed(now){ // the host just finished food you put down
   try{await writeDoc(col,v.hostId,{...d,loveBy:{...(d.loveBy||{}),me:love}});}catch(_){}
   petBubble('love',1400);visitUi();toast(`${v.name} loves you a little more (♥ ${love})`);
 }
-function buddyStep(dt,now){const B=PR.buddy;if(!B||!B.actor)return;const a=B.actor;a.step(dt);
-  const chasing=ballChase(B,now,a.form.crop.w,'buddy');   // your pet plays with the ball too
+// A companion cat in the room: `B` is PR.buddy (yours on a Play Date) or one of PR.guests (a visitor's in your room,
+// which doesn't play with your toys: they're yours).
+function buddyStep(dt,now,B=PR.buddy){if(!B||!B.actor)return;const a=B.actor;a.step(dt);
+  const chasing=!B.guest&&ballChase(B,now,a.form.crop.w,'buddy');   // your pet plays with the ball too
   if(B.target){const t=B.target,dx=t.x-B.pos.x,dy=t.y-B.pos.y,d=Math.hypot(dx,dy),step=.02*dt;if(Math.abs(dx)>.5)B.face=dx>0?1:-1;
     if(d<=step){B.pos.x=t.x;B.pos.y=t.y;B.target=null;a.setState('idle');}else{B.pos.x+=dx/d*step;B.pos.y+=dy/d*step;if(a.state!=='walk')a.setState('walk');}}
   else if(!chasing&&now>=B.wanderAt){B.wanderAt=now+rnd(4000,9000);if(Math.random()<.6){   // hang out near the host
     const hx=PR.pos.x+(Math.random()<.5?-1:1)*rnd(22,40);B.target={x:Math.max(FLOOR.x0+6,Math.min(FLOOR.x1-6,hx)),y:Math.max(FLOOR.y0,Math.min(FLOOR.y1,PR.pos.y+rnd(-8,8)))};}
     else{B.face=PR.pos.x>B.pos.x?1:-1;}}}
-function buddyDraw(g,now){const B=PR.buddy,a=B&&B.actor;if(!a)return;const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;
+function buddyDraw(g,now,B=PR.buddy){const a=B&&B.actor;if(!a)return;const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;
   const cx=Math.round(B.pos.x),fy=Math.round(B.pos.y);let dx=cx-Math.round(cr.w/2)+nudgeOf(a.form),dy=fy-(cr.h-1)+sinkOf(a.form);
   if(A.hover)dy-=Math.round(HOVER_AMP*(.6+(Math.sin(a.clock/HOVER_MS*Math.PI*2)+1)/2));
   g.fillStyle='rgba(60,30,20,.3)';g.fillRect(cx-Math.round(cr.w*.3),fy,Math.round(cr.w*.6),2);
-  const flip=B.face!==a.artFaces(),ak=AURA_ON?petAura(petDocs.get(PR.id)):'';
+  const flip=B.face!==a.artFaces(),ak=AURA_ON?petAura(B.guest?B.doc:petDocs.get(PR.id)):'';
   if(ak){if(!B.fx||B.fx.kind!==ak)B.fx=newAuraFx(ak);const dtA=Math.min(50,now-(B.fxT||now));B.fxT=now;g.drawImage(auraRender(B.fx,f,cr,flip,now,dtA,topPad(a)),dx-B.fx.M-(flip?2*nudgeOf(a.form):0),dy-B.fx.M);}
   else{g.save();if(flip){g.translate(cx*2,0);g.scale(-1,1);}g.drawImage(f,cr.x,cr.y,cr.w,cr.h,dx,dy,cr.w,cr.h);g.restore();}
   B.tag={cx,ty:Math.min(PET.H-9,fy+4),name:a.name};}
-function buddyTag(G,k){const B=PR.buddy;if(!B||!B.tag)return;const {cx,ty,name}=B.tag;G.font=`700 ${6*k}px 'Pixelify Sans', monospace`;
-  const t='★ '+name,w=G.measureText(t).width+6*k;G.fillStyle='rgba(255,179,92,.85)';G.fillRect(cx*k-w/2,ty*k,w,8*k);G.fillStyle='#2a1700';G.fillText(t,cx*k,(ty+4)*k);}
+function buddyTag(G,k,B=PR.buddy){if(!B||!B.tag)return;const {cx,ty,name}=B.tag;G.font=`700 ${6*k}px 'Pixelify Sans', monospace`;
+  const t=(B.guest?'🏡 ':'★ ')+name,w=G.measureText(t).width+6*k;G.fillStyle=B.guest?'rgba(140,200,255,.85)':'rgba(255,179,92,.85)';G.fillRect(cx*k-w/2,ty*k,w,8*k);G.fillStyle='#2a1700';G.fillText(t,cx*k,(ty+4)*k);}
 $('visitHome').onclick=endPlayDate;
+
+/* ---------- Visitors: on a Play Date your cat is in their room for its owner to see too ----------
+   In the game, every 10 seconds while the pet room's showing: on a Play Date, the server hears you're still in that
+   room (backend/utils/catflix/visits.js); at home, it says whose cats are visiting yours, and they wander about your
+   room (PR.guests, drawn like your cat on a Play Date), each with its name. */
+PR.guests=new Map();
+async function presenceTick(){
+  if(!LIVE||$('pet').hidden)return;
+  if(PR.visit){if(PR.visit.hostType==='pet')cfx('/visit/'+encodeURIComponent(PR.visit.hostId)+'/here',{method:'POST'}).catch(()=>{});return;}
+  let d;try{d=await cfx('/guests');}catch(_){return;}
+  if(PR.visit)return;   // a Play Date started meanwhile
+  const seen=new Set();
+  for(const view of d.pets||[]){const id=String(view._id);seen.add(id);const doc=toPetDoc(view),r=regDocs.get(view.skinId);if(!r)continue;
+    let G=PR.guests.get(id);
+    if(!G){G={guest:true,actor:null,key:null,doc,pos:{x:rnd(FLOOR.x0+12,FLOOR.x1-12),y:rnd(FLOOR.y0,FLOOR.y1)},face:Math.random()<.5?-1:1,target:null,wanderAt:0,fx:null};
+      PR.guests.set(id,G);toast(`${view.name}${view.owner&&view.owner.username?` (${view.owner.username}’s cat)`:''} is visiting!`);}
+    G.doc=doc;const key=view.skinId+'|'+JSON.stringify(r.changes||{});
+    if(G.key!==key){const f=await getForm(r.baseFormId);if(f&&f.firstState()){G.actor=new Racer({id,name:view.name,form:f,map:mapFromChanges(f,r.changes),guest:true});G.actor.setState('idle');G.key=key;}}}
+  for(const id of [...PR.guests.keys()])if(!seen.has(id))PR.guests.delete(id);   // gone home
+}
+setInterval(presenceTick,10000);
 
 /* ---------- data ---------- */
 const petDocs=new Map();
@@ -3634,7 +3769,12 @@ function petPoop(now){ // a little pile appears just behind the pet
   PR.items.push({type:'poop',x:Math.round(x),y:Math.round(PR.pos.y-1),t:now,id:Math.random()});petBubble('poop',1100);
 }
 function petStep(dt,now){
-  eggStep(dt,now);if(eggActive())return;if(PR.visit)buddyStep(dt,now);
+  eggStep(dt,now);if(eggActive())return;
+  // An unhappy cat idles sad: the one whose room it is, and yours tagging along on a Play Date.
+  if(PR.actor)PR.actor.low=lowMood((petDocs.get(PR.visit?PR.visit.hostId:PR.id)||{}).stats);
+  if(PR.buddy&&PR.buddy.actor)PR.buddy.actor.low=lowMood((petDocs.get(PR.id)||{}).stats);
+  if(PR.visit)buddyStep(dt,now);
+  else for(const G of PR.guests.values()){if(G.actor)G.actor.low=lowMood(G.doc.stats);buddyStep(dt,now,G);}   // visitors' cats in your room
   const a=PR.actor;if(!a)return;a.step(dt);
   // falling kibble
   for(const it of PR.items)if(it.fallTo!==undefined&&it.y<it.fallTo){it.vy+=dt*.0006;it.y=Math.min(it.fallTo,it.y+it.vy*dt);if(it.y>=it.fallTo){delete it.fallTo;petSparkle(it.x,it.y,['#c9874a','#f2c27a']);}}
@@ -3691,9 +3831,11 @@ function petDraw(now){
   castDrawLow(g,now);
   // draw items and the pet back-to-front so depth looks right
   const things=(eggActive()?[]:PR.items).map(it=>({y:it.fallTo!==undefined?it.fallTo:it.y,it}));if(a)things.push({y:PR.pos.y+.5,pet:true});
-  if(PR.visit&&PR.buddy)things.push({y:PR.buddy.pos.y+.4,buddy:true});things.sort((p,q)=>p.y-q.y);
+  if(PR.visit&&PR.buddy)things.push({y:PR.buddy.pos.y+.4,buddy:true});
+  if(!PR.visit)for(const G of PR.guests.values())if(G.actor)things.push({y:G.pos.y+.4,guest:G});things.sort((p,q)=>p.y-q.y);
   for(const t of things){
     if(t.buddy){buddyDraw(g,now);continue;}
+    if(t.guest){buddyDraw(g,now,t.guest);continue;}
     if(t.it){if(t.it.fallTo!==undefined){g.fillStyle='rgba(60,30,20,.25)';g.fillRect(Math.round(t.it.x)-3,t.it.fallTo,6,1);}drawItem(g,t.it,now);continue;}
     const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;const cx=Math.round(PR.pos.x),fy=Math.round(PR.pos.y);
     let dx=cx-Math.round(cr.w/2)+nudgeOf(a.form),dy=fy-(cr.h-1)+sinkOf(a.form);
@@ -3730,7 +3872,7 @@ function petDraw(now){
     const nx=PR.box.cx+(PR.face!==a.artFaces()?a._vOff:-a._vOff);   // centred on the art, not the crop box
     G.fillStyle='rgba(40,20,15,.7)';G.fillRect(nx*k-w/2,ty*k,w,8*k);G.fillStyle='#fff3e0';G.fillText(t,nx*k,(ty+4)*k);}
 
-  castDrawHi(G,k,now);eggHud(G,k,now);if(PR.visit)buddyTag(G,k);
+  castDrawHi(G,k,now);eggHud(G,k,now);if(PR.visit)buddyTag(G,k);else for(const V of PR.guests.values())buddyTag(G,k,V);
   if(PR.cursor&&a){G.font=`${10*k}px serif`;G.fillText(TOOLS[PR.tool].i,PR.cursor.x*k+4*k,PR.cursor.y*k-4*k);}
 }
 function petLoop(t){if(!PR.running)return;const dt=Math.min(100,t-(PR.last||t));PR.last=t;petStep(dt,t);petDraw(t);requestAnimationFrame(petLoop);}
@@ -3749,7 +3891,7 @@ function route(){const tabs=LIVE?['room','pet','race','run','shop']:['studio','f
   $('shop').hidden=h!=='shop';$('tabShop').classList.toggle('on',h==='shop');if(h==='shop')renderShop();if(h!=='shop')$('gachaModal').hidden=true;
   $('profile').hidden=h!=='profile';$('tabProfile').classList.toggle('on',h==='profile');if(h==='profile'){renderProfile();profStart();}else profStop();
   $('studio').hidden=h!=='studio';$('forms').hidden=h!=='forms';$('room').hidden=h!=='room';$('race').hidden=h!=='race';$('run').hidden=h!=='run';$('pet').hidden=h!=='pet';
-  $('tabPet').classList.toggle('on',h==='pet');if(h==='pet'){eggSync(true);petStart();}else petStop();
+  $('tabPet').classList.toggle('on',h==='pet');if(h==='pet'){eggSync(true);petStart();presenceTick();}else petStop();
   // Ruin Run (the game): its start screen each time the tab opens; the game runs once Play's pressed.
   $('tabRun').classList.toggle('on',h==='run');if(h==='run'){if(LIVE&&intoRun)runHome(true);else if(!(LIVE&&RL.home))runStartLoop();$('runBest').textContent=RN.best+' m';}else runStopLoop();
   $('tabStudio').classList.toggle('on',h==='studio');$('tabForms').classList.toggle('on',h==='forms');$('tabRoom').classList.toggle('on',h==='room');$('tabRace').classList.toggle('on',h==='race');

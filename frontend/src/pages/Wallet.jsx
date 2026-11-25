@@ -69,6 +69,8 @@ function labelFor(row) {
   if (row.reason === 'loanRepaid') return `${name} paid you back`
   if (row.reason === 'catflixGift') return `Catflix No Chill: ${name}’s cat stole this for you`
   if (row.reason === 'catflixStolen') return `Catflix No Chill: your cat gave this to ${name}`
+  if (row.reason === 'catflixTrade') return row.pp + row.ppp < 0 ? `Trade Spell: put into a trade with ${name}` : `Trade Spell: from ${name}, trade done`
+  if (row.reason === 'catflixTradeBack') return `Trade Spell: back from a trade with ${name} that didn't happen`
   return REASONS[row.reason] ?? row.reason
 }
 

@@ -14,9 +14,9 @@ export const CATFLIX = {
   // Booster packs: each card is rolled on its own (odds below) from the
   // registered forms. A rarity with no forms yet gives a common instead.
   packs: {
-    single: { name: 'Single Pack', cards: 1, price: 50000 },
-    triple: { name: 'Triple Pack', cards: 3, price: 100000 },
-    blackGold: { name: 'Black & Gold Pack', cards: 7, price: 200000 },
+    single: { name: 'Single Pack', cards: 1, price: 100000 },
+    triple: { name: 'Triple Pack', cards: 3, price: 200000 },
+    blackGold: { name: 'Black & Gold Pack', cards: 7, price: 400000 },
   },
   // % a card, by rarity.
   odds: [
@@ -28,6 +28,13 @@ export const CATFLIX = {
   ],
   // The Spell Forge: this many cards of one rarity make one of the next.
   forgeCards: 3,
+  // Trade Spell: a card (and points, if you like) offered to a friend, who
+  // has `answerDays` to say what they'll give for it (a card, a card and
+  // points, or just points); then you have `answerDays` to take it. Each
+  // side's card and points are held while the trade's open. At most
+  // `openMax` open trades a member has started, and `maxPoints` points a
+  // side.
+  trades: { answerDays: 3, openMax: 10, maxPoints: 1000000 },
 
   // Aura crystals: each unlocks an aura for your pet. Half price in the
   // Black Friday Sale (shared/events.js).
@@ -126,6 +133,11 @@ export const CATFLIX = {
 
   // The Room Room: 7 pets a room (yours included), each other one a
   // friend's half the time when there are friends' pets to choose from.
+  // A cat with happiness below `sadBelow` idles in its sad animation (Explore
+  // and the pet room). One with none at all (0) only turns up on
+  // `gloomMap` in Explore.
+  mood: { sadBelow: 20, gloomMap: 'graveyard' },
+
   room: { pets: 7, friendShare: 0.5, defaultMap: 'school' },
   maps: {
     theatre: { name: 'Theatre', indoor: true },
@@ -149,7 +161,7 @@ export const CATFLIX = {
   // Like Forrest Bounce's, a cash-out goes out to the player's followers,
   // and to every member if it paid `bigWinTimes` the bet or more (350%
   // speed); a new best speed goes out to every member.
-  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 10000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1, bigWinTimes: 5 },
+  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 5000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1, bigWinTimes: 5 },
 
   // Nekomusume: Kitty Race: `racers` cats race, yours among them, and you
   // bet up to `maxBet` on it (PP first, then P-PP). Every cat has the same

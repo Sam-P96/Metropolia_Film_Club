@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Games page): your pet runs through a ruined
     city, 2% faster every second and 25% faster after each enemy pet. Like
     Forrest Bounce, a menu over the game picks the bet: 1, 10, 30, 50, 100
-    or any amount up to 10,000 PP (PP first, then P-PP). Swipe up or down
+    or any amount up to 5,000 PP (PP first, then P-PP). Swipe up or down
     to change lane and tap to jump, or use the buttons under the game: lane
     up over lane down, centred between the left edge and JUMP, on the right
     (held for a bigger jump);
@@ -394,6 +394,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Catflix No Chill's Play Dates: the pet room shows the other cat's stats
   beside your cat's, in a second Stats box, each headed with the cat's name
   ("your cat" / "their cat"). Their cat's love is its love for you.
+- Trade Spell in Catflix No Chill: a button beside Spell Forge in the Spell
+  Deck. Offer a friend (someone you follow who follows you back; search
+  them by name) one of your cards, and PP if you like. They get a
+  notification pinned to the top of their Notifications and have 3 days to
+  answer with what they'll give for it: a card, a card and PP, or just PP.
+  Then you get one, pinned, and 3 days to take the trade or turn it down;
+  you can take an offer back before they answer. Everything each side puts
+  in is held from the moment they do (out of the deck and wallet: PP first,
+  then P-PP) and handed across when the trade's taken, or back if it's
+  turned down, taken back or not answered in time (they hear about that
+  too). Never the only copy of the card your cat's wearing; 10 open trades
+  at most. The trade's notifications open it in the game
+  (`models/catflixTradeModel.js`, `utils/catflix/trades.js`,
+  `/api/catflix/trades`; "Trade Spell" receipts in the Wallet).
+- Catflix No Chill's Play Dates go both ways: while someone's on a Play Date
+  with your cat, their cat is in your pet room too, wandering about with
+  its name (and aura and mood), with a note when it arrives, and gone once
+  they go home or leave the room (up to 6 at once). The visitor's page says
+  it's still there every 10 seconds; one not heard from for 45 seconds has
+  gone (`models/catflixPresenceModel.js`, `utils/catflix/visits.js`,
+  `POST /api/catflix/visit/:petId/here` and `/leave`,
+  `GET /api/catflix/guests`).
+- Catflix No Chill's moods: a cat with happiness below 20 idles in its sad
+  animation, in Explore and the pet room (yours, the one you're visiting,
+  and yours tagging along). A cat with no happiness left (0) only turns up
+  on the Graveyard in Explore; your own too, and Explore says so on the
+  other maps (`shared/catflix/rules.js` mood; `away` in `GET
+  /api/catflix/room`).
 - Catflix No Chill's toys on a Play Date: each knock of your ball by the
   cat you're visiting also raises its love for you by 1 (as well as its +5
   happiness). Your own cat's knocks are as before
@@ -821,6 +849,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Catflix No Chill's booster packs cost twice as much: Single Pack 100,000,
+  Triple Pack 200,000 and Black & Gold Pack 400,000 points (were 50,000,
+  100,000 and 200,000).
 - Film Browser: open a film from a search or filtered list and press Back,
   and every film you'd loaded is there straight away, scrolled to where you
   were (no loading page one again and clicking "Load more" back down). The

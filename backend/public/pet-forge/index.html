@@ -216,9 +216,16 @@
         </div>
       </div>
     </div>
+    <!-- Trade Spell (the game only): trade a card, and PP if you like, with a friend (forge.js "Trade Spell") -->
+    <div class="deckmodal trademodal" id="tradeModal" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
+      <div class="deckbox">
+        <div class="deckhead"><h3 id="tradeTitle">Trade Spell</h3><span class="sp"></span><button class="btn" id="tradeClose" aria-label="Close">✕</button></div>
+        <div id="tradeBody"></div>
+      </div>
+    </div>
     <div class="deckmodal" id="deckModal" hidden role="dialog" aria-modal="true" aria-labelledby="deckTitle">
       <div class="deckbox">
-        <div class="deckhead"><h3 id="deckTitle">Spell Deck</h3><span class="note" id="deckCount" style="margin:0"></span><span class="sp"></span><button class="btn" id="forgeBtn" title="Fuse 3 cards into 1 card of a higher rarity">⚒ Spell Forge</button><button class="btn" id="deckClose" aria-label="Close">✕</button></div>
+        <div class="deckhead"><h3 id="deckTitle">Spell Deck</h3><span class="note" id="deckCount" style="margin:0"></span><span class="sp"></span><button class="btn" id="forgeBtn" title="Fuse 3 cards into 1 card of a higher rarity">⚒ Spell Forge</button><button class="btn" id="tradeBtn" title="Trade a card with a friend" hidden>🔁 Trade Spell</button><button class="btn" id="deckClose" aria-label="Close">✕</button></div>
         <div class="deckdetail" id="deckDetail">
           <div class="ddcard"><canvas id="ddCard"></canvas></div>
           <div class="ddright">
