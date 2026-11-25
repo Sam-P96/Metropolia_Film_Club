@@ -1,7 +1,8 @@
-const { AdminError, grantPpp, recentGrants } = require("../utils/admin");
+const { AdminError, awardPackFromPanel, grantPpp, membersList, recentGrants } = require("../utils/admin");
 
-// The admin panel's Send P-PP tool (routes/adminRouter.js), admins only.
-// It's in the admin panel and, for admins, the Wallet.
+// The admin panel's own tools (routes/adminRouter.js), admins only: Send
+// P-PP (in the admin panel and, for admins, the Wallet) and Award booster
+// packs.
 
 async function handle(res, work) {
     try {
@@ -23,4 +24,15 @@ const sendPpp = (req, res) =>
         res.status(201).json({ sent });
     });
 
-module.exports = { listGrants, sendPpp };
+// Every member, A to Z, 30 at a time: { members, hasMore }. `?q=` narrows
+// it to usernames containing it; `?skip=` is how many already shown.
+const listMembers = (req, res) => handle(res, async () => res.json(await membersList(String(req.query.q ?? ""), Number(req.query.skip ?? 0))));
+
+// { userId, kind }: a Catflix No Chill booster pack for a member.
+const awardPack = (req, res) =>
+    handle(res, async () => {
+        const awarded = await awardPackFromPanel(req.user._id, req.body?.userId, req.body?.kind);
+        res.status(201).json({ awarded });
+    });
+
+module.exports = { listGrants, sendPpp, listMembers, awardPack };

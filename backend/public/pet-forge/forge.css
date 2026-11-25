@@ -157,6 +157,17 @@ pre.json{background:#100e18;border:1px solid var(--line);border-radius:10px;padd
 .petwrap{margin-top:0;aspect-ratio:4/3}
 .deckrow{display:flex;gap:14px;align-items:center}
 .supply{display:flex;align-items:center;gap:12px}.supply .sp{flex:1}.supply canvas{width:44px;height:52px;image-rendering:pixelated}
+/* the shop's toys: a row each under the food, the ball's pixel art beside it */
+.toys{display:flex;flex-direction:column;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.toys .supply canvas{width:42px;height:42px;margin:0 1px}
+#petToySel button.out{color:var(--acc)}   /* a ball out in the room: tap it to take it back */
+/* a window over the page asking to confirm a purchase (forge.js askConfirm) */
+.askmodal{position:fixed;inset:0;z-index:70;background:rgba(8,6,14,.72);display:flex;align-items:center;justify-content:center;padding:16px}
+.askmodal[hidden]{display:none}
+.askbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:min(380px,100%);display:flex;flex-direction:column;gap:10px;box-shadow:0 16px 48px rgba(0,0,0,.55)}
+.askbox h3{margin:0;font:700 19px 'Pixelify Sans',monospace;color:var(--ink);text-transform:none;letter-spacing:.01em}
+.askbox p{margin:0;font-size:14px;color:var(--mute)}
+.askbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 .visitbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;border-color:#ffb35c;background:color-mix(in srgb,#ffb35c 8%,var(--panel))}
 .visitbar .sp{flex:1}.vbar{width:140px;height:8px;background:#2a2438;border-radius:99px;overflow:hidden}.vbar i{display:block;height:100%;background:#ff6f9a}
 #petBarMain.visiting{opacity:.5;pointer-events:none}
@@ -198,7 +209,10 @@ pre.json{background:#100e18;border:1px solid var(--line);border-radius:10px;padd
 .gachamodal.quake{animation:quake .45s}
 @keyframes quake{0%,100%{transform:none}20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-4px,-2px)}80%{transform:translate(3px,4px)}}
 .gclose{position:absolute;top:14px;right:14px}
-.bigpack{background:none;border:0;padding:0;cursor:pointer}
+/* No focus ring round the pack (it's focused when the window opens, so the browser drew a bright box round it):
+   with the keyboard, its glow brightens instead */
+.bigpack{background:none;border:0;padding:0;cursor:pointer;outline:none}
+.bigpack:focus-visible canvas{filter:drop-shadow(0 0 30px rgba(255,190,90,.6))}
 .bigpack canvas{width:min(240px,50vw);aspect-ratio:2/3;height:auto;image-rendering:pixelated;display:block;filter:drop-shadow(0 0 24px rgba(255,190,90,.35));animation:packfloat 2.4s ease-in-out infinite}
 @keyframes packfloat{50%{transform:translateY(-8px)}}
 .bigpack.shake canvas{animation:packshake .65s linear}
@@ -325,7 +339,17 @@ html.fit .gamestage{flex:1;min-height:0;container-type:size;display:flex;flex-di
 html.fit #roomWrap{margin:0;flex:none;width:min(100cqw,calc((100cqh - 64px) * 1254 / 1004))}   /* 64px: the bar under it */
 html.fit .gamestage>.roombar{flex:none}
 html.fit #raceWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh * 16 / 9))}
-html.fit #runWrap{margin:0;flex:none;width:min(100cqw,100cqh,640px);max-width:none}
+html.fit #runWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh - 96px),640px);max-width:none}   /* 96px: the buttons under it */
+/* Ruin Run's buttons under the game, as wide as it: lane up over lane down, centred in the room left of JUMP, which is
+   on the right (a third of the row, so the lane buttons have room for their full width on a phone too) */
+.runpad{flex:none;display:flex;align-items:stretch;justify-content:space-between;gap:10px;width:min(100cqw,calc(100cqh - 96px),640px);height:86px}
+.runpad .lanes{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.runpad .lanes .padbtn{width:min(220px,100%)}
+.padbtn{width:110px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:700 20px Inter,sans-serif;cursor:pointer;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;display:grid;place-items:center;padding:0}
+.padbtn:active{background:#33294d;border-color:var(--acc)}
+.padbtn.jump{width:clamp(100px,34%,220px);height:auto;flex:none;background:var(--acc);border-color:var(--acc);color:#2a1700;font:700 26px 'Pixelify Sans',monospace;letter-spacing:.06em}
+.padbtn.jump:active{filter:brightness(.88)}
 @media (max-height:640px){html.fit .top{display:none}html.fit .tabs{margin-top:0}}
 /* a pop-up window: over the tab's game, never over the tabs */
 .popwin{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(10,7,18,.55);backdrop-filter:blur(2px)}
@@ -375,3 +399,40 @@ html.fit #runWrap{margin:0;flex:none;width:min(100cqw,100cqh,640px);max-width:no
 .runmenu .pri{background:var(--acc);border:0;color:#2a1700}
 .runmenu .sec{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff}
 .runmenu .pri:disabled,.runmenu .sec:disabled{opacity:.5;cursor:not-allowed}
+/* back to the start screen: the menu's first line, on the left */
+.runmenu .back{align-self:flex-start;flex:none;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:2.4cqw;
+  font:600 2.9cqw Inter,sans-serif;padding:1.2cqw 2.6cqw;cursor:pointer}
+.runmenu .back:hover{border-color:var(--acc)}
+.runmenu .best{font:700 3.6cqw Inter,sans-serif;color:#ffcf3f}
+
+/* Ruin Run's start screen (the game's own), before the game: Play, How to Play and the site's best runs. The screen
+   holds still (html.fit) and this scrolls on its own; How to Play opens in a pop-up window over it */
+.runhome{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;justify-content:center;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.runhome .in{width:min(640px,100%);display:flex;flex-direction:column;gap:14px;padding:6px 6px 12px;margin:auto 0}
+.runhome h2{margin:0;font:700 40px/1.1 'Pixelify Sans',monospace;color:#ffcf3f;text-align:center;letter-spacing:.03em;text-shadow:0 3px 0 #6b3f12}
+.runhome .sub{margin:0;text-align:center;color:var(--mute);font-size:14px}
+.runhome .pills{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.runhome .pills span{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.runhome .row{display:flex;gap:10px}
+.runhome .play,.runhome .howbtn{flex:1;min-height:60px;border-radius:16px;font:700 28px 'Pixelify Sans',monospace;letter-spacing:.04em;cursor:pointer}
+.runhome .play{background:var(--acc);border:0;color:#2a1700;box-shadow:0 0 28px rgba(255,179,92,.35)}
+.runhome .play:hover{filter:brightness(1.08)}
+.runhome .howbtn{background:var(--panel2);border:2px solid var(--line);color:var(--ink)}
+.runhome .howbtn:hover{border-color:var(--acc)}
+@media (max-width:420px){.runhome .row{flex-direction:column}.runhome h2{font-size:34px}}
+.runhome .wait{margin:0;text-align:center;background:var(--panel);border:1px solid var(--acc);border-radius:12px;padding:10px 12px}
+.runhome .link{background:none;border:0;padding:0;color:var(--acc);font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.runhome .board{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.runhome .board ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.runhome .board li{display:flex;align-items:center;gap:10px;padding:5px 6px;border-radius:10px}
+.runhome .board li.me{background:rgba(255,179,92,.12)}
+.runhome .rank{width:22px;flex:none;text-align:right;font-weight:700;color:var(--mute);font-variant-numeric:tabular-nums}
+.runhome li:first-child .rank{color:#ffcf3f}
+.runhome .av{width:30px;height:30px;flex:none;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#b3263a;color:#fff;font-weight:700;font-size:13px}
+.runhome .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.runhome .spd{color:var(--acc);font-variant-numeric:tabular-nums}
+.runhome .m{width:74px;flex:none;text-align:right;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.popwin .howto p,.popwin .howto ul{margin:0 0 10px;font-size:14px}
+.popwin .howto ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.popwin .howto>:last-child{margin-bottom:0}
+.popwin .howto b{color:var(--acc)}

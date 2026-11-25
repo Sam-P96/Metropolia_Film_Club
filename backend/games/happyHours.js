@@ -8,8 +8,11 @@ const crypto = require("crypto");
 //
 //   goldenRush  two windows a day: one between 10:00 and 16:00, the other
 //               between 16:00 and 23:00. One card in 50 hides the Golden
-//               Ticket instead of one in 200, on every ticket type
-//               (utils/scratch.js goldenOdds). When one starts with a
+//               Ticket instead of one in 200, on every ticket type, for a
+//               member's first `cardsPerDay` of each ticket a day bought in
+//               one (any more are ordinary; utils/scratch.js boostsFor; in a
+//               Double Prize Weekend, its own count goes instead). When one
+//               starts with a
 //               jackpot of a ticket on sale past `notifyAt`, one member
 //               chosen at random (never the richest) is told about it
 //               (utils/scratch.js goldenRushNotice).
@@ -36,6 +39,7 @@ const HAPPY_HOURS = {
             { from: "16:00", to: "23:00", count: 1 },
         ],
         oneIn: 50,
+        cardsPerDay: 15,
         // A jackpot this big or bigger, on a ticket on sale when a window
         // starts, and one member hears about it.
         notifyAt: { standard: 10000, premium: 30000, vip: 50000 },

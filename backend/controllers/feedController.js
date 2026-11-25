@@ -4,6 +4,7 @@ const Comment = require("../models/commentModel");
 const Notification = require("../models/notificationModel");
 const Follow = require("../models/followModel");
 const Event = require("../models/eventModel");
+const CatflixPlayer = require("../models/catflixPlayerModel");
 const Cut = require("../models/cutModel");
 const Report = require("../models/reportModel");
 const PasswordReset = require("../models/passwordResetModel");
@@ -48,7 +49,7 @@ const FEED_FILTERS = {
     events: ["event", ...Object.values(Notification.EVENT_RSVP_TYPES)],
     reviews: ["like", "dislike", "review", "trending", "reply", "pvp"],
     cuts: ["cut", "cutReply"],
-    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.CATFLIX_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
+    games: ["payout", "gift", "adminGrant", "scratchWin", "scratchJackpot", "doublePlay", "doubleWin", "slotTriple", "slotJackpot", "pokerWin", ...Notification.FARKLE_TYPES, ...Notification.GOMOKU_TYPES, ...Notification.POOL_TYPES, ...Notification.STEAL_TYPES, ...Notification.LOAN_TYPES, ...Notification.QUIZ_TYPES, ...Notification.SITE_EVENT_TYPES, ...Notification.CRASH_TYPES, ...Notification.FORREST_TYPES, ...Notification.RUIN_TYPES, ...Notification.CATFLIX_TYPES, ...Notification.PACK_AWARD_TYPES, ...Notification.SCRATCH_RUSH_TYPES],
 };
 // What Reviews, Cuts and Games show whatever else they leave out: club
 // events, and big news (a trending review, a jackpot, a Double or Nothing
@@ -191,6 +192,8 @@ async function hydrate(rows, viewer) {
     const cutById = byId(await cutDetails(cuts, viewer));
     // Events from before member screenings have no `official`; they're official.
     const eventById = byId(events.map((event) => ({ ...event, official: event.official !== false })));
+    // Their unopened booster packs, for awarded packs' "Open now".
+    const packs = rows.some((row) => row.type === "packAward") ? ((await CatflixPlayer.findOne({ user: viewer._id }).select("packs").lean())?.packs ?? {}) : {};
 
     return rows.flatMap((row) => {
         const review = reviewById.get(String(row.review));
@@ -344,6 +347,26 @@ async function hydrate(rows, viewer) {
                 previous: row.forrest?.previous ?? 0,
             };
             return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, forrest }];
+        }
+
+        // Catflix No Chill's Ruin Run: a cash-out, or a new best speed.
+        if (Notification.RUIN_TYPES.includes(row.type)) {
+            const ruin = {
+                bet: row.ruin?.bet ?? 0,
+                speed: row.ruin?.speed ?? 100,
+                metres: row.ruin?.metres ?? 0,
+                net: row.ruin?.net ?? 0,
+                previous: row.ruin?.previous ?? 0,
+            };
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, amount: row.amount, ruin }];
+        }
+
+        // Catflix No Chill: a booster pack an admin gave them (for attending
+        // `eventTitle`, or from the admin panel), and how many of that kind
+        // they have to open. The admin may have left since.
+        if (row.type === "packAward") {
+            const kind = row.packKind ?? "blackGold";
+            return [{ _id: row._id, type: row.type, at: row.at, actors: members, pack: { kind, unopened: packs[kind] ?? 0 }, eventTitle: row.note ?? null }];
         }
 
         // Catflix No Chill: a friend's cat stole for them, or theirs for a friend.

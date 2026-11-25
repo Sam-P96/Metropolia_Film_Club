@@ -10,6 +10,9 @@ const {
     createEvent,
     updateEvent,
     deleteEvent,
+    getEventAwards,
+    awardMember,
+    awardEveryone,
 } = require("../controllers/eventController");
 const { requireAuth, optionalAuth, requireRole } = require("../middleware/auth");
 
@@ -37,6 +40,12 @@ router.delete("/:id", requireAuth, deleteEvent);
 // The Promote button, for the same members as editing.
 router.post("/:id/repost", requireAuth, repostEvent);
 
+// Admins, in the page's Reward Mode: Black & Gold booster packs for members
+// attending or interested (utils/catflix/awards.js). Who's had one, one
+// member, or everyone on a list.
+router.get("/:id/awards", requireAuth, requireRole("admin"), getEventAwards);
+router.post("/:id/awards", requireAuth, requireRole("admin"), awardMember);
+router.post("/:id/awards/all", requireAuth, requireRole("admin"), awardEveryone);
 // Moderators and admins: promote to official, or demote to member screening.
 router.put("/:id/official", requireAuth, requireRole("moderator"), setEventOfficial);
 

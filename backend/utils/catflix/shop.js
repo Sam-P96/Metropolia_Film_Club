@@ -21,12 +21,14 @@ function playerOf(userId) {
     return CatflixPlayer.findOneAndUpdate({ user: userId }, { $setOnInsert: { user: userId } }, { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }).lean();
 }
 
-// What the page sees: food, packs, cards (only those they have), auras,
-// room styles (Cozy always), and a Legendary choice waiting, if any.
+// What the page sees: food, toys (each ball's knocks left, or null), packs,
+// cards (only those they have), auras, room styles (Cozy always), and a
+// Legendary choice waiting, if any.
 function playerView(player) {
     const cards = Object.fromEntries(Object.entries(player.cards instanceof Map ? Object.fromEntries(player.cards) : (player.cards ?? {})).filter(([, count]) => count > 0));
     return {
         food: player.food,
+        balls: Object.fromEntries(Object.keys(CATFLIX.toys.balls).map((kind) => [kind, player.balls?.[kind] > 0 ? player.balls[kind] : null])),
         packs: { single: player.packs?.single ?? 0, triple: player.packs?.triple ?? 0, blackGold: player.packs?.blackGold ?? 0 },
         cards,
         auras: player.auras ?? [],
@@ -52,7 +54,9 @@ async function pay(userId, price, undo) {
 const auraPrice = (key, now = new Date()) => salePrice({ id: `catflix.aura.${key}`, price: CATFLIX.auras[key].price }, now);
 
 // Buys `item`: { item: "pack", kind } | { item: "aura", aura } |
-// { item: "food" } | { item: "style", style }. Resolves to the player.
+// { item: "food" } | { item: "style", style } | { item: "ball", kind }
+// (one of each ball at a time: another once it's worn out). Resolves to
+// the player.
 async function buy(userId, { item, kind, aura, style } = {}, now = new Date()) {
     await playerOf(userId);
     if (item === "pack") {
@@ -77,6 +81,13 @@ async function buy(userId, { item, kind, aura, style } = {}, now = new Date()) {
         const claimed = await CatflixPlayer.updateOne({ user: userId, styles: { $ne: style } }, { $addToSet: { styles: style } });
         if (claimed.modifiedCount === 0) throw new CatflixError("You have that room style already.", 409);
         await pay(userId, info.price, () => CatflixPlayer.updateOne({ user: userId }, { $pull: { styles: style } }));
+    } else if (item === "ball") {
+        const ball = typeof kind === "string" && Object.hasOwn(CATFLIX.toys.balls, kind) ? CATFLIX.toys.balls[kind] : null;
+        if (!ball) throw new CatflixError("There's no ball like that.");
+        const path = `balls.${kind}`;
+        const claimed = await CatflixPlayer.updateOne({ user: userId, $or: [{ [path]: null }, { [path]: { $lte: 0 } }] }, { $set: { [path]: ball.durability } });
+        if (claimed.modifiedCount === 0) throw new CatflixError(`You have a ${ball.name} already: one at a time, so wear it out first.`, 409);
+        await pay(userId, ball.price, () => CatflixPlayer.updateOne({ user: userId }, { $set: { [path]: null } }));
     } else {
         throw new CatflixError("The shop doesn't sell that.");
     }

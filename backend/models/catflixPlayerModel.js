@@ -24,6 +24,19 @@ const catflixPlayerSchema = new Schema(
             type: new Schema({ options: [String], at: Date }, { _id: false }),
             default: null,
         },
+        // Toys (utils/catflix/toys.js): the knocks each ball they have has
+        // left, by kind (shared/catflix/rules.js toys); null or missing when
+        // they have none of that kind. `knockedAt`: the last knock counted.
+        balls: {
+            beach: { type: Number, default: null },
+            soccer: { type: Number, default: null },
+            basketball: { type: Number, default: null },
+            yarn: { type: Number, default: null },
+        },
+        knockedAt: { type: Date, default: null },
+        // The last pack an admin awarded them from an event page: no more
+        // than one every 30 seconds (utils/catflix/awards.js).
+        awardedAt: { type: Date, default: null },
         auras: { type: [String], default: [] },
         styles: { type: [String], default: [] },
         // The free egg, cracked open (its 100 taps done) but not named yet:

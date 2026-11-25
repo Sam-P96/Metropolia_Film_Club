@@ -31,10 +31,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     none indoors, and the Christmas map only ever has sun or snow.
   - The shop, all for PP (never real money): card packs (including the
     Black & Gold pack, 7 cards for 200,000 PP), food (3 servings for 100
-    PP, 100 at most), room styles (500 PP each; Cozy is free), and aura
+    PP, 100 at most), room styles (500 PP each; Cozy is free; picking one
+    you haven't bought asks in a window on the page first), and aura
     crystals (500,000 PP, Rain Cloud 800,000; Black Friday prices apply).
     Packs are opened, cards forged and cast on the server
     (`backend/utils/catflix/shop.js`).
+  - Toys, in the shop's Pet supplies: pixel-art balls, one of each kind at
+    a time: a Beach ball (1,000 PP, lasts 10 knocks), Soccer ball (2,000
+    PP, 20), Basketball (3,000 PP, 30) and Yarn ball (10,000 PP, 100). In a
+    pet room (yours, or on a Play Date) pick 🎾 Toy and a ball, and tap the
+    floor to drop it (tapping its button again takes it back, with the
+    knocks it has left): the pets there chase it and knock it about, and each
+    knock is +5 happiness for the pet that made it and one knock off the
+    ball. Worn out, the ball is gone and another can be bought. The server
+    counts the knocks, at most one a second each player
+    (`backend/utils/catflix/toys.js`, `POST /api/catflix/toy/knock`).
   - A friend's cat that loves you (80 love or more, earned by caring for it
     on Play Dates): once a day, from 12:00, it has a 5% chance of stealing
     5% of its owner's PP (never P-PP) and giving it to you as P-PP. You get
@@ -46,19 +57,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     or your own), and on the leaderboards' top 3 rows, on their banners,
     from tablet width.
   - The game is Pet Forge's page played for real (`/api/catflix/app/`),
-    shown in a frame filling the screen; the site draws pets itself with
+    shown in a frame filling the screen, with no title of its own over its
+    tabs; the site draws pets itself with
     `components/catflix/PetSprite.jsx`. Its tabs: Explore (the Room Room),
     Kitty Race, Ruin Run, Pet and Shop. On Explore, Kitty Race and Ruin Run
     the screen holds still (no scrolling while you play): the game sits at
     the top, between the tabs and the bottom of the screen, and everything
     else opens in a pop-up window over it (Explore's places, Kitty Race's
-    bets, races and results). Explore's auras switch and place button are
-    under the game window.
-  - Ruin Run (Games → Ruin Run, or its tab): your pet runs through a ruined
+    bets, races and results). Explore's auras switch and place button
+    ("Explore: 🏫 School") are under the game window. In the Pet room, the
+    room picker and auras switch are in their box at the bottom of the page.
+  - Ruin Run (its tab in Catflix No Chill; not a card of its own on the
+    Games page): your pet runs through a ruined
     city, 2% faster every second and 25% faster after each enemy pet. Like
     Forrest Bounce, a menu over the game picks the bet: 1, 10, 30, 50, 100
-    or any amount up to 10,000 PP (PP first, then P-PP), with one switch
-    over the game (tap lanes or swipe);
+    or any amount up to 10,000 PP (PP first, then P-PP). Swipe up or down
+    to change lane and tap to jump, or use the buttons under the game: lane
+    up over lane down, centred between the left edge and JUMP, on the right
+    (held for a bigger jump);
     every 1% of speed above 100% when the run ends pays back 2% of the bet,
     with no cap (150%: the bet back; 200%: twice it). Like Forrest Bounce,
     three runs a play day can be cashed out (or thrown away to keep the
@@ -68,7 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     server (`backend/public/pet-forge/ruin-engine.js`): the server picks
     the seed and plays the run again from what the player pressed, so the
     speed it pays for is its own.
-  - Nekomusume: Kitty Race (Games → Kitty Race, or its tab): ten cats race,
+  - Nekomusume: Kitty Race (its tab in Catflix No Chill; not a card of its
+    own on the Games page): ten cats race,
     yours among them, on a track picked at random. Bet up to 5,000 PP;
     every cat has the same chance,
     and yours winning pays 10 times the bet (the bet back, the rest in
@@ -360,6 +377,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   your RSVP back takes it back. It goes as far as your profile's privacy
   lets it: every follower for a public profile, only friends for
   friends-only, and nobody for a private one.
+- Reward Mode on an event's page, for admins: an On / Off switch at the top
+  right, above Promote, Edit and Delete. On, every member in the Attending
+  and Interested lists has an Award button in place of their seat: a Black
+  & Gold Spell Pack (Catflix No Chill) for attending. Once they've had one
+  it says "Awarded", and pressing it again asks first; a member can be
+  awarded once every 30 seconds. "Award All Attending" and "Award All
+  Interested" award everyone on the list (private profiles too, anyone
+  awarded in the last 30 seconds skipped) after two confirmations.
+  Awarded members get a notification, "You have received a Black & Gold
+  Spell Pack for attending <the event>", with Open Now (the game's own pack
+  opening, in a window over the page) and Go To Pet Room
+  (`backend/utils/catflix/awards.js`, `GET/POST /api/events/:id/awards`,
+  `POST /api/events/:id/awards/all`; each award kept in
+  `models/packAwardModel.js`).
+- Ruin Run (Catflix No Chill) has a start screen before the game, each time
+  its tab opens: Play, How to Play (the controls, what ends a run, speed,
+  bets and cash-outs, in a pop-up window) and the best runs, each member's
+  fastest run with the distance it got (fastest first, then furthest; the
+  top 10, free runs included), with your own row picked out, your best,
+  your cash-outs left and a run waiting, if there is one. Back, in the
+  game's menu, returns to it. And like Forrest Bounce, Ruin Run sends
+  notifications: a cash-out goes to the player's followers (what they won
+  or lost), one paying 5 times the bet or more goes to every member as a
+  big win, and a new best speed (their own, or the site record) goes to
+  every member; a member's first run sets their best quietly. A run that
+  sets a best says so when it's over (`ruinCashOut`, `ruinBigWin`,
+  `ruinBest`, `ruinRecord`; the board and `bestRun` in `GET
+  /api/catflix/run`).
+- Award booster packs in the admin panel: every member, A to Z, searchable,
+  each with an Award button (after a confirmation) for the pack picked:
+  Black & Gold, Triple or Single. They get the notification too, from the
+  admin (`GET /api/admin/members`, `POST /api/admin/packs`).
 - Member screenings: any member can host an event of their own, listed in a
   new Member screenings section on the club events page (and with every
   other event on the All events page). The member who made one can edit and delete it until
@@ -826,11 +875,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   jackpot: 9 a Standard ticket, 18 a Premium, 27 a VIP (was 1, 2 and 3;
   `jackpotShare` in `shared/scratch/config.js`).
 - Double Prize Weekend starts on Friday at 16:00 (was Saturday at 00:00)
-  and still runs to Sunday at midnight. While it's on, each member can buy
-  15 cards of each ticket a day (Helsinki days, so Friday evening is
-  Friday's): the Buy buttons say how many are left today, and the 16th is
-  refused (`GET /api/scratch/limits`). Its notification goes out at Friday
-  16:00.
+  and still runs to Sunday at midnight. While it's on, only a member's
+  first 15 cards of each ticket a day are doubled (Helsinki days, so Friday
+  evening is Friday's); any more they buy are ordinary cards, never
+  refused. The Buy buttons say how many doubled cards are left today, then
+  "normal prizes" (`GET /api/scratch/limits`). Its notification goes out at
+  Friday 16:00.
 - The hidden rules of Box Office Scratch, Kino Farkle and the Slot Machine
   have changed (`backend/games/happyHours.js`). When a jackpot has grown
   very big, one member now and then hears about a Golden Rush, pinned to
@@ -944,6 +994,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Opening a booster pack: no bright rectangle round the pack any more (the
+  browser's focus outline, drawn because the pack is focused when the
+  opening screen comes up). With the keyboard, the pack's glow brightens
+  instead.
+- Profile picture borders on a phone: in the Black Market's "You're
+  wearing" box the border was stretched into a huge oval across the box
+  instead of round the picture. A border now always keeps to the picture's
+  size, wherever it's shown.
 - Catflix No Chill: the Wallet page names its receipts (shop buys, Ruin Run
   and Kitty Race bets and wins), and a member's pet, things, runs and races
   are in their data export and go when they delete their account.

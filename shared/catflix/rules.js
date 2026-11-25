@@ -44,6 +44,23 @@ export const CATFLIX = {
 
   // Pet food: a bag is 3 servings, and nobody holds more than 100.
   food: { price: 100, servings: 3, max: 100 },
+  // Toys: balls to drop in a pet room, your own pet's or the one you're
+  // visiting on a Play Date. The pets there knock them about: each knock is
+  // +`happiness` happiness for the pet that knocked it, and uses up 1 of the
+  // ball's `durability` (the knocks it lasts); a worn-out ball is gone. One
+  // of each kind at a time: another can be bought once it's worn out. The
+  // server counts at most one knock a player every `knockEveryMs`
+  // (backend/utils/catflix/toys.js).
+  toys: {
+    happiness: 5,
+    knockEveryMs: 1000,
+    balls: {
+      beach: { name: 'Beach ball', price: 1000, durability: 10 },
+      soccer: { name: 'Soccer ball', price: 2000, durability: 20 },
+      basketball: { name: 'Basketball', price: 3000, durability: 30 },
+      yarn: { name: 'Yarn ball', price: 10000, durability: 100 },
+    },
+  },
 
   // Pet room styles: Cozy is everyone's; the rest are bought once each.
   roomStyles: {
@@ -127,7 +144,10 @@ export const CATFLIX = {
   // they're used it's free play (no bet, nothing paid) until 12:00. Every
   // run your pet finishes gives it +`confidence` confidence. The server
   // plays every run again to check it (backend/public/pet-forge/ruin-engine.js).
-  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 10000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1 },
+  // Like Forrest Bounce's, a cash-out goes out to the player's followers,
+  // and to every member if it paid `bigWinTimes` the bet or more (350%
+  // speed); a new best speed goes out to every member.
+  ruinRun: { bets: [1, 10, 30, 50, 100], maxBet: 10000, backPerPercent: 2, cashOutsPerDay: 3, confidence: 1, bigWinTimes: 5 },
 
   // Nekomusume: Kitty Race: `racers` cats race, yours among them, and you
   // bet up to `maxBet` on it (PP first, then P-PP). Every cat has the same

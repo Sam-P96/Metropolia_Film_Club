@@ -8,6 +8,7 @@ const { MEMBER_FIELDS, userSummary } = require("../utils/serialize");
 const forge = require("../utils/petForge");
 const pets = require("../utils/catflix/pets");
 const shop = require("../utils/catflix/shop");
+const toys = require("../utils/catflix/toys");
 const ruinRun = require("../utils/catflix/ruinRun");
 const kittyRace = require("../utils/catflix/kittyRace");
 const { WalletError } = require("../utils/wallet");
@@ -30,7 +31,10 @@ const { CATFLIX } = require("../../shared/catflix/rules.js");
 //   GET  /visit/:petId          another member's pet, for a Play Date
 //   GET  /room?map=             a visit to the Room Room
 //   POST /room/act   { targetId, action }   play, pet or bully
-//   POST /shop/buy   { item, kind | aura | style }
+//   POST /shop/buy   { item, kind | aura | style }   (a ball: { item: "ball", kind })
+//   POST /toy/knock  { petId, ball }   a pet in the room knocked your ball
+//                               about: +5 happiness for it, a knock off the
+//                               ball (utils/catflix/toys.js): { pet, player, left }
 //   POST /packs/open { kind }
 //   POST /deck/forge { ids }    POST /deck/legendary { formId }
 //   POST /deck/cast  { formId }
@@ -124,6 +128,13 @@ router.post(
 );
 
 router.post("/shop/buy", handle(async (req) => ({ player: await shop.buy(req.user._id, req.body ?? {}) })));
+router.post(
+    "/toy/knock",
+    handle(async (req) => {
+        const { pet, left } = await toys.knock(req.user._id, req.body?.petId, req.body?.ball);
+        return { pet: pets.petView(pet, req.user._id), player: shop.playerView(await shop.playerOf(req.user._id)), left };
+    })
+);
 router.post("/packs/open", handle((req) => shop.openPack(req.user._id, req.body?.kind)));
 router.post("/deck/forge", handle((req) => shop.forgeCards(req.user._id, req.body?.ids)));
 router.post("/deck/legendary", handle(async (req) => ({ player: await shop.takeLegendary(req.user._id, String(req.body?.formId ?? "")) })));

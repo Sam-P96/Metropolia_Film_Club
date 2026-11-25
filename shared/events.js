@@ -60,8 +60,9 @@ export const salePrice = (item, now = new Date()) => priceInSale(item, blackFrid
 // Every weekend, Helsinki time, from Friday at `startsFriday` to the end of
 // Sunday: a card bought then pays `times` its prize (a refund pays the
 // ticket price back and once more in P-PP). The jackpots stay as they are.
-// Each member can buy `cardsPerDay` cards of each ticket a day while it's
-// on (Helsinki days: Friday evening counts as Friday).
+// Only a member's first `cardsPerDay` cards of each ticket a day are
+// doubled (Helsinki days: Friday evening counts as Friday); any more they
+// buy are ordinary cards.
 export const DOUBLE_PRIZES = { times: 2, startsFriday: '16:00', cardsPerDay: 15 }
 
 const clockFormat = new Intl.DateTimeFormat('en-GB', { timeZone: EVENT_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })

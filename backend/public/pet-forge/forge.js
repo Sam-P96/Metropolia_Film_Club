@@ -278,6 +278,10 @@ const SERVER_COLS=new Set(['baseForms','registeredForms']);
 // tabs (Studio, Registered forms, Profile) aren't shown.
 const LIVE=/\/catflix\//.test(location.pathname);
 const LV={points:0,player:null,prices:{},room:null,egg:null};
+// Opened in a window over the site's Notifications to open an awarded pack (#open=<kind>): only the pack opening shows.
+const EMBED=LIVE&&/^#open=/.test(location.hash);
+// Tells the page around it (components/catflix/PackOpener.jsx): "closed", or "goto" somewhere on the site.
+function embedSay(what,extra={}){if(EMBED&&window.parent!==window)window.parent.postMessage({catflix:'pack',what,...extra},location.origin);}
 // A call to the game's part of the server: resolves to its answer, or throws its reason.
 async function cfx(path,{method='GET',body}={}){
   const t=authToken();
@@ -300,7 +304,7 @@ function liveApply(d){
   if(d.pet){LV.egg=null;try{localStorage.removeItem('catflix.egg');}catch(_){}}   // hatched: no egg any more
   const pl=LV.player||{};
   playerDocs.set('me',{pp:LV.points,cards:{...(pl.cards||{})},packs:{single:0,triple:0,blackGold:0,...(pl.packs||{})},pending:pl.pending||null,
-    auras:Object.fromEntries((pl.auras||[]).map(k=>[k,true])),profile:{},egg:LV.egg,food:pl.food||0});
+    auras:Object.fromEntries((pl.auras||[]).map(k=>[k,true])),profile:{},egg:LV.egg,food:pl.food||0,balls:{...(pl.balls||{})}});
   onPetsChange();onPlayerChange();liveSyncPoop();
 }
 // Everything again, after a buy or a cast: and the site's wallet in the nav bar hears about it.
@@ -371,6 +375,10 @@ async function liveStart(){
     Object.entries(forms.registeredForms||{}).forEach(([id,doc])=>regDocs.set(id,doc));
     store.mode='online';setStatus();onBaseChange();onRegChange();liveApply(me);
     if(!location.hash||location.hash==='#room')roomLive();
+    // "Open now" on an awarded pack in the site's Notifications opens this page at #open=<kind>, in a window over them:
+    // straight into opening one (the shop's own way), and it tells the page around it when it's done (embedSay).
+    const open=/^#open=(single|triple|blackGold)$/.exec(location.hash);
+    if(open){if((ME().packs[open[1]]||0)>0)packStage(open[1]);else{toast('No packs like that left to open');embedSay('closed');}}
     // "Visit Pet" on a member's profile opens here with #visit=<their pet's id>: a Play Date in their room
     // (or your own pet's room, when it's yours).
     const visit=/^#visit=([0-9a-f]{24})$/.exec(location.hash);
@@ -2195,6 +2203,7 @@ $('runPet').onchange=e=>{RN.petId=e.target.value;try{localStorage.setItem('forge
 /* ---------- input ---------- */
 document.addEventListener('keydown',e=>{
   if($('run').hidden||e.target.closest('input,select,textarea'))return;
+  if(LIVE&&RL.home)return;   // the start screen: the keys are the page's (scrolling, the buttons)
   const k=e.key;
   if([' ','ArrowUp','ArrowDown','w','s','W','S'].includes(k))e.preventDefault();
   if(e.repeat)return;
@@ -2204,11 +2213,11 @@ document.addEventListener('keydown',e=>{
   else if(k===' ')doJump();
 });
 document.addEventListener('keyup',e=>{if(e.key===' ')releaseJump();});
-/* Touch, two modes (picked above the game):
+/* Touch, two modes (picked above the game in Pet Forge; the game itself only has Swipe, and the buttons under it):
+   • Swipe     — swipe up / down anywhere to change lane; tap (or swipe right) to jump (the default)
    • Tap lanes — tap a lane to move there (anywhere above the road = back lane); double-tap to jump
-   • Swipe     — swipe up / down anywhere to change lane; tap (or swipe right) to jump
    In both, keeping the finger down after a jump makes it higher and longer. */
-RN.ctl=(()=>{try{return localStorage.getItem('forge.runCtl')==='swipe'?'swipe':'tap';}catch(e){return 'tap';}})();
+RN.ctl=LIVE?'swipe':(()=>{try{return localStorage.getItem('forge.runCtl')==='tap'?'tap':'swipe';}catch(e){return 'swipe';}})();
 function runHelp(){$('runHelp').textContent='Keyboard: ↑ / ↓ change lane, Space jumps (hold it for a bigger jump). '+
   (RN.ctl==='swipe'?'Touch: swipe up / down to change lane, tap to jump — keep your finger down to jump higher.':'Touch: tap a lane to move there, double-tap to jump — keep your finger down on the second tap to jump higher.');}
 [...$('runCtlSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===RN.ctl));
@@ -2244,8 +2253,9 @@ RNc.canvas.addEventListener('pointerup',endTouch);RNc.canvas.addEventListener('p
    Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50 or 100 PP, any amount up to 10,000, or free play
    once the day's 3 cash-outs are used) and starts the run; after it comes the server's result, to cash out or throw away.
    Every 1% of speed above 100% when the run ends pays back 2% of the bet, with no cap. The server plays every run again
-   from its seed and what the player did, and pays what it got. The screen holds still while you play (html.fit). */
-const RL={status:null,run:null,result:null,busy:false,finishing:false,custom:false,message:'',error:false,loadError:'',
+   from its seed and what the player did, and pays what it got. The screen holds still while you play (html.fit).
+   Before the game, each time the tab opens, its start screen (RL.home): Play, How to Play, and the site's best runs. */
+const RL={status:null,run:null,result:null,best:null,busy:false,finishing:false,custom:false,message:'',error:false,loadError:'',home:true,
   bet:(()=>{try{const b=+localStorage.getItem('catflix.runBet');return Number.isInteger(b)&&b>0?b:10;}catch(e){return 10;}})()};
 const fmt=n=>Number(n||0).toLocaleString('en-US');
 const ruinWorth=(bet,speed)=>Math.floor(bet*((RL.status&&RL.status.rules.backPerPercent)||2)*Math.max(0,speed-100)/100);   // shared/catflix/rules.js ruinPayout
@@ -2257,16 +2267,56 @@ async function runLiveLoad(){try{RL.loadError='';runLiveTake(await cfx('/run'));
 // What's over the game: loading, the menu, nothing (a run playing), the run being checked, or its result.
 function runView(){if(!RL.status)return 'loading';if(RN.state==='running')return 'playing';if(RL.finishing)return 'sending';if(RL.result||RL.status.waiting)return 'result';return 'menu';}
 const RUN_WHY={crash:'Crashed!',trip:'Tripped!',fell:'Fell in!',brawl:'Knocked out!',stopped:'Stopped'};
+
+// The start screen (on) or the game (off). The game only runs while it's showing.
+function runHome(on){RL.home=on;if(!LIVE)return;$('runHome').hidden=!on;$('runStage').hidden=on;
+  if(!$('run').hidden){if(on)runStopLoop();else runStartLoop();}
+  if(on){RL.message='';$('runHome').scrollTop=0;}
+  runLiveRender();}
+// A member's picture on the board: theirs, or the first letter of their name.
+function runAvatar(u){const url=String(u.avatarUrl||'');
+  return /^(https?:\/\/|\/)/.test(url)?`<img class="av" src="${esc(url)}" alt="">`:`<span class="av" aria-hidden="true">${esc((u.username||'?')[0].toUpperCase())}</span>`;}
+function runHomeRender(){
+  const el=$('runHome');if(!el)return;const st=RL.status,me=myUserId();
+  const board=!st?`<p class="note">${esc(RL.loadError||'Loading…')}</p>`
+    :!st.leaderboard.length?'<p class="note">Nobody’s run yet. The first run sets the record.</p>'
+    :`<ol>${st.leaderboard.map((e,i)=>`<li class="${String(e.user._id)===me?'me':''}"><span class="rank">${i+1}</span>${runAvatar(e.user)}<span class="who">${esc(e.user.username)}</span><b class="spd">${e.speed}%</b><span class="m">${fmt(e.metres)} m</span></li>`).join('')}</ol>`;
+  const pills=st?`<div class="pills"><span>💸 ${st.cashOutsLeft}/${st.rules.cashOutsPerDay} cash-outs</span><span>🏅 Best ${st.bestRun?`${st.bestRun.speed}% · ${fmt(st.bestRun.metres)} m`:'none yet'}</span><span>💰 ${fmt(LV.points)} points</span></div>`:'';
+  const wait=st&&st.waiting?`<p class="wait">You’ve a run at <b>${st.waiting.speed}%</b> waiting: <button type="button" class="link" data-do="play">cash it out or throw it away</button>.</p>`:'';
+  el.innerHTML=`<div class="in"><h2>Ruin Run</h2>
+    <p class="sub">Your pet runs through a ruined city, faster and faster. Jump, dodge and change lanes: the faster it’s going when the run ends, the more your bet pays back.</p>
+    ${pills}<div class="row"><button type="button" class="play" data-do="play">Play</button><button type="button" class="howbtn" data-do="how">How to Play</button></div>${wait}
+    <section class="board" aria-labelledby="runBoardTitle"><h3 id="runBoardTitle">Best runs</h3>${board}
+      <p class="note">Each member’s fastest run: the speed it ended at, and how far it got. Free runs count too.</p></section></div>`;}
+// How to Play, in a pop-up window over the start screen.
+function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,backPerPercent:2,maxBet:10000,confidence:1,bigWinTimes:5};
+  const box=$('runHowPop').firstChild;
+  box.innerHTML=`<div class="head"><h3>How to Play</h3><button class="btn" type="button" id="runHowClose" aria-label="Close">✕</button></div>
+    <div class="howto"><p><b>Your pet runs</b> on its own through a ruined city, getting faster all the time. Keep it going for as long as you can.</p>
+    <ul><li><b>Change lane:</b> swipe up or down on the game, the ▲ and ▼ buttons under it, or ↑ and ↓ on a keyboard.</li>
+      <li><b>Jump:</b> tap the game, press JUMP, or Space. Hold it down to jump higher and further.</li>
+      <li>Jump rubble, cracks and gaps, and dodge cars and falling debris (once debris has landed you can jump over it): hit one and the run’s over.</li>
+      <li>An enemy pet costs a heart (you have 3); with none left, the next one knocks you out. Grab hearts on the road to heal.</li>
+      <li>A bag of pet food makes enemy pets 50% more likely (it stacks). A lightning bolt brings a 30-second storm that zaps every pet on screen: each still gives you its speed boost, without stopping you or costing a heart.</li></ul>
+    <p><b>Speed is your score.</b> It goes up by 2% a second, and by 25% for each enemy pet. When the run ends, every 1% above 100% pays back ${R.backPerPercent}% of your bet, with no cap: 150% gives your bet back, 200% twice it.</p>
+    <p><b>Bets and cash-outs.</b> Bet 1 to ${fmt(R.maxBet)} PP (PP first, then P-PP). You can cash out ${R.cashOutsPerDay} runs a day (12:00 to 12:00); throw a run away to keep your cash-out for a better one. Once they’re used, it’s free play until 12:00. Every run gives your pet +${R.confidence} confidence.</p>
+    <p><b>Best runs.</b> Your fastest run goes on the board. Everyone hears about a new best speed; your followers hear about your cash-outs, and everyone about one that pays ${R.bigWinTimes} times the bet or more.</p></div>`;
+  box.parentElement.hidden=false;$('runHowClose').focus({preventScroll:true});}
+function runHowClose(){const pop=$('runHowPop');if(!pop||pop.hidden)return;pop.hidden=true;const b=$('runHome').querySelector('[data-do=how]');if(b)b.focus({preventScroll:true});}
+
 function runLiveRender(){
-  if(!LIVE)return;const el=$('runMenu'),v=runView();
+  if(!LIVE)return;runHomeRender();const el=$('runMenu'),v=runView();
   el.hidden=v==='playing';el.classList.toggle('light',v==='sending');
   if(v==='playing'){el.innerHTML='';return;}
   if(v==='loading'){el.innerHTML=`<p class="msg">${esc(RL.loadError||'Loading…')}</p>`;return;}
   if(v==='sending'){el.innerHTML='<p class="msg">Checking your run…</p>';return;}
   const st=RL.status,R=st.rules;
   const msg=RL.message?`<p class="msg${RL.error?' err':''}" role="${RL.error?'alert':'status'}">${esc(RL.message)}</p>`:'';
-  if(v==='result'){const r=RL.result||st.waiting,net=r.worth-r.bet;
-    let html=`<h2>${r.free?'Free run over':(RUN_WHY[r.endedBy]||'Run over')}</h2><p class="big">${r.speed}%</p>
+  // Back to the start screen (the best runs, How to Play): a run waiting stays waiting.
+  const back='<button type="button" class="back" data-do="home">← Back</button>';
+  if(v==='result'){const r=RL.result||st.waiting,net=r.worth-r.bet,best=RL.result&&RL.best;
+    let html=`${back}<h2>${r.free?'Free run over':(RUN_WHY[r.endedBy]||'Run over')}</h2><p class="big">${r.speed}%</p>
+      ${best&&(best.site||best.personal)?`<p class="best">🏅 ${best.site?'New site record!':'New personal best!'}</p>`:''}
       <p class="sub">speed · ${fmt(r.metres)} m${r.free?' · free play':` · ${fmt(r.bet)} PP bet`}</p>`;
     if(r.free)html+=`<p class="sub">Free play can’t be cashed out.</p><div class="row"><button class="pri" data-do="again">Run again</button><button class="sec" data-do="menu">Menu</button></div>`;
     else html+=`<p class="worth">Worth <b>${fmt(r.worth)} PP</b><br><span class="${net>=0?'up':'down'}">${net>=0?'+':'−'}${fmt(Math.abs(net))} PP vs. your bet</span></p>
@@ -2277,24 +2327,25 @@ function runLiveRender(){
     const tiles=R.bets.map(b=>`<button data-bet="${b}" ${off||free||pts<b?'disabled':''}><b>${fmt(b)} PP</b><small>200% pays ${fmt(ruinWorth(b,200))}</small></button>`).join('')
       +`<button data-bet="custom" aria-pressed="${RL.custom}" ${off||free?'disabled':''}><b>Custom</b><small>up to ${fmt(R.maxBet)}</small></button>`
       +`<button data-bet="0" class="free" ${off||!free?'disabled':''}><b>Free</b><small>${free?'nothing paid':`after ${R.cashOutsPerDay} cash-outs`}</small></button>`;
-    el.innerHTML=`${msg}${noPet?'<p class="msg">Hatch your egg first (it’s in the Pet tab): your pet does the running.</p>':''}
-      <p class="how">${RN.ctl==='swipe'?'Swipe up or down to change lane, tap to jump':'Tap a lane to move there, double-tap to jump'} (keys: ↑ ↓ and Space); hold the jump to go higher. Jump rubble, cracks and gaps; dodge cars and falling debris; an enemy pet costs a heart. Speed: +2% a second, +25% for each enemy pet.</p>
+    el.innerHTML=`${back}${msg}${noPet?'<p class="msg">Hatch your egg first (it’s in the Pet tab): your pet does the running.</p>':''}
+      <p class="how">${RN.ctl==='swipe'?'Swipe up or down to change lane, tap to jump':'Tap a lane to move there, double-tap to jump'} (keys: ↑ ↓ and Space); hold the jump to go higher. The rest is in How to Play, on the start screen.</p>
       <p class="pay">Every 1% of speed above 100% pays back ${R.backPerPercent}% of your bet, with no cap: <b>150%</b> gives your bet back, <b>200%</b> twice it.</p>
       <div class="bets">${tiles}</div>
       ${RL.custom&&!free?`<div class="row"><input type="number" id="runCustom" min="1" max="${R.maxBet}" step="1" value="${RL.bet}" aria-label="Your bet, 1 to ${fmt(R.maxBet)} PP"><button class="pri" data-do="custom" ${off||pts<RL.bet?'disabled':''}>Run for <span id="runCustomN">${fmt(RL.bet)}</span> PP</button></div>`:''}
-      <p class="note">${free?`All ${R.cashOutsPerDay} cash-outs used today: free play until 12:00.`:`Cash-outs left today: ${st.cashOutsLeft}/${R.cashOutsPerDay}`} · Best ${fmt(st.best)} m · You have ${fmt(pts)} points · Each run: +${R.confidence} confidence for your pet</p>`;}
+      <p class="note">${free?`All ${R.cashOutsPerDay} cash-outs used today: free play until 12:00.`:`Cash-outs left today: ${st.cashOutsLeft}/${R.cashOutsPerDay}`} · Best ${st.bestRun?`${st.bestRun.speed}%`:'none yet'} · You have ${fmt(pts)} points · Each run: +${R.confidence} confidence for your pet</p>`;}
   el.onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;
     if(b.dataset.bet==='custom'){RL.custom=!RL.custom;runLiveRender();const i=$('runCustom');if(i)i.focus({preventScroll:true});return;}
     if(b.dataset.bet!==undefined){RL.custom=false;runBegin(+b.dataset.bet);return;}
     const d=b.dataset.do;
     if(d==='custom')runBegin(RL.bet);else if(d==='cash')runLiveSettle('cashout');else if(d==='toss')runLiveSettle('discard');
-    else if(d==='again')runBegin(0);else if(d==='menu'){RL.result=null;RL.message='';runReset();runLiveRender();}};
+    else if(d==='again')runBegin(0);else if(d==='menu'){RL.result=null;RL.best=null;RL.message='';runReset();runLiveRender();}
+    else if(d==='home')runHome(true);};
   const inp=$('runCustom');
   if(inp){inp.oninput=()=>{RL.bet=Math.max(1,Math.min(R.maxBet,Math.floor(+inp.value)||1));$('runCustomN').textContent=fmt(RL.bet);try{localStorage.setItem('catflix.runBet',RL.bet);}catch(_){}};
     inp.onkeydown=e=>{if(e.key==='Enter')runBegin(RL.bet);};inp.onchange=()=>{inp.value=RL.bet;};}
 }
 async function runLiveSettle(how){const r=RL.result||(RL.status&&RL.status.waiting);if(RL.busy||!r)return;RL.busy=true;runLiveRender();
-  try{const d=await cfx(`/run/${r.id}/${how}`,{method:'POST'});RL.result=null;runLiveTake(d);liveWallet();RL.error=false;
+  try{const d=await cfx(`/run/${r.id}/${how}`,{method:'POST'});RL.result=null;RL.best=null;runLiveTake(d);liveWallet();RL.error=false;
     RL.message=how==='cashout'?(d.payout>0?`Cashed out +${fmt(d.payout)} PP.`:'Cashed out: nothing back this time.')+(d.status.cashOutsLeft===0?' That’s today’s cash-outs: free play’s open.':'')
       :'Run thrown away. Your cash-out is still there.';
     runReset();}
@@ -2306,7 +2357,7 @@ async function runBegin(bet){
   if(bet===undefined||RL.busy||!RL.status)return;
   if(!RN.pet){RL.error=true;RL.message='Your pet is on its way: one moment.';runLiveRender();return;}
   RL.busy=true;RL.message='';runLiveRender();
-  try{const d=await cfx('/run',{method:'POST',body:{bet}});RL.run=d.run;RL.result=null;runLiveTake(d);if(bet)liveWallet();
+  try{const d=await cfx('/run',{method:'POST',body:{bet}});RL.run=d.run;RL.result=null;RL.best=null;runLiveTake(d);if(bet)liveWallet();
     runStart(d.run.seed);document.activeElement?.blur?.();}
   catch(e){RL.error=true;RL.message=e.message;}finally{RL.busy=false;runLiveRender();}
 }
@@ -2314,7 +2365,7 @@ async function runBegin(bet){
 async function runLiveFinish(){const run=RL.run;if(!run)return;RL.run=null;RL.finishing=true;runLiveRender();
   await new Promise(done=>setTimeout(done,700));
   try{const d=await cfx(`/run/${run.id}/finish`,{method:'POST',body:{inputs:RN.inputs,endTick:RN.tick}});
-    RL.result=d.run;runLiveTake(d);if(d.pet){livePet(d.pet);RL.error=false;RL.message=`${d.pet.name}: +${RL.status.rules.confidence} confidence.`;}}
+    RL.result=d.run;RL.best=d.best||null;runLiveTake(d);if(d.pet){livePet(d.pet);RL.error=false;RL.message=`${d.pet.name}: +${RL.status.rules.confidence} confidence.`;}}
   catch(e){RL.error=true;RL.message=e.message;runLiveLoad();}finally{RL.finishing=false;runLiveRender();}}
 
 /* ---------- Nekomusume: Kitty Race, in the game: races the server runs (backend/utils/catflix/kittyRace.js) ----------
@@ -2821,10 +2872,10 @@ const GACHA={startPP:500000,testPP:100000,
   packs:{single:{l:'Single Pack',n:1,price:50000},triple:{l:'Triple Pack',n:3,price:100000},blackGold:{l:'Black & Gold Pack',n:7,price:200000}},
   odds:[['common',40],['uncommon',30],['rare',19],['epic',10],['legendary',1]]};   // % per card
 const playerDocs=new Map();
-const ME=()=>{const d=playerDocs.get('me')||{};return {pp:Number.isFinite(d.pp)?d.pp:GACHA.startPP,cards:{...(d.cards||{})},packs:{single:0,triple:0,blackGold:0,...(d.packs||{})},pending:d.pending||null,auras:{...(d.auras||{})},profile:{...(d.profile||{})},egg:d.egg||null,food:Number.isFinite(d.food)?d.food:0};};
+const ME=()=>{const d=playerDocs.get('me')||{};return {pp:Number.isFinite(d.pp)?d.pp:GACHA.startPP,cards:{...(d.cards||{})},packs:{single:0,triple:0,blackGold:0,...(d.packs||{})},pending:d.pending||null,auras:{...(d.auras||{})},profile:{...(d.profile||{})},egg:d.egg||null,food:Number.isFinite(d.food)?d.food:0,balls:{...(d.balls||{})}};};
 const fmtPP=n=>Math.round(n).toLocaleString('en-US');
-function savePlayer(p){if(LIVE){LV.egg=p.egg||null;try{localStorage.setItem('catflix.egg',JSON.stringify(LV.egg));}catch(_){}return Promise.resolve();}return writeDoc('player','me',{pp:p.pp,cards:p.cards,packs:p.packs,pending:p.pending||null,auras:p.auras||{},profile:p.profile||{},egg:p.egg||null,food:p.food||0,updatedAt:Date.now()});}
-function onPlayerChange(){renderShop();renderDeckPanel();renderProfile();renderPetAura();eggSync();const fb=$('petTools').querySelector('[data-v=food]');if(fb)fb.textContent=`🍖 Food ×${ME().food}`;}
+function savePlayer(p){if(LIVE){LV.egg=p.egg||null;try{localStorage.setItem('catflix.egg',JSON.stringify(LV.egg));}catch(_){}return Promise.resolve();}return writeDoc('player','me',{pp:p.pp,cards:p.cards,packs:p.packs,pending:p.pending||null,auras:p.auras||{},profile:p.profile||{},egg:p.egg||null,food:p.food||0,balls:p.balls||{},updatedAt:Date.now()});}
+function onPlayerChange(){renderShop();renderDeckPanel();renderProfile();renderPetAura();eggSync();renderToyPicker();const fb=$('petTools').querySelector('[data-v=food]');if(fb)fb.textContent=`🍖 Food ×${ME().food}`;}
 
 // which cards are in your Spell Deck: every card you pulled, plus whatever your pet is already wearing
 function deckCards(){const owned=ME().cards,p=PR.id&&petDocs.get(PR.id);
@@ -2866,9 +2917,47 @@ function paintPack(cv,kind,k=3){cv.width=PACK.W*k;cv.height=PACK.H*k;const g=cv.
   g.textAlign='center';g.textBaseline='middle';g.font=`700 ${5.2*k}px 'Pixelify Sans', monospace`;g.fillStyle='#5a3a0a';g.fillText('SPELL PACK',24*k,53.5*k);
   if(kind==='triple'||kind==='blackGold'){const n=kind==='triple'?'×3':'×7';g.font=`700 ${7*k}px 'Pixelify Sans', monospace`;g.fillStyle='#ffe9a8';g.strokeStyle=kind==='triple'?'#24124a':'#000000';g.lineWidth=k;g.strokeText(n,38*k,12*k);g.fillText(n,38*k,12*k);}}
 
+/* ---------- toys: balls (shared/catflix/rules.js toys; in the game the server counts the knocks: backend/utils/catflix/toys.js) ---------- */
+// What each costs and how many knocks it lasts, and the happiness a knock gives, as the server has them. `i`: its picker emoji.
+const TOYS={happiness:5,balls:{beach:{l:'Beach ball',i:'🏐',price:1000,dur:10},soccer:{l:'Soccer ball',i:'⚽',price:2000,dur:20},
+  basketball:{l:'Basketball',i:'🏀',price:3000,dur:30},yarn:{l:'Yarn ball',i:'🧶',price:10000,dur:100}}};
+// Each ball as 7×7 pixel art, with a second frame for rolling.
+const BALL_ART={
+  beach:{pal:{r:'#e8453c',w:'#ffffff',b:'#3a7bd5',y:'#ffd23f',g:'#4cbb5e'},frames:[
+    ['..rww..','.rrwwb.','yrrwwbb','yyrwbbb','yyygbbb','.yyggg.','..ggg..'],
+    ['..wwb..','.rwwbb.','rrwwbbg','rrwbbgg','yrrbggg','.yyygg.','..yyy..']]},
+  soccer:{pal:{w:'#f4f4f4',k:'#26262b',s:'#bdbdc4'},frames:[
+    ['..www..','.wwkww.','wwkkkww','wkwwwkw','wwwkwws','.wkkks.','..wss..'],
+    ['..wkw..','.wwwwk.','kwwkwwk','wwkkkww','kwwkwws','.wwwws.','..kss..']]},
+  basketball:{pal:{o:'#e2702a',d:'#5a2a10',l:'#f39a54'},frames:[
+    ['..odo..','.lodoo.','dlodood','ddddddd','doodood','.oodoo.','..odo..'],
+    ['..ood..','.lodoo.','olodddo','ddddddd','oodddoo','.ooddo.','..ood..']]},
+  yarn:{pal:{p:'#ff7ab6',d:'#c94f8a',l:'#ffc2dc'},frames:[
+    ['..pdp..','.pldpd.','pldpldp','dpldpld','pdpldpd','.dpldp.','..pdp..'],
+    ['..dpd..','.dpldp.','dpldpld','pldpldp','dpldpld','.pldpd.','..dpd..']]}};
+// A ball's art on a canvas, `k` times its size (the shop).
+function paintBall(cv,kind,k=6){const A=BALL_ART[kind];cv.width=cv.height=7*k;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;
+  A.frames[0].forEach((r,j)=>{for(let i=0;i<7;i++){const c=A.pal[r[i]];if(c){g.fillStyle=c;g.fillRect(i*k,j*k,k,k);}}});}
+// A ball in a pet room: on the floor at (x, y), `z` up in the air, its frame changing as it rolls.
+function drawBall(g,b){const x=Math.round(b.x),y=Math.round(b.y),z=Math.round(b.z||0),A=BALL_ART[b.kind];if(!A)return;
+  g.fillStyle=z>4?'rgba(60,30,20,.15)':'rgba(60,30,20,.3)';g.fillRect(x-(z>4?2:3),y,z>4?5:7,1);   // its shadow, smaller while it's in the air
+  const rows=A.frames[Math.floor((b.roll||0)/3)%2],flip=(b.dir||1)<0;
+  for(let j=0;j<7;j++)for(let i=0;i<7;i++){const c=A.pal[rows[j][flip?6-i:i]];if(c){g.fillStyle=c;g.fillRect(x-3+i,y-7-z+j,1,1);}}
+  if(b.kind==='yarn'){const t=flip?1:-1;g.fillStyle=A.pal.d;g.fillRect(x+t*4,y-2-z,1,1);g.fillRect(x+t*5,y-1-z,1,1);g.fillRect(x+t*6,y-1-z,1,1);}}   // its loose end trails
+// The shop's toys: each ball, its knocks, whether you have one (and its knocks left), and Buy (one of each at a time).
+function renderToys(){const el=$('shopToys');if(!el)return;const me=ME();
+  el.innerHTML=Object.entries(TOYS.balls).map(([k,t])=>{const left=me.balls[k]>0?me.balls[k]:0;
+    return `<div class="supply"><canvas data-ball="${k}"></canvas><div><b>${t.l}</b><div class="note" style="margin:2px 0 0">${t.dur} knocks · ${left?`yours has <b>${left}</b> left`:'you don’t have one'}</div></div>
+      <span class="sp"></span><button class="btn acc" data-ball-buy="${k}" ${left||me.pp<t.price?'disabled':''} ${left?'title="One at a time: wear it out first"':''}>${left?'You have it':`Buy · ${fmtPP(t.price)} PP`}</button></div>`;}).join('');
+  el.querySelectorAll('canvas[data-ball]').forEach(cv=>paintBall(cv,cv.dataset.ball));}
+$('shopToys').addEventListener('click',async e=>{const b=e.target.closest('[data-ball-buy]');if(!b||b.disabled)return;const k=b.dataset.ballBuy,T=TOYS.balls[k],me=ME();
+  if(LIVE){if(await liveCall('/shop/buy',{item:'ball',kind:k},`${T.l} bought — drop it in a pet room with 🎾 Toy`))await liveRefresh();return;}
+  if(me.balls[k]>0)return toast('One at a time: wear it out first');if(me.pp<T.price)return toast('Not enough PP');
+  me.pp-=T.price;me.balls[k]=T.dur;try{await savePlayer(me);toast(`${T.l} bought — drop it in a pet room with 🎾 Toy`);}catch(_){toast('Could not buy (do you have edit access?)');}});
+
 /* ---------- shop page ---------- */
 function renderShop(){
-  if(!$('shop'))return;const me=ME();renderCrystals();
+  if(!$('shop'))return;const me=ME();renderCrystals();renderToys();
   $('foodHave').textContent=me.food;$('foodBuy').disabled=me.pp<100;
   if(!renderShop.icon){renderShop.icon=1;const cv=$('foodIcon'),spr=runSprites().food;cv.width=spr.width*4;cv.height=spr.height*4;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(spr,0,0,cv.width,cv.height);}
   $('ppBal').textContent=fmtPP(me.pp);
@@ -2934,10 +3023,12 @@ function gachaFlip(el,p){
     $('gachaSum').innerHTML=`Added to your Spell Deck${best?` · best pull: <span class="rlabel" style="--rc:${best.c}">${best.l}</span>`:''}`;
     $('gachaDone').hidden=false;const me=ME();$('gachaAgain').hidden=!(me.packs[GO.kind]>0);}
 }
-$('gachaClose').onclick=()=>{$('gachaModal').hidden=true;};
+$('gachaClose').onclick=()=>{$('gachaModal').hidden=true;embedSay('closed');};
+// Opened over the site's Notifications (#open=<kind>): "Go to Spell Deck" takes the whole site to the Pet room.
+$('gachaToDeck').addEventListener('click',e=>{if(!EMBED)return;e.preventDefault();embedSay('goto',{to:'/games/catflix#pet'});});
 $('gachaAgain').onclick=()=>packStage(GO.kind);
 $('gachaRevealAll').onclick=()=>{[...$('gachaCards').children].forEach((el,i)=>setTimeout(()=>el.click(),i*220));};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('gachaModal').hidden&&!GO.busy)$('gachaModal').hidden=true;});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('gachaModal').hidden&&!GO.busy){$('gachaModal').hidden=true;embedSay('closed');}});
 
 /* ================= Auras: bought as crystals in the Shop, shown only on the profile ================= */
 const AURAS={
@@ -3286,7 +3377,8 @@ async function visitLoad(){ // host = main pet in the room, your pet = buddy
   if(r&&PR.buddy&&PR.buddy.key!==key){const f=await getForm(r.baseFormId);if(f){PR.buddy.actor=new Racer({id:PR.id,name:mine.name,form:f,map:mapFromChanges(f,r.changes),guest:false});PR.buddy.actor.setState('idle');PR.buddy.key=key;}}
 }
 function endPlayDate(){if(!PR.visit)return;if(LIVE)petDocs.delete(PR.visit.hostId);PR.visit=null;PR.buddy=null;PR.items=[];PR.target=null;PR.eat=null;PR.actor=null;PR.actorKey=null;PR.afx=null;PR.pos={x:80,y:PET.floorY};visitUi();petLoadActor();}
-function visitUi(){const v=PR.visit;$('visitBar').hidden=!v;$('petBarMain').classList.toggle('visiting',!!v);if(!v)return;
+// (The toy picker too: a Play Date starting or ending clears the room's toys.)
+function visitUi(){renderToyPicker();const v=PR.visit;$('visitBar').hidden=!v;$('petBarMain').classList.toggle('visiting',!!v);if(!v)return;
   const love=loveForMe(v);$('visitWho').textContent=`Play date at ${v.name}’s room`;$('visitLove').style.width=love+'%';$('visitLoveN').textContent=love;
   $('visitLoveLbl').textContent=`${v.name} ♥ you`;}
 async function visitFed(now){ // the host just finished food you put down
@@ -3298,9 +3390,10 @@ async function visitFed(now){ // the host just finished food you put down
   petBubble('love',1400);visitUi();toast(`${v.name} loves you a little more (♥ ${love})`);
 }
 function buddyStep(dt,now){const B=PR.buddy;if(!B||!B.actor)return;const a=B.actor;a.step(dt);
+  const chasing=ballChase(B,now,a.form.crop.w,'buddy');   // your pet plays with the ball too
   if(B.target){const t=B.target,dx=t.x-B.pos.x,dy=t.y-B.pos.y,d=Math.hypot(dx,dy),step=.02*dt;if(Math.abs(dx)>.5)B.face=dx>0?1:-1;
     if(d<=step){B.pos.x=t.x;B.pos.y=t.y;B.target=null;a.setState('idle');}else{B.pos.x+=dx/d*step;B.pos.y+=dy/d*step;if(a.state!=='walk')a.setState('walk');}}
-  else if(now>=B.wanderAt){B.wanderAt=now+rnd(4000,9000);if(Math.random()<.6){   // hang out near the host
+  else if(!chasing&&now>=B.wanderAt){B.wanderAt=now+rnd(4000,9000);if(Math.random()<.6){   // hang out near the host
     const hx=PR.pos.x+(Math.random()<.5?-1:1)*rnd(22,40);B.target={x:Math.max(FLOOR.x0+6,Math.min(FLOOR.x1-6,hx)),y:Math.max(FLOOR.y0,Math.min(FLOOR.y1,PR.pos.y+rnd(-8,8)))};}
     else{B.face=PR.pos.x>B.pos.x?1:-1;}}}
 function buddyDraw(g,now){const B=PR.buddy,a=B&&B.actor;if(!a)return;const A=a.anim(a.state),f=A.frames[a.cur]||A.frames[0],cr=a.form.crop;
@@ -3353,7 +3446,8 @@ $('petSel').onchange=e=>{if(PR.visit){PR.visit=null;PR.buddy=null;visitUi();}PR.
 $('petStyle').onchange=async e=>{const p=petDocs.get(PR.id);if(!p)return;
   if(LIVE){const k=e.target.value,owned=(LV.player&&LV.player.styles)||['cozy'];
     if(!owned.includes(k)){
-      if(!confirm(`Buy the ${PET_STYLES[k]} room for 500 PP? (PP first, then P-PP)`)||!(await liveCall('/shop/buy',{item:'style',style:k}))){e.target.value=p.roomStyle||'cozy';return;}}
+      const ok=await askConfirm({title:`Buy the ${PET_STYLES[k]} room?`,text:'It costs 500 PP (PP first, then P-PP). Once it’s yours, you can switch to it any time.',yes:'Buy · 500 PP'});
+      if(!ok||!(await liveCall('/shop/buy',{item:'style',style:k}))){e.target.value=p.roomStyle||'cozy';return;}}
     const d=await liveCall('/pet/style',{style:k});if(d)liveApply(d);await liveRefresh();return;}
   writeDoc('pets',PR.id,{...p,roomStyle:e.target.value}).catch(()=>toast('Could not save'));};
 $('petSkin').onchange=e=>{const p=petDocs.get(PR.id);if(!p)return;writeDoc('pets',PR.id,{...p,skinId:e.target.value}).catch(()=>toast('Could not save'));};
@@ -3369,10 +3463,10 @@ armButton($('petDel'),'Delete pet','Sure?',async()=>{const id=PR.id;if(!id)retur
 
 /* ---------- interactions ---------- */
 const TOOLS={hand:{i:'✋',fx:['heart','heartS'],col:['#ff6f9a','#ffc2d4']},brush:{i:'🪮',fx:['sparkle','sparkleS'],col:['#fff3b0','#ffffff']},
-  food:{i:'🍖',fx:['😋'],col:['#c9874a','#f2c27a']},scoop:{i:'🪣',fx:['✨'],col:['#d9f0ff','#ffffff']}};
+  food:{i:'🍖',fx:['😋'],col:['#c9874a','#f2c27a']},scoop:{i:'🪣',fx:['✨'],col:['#d9f0ff','#ffffff']},toy:{i:'🎾',fx:['sparkle'],col:['#fff3b0','#ffffff']}};
 const FLOOR={x0:14,x1:146,y0:86,y1:116,wallY:80};     // where the pet can walk / food can sit (map pixels)
 [...$('petTools').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===PR.tool));
-seg('petTools',v=>{PR.tool=v;});
+seg('petTools',v=>{PR.tool=v;renderToyPicker();});
 // bubbles: default = big emoji above the head; with {x,y,size} = small icon at a spot (used for petting/brushing)
 // pixel-art reaction icons that pop up above the pet
 const FACE={o:'#b9780e',y:'#ffd84a',l:'#fff1a0',e:'#5a3410',p:'#ff8f8f',m:'#7a3410',t:'#ff5a7a'};
@@ -3428,7 +3522,7 @@ function placeFood(x,y){
 function dropFood(x,y){
   const clampX=v=>Math.max(FLOOR.x0,Math.min(FLOOR.x1,v));
   // keep things tidy: at most 4 food items; empty bowls are cleared first
-  const foods=PR.items.filter(i=>i.type!=='poop');if(foods.length>=4){const old=foods.find(i=>i.type==='bowl'&&i.food<=0)||foods[0];PR.items.splice(PR.items.indexOf(old),1);}
+  const foods=PR.items.filter(i=>i.type==='bowl'||i.type==='kibble');if(foods.length>=4){const old=foods.find(i=>i.type==='bowl'&&i.food<=0)||foods[0];PR.items.splice(PR.items.indexOf(old),1);}
   if(y<FLOOR.wallY){PR.items.push({type:'kibble',x:clampX(x),y,fallTo:Math.round(rnd(96,112)),vy:0,food:1,id:Math.random()});}   // clicked high: it drops to the floor
   else PR.items.push({type:'bowl',x:clampX(x),y:Math.max(FLOOR.y0,Math.min(FLOOR.y1,y)),food:1,id:Math.random()});              // clicked the floor: a filled bowl
   petBubble('yum',900);
@@ -3438,6 +3532,63 @@ function scoopAt(x,y){
   if(p){PR.items.splice(PR.items.indexOf(p),1);petSparkle(p.x,p.y-3,['#d9f0ff','#ffffff','#bfe6ff']);petPix('sparkle',p.x,p.y-7,700);
     if(LIVE)liveCare('scoop').then(ok=>{if(!ok)liveSyncPoop();});}   // the server's count decides: put back if it said no
 }
+// ---- Toys in the room: drop a ball, and the pets here knock it about ----
+// The Toy tool's picker: the balls you have, each with its knocks left, and "in the room" on one that's out.
+const ballOut=k=>PR.items.find(i=>i.type==='ball'&&i.kind===k);
+function renderToyPicker(){const el=$('petToySel');if(!el)return;const me=ME(),owned=Object.keys(TOYS.balls).filter(k=>me.balls[k]>0);
+  el.hidden=PR.tool!=='toy';if(!owned.includes(PR.toyKind))PR.toyKind=owned[0]||null;
+  el.innerHTML=owned.length?owned.map(k=>{const out=!!ballOut(k);
+    return `<button type="button" data-v="${k}" aria-pressed="${k===PR.toyKind}" class="${out?'out':''}" title="${out?'In the room: tap to take it back':'Pick it, then tap the floor to drop it'}">${TOYS.balls[k].i} ${TOYS.balls[k].l} · ${me.balls[k]}${out?' · in the room':''}</button>`;}).join('')
+    :'<button type="button" disabled>No toys yet: buy a ball in the Shop</button>';}
+// A ball's button: picks it to drop, or, while it's out in the room, takes it back (it keeps the knocks it has left).
+$('petToySel').onclick=e=>{const b=e.target.closest('button[data-v]');if(!b)return;const k=b.dataset.v,out=ballOut(k);
+  if(out)takeBackToy(out);PR.toyKind=k;renderToyPicker();};
+function takeBackToy(b){const at=PR.items.indexOf(b);if(at<0)return;PR.items.splice(at,1);
+  for(const S of [PR,PR.buddy])if(S&&S.target&&S.target.ball===b)S.target=null;   // nobody's after it any more
+  petSparkle(b.x,b.y-4-(b.z||0),['#ffffff','#fff3b0']);}
+// Drops the picked ball where they tapped: on the floor, or from up high onto it. You have one of each, so one
+// already out moves here instead. The pets go for it a moment later.
+function placeToy(x,y){
+  const me=ME(),owned=Object.keys(TOYS.balls).filter(k=>me.balls[k]>0),kind=owned.includes(PR.toyKind)?PR.toyKind:owned[0];
+  if(!kind){toast('No toys yet — buy a ball in the Shop');return;}
+  const old=PR.items.find(i=>i.type==='ball'&&i.kind===kind);if(old)PR.items.splice(PR.items.indexOf(old),1);
+  const high=y<FLOOR.wallY,fy=high?Math.round(rnd(96,112)):Math.max(FLOOR.y0+2,Math.min(FLOOR.y1,y));
+  PR.items.push({type:'ball',kind,x:Math.max(FLOOR.x0,Math.min(FLOOR.x1,x)),y:fy,z:high?fy-y:8,vx:0,vy:0,vz:0,roll:0,dir:1,id:Math.random()});
+  const now=performance.now();PR.ballAt=now+rnd(400,1200);if(PR.buddy)PR.buddy.ballAt=now+rnd(1500,3000);renderToyPicker();}
+// A ball's step: it falls and bounces, rolls to a stop, and bounces off the room's edges.
+function ballStep(b,dt){
+  if(b.z>0||b.vz!==0){b.vz-=.00035*dt;b.z+=b.vz*dt;if(b.z<=0){b.z=0;b.vz=b.vz<-.025?-b.vz*.45:0;}}
+  const f=Math.pow(b.z>0?.9995:.997,dt);b.vx*=f;b.vy*=f;if(Math.hypot(b.vx,b.vy)<.002){b.vx=0;b.vy=0;}
+  b.x+=b.vx*dt;b.y+=b.vy*dt;b.roll+=(Math.abs(b.vx)+Math.abs(b.vy))*dt;if(b.vx)b.dir=b.vx<0?-1:1;
+  if(b.x<FLOOR.x0){b.x=FLOOR.x0;b.vx=Math.abs(b.vx)*.6;}else if(b.x>FLOOR.x1){b.x=FLOOR.x1;b.vx=-Math.abs(b.vx)*.6;}
+  if(b.y<FLOOR.y0+2){b.y=FLOOR.y0+2;b.vy=Math.abs(b.vy)*.6;}else if(b.y>FLOOR.y1){b.y=FLOOR.y1;b.vy=-Math.abs(b.vy)*.6;}}
+// A pet going for a ball (`S`: PR, the pet whose room it is, or PR.buddy, yours on a Play Date): when it's time, it sets
+// off for the nearest, follows it as it rolls, and knocks it on reaching it, then rests a few seconds. Returns whether
+// it's after one.
+function ballChase(S,now,cw,who){
+  const balls=PR.items.filter(i=>i.type==='ball');
+  if(!balls.length||now<(S.ballAt||0)){if(S.target&&S.target.ball)S.target=null;return false;}
+  const near=balls.reduce((m,i)=>Math.hypot(i.x-S.pos.x,i.y-S.pos.y)<Math.hypot(m.x-S.pos.x,m.y-S.pos.y)?i:m);
+  const b=S.target&&S.target.ball&&balls.includes(S.target.ball)?S.target.ball:near,reach=cw*.42+2,dx=b.x-S.pos.x;
+  if(Math.abs(dx)<=reach+1&&Math.abs(b.y-S.pos.y)<=5&&(b.z||0)<4){S.target=null;S.ballAt=now+rnd(2500,6500);kickBall(b,dx>=0?1:-1,S,who);return true;}
+  S.target={x:Math.max(FLOOR.x0,Math.min(FLOOR.x1,b.x-(dx>=0?1:-1)*(reach-1))),y:b.y,ball:b};return true;}
+// A knock: the ball flies off the way the pet faced, a heart over the pet, and it counts (knockCount). At most one a
+// second (the server counts no more), so two pets after the same ball take turns.
+function kickBall(b,dir,S,who){const now=performance.now();if(now<(PR.knockQuiet||0))return;PR.knockQuiet=now+1200;
+  b.vx=dir*rnd(.035,.06);b.vy=rnd(-.02,.02);b.vz=rnd(.05,.075);b.z=Math.max(b.z||0,.5);b.dir=dir;
+  S.face=dir;petPix('heart',S.pos.x,S.pos.y-20,800);petSparkle(b.x,b.y-4,['#ffffff','#fff3b0']);
+  const petId=who==='buddy'?PR.id:(PR.visit?PR.visit.hostId:PR.id);if(petId)knockCount(b,petId);}
+// A knock counted: +5 happiness for the pet that made it and a knock off the ball (the server decides, in the game).
+// Worn out, the ball goes.
+async function knockCount(b,petId){
+  if(LIVE){try{const r=await cfx('/toy/knock',{method:'POST',body:{petId,ball:b.kind}});livePet(r.pet);liveApply({player:r.player});if(r.left<=0)ballWornOut(b);}
+    catch(e){if(e.status===409)ballWornOut(b);}   // gone already (worn out elsewhere); too soon (429): just not counted
+    return;}
+  const me=ME(),left=(me.balls[b.kind]||0)-1;me.balls[b.kind]=left>0?left:null;savePlayer(me).catch(()=>{});
+  const p=petDocs.get(petId);if(p){const st=p.stats||{};writeDoc('pets',petId,{...p,stats:{...st,happiness:Math.min(100,(st.happiness??50)+TOYS.happiness)}}).catch(()=>{});}
+  if(left<=0)ballWornOut(b);}
+function ballWornOut(b){const at=PR.items.indexOf(b);if(at<0)return;PR.items.splice(at,1);
+  petSparkle(b.x,b.y-4,Object.values(BALL_ART[b.kind].pal));petPix('sparkle',b.x,b.y-6,700);toast(`Your ${TOYS.balls[b.kind].l} wore out`);renderToyPicker();}
 $('petPraise').onclick=async()=>{if(!PR.actor)return;if(LIVE&&!(await liveCare('praise')))return;petBubble('star',1400);const b=PR.box;if(b)petSparkle(b.cx,b.top,['#ffe066','#fff6c0']);};
 $('petScold').onclick=async()=>{const p=petDocs.get(PR.id);if(!PR.actor||!p)return;if(LIVE&&!(await liveCare('scold')))return;petBubble('anger',1200);
   const hap=(p.stats&&p.stats.happiness)??50;PR.pending=null;petReact(hap>=PET.happyHigh?'sad':'angry',350);};
@@ -3447,6 +3598,7 @@ $('petCanvas').addEventListener('pointerdown',e=>{
   if(PR.tool==='hand'||PR.tool==='brush'){PR.stroke={id:e.pointerId,x,y,fx:STROKE.every/2,love:0,n:0,lastOn:petOnPet(x,y)?performance.now():0};try{$('petCanvas').setPointerCapture(e.pointerId);}catch(_){}}
   else if(PR.tool==='food')placeFood(x,y);
   else if(PR.tool==='scoop')scoopAt(x,y);
+  else if(PR.tool==='toy')placeToy(x,y);
 });
 $('petCanvas').addEventListener('pointermove',e=>{const r=$('petCanvas').getBoundingClientRect();PR.cursor={x:(e.clientX-r.left)/r.width*PET.W,y:(e.clientY-r.top)/r.height*PET.H};
   if(PR.stroke&&PR.stroke.id===e.pointerId&&PR.actor)petStroke(PR.cursor.x,PR.cursor.y);});
@@ -3468,6 +3620,7 @@ function petStep(dt,now){
   const a=PR.actor;if(!a)return;a.step(dt);
   // falling kibble
   for(const it of PR.items)if(it.fallTo!==undefined&&it.y<it.fallTo){it.vy+=dt*.0006;it.y=Math.min(it.fallTo,it.y+it.vy*dt);if(it.y>=it.fallTo){delete it.fallTo;petSparkle(it.x,it.y,['#c9874a','#f2c27a']);}}
+  for(const it of PR.items)if(it.type==='ball')ballStep(it,dt);   // toys rolling and bouncing
   // queued reactions (pet / brush → happy, scold → sad / angry) interrupt walking and eating
   if(PR.pending&&now>=PR.pending.at){const {state}=PR.pending;PR.pending=null;PR.target=null;PR.eat=null;a.setState(state);
     const cyc=a.anim(state).delays.reduce((x,y)=>x+y,0);PR.react={until:now+Math.max(1800,Math.min(4000,cyc))};if(state==='love')petBubble('love',1400);}
@@ -3487,7 +3640,8 @@ function petStep(dt,now){
   if(foods.length){const it=foods.reduce((m,i)=>Math.hypot(i.x-PR.pos.x,i.y-PR.pos.y)<Math.hypot(m.x-PR.pos.x,m.y-PR.pos.y)?i:m);
     const side=PR.pos.x<it.x?-1:1;let tx=it.x+side*(cw*.42+2);if(tx<FLOOR.x0||tx>FLOOR.x1)tx=it.x-side*(cw*.42+2);
     PR.target={x:Math.max(FLOOR.x0,Math.min(FLOOR.x1,tx)),y:it.y,food:it};}
-  else if(!PR.target||PR.target.food){if(PR.target&&PR.target.food)PR.target=null;
+  else if(ballChase(PR,now,cw,'host')){}   // a ball in the room: go and knock it about
+  else if(!PR.target||PR.target.food||PR.target.ball){if(PR.target&&(PR.target.food||PR.target.ball))PR.target=null;
     if(now>=PR.wanderAt){PR.wanderAt=now+rnd(5000,11000);if(Math.random()<.55)PR.target={x:rnd(FLOOR.x0+10,FLOOR.x1-10),y:rnd(FLOOR.y0+2,FLOOR.y1-2)};}}
   if(PR.target){const t=PR.target,dx=t.x-PR.pos.x,dy=t.y-PR.pos.y,d=Math.hypot(dx,dy),step=.022*dt;
     if(Math.abs(dx)>.5)PR.face=dx>0?1:-1;
@@ -3499,6 +3653,7 @@ function petStep(dt,now){
   if(!LIVE&&now>=PR.nextPoop&&!PR.target){petPoop(now);PR.nextPoop=now+rnd(45000,90000);}
 }
 function drawItem(g,it,now){
+  if(it.type==='ball')return drawBall(g,it);
   const x=Math.round(it.x),y=Math.round(it.y);
   g.fillStyle='rgba(60,30,20,.25)';g.fillRect(x-5,y,10,1);
   if(it.type==='bowl'){g.fillStyle='#c83a3a';g.fillRect(x-5,y-3,10,3);g.fillRect(x-4,y,8,1);g.fillStyle='#ff6a5a';g.fillRect(x-5,y-3,10,1);
@@ -3566,7 +3721,7 @@ function petStop(){PR.running=false;}
 
 /* ================= tabs (hash) ================= */
 function route(){const tabs=LIVE?['room','pet','race','run','shop']:['studio','forms','room','race','run','pet','shop','profile'];
-  let h=location.hash.slice(1)||(LIVE?'room':'studio');if(!tabs.includes(h))h=LIVE?'room':'studio';
+  let h=location.hash.slice(1)||(LIVE?'room':'studio');if(EMBED)h='shop';if(!tabs.includes(h))h=LIVE?'room':'studio';
   if(LIVE&&h==='room'&&route.last!=='room'&&store.mode==='online')roomLive();   // a new set of pets every time you come in
   const intoRace=LIVE&&h==='race'&&route.last!=='race',intoRun=LIVE&&h==='run'&&route.last!=='run';
   // Explore, Kitty Race and Ruin Run: no scrolling (it would move the game under your finger); the game fills the
@@ -3577,7 +3732,8 @@ function route(){const tabs=LIVE?['room','pet','race','run','shop']:['studio','f
   $('profile').hidden=h!=='profile';$('tabProfile').classList.toggle('on',h==='profile');if(h==='profile'){renderProfile();profStart();}else profStop();
   $('studio').hidden=h!=='studio';$('forms').hidden=h!=='forms';$('room').hidden=h!=='room';$('race').hidden=h!=='race';$('run').hidden=h!=='run';$('pet').hidden=h!=='pet';
   $('tabPet').classList.toggle('on',h==='pet');if(h==='pet'){eggSync(true);petStart();}else petStop();
-  $('tabRun').classList.toggle('on',h==='run');if(h==='run'){runStartLoop();$('runBest').textContent=RN.best+' m';}else runStopLoop();
+  // Ruin Run (the game): its start screen each time the tab opens; the game runs once Play's pressed.
+  $('tabRun').classList.toggle('on',h==='run');if(h==='run'){if(LIVE&&intoRun)runHome(true);else if(!(LIVE&&RL.home))runStartLoop();$('runBest').textContent=RN.best+' m';}else runStopLoop();
   $('tabStudio').classList.toggle('on',h==='studio');$('tabForms').classList.toggle('on',h==='forms');$('tabRoom').classList.toggle('on',h==='room');$('tabRace').classList.toggle('on',h==='race');
   if(h==='race')raceStartLoop();else raceStopLoop();
   if(h==='forms')renderDetail();if(h==='studio')sizeBig();
@@ -3586,6 +3742,14 @@ function route(){const tabs=LIVE?['room','pet','race','run','shop']:['studio','f
   if(intoRun)runLiveLoad();}
 addEventListener('hashchange',route);
 
+// A window over the page asking them to confirm (in place of the browser's own confirm box): resolves to true for
+// the yes button, false for Cancel, a tap outside it or Escape.
+function askConfirm({title,text,yes='Confirm',no='Cancel'}){
+  const m=$('askModal'),Y=$('askYes'),N=$('askNo');$('askTitle').textContent=title;$('askText').textContent=text;Y.textContent=yes;N.textContent=no;m.hidden=false;Y.focus();
+  return new Promise(done=>{
+    const onKey=e=>{if(e.key==='Escape')close(false);};
+    const close=v=>{m.hidden=true;Y.onclick=N.onclick=m.onclick=null;document.removeEventListener('keydown',onKey);done(v);};
+    document.addEventListener('keydown',onKey);Y.onclick=()=>close(true);N.onclick=()=>close(false);m.onclick=e=>{if(e.target===m)close(false);};});}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2400);}
 
 // The game's own look: only its tabs, and none of Pet Forge's testing controls.
@@ -3598,7 +3762,8 @@ function liveLayout(){
   // Explore: the game, then the auras switch and the place button under it. The places (and the note on who's
   // here, and how to play) open in a pop-up window.
   const room=$('room'),bar=room.querySelector('.roombar');liveStage($('roomWrap')).append(bar);
-  const placesBtn=document.createElement('button');placesBtn.className='btn';placesBtn.id='roomPlacesBtn';placesBtn.type='button';bar.append(placesBtn);
+  const placesLbl=document.createElement('span');placesLbl.className='lbl';placesLbl.textContent='Explore:';
+  const placesBtn=document.createElement('button');placesBtn.className='btn';placesBtn.id='roomPlacesBtn';placesBtn.type='button';bar.append(placesLbl,placesBtn);
   const lbl=$('roomSeg').previousElementSibling;if(lbl)lbl.hidden=true;
   const box=livePop(room,'roomPop','Places');const pop=box.parentElement;pop.hidden=true;
   box.innerHTML='<div class="head"><h3>Places</h3><button class="btn" type="button" id="roomPopClose" aria-label="Close">✕</button></div>';
@@ -3611,12 +3776,32 @@ function liveLayout(){
   const res=document.createElement('div');res.id='raceResultsBox';res.hidden=true;const panel=$('raceResults').closest('.panel');
   res.append($('raceResultsTitle'),$('raceResults'));panel.remove();rbox.append(res);
   $('raceLive').classList.remove('panel');rbox.append($('raceLive'));
-  // Ruin Run: one switch over the game (touch controls); the bets and results are the menu over the game.
-  const rb=$('runBest');rb.hidden=true;if(rb.previousElementSibling)rb.previousElementSibling.hidden=true;$('runHelp').closest('p').hidden=true;
+  // Ruin Run: nothing over the game (Swipe is the only touch control); the bets and results are the menu over the
+  // game, and under it, buttons: lane up and lane down (two squares on the left) and JUMP on the right. JUMP held
+  // down jumps higher, like holding Space.
+  $('run').querySelector('.roombar').hidden=true;
+  const pad=document.createElement('div');pad.className='runpad';
+  pad.innerHTML='<div class="lanes"><button type="button" class="padbtn" id="runUp" tabindex="-1" aria-label="Lane up">▲</button>'+
+    '<button type="button" class="padbtn" id="runDown" tabindex="-1" aria-label="Lane down">▼</button></div>'+
+    '<button type="button" class="padbtn jump" id="runJump" tabindex="-1">JUMP</button>';
+  $('runStage').append(pad);
+  const press=(id,fn)=>$(id).addEventListener('pointerdown',e=>{e.preventDefault();fn();});
+  press('runUp',()=>setLane(laneNow()-1));press('runDown',()=>setLane(laneNow()+1));
+  const jump=$('runJump');
+  jump.addEventListener('pointerdown',e=>{e.preventDefault();if(RN.state!=='running')return;try{jump.setPointerCapture(e.pointerId);}catch(_){}doJump();});
+  for(const ev of ['pointerup','pointercancel','lostpointercapture'])jump.addEventListener(ev,()=>releaseJump());
+  // Its start screen, before the game (runHomeRender): Play, How to Play (a pop-up window) and the site's best runs.
+  const home=document.createElement('div');home.className='runhome';home.id='runHome';$('runStage').before(home);
+  livePop($('run'),'runHowPop','How to Play').parentElement.hidden=true;
+  home.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(!b)return;if(b.dataset.do==='play')runHome(false);else if(b.dataset.do==='how')runHowOpen();});
+  $('runHowPop').addEventListener('click',e=>{if(e.target===e.currentTarget||e.target.closest('#runHowClose'))runHowClose();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')runHowClose();});
 }
 function liveChrome(){
   if(!LIVE)return;document.title='Catflix No Chill';document.body.classList.add('live');
-  const h=document.querySelector('.top h1');if(h)h.innerHTML='Catflix <span>No Chill</span>';
+  document.querySelector('.top').hidden=true;   // no title over the game: the site's own bar above it names it
+  // The Pet room: its room picker and auras switch in their box at the bottom of the page, under everything else.
+  $('pet').querySelector('.petlayout').after($('petBarMain'));
   for(const id of ['tabStudio','tabForms','tabProfile','status','ppAdd','petSel','petNew','petDel','roomShuffle','mineSel','roomWxSeg','raceStart','raceShuffle','weatherSeg','runPet'])$(id).hidden=true;
   for(const sel of ['label[for=runPet]'])document.querySelectorAll(sel).forEach(el=>el.hidden=true);
   const wxr=$('weatherSeg');if(wxr.previousElementSibling)wxr.previousElementSibling.hidden=true;   // "Weather": the race's own

@@ -52,5 +52,7 @@ catflixRunSchema.index({ user: 1, status: 1 });
 catflixRunSchema.index({ user: 1, startedAt: -1 });
 // For the sweep: runs still playing long after they started.
 catflixRunSchema.index({ status: 1, startedAt: 1 });
+// For the best runs (utils/catflix/ruinRun.js leaderboard): fastest first.
+catflixRunSchema.index({ speed: -1, metres: -1, finishedAt: 1 });
 
 module.exports = mongoose.model("CatflixRun", catflixRunSchema);

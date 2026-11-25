@@ -192,11 +192,12 @@
           <div class="eggname" id="eggName" hidden><div id="eggWhat"></div><div class="eggrow"><input type="text" id="eggNameIn" maxlength="30" placeholder="Name your cat"><button class="btn acc" id="eggNameGo">Name it</button></div></div></div>
         <div class="controls">
           <span class="lbl">Tool</span>
-          <div class="seg" id="petTools"><button data-v="hand">✋ Hand</button><button data-v="brush">🪮 Brush</button><button data-v="food">🍖 Food ×0</button><button data-v="scoop">🪣 Scooper</button></div>
+          <div class="seg" id="petTools"><button data-v="hand">✋ Hand</button><button data-v="brush">🪮 Brush</button><button data-v="food">🍖 Food ×0</button><button data-v="scoop">🪣 Scooper</button><button data-v="toy">🎾 Toy</button></div>
+          <div class="seg" id="petToySel" hidden aria-label="Which ball"></div>
           <span class="sp"></span>
           <button class="btn" id="petPraise">🌟 Praise</button><button class="btn danger" id="petScold">📢 Scold</button>
         </div>
-        <p class="note">Pick a tool. Hand / Brush: press and drag across your pet — it gets happy a couple of seconds later. Food (uses 1 serving — buy more in the Shop): tap the wall to drop a snack, or tap the floor to set down a full bowl — your pet walks over and eats. Scooper: tap a poop to clean it up. Scolding a happy pet makes it sad; scolding an unhappy one makes it angry.</p>
+        <p class="note">Pick a tool. Hand / Brush: press and drag across your pet — it gets happy a couple of seconds later. Food (uses 1 serving — buy more in the Shop): tap the wall to drop a snack, or tap the floor to set down a full bowl — your pet walks over and eats. Scooper: tap a poop to clean it up. Toy: pick one of your balls and tap the floor to drop it — the pets knock it about, +5 happiness a knock, until it wears out. Tap its button again to take it back. Scolding a happy pet makes it sad; scolding an unhappy one makes it angry.</p>
       </div>
       <div class="col">
         <div class="panel"><h3>Aura</h3><div class="auralist" id="petAuraList"></div>
@@ -242,7 +243,9 @@
         <div class="panel"><h3>Aura crystals</h3><div class="crystals" id="shopCrystals"></div>
           <p class="note">A crystal unlocks an aura for your pet. Auras only show on your profile — try them on in the Profile tab.</p></div>
         <div class="panel"><h3>Pet supplies</h3><div class="supply"><canvas id="foodIcon"></canvas><div><b>Pet food</b><div class="note" style="margin:2px 0 0">3 servings · each one fills a bowl or drops a snack. You have <b id="foodHave">0</b>.</div></div>
-          <span class="sp"></span><button class="btn acc" id="foodBuy">Buy · 100 PP</button></div></div>
+          <span class="sp"></span><button class="btn acc" id="foodBuy">Buy · 100 PP</button></div>
+          <div class="toys" id="shopToys"></div>
+          <p class="note">Toys: in a pet room (yours, or on a Play Date) pick 🎾 Toy and tap the floor to drop a ball. The pets knock it about: +5 happiness for a pet every knock, until the ball wears out; tap its button again to take it back. One of each ball at a time.</p></div>
         <div class="panel"><h3>Your packs</h3><div class="mypacks" id="myPacks"></div></div>
       </div>
       <div class="col">
@@ -306,6 +309,11 @@
     <div class="ggrid" id="ggrid"></div>
     <div class="empty" id="gEmpty" hidden>No registered forms yet. Recolor a base form in the Studio and press <b>Register form</b>.</div>
   </section>
+</div>
+<!-- A window over the page asking to confirm a purchase (forge.js askConfirm), in place of the browser's own box -->
+<div class="askmodal" id="askModal" hidden role="dialog" aria-modal="true" aria-labelledby="askTitle">
+  <div class="askbox"><h3 id="askTitle"></h3><p id="askText"></p>
+    <div class="askbtns"><button class="btn" type="button" id="askNo">Cancel</button><button class="btn acc" type="button" id="askYes">Confirm</button></div></div>
 </div>
 <div class="toast" id="toast" style="z-index:20"></div>
 <script src="gif.js"></script>
