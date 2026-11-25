@@ -5,8 +5,8 @@ const Schema = mongoose.Schema;
 // What a member has in Catflix No Chill besides their pet
 // (utils/catflix/shop.js): pet food, unopened booster packs, their Spell
 // Deck's cards (how many of each registered form), and the aura crystals
-// and room styles they've bought. Everything bought with PP is only ever
-// cosmetic.
+// and room styles they've bought. Everything bought with PP is cosmetic,
+// but for Kitty Race's cheat items (`cheats`).
 const catflixPlayerSchema = new Schema(
     {
         user: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
@@ -34,6 +34,13 @@ const catflixPlayerSchema = new Schema(
             yarn: { type: Number, default: null },
         },
         knockedAt: { type: Date, default: null },
+        // Kitty Race's cheat items they have, to throw in a race
+        // (utils/catflix/kittyRace.js throwItem; shared/catflix/rules.js
+        // kittyRace.cheats).
+        cheats: {
+            tnt: { type: Number, default: 0 },
+            banana: { type: Number, default: 0 },
+        },
         // The last pack an admin awarded them from an event page: no more
         // than one every 30 seconds (utils/catflix/awards.js).
         awardedAt: { type: Date, default: null },

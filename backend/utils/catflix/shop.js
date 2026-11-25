@@ -9,7 +9,9 @@ const { CatflixError } = require("./pets");
 // Catflix No Chill's shop and Spell Deck (shared/catflix/rules.js has the
 // prices): booster packs and their cards, aura crystals (half price in the
 // Black Friday Sale), pet food, room styles, casting a card on your pet, and
-// the Spell Forge. Everything here is cosmetic: PP buys looks, never points.
+// the Spell Forge. Everything here is cosmetic, PP buying looks, but for
+// Kitty Race's cheat items (TNT or a Banana Peel to throw at a cat in a race,
+// utils/catflix/kittyRace.js throwItem).
 // Each buy takes PP first, then P-PP (utils/wallet.js spend), with a
 // "catflixShop" receipt. Whatever's bought is claimed before the PP is
 // taken, and handed back if the PP can't be, so two taps never pay twice.
@@ -35,6 +37,7 @@ function playerView(player) {
         styles: ["cozy", ...(player.styles ?? []).filter((style) => style !== "cozy")],
         aurasOn: player.aurasOn !== false,
         pending: player.pending ? { options: player.pending.options } : null,
+        cheats: Object.fromEntries(Object.keys(CATFLIX.kittyRace.cheats.items).map((kind) => [kind, player.cheats?.[kind] ?? 0])),
     };
 }
 
@@ -88,6 +91,12 @@ async function buy(userId, { item, kind, aura, style } = {}, now = new Date()) {
         const claimed = await CatflixPlayer.updateOne({ user: userId, $or: [{ [path]: null }, { [path]: { $lte: 0 } }] }, { $set: { [path]: ball.durability } });
         if (claimed.modifiedCount === 0) throw new CatflixError(`You have a ${ball.name} already: one at a time, so wear it out first.`, 409);
         await pay(userId, ball.price, () => CatflixPlayer.updateOne({ user: userId }, { $set: { [path]: null } }));
+    } else if (item === "cheat") {
+        const items = CATFLIX.kittyRace.cheats.items;
+        const cheat = typeof kind === "string" && Object.hasOwn(items, kind) ? items[kind] : null;
+        if (!cheat) throw new CatflixError("There's no cheat item like that.");
+        await CatflixPlayer.updateOne({ user: userId }, { $inc: { [`cheats.${kind}`]: 1 } });
+        await pay(userId, cheat.price, () => CatflixPlayer.updateOne({ user: userId }, { $inc: { [`cheats.${kind}`]: -1 } }));
     } else {
         throw new CatflixError("The shop doesn't sell that.");
     }

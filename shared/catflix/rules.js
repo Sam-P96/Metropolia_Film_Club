@@ -185,6 +185,30 @@ export const CATFLIX = {
     leadMs: 2000,
     countdownMs: 3000,
     raceMs: 78000,
+    // The winner crosses the line this far into the race (after the
+    // countdown); backend/public/pet-forge/forge.js RACE.winnerMs plays it so.
+    winnerMs: 60000,
+    // Cheat items, from the pet shop (`price` PP each, PP first, then P-PP):
+    // a stick of TNT or a Banana Peel (`a`: what it is, with its article),
+    // thrown at a cat in a lane while the race runs, up
+    // to the winner's finish. One a race for each member: racing, at any cat
+    // but their own; watching, only at members' cats whose owners have PvP
+    // on. It reaches its cat `flightMs` after it's thrown (so every page sees
+    // it coming). Thrown before the last `lateMs` before the winner's finish,
+    // it knocks that cat out of the race in `hit` of throws: it stops there,
+    // sad, and loses; if it was going to win, the next cat in line wins, even
+    // the thrower's. Thrown later than that, it always misses: the cat jumps
+    // it. Each house cat throws one in `houseCat` of races, at any other cat,
+    // any time from `houseFrom` ms in to the winner's finish. (One that would
+    // leave no cat to cross the line misses instead.)
+    cheats: {
+      items: { tnt: { name: 'TNT', a: 'TNT', price: 200 }, banana: { name: 'Banana Peel', a: 'a Banana Peel', price: 200 } },
+      hit: 0.8,
+      lateMs: 15000,
+      flightMs: 2500,
+      houseCat: 0.3,
+      houseFrom: 4000,
+    },
     maps: {
       stadium: { name: 'Stadium' },
       river: { name: 'Riverside' },
@@ -192,12 +216,20 @@ export const CATFLIX = {
       theatre: { name: 'Theatre', indoor: true },
     },
     // Mishaps, each in that share of races, never to the winner (so every
-    // cat still has the same chance): a brawl, a cat attacking the cat in
-    // the next lane mid-race (`brawlFrom` to `brawlTo` ms in), both stopping
-    // there and losing, last; and celebrating too soon, a cat leading into
-    // the finish that stops just short of the line to celebrate while the
-    // rest go past, and comes in behind them.
-    mishaps: { brawl: 0.2, celebrate: 0.2, brawlFrom: 20000, brawlTo: 40000 },
+    // cat still has the same chance), any of them in the same race: a
+    // brawl, a cat attacking the cat in the next lane (any time from
+    // `brawlFrom` to `brawlTo` ms in, so anywhere along the track), both
+    // stopping there and losing, last; in `secondBrawl` of those, another
+    // two cats brawl too (four in all), somewhere else. Celebrating too
+    // soon: a cat leading into the finish stops just short of the line to
+    // celebrate while the rest go past, and comes in behind them. And when
+    // it's raining on the track (rain or a thunderstorm), in `lightning` of
+    // races a cat is struck by lightning (any time from `lightningFrom` to
+    // `lightningTo` ms in): pitch black and sad, it stops there and loses.
+    // And in `quit` of races a cat takes the lead (some time from `quitFrom`
+    // to `quitTo` ms in), two cats overtake it, and it gives up: it stops
+    // running, sad, and loses.
+    mishaps: { brawl: 0.2, secondBrawl: 0.2, celebrate: 0.2, brawlFrom: 8000, brawlTo: 52000, lightning: 0.5, lightningFrom: 8000, lightningTo: 55000, rainy: ['rain', 'thunder'], quit: 0.1, quitFrom: 15000, quitTo: 45000 },
     // The house cats' names.
     houseCats: ['Mochi', 'Tofu', 'Nori', 'Miso', 'Yuzu', 'Taro', 'Kiki', 'Momo', 'Sushi', 'Boba', 'Udon', 'Kuro', 'Shiro', 'Sora', 'Hana', 'Kinako'],
   },
