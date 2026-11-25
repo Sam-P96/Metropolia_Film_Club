@@ -346,6 +346,33 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         assert.ok(["sunny", "snow"].includes(api.body.weather.christmas));
     });
 
+    test("the Room Room: a pet with no happiness left (0) is only ever on the graveyard, yours too", async () => {
+        const pets = require("../utils/catflix/pets");
+        const viewer = await member();
+        await withPet(viewer, { happiness: 60 });
+        const glum = await member();
+        const glumPet = await withPet(glum, { happiness: 0 });
+        // Saved at 3, but hungry for the last 10 hours: at 0 by now.
+        const fading = await member();
+        const fadingPet = await withPet(fading, { happiness: 3, hunger: 0 });
+        await setPet(fadingPet, { clock: new Date(Date.now() - 10 * 3600000), fullUntil: null });
+        for (const friend of [glum, fading]) await Follow.create([{ follower: viewer._id, following: friend._id }, { follower: friend._id, following: viewer._id }]);
+        const ids = (visit) => visit.pets.map((pet) => String(pet._id));
+
+        const school = await pets.roomVisit(viewer._id, "school", { random: () => 0.1 });
+        assert.ok(!ids(school).includes(String(glumPet._id)) && !ids(school).includes(String(fadingPet._id)), "not at school");
+        const graveyard = await pets.roomVisit(viewer._id, "graveyard", { random: () => 0.1 });
+        assert.ok(ids(graveyard).includes(String(glumPet._id)) && ids(graveyard).includes(String(fadingPet._id)), "on the graveyard");
+
+        const own = await call(glum, "GET", "/room?map=cafeteria");
+        assert.ok(!ids(own.body).includes(String(glumPet._id)), "their own, only on the graveyard too");
+        assert.equal(own.body.away, true);
+        const ownGrave = await call(glum, "GET", "/room?map=graveyard");
+        assert.equal(ids(ownGrave.body)[0], String(glumPet._id));
+        assert.equal(ownGrave.body.away, false);
+        assert.equal(school.away, false, "a happy pet's out everywhere");
+    });
+
     test("the shop: packs (cards rolled on the server), auras at 500,000 (Rain Cloud 800,000, half in the Black Friday Sale), food up to 100, room styles; never charged twice", async () => {
         const rich = await member({ pp: 600000, ppp: 1500000 });
         await withPet(rich);

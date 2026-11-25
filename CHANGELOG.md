@@ -394,6 +394,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Catflix No Chill's Play Dates: the pet room shows the other cat's stats
   beside your cat's, in a second Stats box, each headed with the cat's name
   ("your cat" / "their cat"). Their cat's love is its love for you.
+- Catflix No Chill's moods: a cat with happiness below 20 idles in its sad
+  animation, in Explore and the pet room (yours, the one you're visiting,
+  and yours tagging along). A cat with no happiness left (0) only turns up
+  on the Graveyard in Explore; your own too, and Explore says so on the
+  other maps (`shared/catflix/rules.js` mood; `away` in `GET
+  /api/catflix/room`).
 - Catflix No Chill's toys on a Play Date: each knock of your ball by the
   cat you're visiting also raises its love for you by 1 (as well as its +5
   happiness). Your own cat's knocks are as before

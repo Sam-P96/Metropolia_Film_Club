@@ -126,6 +126,11 @@ export const CATFLIX = {
 
   // The Room Room: 7 pets a room (yours included), each other one a
   // friend's half the time when there are friends' pets to choose from.
+  // A cat with happiness below `sadBelow` idles in its sad animation (Explore
+  // and the pet room). One with none at all (0) only turns up on
+  // `gloomMap` in Explore.
+  mood: { sadBelow: 20, gloomMap: 'graveyard' },
+
   room: { pets: 7, friendShare: 0.5, defaultMap: 'school' },
   maps: {
     theatre: { name: 'Theatre', indoor: true },

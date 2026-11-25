@@ -5,6 +5,9 @@ const RARITIES=[ // Fortnite-style colours
 const rarityOf=k=>RARITIES.find(r=>r.k===k)||RARITIES[0];
 const rarityDot=(k,size=10)=>{const r=rarityOf(k);return `<i class="rdot" style="--rc:${r.c};width:${size}px;height:${size}px" title="${r.l}"></i>`;};
 const STATES=[{k:'idle',l:'Idle',i:'💤'},{k:'sad',l:'Sad',i:'💧'},{k:'angry',l:'Angry',i:'💢'},{k:'love',l:'Love',i:'💗'},{k:'walk',l:'Walk',i:'🐾'}];
+// Happiness under this and a cat idles in its sad animation (shared/catflix/rules.js mood). `m`: its stats or meters.
+const MOOD={sadBelow:20};
+const lowMood=m=>!!m&&typeof m.happiness==="number"&&m.happiness<MOOD.sadBelow;
 // Coats: one click recolours the fur (coatLook below). Every kind looks at the base form's own fur first, so a coat
 // works on any base form, not just an orange cat:
 //   kind 'hue'    the fur turned to a colour: an absolute `hue`, or a `turn` round the colour wheel from the fur's
@@ -799,6 +802,7 @@ class RoomCat{
     this.until=0;this.bubble=null;this.lock=false;this.task=null;this.hop=0;this.cache={};this.aiAt=performance.now()+rnd(800,4000);}
   artFaces(){const d=baseDocs.get(this.form.id);return d&&d.facing==='right'?1:-1;}
   anim(state){ // falls back to idle when a pet has no animation for that state
+    if(state==='idle'&&this.low&&this.form.anims.sad)state='sad';   // an unhappy cat (`low`: happiness under 20) idles sad
     const st=this.form.anims[state]?state:(this.form.anims.idle?'idle':this.form.firstState());
     if(!this.cache[st]){const a=this.form.anims[st],f=this.form;
       this.cache[st]={st,frames:bake(f,a,this.map),delays:a.delays,
@@ -886,7 +890,7 @@ async function roomSync(){
     let c=R.cats.find(k=>k.id===r.id);
     if(c){c.name=r.name;c.rarity=r.rarity;if(c.form!==f||JSON.stringify(c.map)!==JSON.stringify(map)){c.form=f;c.map=map;c.cache={};}}
     else c=new RoomCat({id:r.id,name:r.name,form:f,map,guest:r.guest,rarity:r.rarity});
-    c.liveAura=r.live?r.live.aura:null;c.owner=r.live?r.live.owner:null;c.friend=!!(r.live&&r.live.friend);
+    c.liveAura=r.live?r.live.aura:null;c.owner=r.live?r.live.owner:null;c.friend=!!(r.live&&r.live.friend);c.low=lowMood(r.live&&r.live.meters);
     next.push(c);});
   R.cats.forEach(c=>{if(!next.includes(c))next.forEach(o=>{if(o.task&&o.task.target===c)o.task=null;});});
   R.cats=next;R.cats.forEach(c=>c.cache={}); // re-read animation settings (hover, shakes, RLF) after any change
@@ -899,7 +903,7 @@ function renderRoomBar(){
   if(LIVE&&!LV.room){$('roomNote').textContent='Looking for pets…';const pb=$('roomPlacesBtn');if(pb)pb.textContent=`${ROOMS[RM.room].icon} ${ROOMS[RM.room].name}`;return;}   // until the server says who's here
   if(LIVE){const pb=$('roomPlacesBtn');if(pb)pb.textContent=`${ROOMS[RM.room].icon} ${ROOMS[RM.room].name}`;}
   if(LIVE){const n=R.cats.length,f=R.cats.filter(c=>c.friend).length;
-    $('roomNote').textContent=`${n} pet${n===1?'':'s'} here${f?`, ${f} of them your friends’`:''}. They change every time you come in. ${ROOMS[RM.room].indoor?'Indoors: no weather here.':'The weather changes every 4 hours.'}${R.mine?'':' Hatch your egg in the Pet tab to join in.'}`;return;}
+    $('roomNote').textContent=`${n} pet${n===1?'':'s'} here${f?`, ${f} of them your friends’`:''}. They change every time you come in. ${ROOMS[RM.room].indoor?'Indoors: no weather here.':'The weather changes every 4 hours.'}${R.mine?'':LV.room.away?' Your cat has no happiness left, so it only goes out to the Graveyard: cheer it up in the Pet tab.':' Hatch your egg in the Pet tab to join in.'}`;return;}
   const sel=$('mineSel');
   sel.innerHTML=R.cats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.guest?' (guest)':''}</option>`).join('');
   if(R.mine)sel.value=R.mine.id;
@@ -1405,6 +1409,7 @@ $('roomMenu').addEventListener('click',async e=>{const b=e.target.closest('butto
   if(kind==='date'){startPlayDate(target);return;}
   // In the game the server decides first (once an hour each); the pets only act it out if it agrees.
   if(LIVE){const r=await liveCall('/room/act',{targetId:target.id,action:kind});if(!r)return;livePet(r.mine);livePet(r.theirs);
+    me.low=lowMood(r.mine&&r.mine.meters);target.low=lowMood(r.theirs&&r.theirs.meters);
     toast(kind==='play'?`${me.name} and ${target.name} played: both happier`:kind==='pet'?`${target.name} loved that: happier, and a little braver`
       :r.outcome==='won'?`${me.name} stood tall: more confident (both a little sadder)`:`${target.name} wasn’t having it: both lose confidence and happiness`);}
   if(me.task)me.task.target.lock=false;
@@ -3634,7 +3639,11 @@ function petPoop(now){ // a little pile appears just behind the pet
   PR.items.push({type:'poop',x:Math.round(x),y:Math.round(PR.pos.y-1),t:now,id:Math.random()});petBubble('poop',1100);
 }
 function petStep(dt,now){
-  eggStep(dt,now);if(eggActive())return;if(PR.visit)buddyStep(dt,now);
+  eggStep(dt,now);if(eggActive())return;
+  // An unhappy cat idles sad: the one whose room it is, and yours tagging along on a Play Date.
+  if(PR.actor)PR.actor.low=lowMood((petDocs.get(PR.visit?PR.visit.hostId:PR.id)||{}).stats);
+  if(PR.buddy&&PR.buddy.actor)PR.buddy.actor.low=lowMood((petDocs.get(PR.id)||{}).stats);
+  if(PR.visit)buddyStep(dt,now);
   const a=PR.actor;if(!a)return;a.step(dt);
   // falling kibble
   for(const it of PR.items)if(it.fallTo!==undefined&&it.y<it.fallTo){it.vy+=dt*.0006;it.y=Math.min(it.fallTo,it.y+it.vy*dt);if(it.y>=it.fallTo){delete it.fallTo;petSparkle(it.x,it.y,['#c9874a','#f2c27a']);}}
