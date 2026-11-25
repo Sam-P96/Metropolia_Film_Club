@@ -225,6 +225,71 @@ describe("Catflix No Chill", { skip: !uri ? "set MONGO_TEST_URI to run these" : 
         assert.equal((await call(visitor, "POST", "/care", { petId: pet._id, kind: "tickle" })).status, 400);
     });
 
+    // ---- Toys (utils/catflix/toys.js) ----
+
+    // A knock counted, as if the last one was long enough ago.
+    const knock = async (user, pet, ball) => {
+        await CatflixPlayer.updateOne({ user: user._id }, { $set: { knockedAt: null } });
+        return call(user, "POST", "/toy/knock", { petId: pet._id, ball });
+    };
+
+    test("toys: four balls at 1,000 / 2,000 / 3,000 / 10,000 PP lasting 10 / 20 / 30 / 100 knocks; one of each at a time", async () => {
+        const { CATFLIX } = require("../../shared/catflix/rules.js");
+        assert.deepEqual(
+            Object.entries(CATFLIX.toys.balls).map(([kind, ball]) => [kind, ball.price, ball.durability]),
+            [["beach", 1000, 10], ["soccer", 2000, 20], ["basketball", 3000, 30], ["yarn", 10000, 100]]
+        );
+        const buyer = await member({ pp: 5000, ppp: 20000 });
+        const bought = await call(buyer, "POST", "/shop/buy", { item: "ball", kind: "beach" });
+        assert.deepEqual(bought.body.player.balls, { beach: 10, soccer: null, basketball: null, yarn: null });
+        assert.deepEqual(await walletOf(buyer), { pp: 4000, ppp: 20000 }, "1,000, PP first");
+        const again = await call(buyer, "POST", "/shop/buy", { item: "ball", kind: "beach" });
+        assert.equal(again.status, 409);
+        assert.match(again.body.error, /Beach ball already: one at a time/);
+        assert.deepEqual(await walletOf(buyer), { pp: 4000, ppp: 20000 }, "nothing taken");
+        await call(buyer, "POST", "/shop/buy", { item: "ball", kind: "yarn" });
+        assert.deepEqual(await walletOf(buyer), { pp: 0, ppp: 14000 }, "10,000: the PP, then P-PP");
+        assert.equal((await call(buyer, "POST", "/shop/buy", { item: "ball", kind: "golf" })).status, 400);
+        assert.equal((await call(buyer, "POST", "/shop/buy", { item: "ball", kind: "__proto__" })).status, 400);
+
+        const poor = await member({ pp: 999 });
+        assert.equal((await call(poor, "POST", "/shop/buy", { item: "ball", kind: "beach" })).status, 400);
+        assert.equal((await call(poor, "GET", "/me")).body.player.balls.beach, null, "not enough PP: no ball");
+    });
+
+    test("toys: each knock is +5 happiness for the pet that knocked it and one knock off the ball; worn out, it's gone and can be bought again", async () => {
+        const owner = await member({ pp: 3000 });
+        const pet = await withPet(owner, { happiness: 40 });
+        assert.match((await knock(owner, pet, "beach")).body.error, /don't have a Beach ball/);
+        await call(owner, "POST", "/shop/buy", { item: "ball", kind: "beach" });
+
+        const first = await knock(owner, pet, "beach");
+        assert.deepEqual([first.body.pet.meters.happiness, first.body.left, first.body.player.balls.beach], [45, 9, 9]);
+        for (let i = 0; i < 8; i++) await knock(owner, pet, "beach");
+        assert.equal((await meters(pet)).happiness, 85);
+        const last = await knock(owner, pet, "beach");
+        assert.deepEqual([last.body.left, last.body.player.balls.beach, last.body.pet.meters.happiness], [0, null, 90], "the tenth: worn out");
+        assert.equal((await knock(owner, pet, "beach")).status, 409, "gone");
+        assert.equal((await call(owner, "POST", "/shop/buy", { item: "ball", kind: "beach" })).body.player.balls.beach, 10, "another, once it's worn out");
+        await setPet(pet, { "meters.happiness": 98 });
+        assert.equal((await knock(owner, pet, "beach")).body.pet.meters.happiness, 100, "never past 100");
+    });
+
+    test("toys: on a Play Date, your ball's knocks count for their pet too; at most one knock a second; a pet that isn't there costs nothing", async () => {
+        const [owner, visitor] = [await member(), await member({ pp: 2000 })];
+        const theirs = await withPet(owner, { happiness: 30 });
+        const mine = await withPet(visitor, { happiness: 30 });
+        await call(visitor, "POST", "/shop/buy", { item: "ball", kind: "soccer" });
+        assert.equal((await knock(visitor, theirs, "soccer")).body.pet.meters.happiness, 35, "their pet");
+        const quick = await call(visitor, "POST", "/toy/knock", { petId: mine._id, ball: "soccer" });
+        assert.equal(quick.status, 429, "too soon after the last");
+        assert.equal((await meters(mine)).happiness, 30);
+        assert.equal((await knock(visitor, mine, "soccer")).body.pet.meters.happiness, 35, "and yours, tagging along");
+        assert.equal((await CatflixPlayer.findOne({ user: visitor._id }).lean()).balls.soccer, 18);
+        assert.equal((await knock(visitor, { _id: new mongoose.Types.ObjectId() }, "soccer")).status, 404);
+        assert.equal((await CatflixPlayer.findOne({ user: visitor._id }).lean()).balls.soccer, 18, "no knock used");
+    });
+
     test("the Room Room: Play, Pet and Bully, once an hour each, for each pet", async () => {
         const [me, them] = [await member(), await member()];
         const mine = await withPet(me, { happiness: 50, confidence: 60 });

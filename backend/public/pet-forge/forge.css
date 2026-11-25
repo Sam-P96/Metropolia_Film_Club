@@ -157,6 +157,17 @@ pre.json{background:#100e18;border:1px solid var(--line);border-radius:10px;padd
 .petwrap{margin-top:0;aspect-ratio:4/3}
 .deckrow{display:flex;gap:14px;align-items:center}
 .supply{display:flex;align-items:center;gap:12px}.supply .sp{flex:1}.supply canvas{width:44px;height:52px;image-rendering:pixelated}
+/* the shop's toys: a row each under the food, the ball's pixel art beside it */
+.toys{display:flex;flex-direction:column;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.toys .supply canvas{width:42px;height:42px;margin:0 1px}
+#petToySel button.out{color:var(--acc)}   /* a ball out in the room: tap it to take it back */
+/* a window over the page asking to confirm a purchase (forge.js askConfirm) */
+.askmodal{position:fixed;inset:0;z-index:70;background:rgba(8,6,14,.72);display:flex;align-items:center;justify-content:center;padding:16px}
+.askmodal[hidden]{display:none}
+.askbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:min(380px,100%);display:flex;flex-direction:column;gap:10px;box-shadow:0 16px 48px rgba(0,0,0,.55)}
+.askbox h3{margin:0;font:700 19px 'Pixelify Sans',monospace;color:var(--ink);text-transform:none;letter-spacing:.01em}
+.askbox p{margin:0;font-size:14px;color:var(--mute)}
+.askbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 .visitbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;border-color:#ffb35c;background:color-mix(in srgb,#ffb35c 8%,var(--panel))}
 .visitbar .sp{flex:1}.vbar{width:140px;height:8px;background:#2a2438;border-radius:99px;overflow:hidden}.vbar i{display:block;height:100%;background:#ff6f9a}
 #petBarMain.visiting{opacity:.5;pointer-events:none}
@@ -325,7 +336,17 @@ html.fit .gamestage{flex:1;min-height:0;container-type:size;display:flex;flex-di
 html.fit #roomWrap{margin:0;flex:none;width:min(100cqw,calc((100cqh - 64px) * 1254 / 1004))}   /* 64px: the bar under it */
 html.fit .gamestage>.roombar{flex:none}
 html.fit #raceWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh * 16 / 9))}
-html.fit #runWrap{margin:0;flex:none;width:min(100cqw,100cqh,640px);max-width:none}
+html.fit #runWrap{margin:0;flex:none;width:min(100cqw,calc(100cqh - 96px),640px);max-width:none}   /* 96px: the buttons under it */
+/* Ruin Run's buttons under the game, as wide as it: lane up over lane down, centred in the room left of JUMP, which is
+   on the right (a third of the row, so the lane buttons have room for their full width on a phone too) */
+.runpad{flex:none;display:flex;align-items:stretch;justify-content:space-between;gap:10px;width:min(100cqw,calc(100cqh - 96px),640px);height:86px}
+.runpad .lanes{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.runpad .lanes .padbtn{width:min(220px,100%)}
+.padbtn{width:110px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:700 20px Inter,sans-serif;cursor:pointer;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;display:grid;place-items:center;padding:0}
+.padbtn:active{background:#33294d;border-color:var(--acc)}
+.padbtn.jump{width:clamp(100px,34%,220px);height:auto;flex:none;background:var(--acc);border-color:var(--acc);color:#2a1700;font:700 26px 'Pixelify Sans',monospace;letter-spacing:.06em}
+.padbtn.jump:active{filter:brightness(.88)}
 @media (max-height:640px){html.fit .top{display:none}html.fit .tabs{margin-top:0}}
 /* a pop-up window: over the tab's game, never over the tabs */
 .popwin{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(10,7,18,.55);backdrop-filter:blur(2px)}

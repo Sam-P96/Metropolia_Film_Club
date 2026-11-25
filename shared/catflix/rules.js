@@ -44,6 +44,23 @@ export const CATFLIX = {
 
   // Pet food: a bag is 3 servings, and nobody holds more than 100.
   food: { price: 100, servings: 3, max: 100 },
+  // Toys: balls to drop in a pet room, your own pet's or the one you're
+  // visiting on a Play Date. The pets there knock them about: each knock is
+  // +`happiness` happiness for the pet that knocked it, and uses up 1 of the
+  // ball's `durability` (the knocks it lasts); a worn-out ball is gone. One
+  // of each kind at a time: another can be bought once it's worn out. The
+  // server counts at most one knock a player every `knockEveryMs`
+  // (backend/utils/catflix/toys.js).
+  toys: {
+    happiness: 5,
+    knockEveryMs: 1000,
+    balls: {
+      beach: { name: 'Beach ball', price: 1000, durability: 10 },
+      soccer: { name: 'Soccer ball', price: 2000, durability: 20 },
+      basketball: { name: 'Basketball', price: 3000, durability: 30 },
+      yarn: { name: 'Yarn ball', price: 10000, durability: 100 },
+    },
+  },
 
   // Pet room styles: Cozy is everyone's; the rest are bought once each.
   roomStyles: {
