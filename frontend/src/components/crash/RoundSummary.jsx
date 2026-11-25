@@ -39,7 +39,10 @@ export default function RoundSummary({ summary, myId }) {
                 <MemberAvatar user={player.user} size="sm" />
               </span>
               <span className="flex flex-col leading-tight">
-                <span className="max-w-24 truncate text-xs text-white/70">{player.userId === myId ? 'You' : player.user?.username}</span>
+                <span className="max-w-24 truncate text-xs text-white/70">
+                  {player.userId === myId ? 'You' : player.user?.username}
+                  {player.uncapped && <span className="text-[#FF8A8A]" title="No betting cap, no bet protection"> · no cap</span>}
+                </span>
                 <span className="text-sm font-bold tabular-nums">
                   <span className={best ? 'text-[#FFD76A]' : player.cashedAt === null ? 'text-[#FF8A8A]' : 'text-white'}>
                     {player.cashedAt === null ? 'Crashed' : formatMultiplier(player.cashedAt)}

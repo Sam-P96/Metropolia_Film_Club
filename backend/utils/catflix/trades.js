@@ -17,8 +17,10 @@ const { playerOf } = require("./shop");
 // one who offered has 3 days to take it. Only friends (members who follow
 // each other). Each side's card and points are held in the trade from the
 // moment they're put in (out of the deck and the wallet: "catflixTrade"
-// receipts), handed across if it's taken, and back ("catflixTradeBack") if
-// it isn't: turned down, taken back, or not answered in time. Pinned
+// receipts), handed across if it's taken (points always arrive as P-PP,
+// however they were paid, like every other win on the site), and back
+// ("catflixTradeBack", in the coins they were paid in) if it isn't: turned
+// down, taken back, or not answered in time. Pinned
 // notifications tell each side when it's their turn (utils/notify.js).
 
 const RULES = CATFLIX.trades;
@@ -67,9 +69,13 @@ async function takePoints(userId, points, { other, trade }) {
     return { pp: 0 - taken.pp, ppp: 0 - taken.ppp };
 }
 
-async function givePoints(userId, paid, { reason, other, trade }) {
+// Gives points held in a trade: `across` to the other side, all as P-PP
+// (100 PP and 200 P-PP put in: 300 P-PP); back to whoever put them in, as
+// they paid them.
+async function givePoints(userId, paid, { reason, other, trade, across = false }) {
     if (!paid || paid.pp + paid.ppp <= 0) return;
-    await changeWallet(userId, () => ({ pp: paid.pp, ppp: paid.ppp }), { reason, other, catflix: trade });
+    const change = across ? { pp: 0, ppp: paid.pp + paid.ppp } : { pp: paid.pp, ppp: paid.ppp };
+    await changeWallet(userId, () => change, { reason, other, catflix: trade });
 }
 
 // Puts a side in: its card, then its points (the card back if the points
@@ -85,11 +91,12 @@ async function putIn(userId, { card, points }, { other, trade }) {
     }
 }
 
-// Hands a side to `userId`: back to whoever put it in, or across.
-async function hand(userId, side, { reason, other, trade }) {
+// Hands a side to `userId`: back to whoever put it in, or `across` to the
+// other side (its points as P-PP).
+async function hand(userId, side, { reason, other, trade, across = false }) {
     if (!side) return;
     await giveCard(userId, side.card);
-    await givePoints(userId, side.paid, { reason, other, trade });
+    await givePoints(userId, side.paid, { reason, other, trade, across });
 }
 
 // What a side says: a card (a registered form's id, or none) and points
@@ -213,8 +220,8 @@ async function accept(userId, tradeId, now = new Date()) {
         { returnDocument: "after" }
     ).lean();
     if (!trade) throw new CatflixError("That trade isn't waiting on you any more.", 404);
-    await hand(trade.from, trade.counter, { reason: "catflixTrade", other: trade.to, trade: trade._id });
-    await hand(trade.to, trade.offer, { reason: "catflixTrade", other: trade.from, trade: trade._id });
+    await hand(trade.from, trade.counter, { reason: "catflixTrade", other: trade.to, trade: trade._id, across: true });
+    await hand(trade.to, trade.offer, { reason: "catflixTrade", other: trade.from, trade: trade._id, across: true });
     await clearPinned(trade);
     await note(trade.to, "tradeDone", trade, userId);
     return trade;

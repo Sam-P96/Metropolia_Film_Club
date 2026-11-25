@@ -236,6 +236,20 @@ function rollWithBust(count, chance, roll, random) {
     return random(1_000_000) < swap * 1_000_000 ? farkleDice(count, random) : dice;
 }
 
+// The natural chance of three dice coming up 1-1-1: 1 in 216.
+const TRIPLE_ONES = 1 / 6 ** 3;
+
+// A roll of `count` dice where three dice come up 1-1-1 `extra` (0 to 1)
+// more often than they would: swapped for 1-1-1 just often enough that it
+// comes up 1 in 216 plus `extra` of the time (0.01: 0.46% -> 1.46%). Any
+// other number of dice is rolled as usual. Never sent anywhere: the page
+// only sees the dice.
+function rollWithTripleOnes(count, extra, roll, random) {
+    if (count !== 3 || !(extra > 0)) return roll(count);
+    const swap = extra / (1 - TRIPLE_ONES);
+    return random(1_000_000) < swap * 1_000_000 ? [1, 1, 1] : roll(count);
+}
+
 // The bot's whole turn, if it's the bot's go (the bot sits in `seat`):
 // roll, set aside what botPick likes, then bank or roll on as botShouldBank
 // says, until it banks or Farkles. Its moves go through applyMove like
@@ -243,12 +257,17 @@ function rollWithBust(count, chance, roll, random) {
 //
 // `bustChance` (games/happyHours.js), if given, is ({ turn, roll }) => 0 to
 // 1: how often roll number `roll` of the bot's `turn`th turn of the match
-// should Farkle. `random(max)` decides those: crypto.randomInt unless a
-// test passes its own.
-function playBot(game, seat, roll = cryptoDice, { bustChance = null, random = crypto.randomInt } = {}) {
+// should Farkle. `tripleOnes` (big stakes: shared/farkle/rules.js
+// botTripleOnes), if above 0: how much more often its three dice come up
+// 1-1-1. `random(max)` decides those: crypto.randomInt unless a test passes
+// its own.
+function playBot(game, seat, roll = cryptoDice, { bustChance = null, tripleOnes = 0, random = crypto.randomInt } = {}) {
     if (game.status !== "active" || game.current !== seat) return game;
 
-    let dice = roll;
+    // 1-1-1 first, under any happy hour's Farkles, so those still come up
+    // as often as the happy hour says.
+    const base = tripleOnes > 0 ? (count) => rollWithTripleOnes(count, tripleOnes, roll, random) : roll;
+    let dice = base;
     if (bustChance) {
         // Turns alternate, so each seat's go is every other one: the bot's
         // nth turn is the match's (2n - 1)th if it started, its 2nth if not,
@@ -257,7 +276,7 @@ function playBot(game, seat, roll = cryptoDice, { bustChance = null, random = cr
         let rolls = 0;
         dice = (count) => {
             rolls += 1;
-            return rollWithBust(count, bustChance({ turn, roll: rolls }), roll, random);
+            return rollWithBust(count, bustChance({ turn, roll: rolls }), base, random);
         };
     }
 
@@ -287,4 +306,4 @@ function forfeit(game) {
     return next;
 }
 
-module.exports = { GAME_FIELDS, MoveError, FARKLE_CHANCE, cryptoDice, rollWithBust, newGame, applyMove, playBot, forfeit };
+module.exports = { GAME_FIELDS, MoveError, FARKLE_CHANCE, TRIPLE_ONES, cryptoDice, rollWithBust, rollWithTripleOnes, newGame, applyMove, playBot, forfeit };

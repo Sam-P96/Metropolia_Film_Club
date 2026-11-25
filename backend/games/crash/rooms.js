@@ -6,7 +6,7 @@ const { noteCrashInvite, noteCrashResults } = require("../../utils/notify");
 const { playDay } = require("../../utils/wallet");
 const { MEMBER_FIELDS, userSummary } = require("../../utils/serialize");
 const { CRASH, CrashRound, cashOutsAt, payoutFor, secureRandom } = require("./engine");
-const { CRASH_RULES, autoTarget, isProtected, roundKindFor } = require("../../../shared/crash/rules.js");
+const { CRASH_RULES, autoTarget, canUncap, isProtected, roundKindFor } = require("../../../shared/crash/rules.js");
 const ORCA_LINES = require("../../data/lordGangOrcaScripts").crashAllIn;
 
 // Crash's rooms, lobby and live rounds, all in the server's memory (one
@@ -96,6 +96,7 @@ function createCrashRooms({
                 userId: player.userId,
                 user: player.user,
                 bet: player.bet,
+                uncapped: player.uncapped,
                 autoAt: player.autoAt,
                 cashedAt: player.cashedAt,
                 cashedTick: player.cashedTick,
@@ -115,11 +116,12 @@ function createCrashRooms({
                 userId: player.userId,
                 user: player.user,
                 bet: player.bet,
+                uncapped: player.uncapped,
                 autoAt: player.autoAt,
                 ready: player.ready,
                 spectating: player.spectating,
                 connected: sockets.has(player.userId),
-                canReady: !player.spectating && !db.blockedFor(statuses.get(player.userId), player.bet, size),
+                canReady: !player.spectating && !db.blockedFor(statuses.get(player.userId), player.bet, size, { uncapped: player.uncapped }),
             })),
             round: room.round ? roundView(room.round) : null,
             last: room.last,
@@ -163,7 +165,7 @@ function createCrashRooms({
         return {
             ...status,
             room: roomId,
-            blocked: player && !player.spectating ? db.blockedFor(status, player.bet, sizeOf(room)) : null,
+            blocked: player && !player.spectating ? db.blockedFor(status, player.bet, sizeOf(room), { uncapped: player.uncapped }) : null,
         };
     }
 
@@ -203,6 +205,8 @@ function createCrashRooms({
             userId,
             user: members.get(userId),
             bet: bet ?? Math.min(status?.maxBet ?? 1, 10),
+            // Remove Betting Cap: off until they take it off (setUncap).
+            uncapped: false,
             autoAt,
             ready: false,
             spectating,
@@ -233,9 +237,11 @@ function createCrashRooms({
     // After the room changed: anyone ready who no longer can be (say, the
     // room got smaller and they've played its rounds) isn't, and the round
     // starts if it should.
+    // Fewer than 5 players: anyone who'd taken the cap off has it back on.
     function recheck(room) {
+        if (!canUncap(sizeOf(room))) for (const player of room.players) player.uncapped = false;
         for (const player of room.players) {
-            if (player.ready && db.blockedFor(statuses.get(player.userId), player.bet, sizeOf(room))) player.ready = false;
+            if (player.ready && db.blockedFor(statuses.get(player.userId), player.bet, sizeOf(room), { uncapped: player.uncapped })) player.ready = false;
         }
         maybeStart(room);
     }
@@ -341,10 +347,10 @@ function createCrashRooms({
         let riders = room.players.filter((player) => player.ready);
         while (!allIn) {
             const count = room.private ? 1 : riders.length;
-            const out = riders.filter((player) => db.blockedFor(statuses.get(player.userId), player.bet, count));
+            const out = riders.filter((player) => db.blockedFor(statuses.get(player.userId), player.bet, count, { uncapped: player.uncapped }));
             if (out.length === 0) break;
             for (const player of out) {
-                io.to(userChannel(player.userId)).emit("crash:error", { message: `You sat this round out. ${db.blockedFor(statuses.get(player.userId), player.bet, count)}` });
+                io.to(userChannel(player.userId)).emit("crash:error", { message: `You sat this round out. ${db.blockedFor(statuses.get(player.userId), player.bet, count, { uncapped: player.uncapped })}` });
                 player.ready = false;
             }
             riders = riders.filter((player) => !out.includes(player));
@@ -361,7 +367,8 @@ function createCrashRooms({
             id: new mongoose.Types.ObjectId(),
             kind,
             day,
-            // 5 or more players: half of every loss back.
+            // 5 or more players: half of every loss back (each player's own
+            // share below: none for whoever took their cap off).
             protectShare: !allIn && isProtected(size) ? CRASH_RULES.protectShare : 0,
             status: "starting",
             startsAt: null,
@@ -371,6 +378,7 @@ function createCrashRooms({
                 userId: player.userId,
                 user: player.user,
                 bet: player.bet,
+                uncapped: Boolean(player.uncapped) && !allIn && canUncap(size),
                 autoAt: player.autoAt,
                 paid: null,
                 claimed: false,
@@ -382,6 +390,11 @@ function createCrashRooms({
             credits: [],
             timer: null,
         };
+        // No cap: none of the half back, and cash-outs pay 97/99 of the multiplier (97% RTP, not 99%).
+        for (const player of run.players) {
+            player.protectShare = player.uncapped ? 0 : run.protectShare;
+            player.pays = player.uncapped ? CRASH_RULES.uncappedPays : 1;
+        }
         // Taken now, so nothing else starts a round here meanwhile.
         room.round = run;
         sendRoom(room);
@@ -466,10 +479,10 @@ function createCrashRooms({
         player.cashedAt = multiplier;
         player.cashedTick = tickNumber;
         player.auto = auto;
-        player.payout = payoutFor(player.paid, multiplier, run.protectShare);
+        player.payout = payoutFor(player.paid, multiplier, player.protectShare, player.pays);
         run.credits.push(
             db
-                .payCashOut(player.userId, player.paid, multiplier, run.id, run.protectShare)
+                .payCashOut(player.userId, player.paid, multiplier, run.id, player.protectShare, player.pays)
                 .then(() => refresh(player.userId))
                 .then(() => sendMe(player.userId))
                 .catch((error) => console.error("Crash couldn't pay a cash-out:", error))
@@ -498,12 +511,12 @@ function createCrashRooms({
         run.status = "over";
         run.endedBy = run.engine.ended;
         // Whoever rode it to the crash: nothing back, or in a protected
-        // round, half their bet.
+        // round, half their bet (not if they took their cap off).
         for (const player of run.players) {
             if (player.cashedAt !== null) continue;
-            player.payout = payoutFor(player.paid, 0, run.protectShare);
+            player.payout = payoutFor(player.paid, 0, player.protectShare);
             if (player.payout.total > 0) {
-                run.credits.push(db.payCashOut(player.userId, player.paid, 0, run.id, run.protectShare).catch((error) => console.error("Crash couldn't pay a protected loss:", error)));
+                run.credits.push(db.payCashOut(player.userId, player.paid, 0, run.id, player.protectShare).catch((error) => console.error("Crash couldn't pay a protected loss:", error)));
             }
         }
 
@@ -529,6 +542,7 @@ function createCrashRooms({
                 userId: player.userId,
                 user: player.user,
                 bet: player.bet,
+                uncapped: player.uncapped,
                 cashedAt: player.cashedAt,
                 auto: player.auto,
                 payout: player.payout.total,
@@ -712,6 +726,23 @@ function createCrashRooms({
         maybeStart(room);
     }
 
+    // Remove Betting Cap (`on`), or put it back. Only in a room of 5 or more
+    // (the switch only shows then): no cap on their bet, and none of the
+    // protection for them. Like a new bet, it un-readies.
+    function setUncap(userId, { on = true } = {}) {
+        const room = roomOf(userId);
+        if (room.private) throw new CrashError("Playing alone there's no cap to take off.");
+        if (isLive(room.round)) throw new CrashError("The round has started: wait for the next one.");
+        const player = room.players.find((entry) => entry.userId === userId);
+        if (player.spectating) throw new CrashError("You're spectating: take a seat to play.");
+        if (on && !canUncap(sizeOf(room))) throw new CrashError(`The betting cap can only come off in a room of ${CRASH_RULES.protectedPlayers} or more players.`);
+        player.uncapped = Boolean(on);
+        player.ready = false;
+        sendRoomAndMe(room);
+        sendLobby();
+        maybeStart(room);
+    }
+
     // Ready (with the bet and target, if given) or not. When every player in
     // the room is ready, the round starts; alone in a room, straight away.
     // Readying while a smaller game is being offered is a yes to it.
@@ -728,7 +759,7 @@ function createCrashRooms({
             await refresh(userId);
             if (isLive(room.round)) throw new CrashError("The round has started: wait for the next one.");
             if (player.spectating) throw new CrashError("You're spectating: take a seat to play.");
-            const blocked = db.blockedFor(statuses.get(userId), player.bet, sizeOf(room));
+            const blocked = db.blockedFor(statuses.get(userId), player.bet, sizeOf(room), { uncapped: player.uncapped });
             if (blocked) {
                 player.ready = false;
                 sendRoomAndMe(room);
@@ -764,7 +795,7 @@ function createCrashRooms({
         check();
         if (where.get(userId) !== room.id) throw new CrashError("You're not in that room any more.");
         const readyNow = seatedOf(room).filter((entry) => entry.ready);
-        const blocked = db.blockedFor(statuses.get(userId), player.bet, readyNow.length);
+        const blocked = db.blockedFor(statuses.get(userId), player.bet, readyNow.length, { uncapped: player.uncapped });
         if (blocked) throw new CrashError(blocked);
 
         const others = readyNow.filter((entry) => entry.userId !== userId);
@@ -945,6 +976,7 @@ function createCrashRooms({
         spectate,
         leave,
         setBet,
+        setUncap,
         ready,
         startGame,
         answer,

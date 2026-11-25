@@ -19,7 +19,7 @@ import useCrash from '../hooks/useCrash'
 import useCountdown from '../hooks/useCountdown'
 import { devResetCrashDay } from '../services/crash'
 import { getCurrentUserId } from '../utils/currentUser'
-import { CRASH_RULES, autoTarget, blockedFor, isProtected, playsLeft, playsLine, roundsFor } from '../../../shared/crash/rules.js'
+import { CRASH_RULES, autoTarget, blockedFor, canUncap, isProtected, playsLeft, playsLine, roundsFor } from '../../../shared/crash/rules.js'
 
 const autoOf = (value) => (value.autoOn ? autoTarget(value.autoText) : null)
 
@@ -348,7 +348,13 @@ function RoomScreen({ game, myId, value, onValue }) {
   const watching = room.players.length - seated.length
   const seatsFull = seated.length >= CRASH_RULES.roomSize
   const size = room.private ? 1 : seated.length
-  const blocked = blockedFor(me, value.bet, size)
+  // Remove Betting Cap (No Bet Protection): only in a room of 5 or more.
+  // On, your bet goes up to everything you have, and you give up the half
+  // back (everyone else keeps it).
+  const canTakeOff = !room.private && canUncap(size)
+  const uncapped = canTakeOff && Boolean(mine?.uncapped)
+  const maxBet = uncapped ? Math.max(1, me?.points ?? 1) : (me?.maxBet ?? 1)
+  const blocked = blockedFor(me, value.bet, size, { uncapped })
   const full = !room.private && isProtected(size)
   const countdown = useCountdown(room.countdownEndsAt)
   // Seconds left, never more than the rules' own lengths.
@@ -359,7 +365,7 @@ function RoomScreen({ game, myId, value, onValue }) {
   const readyCount = seated.filter((player) => player.ready).length
   // Start Game: the countdown's over, you're ready, and nobody's pressed it yet.
   const canStart = !room.private && room.startable && !offer && mine?.ready && !spectating
-  const startBlocked = canStart ? blockedFor(me, mine.bet, readyCount) : null
+  const startBlocked = canStart ? blockedFor(me, mine.bet, readyCount, { uncapped }) : null
   // The prompt to join a smaller game: you were asked, and haven't answered.
   const prompted = Boolean(offer && !liveRound && mine?.ready && offer.asked.includes(myId) && !offer.answers[myId])
   // Ready ones first, then a "+N" past ROOM_FACES.
@@ -383,6 +389,13 @@ function RoomScreen({ game, myId, value, onValue }) {
     if (mine?.ready) game.setBet(next.bet, autoOf(next)).catch((problem) => setError(problem.message))
   }
 
+  // The cap back on: a bet over it comes down to it.
+  const toggleCap = () =>
+    run(async () => {
+      await game.uncap(!uncapped)
+      if (uncapped && me && value.bet > me.maxBet) onValue({ ...value, bet: me.maxBet })
+    })
+
   const cashOut = () => run(game.cashOut)
   const cashOutRef = useRef(cashOut)
   useEffect(() => {
@@ -404,7 +417,7 @@ function RoomScreen({ game, myId, value, onValue }) {
   if (liveRound && stillIn) {
     panel =
       liveRound.status === 'playing' ? (
-        <CashOutButton bet={riding.bet} displayRef={displayRef} onCashOut={cashOut} busy={busy} />
+        <CashOutButton bet={riding.bet} pays={riding.uncapped ? CRASH_RULES.uncappedPays : 1} displayRef={displayRef} onCashOut={cashOut} busy={busy} />
       ) : (
         <p className="py-4 text-center font-['Bebas_Neue'] text-3xl tracking-wide text-white">Bets are in. Get ready…</p>
       )
@@ -435,7 +448,7 @@ function RoomScreen({ game, myId, value, onValue }) {
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <ul className="flex flex-wrap items-center justify-center gap-1.5">
               {faces.slice(0, ROOM_FACES).map((player) => (
-                <li key={player.userId} className="relative" title={`${player.user?.username}: bet ${player.bet}${player.ready ? ', ready' : ''}`}>
+                <li key={player.userId} className="relative" title={`${player.user?.username}: bet ${player.bet}${player.uncapped ? ', no betting cap (no bet protection)' : ''}${player.ready ? ', ready' : ''}`}>
                   <span className={player.ready ? '' : 'opacity-60'}>
                     <MemberAvatar user={player.user} size="sm" />
                   </span>
@@ -450,7 +463,7 @@ function RoomScreen({ game, myId, value, onValue }) {
             </ul>
             <p className={`text-sm font-semibold ${full ? 'text-[#FFD76A]' : 'text-white/70'}`}>
               {full
-                ? `${size}/${CRASH_RULES.roomSize} players: protected, half of every loss back`
+                ? `${size}/${CRASH_RULES.roomSize} players: protected, half of every loss back${uncapped ? ' (not for you: no cap)' : ''}`
                 : `${size}/${CRASH_RULES.roomSize} players: ${roundsFor(size)} rounds a day. ${CRASH_RULES.protectedPlayers - size} more for ${roundsFor(CRASH_RULES.protectedPlayers)} and half of every loss back`}
               {watching > 0 && <span className="font-normal text-white/55"> · {watching} watching</span>}
             </p>
@@ -466,7 +479,27 @@ function RoomScreen({ game, myId, value, onValue }) {
           </div>
         ) : (
           <>
-            <BetControls value={value} maxBet={me?.maxBet ?? 1} onChange={changeBet} disabled={busy} />
+            <BetControls value={value} maxBet={maxBet} capOff={uncapped} onChange={changeBet} disabled={busy} />
+            {canTakeOff && (
+              <div className="flex flex-col items-center gap-1 text-center">
+                <button
+                  type="button"
+                  onClick={toggleCap}
+                  disabled={busy}
+                  aria-pressed={uncapped}
+                  className={`min-h-11 cursor-pointer rounded-xl border px-4 text-sm font-bold transition-colors disabled:cursor-default disabled:opacity-50 ${
+                    uncapped ? 'border-[#FF8A8A] bg-[#FF8A8A]/15 text-[#FFB3B3] hover:bg-[#FF8A8A]/25' : 'border-white/20 bg-white/5 text-white hover:bg-white/10'
+                  }`}
+                >
+                  {uncapped ? 'Betting cap removed: put it back' : 'Remove Betting Cap (No Bet Protection)'}
+                </button>
+                <p className="max-w-md text-xs text-white/60">
+                  {uncapped
+                    ? `Bet as much as you have (${(me?.points ?? 0).toLocaleString('en-US')} points, PP first). Lose, and you get nothing back: the half back is only for everyone else. Cash-outs pay a little less: 97% back on average instead of 99%.`
+                    : `Bet as much as you have, but lose and you get none of the half back, even as the ${CRASH_RULES.protectedPlayers}th player (everyone else still does), and cash-outs pay a little less: 97% back on average instead of 99%.`}
+                </p>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"

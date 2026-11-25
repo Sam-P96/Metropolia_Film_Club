@@ -7,8 +7,10 @@ const chip = (on) =>
   }`
 
 // The bet (1 up to `maxBet`, with quick picks) and the optional
-// auto-cash-out target. `value`: { bet, autoOn, autoText }.
-export default function BetControls({ value, maxBet, onChange, disabled = false, compact = false }) {
+// auto-cash-out target. `value`: { bet, autoOn, autoText }. `capOff`: the
+// player's taken their betting cap off (Remove Betting Cap), so `maxBet`
+// is everything they have.
+export default function BetControls({ value, maxBet, onChange, disabled = false, compact = false, capOff = false }) {
   const betId = useId()
   const autoId = useId()
   const picks = [...new Set([CRASH_RULES.minBet, Math.max(1, Math.floor(maxBet / 4)), Math.max(1, Math.floor(maxBet / 2)), maxBet])]
@@ -18,7 +20,7 @@ export default function BetControls({ value, maxBet, onChange, disabled = false,
     <div className={`flex flex-col gap-2 ${compact ? '' : 'sm:flex-row sm:items-end sm:gap-4'}`}>
       <div className="flex flex-col gap-1">
         <label htmlFor={betId} className="text-xs font-semibold tracking-widest text-white/60 uppercase">
-          Bet <span className="font-normal tracking-normal normal-case">(1 to {maxBet})</span>
+          Bet <span className="font-normal tracking-normal normal-case">{capOff ? `(no cap: up to ${maxBet.toLocaleString('en-US')})` : `(1 to ${maxBet})`}</span>
         </label>
         <div className="flex flex-wrap items-center gap-1.5">
           <input

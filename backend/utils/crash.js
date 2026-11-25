@@ -109,8 +109,8 @@ async function giveBack(userId, paid, roundId) {
 // (games/crash/engine.js payoutFor). In a protected round, `protectShare`
 // of a loss comes back too; a multiplier of 0 is a crash, and only that
 // comes back ("crashProtect"). Resolves to { pp, ppp, total }.
-async function payCashOut(userId, paid, multiplier, roundId, protectShare = 0) {
-    const payout = payoutFor(paid, multiplier, protectShare);
+async function payCashOut(userId, paid, multiplier, roundId, protectShare = 0, pays = 1) {
+    const payout = payoutFor(paid, multiplier, protectShare, pays);
     if (payout.total > 0 && userId) {
         try {
             await changeWallet(userId, () => ({ pp: payout.pp, ppp: payout.ppp }), { reason: multiplier > 0 ? "crashWin" : "crashProtect", crash: roundId });
@@ -147,7 +147,7 @@ function startRound({ room, isPrivate, kind, day }, players, roundId) {
         kind,
         day,
         status: "playing",
-        players: players.map((player) => ({ user: player.userId, bet: player.bet, paid: player.paid, autoAt: player.autoAt })),
+        players: players.map((player) => ({ user: player.userId, bet: player.bet, paid: player.paid, autoAt: player.autoAt, uncapped: Boolean(player.uncapped) })),
         path: [],
     });
 }
@@ -168,6 +168,7 @@ function finishRound(roundId, { path, ticks, endedBy, players }) {
                     bet: player.bet,
                     paid: player.paid,
                     autoAt: player.autoAt,
+                    uncapped: Boolean(player.uncapped),
                     cashedAt: player.cashedAt,
                     cashedTick: player.cashedTick,
                     auto: player.auto,

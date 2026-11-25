@@ -98,6 +98,10 @@ describe("the engine", () => {
         assert.deepEqual(payoutFor({ pp: 10, ppp: 0 }, 0, 0.5), { pp: 5, ppp: 0, total: 5 }, "crashed: half the bet");
         assert.deepEqual(payoutFor({ pp: 6, ppp: 4 }, 0, 0.5), { pp: 3, ppp: 2, total: 5 });
         assert.deepEqual(payoutFor({ pp: 7, ppp: 0 }, 0, 0.5), { pp: 3, ppp: 0, total: 3 }, "3.5 rounds down");
+        // No betting cap: 97/99 of the multiplier, so 97% back on average instead of 99%.
+        assert.deepEqual(payoutFor({ pp: 1000, ppp: 0 }, 2, 0, CRASH_RULES.uncappedPays), { pp: 1000, ppp: 959, total: 1959 }, "1000 x 2 x 97/99 = 1959.6");
+        assert.deepEqual(payoutFor({ pp: 990, ppp: 0 }, 0.99, 0, CRASH_RULES.uncappedPays), { pp: 960, ppp: 0, total: 960 }, "990 x 0.99 x 97/99 = 960.3");
+        assert.equal(Math.round(CRASH.start * CRASH_RULES.uncappedPays * 1e6) / 1e6, 0.97, "from 0.99x: 97%");
         assert.deepEqual(payoutFor({ pp: 10, ppp: 0 }, 0.7, 0.5), { pp: 8, ppp: 0, total: 8 }, "7 back, and 1 of the 3 lost");
         assert.deepEqual(payoutFor({ pp: 1, ppp: 0 }, 0, 0.5), { pp: 0, ppp: 0, total: 0 }, "half of 1 rounds down to nothing");
         assert.deepEqual(payoutFor({ pp: 10, ppp: 0 }, 2.5, 0.5), { pp: 10, ppp: 15, total: 25 });
@@ -141,6 +145,12 @@ describe("the daily plays (shared/crash/rules.js)", () => {
         assert.equal(CRASH_RULES.roomSize, 30);
         assert.deepEqual([1, 2, 3, 4, 5, 12, 30].map(roundsFor), [3, 6, 12, 24, 25, 25, 25]);
         assert.deepEqual([1, 2, 3, 4, 5, 30].map(roundKindFor), ["solo", "group", "group", "group", "protected", "protected"]);
+        // No betting cap: only counts with 5 or more.
+        const status = { dailyPp: 40, maxBet: 10, used: { total: 0 }, points: 5000, banned: null };
+        assert.match(blockedFor(status, 1000, 5), /Bets go up to 10/);
+        assert.equal(blockedFor(status, 1000, 5, { uncapped: true }), null);
+        assert.match(blockedFor(status, 1000, 4, { uncapped: true }), /No betting cap takes 5 or more players/);
+        assert.match(blockedFor(status, 5001, 5, { uncapped: true }), /Not enough points/);
         assert.deepEqual([1, 4, 5, 30].map(isProtected), [false, false, true, true]);
     });
 
@@ -393,6 +403,53 @@ describe("the rooms", { skip: !uri ? "set MONGO_TEST_URI to run these" : !dbName
         await until(() => lastFor(last, "crash:kicked"));
         assert.ok(!room.players.some((player) => player.userId === idOf(last)), "25 of 25 played: out of the room");
         assert.match(lastFor(last, "crash:kicked").message, /last round/);
+    });
+
+    test("Remove Betting Cap (No Bet Protection): only in a room of 5 or more; bet anything you have, and none of the half back for you; everyone else keeps theirs", async () => {
+        const [bold, ...rest] = [await member({ pp: 2000, ppp: 0 }), await member(), await member(), await member(), await member()];
+        for (const player of [bold, ...rest]) await rooms.hello(socketOf(player));
+        const { id } = await rooms.create(idOf(bold));
+        const room = rooms.rooms.get(id);
+        for (const player of rest.slice(0, 3)) await rooms.join(idOf(player), id);
+        assert.throws(() => rooms.setUncap(idOf(bold), { on: true }), /5 or more/, "4 in the room");
+        await assert.rejects(rooms.ready(idOf(bold), { bet: 1000 }), /Bets go up to 10/);
+        await rooms.join(idOf(rest[3]), id);
+
+        rooms.setUncap(idOf(bold), { on: true });
+        assert.equal(room.players[0].uncapped, true);
+        await assert.rejects(rooms.ready(idOf(bold), { bet: 2001 }), /Not enough points/, "no cap, but only what you have");
+        // It crashes at once: the four keep their half back; no cap, none back.
+        queue = [];
+        await rooms.ready(idOf(bold), { bet: 1000 });
+        for (const player of rest) await rooms.ready(idOf(player), { bet: 10 });
+        await until(() => room.round?.status === "over" && room.last);
+        assert.deepEqual([room.last.kind, room.last.protected], ["protected", true], "the 5 still count: protected for the rest");
+        assert.deepEqual(
+            room.last.players.map((player) => [player.uncapped, player.payout, player.net]),
+            [[true, 0, -1000], ...rest.map(() => [false, 5, -5])]
+        );
+        assert.deepEqual(await walletOf(bold), { pp: 1000, ppp: 0 });
+        const saved = await CrashRound.findById(room.last.roundId).lean();
+        assert.deepEqual(saved.players.map((player) => player.uncapped), [true, false, false, false, false]);
+
+        // Cashing out without the cap: 97/99 of the multiplier (97% back, not 99%); with it, the whole multiplier.
+        queue = [...ups(40)];
+        await rooms.ready(idOf(bold), { bet: 500 });
+        for (const player of rest) await rooms.ready(idOf(player), { bet: 10 });
+        await until(() => room.round?.status === "playing" && room.round.engine.tick >= 3);
+        const out = rooms.cashOut(idOf(bold));
+        const other = rooms.cashOut(idOf(rest[0]));
+        await until(() => room.round?.status === "over" && room.last);
+        assert.equal(out.payout, Math.floor(500 * out.multiplier * CRASH_RULES.uncappedPays + 1e-9));
+        assert.equal(other.payout, Math.floor(10 * other.multiplier + 1e-9));
+        // 1,000 PP left after the first round; 500 PP bet: the 500 back as PP, the rest as P-PP.
+        assert.ok(out.payout >= 500, `cashed out ahead (${out.payout})`);
+        assert.deepEqual(await walletOf(bold), { pp: 1000, ppp: out.payout - 500 });
+
+        // Down to 4: the cap's back on.
+        await rooms.leave(idOf(rest[3]));
+        assert.equal(room.players.find((player) => player.userId === idOf(bold)).uncapped, false);
+        await assert.rejects(rooms.ready(idOf(bold), { bet: 1000 }), /Bets go up to 10/);
     });
 
     test("a big room: the first one ready starts the countdown, which never starts a round by itself; Start Game asks the others ready; whoever doesn't answer sits out; 30 is full", async () => {

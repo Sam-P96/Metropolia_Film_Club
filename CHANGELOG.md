@@ -849,6 +849,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as weight 1).
 
 ### Changed
+- Box Office Crash: in a room of 5 or more players, each player can press
+  Remove Betting Cap (No Bet Protection): their bet goes up to everything
+  they have (PP first, then P-PP), past the usual quarter of their daily
+  PP, but if they lose they get none of the half back, even as the 5th
+  player. They still count towards the 5, so everyone else keeps theirs.
+  Their cash-outs also pay 97/99 of the multiplier: 97% back on average
+  instead of the game's 99% (shared/crash/rules.js uncappedPays). Others
+  see "no cap" by them; the room dropping below 5 puts the cap back on
+  (shared/crash/rules.js canUncap, backend/games/crash/rooms.js setUncap).
+- Catflix No Chill's Kitty Race has mishaps, each in 20% of races and never
+  to the winner, so every cat still has the same chance: a brawl, a cat
+  pouncing on the cat in the next lane 20 to 40 seconds in, both stopping
+  there and losing (last); and celebrating too soon, a cat leading into the
+  finish that stops just short of the line, happy and jumping, while the
+  rest go past, and comes in behind them. The server picks them with the
+  winner (backend/utils/catflix/kittyRace.js mishapsFor); every page plays
+  them the same; the results say who brawled and who celebrated too soon.
+- Kino Farkle against Clanker: stakes go up to 3,000 points (from 1,500),
+  with 2,000 and 3,000 quick stakes. In a game played for more than 2,000,
+  Clanker's three dice come up 1-1-1 one percentage point more often (1.46%
+  of the time instead of 1 in 216, 0.46%): shared/farkle/rules.js
+  BOT_BIG_STAKE, rolled by the server (backend/games/farkle/engine.js).
 - Catflix No Chill's booster packs cost twice as much: Single Pack 100,000,
   Triple Pack 200,000 and Black & Gold Pack 400,000 points (were 50,000,
   100,000 and 200,000).
@@ -1032,6 +1054,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Catflix No Chill's Kitty Race: a race already under way could fail to
+  show (just your own cat on the line) when the page heard about it before
+  the pets' looks had loaded. It now plays as soon as they have.
+- Catflix No Chill's Trade Spell: points you get in a trade arrive as P-PP,
+  however the other member paid them (they came as PP when PP was put in).
+  Points going back to whoever put them in (turned down, taken back or not
+  answered) still come back as they were paid.
 - Opening a booster pack on a phone: a Black & Gold pack's seven cards ran
   off the screen, covering the ✕ and pushing "Open another" and "Go to Spell
   Deck" out of reach, with no way to scroll. The cards are now smaller on a

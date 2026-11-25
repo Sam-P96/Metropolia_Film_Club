@@ -57,6 +57,7 @@ function raceView(race, now = new Date()) {
         entries: race.entries.map((entry) => ({ user: String(entry.user), username: entry.username, name: entry.name, skinId: entry.skinId, bet: entry.bet, payout: entry.payout })),
         racers: race.racers.map((racer) => ({ owner: racer.owner ? String(racer.owner) : null, username: racer.username, name: racer.name, skinId: racer.skinId })),
         order: race.order,
+        mishaps: race.mishaps ?? null,
         seed: race.seed,
         startAt: race.startAt,
         endsAt: race.endsAt,
@@ -171,6 +172,32 @@ function shuffled(list, random) {
     return out;
 }
 
+// A race's mishaps (shared/catflix/rules.js kittyRace.mishaps), by lane,
+// never the `winner`'s lane: so they don't change who wins, and every cat
+// keeps the same chance. A brawl: two cats in lanes next to each other, one
+// attacking the other, some way into the race. Celebrating too soon: one of
+// the rest.
+function mishapsFor(lanes, winner, random) {
+    const odds = RULES.mishaps;
+    let brawl = null;
+    if (random(100) < odds.brawl * 100) {
+        const pairs = [];
+        for (let lane = 0; lane + 1 < lanes; lane++) if (lane !== winner && lane + 1 !== winner) pairs.push(lane);
+        if (pairs.length) {
+            const lane = pairs[random(pairs.length)];
+            const [attacker, victim] = random(2) === 0 ? [lane, lane + 1] : [lane + 1, lane];
+            brawl = { attacker, victim, atMs: odds.brawlFrom + random(odds.brawlTo - odds.brawlFrom + 1) };
+        }
+    }
+    let celebrate = null;
+    if (random(100) < odds.celebrate * 100) {
+        const left = [];
+        for (let lane = 0; lane < lanes; lane++) if (lane !== winner && lane !== brawl?.attacker && lane !== brawl?.victim) left.push(lane);
+        if (left.length) celebrate = { lane: left[random(left.length)] };
+    }
+    return brawl || celebrate ? { brawl, celebrate } : null;
+}
+
 // Starts an open race: house cats fill the field, the lanes are shuffled,
 // the winner is picked (every cat the same chance), and the winner's owner
 // paid, all at once. `by`: the host starting it (anyone else can't); null
@@ -192,7 +219,11 @@ async function startRace(raceId, { by = null, random = crypto.randomInt, now = n
         const field = [...players, ...house];
         const racers = shuffled(field, random);
         const winner = racers.indexOf(field[winnerAt]);
-        const order = [winner, ...shuffled(racers.map((_, lane) => lane).filter((lane) => lane !== winner), random)];
+        // The rest of the order around any mishaps: whoever celebrated too
+        // soon comes in behind the others, and a brawl's two are last.
+        const mishaps = mishapsFor(racers.length, winner, random);
+        const unlucky = [mishaps?.celebrate?.lane, mishaps?.brawl?.attacker, mishaps?.brawl?.victim].filter((lane) => lane !== undefined);
+        const order = [winner, ...shuffled(racers.map((_, lane) => lane).filter((lane) => lane !== winner && !unlucky.includes(lane)), random), ...unlucky];
         const owner = racers[winner].owner;
         const entries = race.entries.map((entry) => ({ ...entry, payout: owner && same(entry.user, owner) ? entry.bet * RULES.pays : 0 }));
         const startAt = new Date(now.getTime() + RULES.leadMs);
@@ -200,7 +231,7 @@ async function startRace(raceId, { by = null, random = crypto.randomInt, now = n
 
         const started = await CatflixRace.findOneAndUpdate(
             { _id: race._id, status: "open", version: race.version },
-            { $set: { status: "started", racers, order, entries, seed: random(0x7fffffff), startAt, endsAt }, $inc: { version: 1 } },
+            { $set: { status: "started", racers, order, mishaps, entries, seed: random(0x7fffffff), startAt, endsAt }, $inc: { version: 1 } },
             { new: true }
         ).lean();
         if (!started) continue; // someone joined or left in between: again
@@ -257,4 +288,4 @@ async function racesFor(userId, now = new Date()) {
     return { mine: mine ? raceView(mine, now) : null, open: open.map((race) => raceView(race, now)) };
 }
 
-module.exports = { WalletError, RULES, raceView, openRace, joinRace, leaveRace, startRace, startDue, racesFor };
+module.exports = { WalletError, RULES, mishapsFor, raceView, openRace, joinRace, leaveRace, startRace, startDue, racesFor };

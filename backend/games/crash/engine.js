@@ -133,11 +133,13 @@ function cashOutsAt(players, { multiplier, ended }) {
 // is profit, in P-PP. Below the stake (a cash-out under 1x), what's left is
 // split between PP and P-PP in the same shares as the bet, any odd point
 // going to P-PP. Returns { pp, ppp, total }.
-function payoutFor(paid, multiplier, protectShare = 0) {
+// `pays`: the share of the multiplier a cash-out pays (1; a player who's
+// taken their betting cap off, shared/crash/rules.js uncappedPays).
+function payoutFor(paid, multiplier, protectShare = 0, pays = 1) {
     const bet = paid.pp + paid.ppp;
     // A hair added so 10 x 1.1 (11.000000000000002 or 10.999999999999998)
     // doesn't round down a whole point.
-    let total = Math.max(0, Math.floor(bet * multiplier + 1e-9));
+    let total = Math.max(0, Math.floor(bet * multiplier * pays + 1e-9));
     // A protected round (5 or more players): `protectShare` of what was lost
     // comes back too, rounded down.
     if (total < bet && protectShare > 0) total += Math.floor((bet - total) * protectShare + 1e-9);

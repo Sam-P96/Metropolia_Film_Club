@@ -1700,7 +1700,9 @@ class Racer{
     return this._dot=best?hex(...best):'#ffffff';}
 }
 async function raceSync(){
-  if(LIVE)return raceLiveLineup();   // the game's races are the server's
+  if(LIVE){const m=KR.races&&KR.races.mine;   // the game's races are the server's: a started one not showing yet goes first
+    if(m&&m.status==='started'&&KR.playing!==m.id)return raceLivePlay(m);
+    return raceLiveLineup();}
   const tok=++RC.building;const roster=roomRoster(RACE.n,RC.guests);
   const forms=await Promise.all(roster.map(r=>getForm(r.baseFormId)));if(tok!==RC.building)return;
   const keep=new Map(RC.racers.map(r=>[r.id,r]));const list=[];
@@ -1746,15 +1748,25 @@ function rawX(r,t){let x=baseX(r,t)+spreadAt(r,t)-holdAt(r,t);for(const s of r.s
   if(t<r.T)x+=r.nA*Math.sin(2*Math.PI*t/r.nP+r.nPh)*Math.sin(Math.PI*t/r.T);  // gentle jostling, zero at start and finish
   return Math.min(x,RACE.finishX+4);}
 // `rand`: where the randomness comes from; `given`: the finishing order (winner first). In the game both come from
-// the server (the race's seed and order), so every page watching plays exactly the same race.
-function planRace(rand=Math.random,given=null){
+// the server (the race's seed and order), so every page watching plays exactly the same race. `mishaps`, if any (the
+// server's in the game, never the winner; raceBegin rolls its own in Pet Forge's sandbox): { brawl: { attacker,
+// victim, at } (racers, and ms into the race), celebrate: a racer }. A brawl's two stop there for good, fighting; the
+// one celebrating too soon leads into the finish, stops just short of the line to celebrate while the rest go past,
+// then crosses behind them.
+function planRace(rand=Math.random,given=null,mishaps=null){
   const R=rand,rnd=(a,b)=>a+R()*(b-a),pick=a=>a[Math.floor(R()*a.length)];
   const mix=a=>{const o=[...a];for(let i=o.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[o[i],o[j]]=[o[j],o[i]];}return o;};   // a fair shuffle, the same in every browser
   const order=given||mix(RC.racers);let T=RACE.winnerMs;
   // finish: some races are a photo finish, others string out more naturally
   const tight=R()<.4,gap=tight?[150,450]:[300,1600];
   order.forEach((r,i)=>{if(i)T+=rnd(gap[0],gap[1]);r.T=T;r.place=i+1;r.surges=[];r.nA=rnd(3,8);r.nP=rnd(5000,9000);r.nPh=rnd(0,6.28);});
-  RC.order=order;RC.wire=R()<RACE.wireChance;
+  order.forEach(r=>{r.brawl=null;r.cele=null;r.brawling=0;r.celebrating=0;r.crossT=0;});
+  const M=mishaps||{};
+  if(M.celebrate){const c=M.celebrate,rest=order.filter(r=>r!==c&&!(M.brawl&&(r===M.brawl.attacker||r===M.brawl.victim)));
+    c.cele={stopX:RACE.finishX-Math.round(rnd(12,20)),goAt:rest[rest.length-1].T+rnd(1000,1600)};   // stops short of the line; crosses after the rest
+    c.T=order[0].T-rnd(1800,2600);}                                                                  // well clear in front: it leads into the finish, and celebrates there a moment before the winner comes past
+  if(M.brawl){const {attacker:a,victim:b,at}=M.brawl;a.brawl={at,attacker:true,foe:b};b.brawl={at,attacker:false,foe:a};}
+  RC.order=order;RC.wire=!M.celebrate&&R()<RACE.wireChance;   // nobody leads wire-to-wire past a cat celebrating in front
   // early spread, unrelated to who wins: evenly spaced slots across the pack, shuffled, with jitter
   const S=rnd(110,160),slots=mix(order),rise=rnd(4000,6500),fadeFrom=rnd(.5,.62),fadeTo=rnd(.88,.95);
   slots.forEach((r,k)=>{r.spread={o:(k/(slots.length-1||1)-.5)*S+rnd(-8,8),rise,fadeFrom,fadeTo};});
@@ -1786,8 +1798,20 @@ function planRace(rand=Math.random,given=null){
     const t1=tm-rnd(2500,4000),t0=t1-Math.max(6000,D*Math.PI/2/(0.4*v(w)));          // drift back gently (never backwards)
     w.hold={D,t0,t1,t2:tm,t3:w.T-200};}
 }
+// Pet Forge's sandbox rolls mishaps the way the game's server does (backend/utils/catflix/kittyRace.js mishapsFor:
+// 20% a brawl between next-door lanes 20 to 40 s in, 20% a celebration too soon, never the winner), to see them.
+function sandboxRace(){
+  const lanes=RC.racers.length,win=Math.floor(Math.random()*lanes),byLane=i=>RC.racers.find(r=>r.lane===i);
+  let brawl=null,cele=null;
+  if(Math.random()<.2){const pairs=[];for(let i=0;i+1<lanes;i++)if(i!==win&&i+1!==win)pairs.push(i);
+    if(pairs.length){const i=pick(pairs),[a,b]=Math.random()<.5?[i,i+1]:[i+1,i];brawl={attacker:a,victim:b,at:20000+Math.random()*20000};}}
+  if(Math.random()<.2){const left=RC.racers.map(r=>r.lane).filter(i=>i!==win&&(!brawl||(i!==brawl.attacker&&i!==brawl.victim)));if(left.length)cele=pick(left);}
+  const unlucky=[cele,brawl&&brawl.attacker,brawl&&brawl.victim].filter(v=>v!==null&&v!==undefined&&v!==false);
+  const rest=RC.racers.map(r=>r.lane).filter(i=>i!==win&&!unlucky.includes(i)).sort(()=>Math.random()-.5);
+  planRace(Math.random,[win,...rest,...unlucky].map(byLane),{brawl:brawl?{attacker:byLane(brawl.attacker),victim:byLane(brawl.victim),at:brawl.at}:null,celebrate:cele!==null?byLane(cele):null});
+}
 function raceBegin(){
-  if(!RC.racers.length)return;raceReset();planRace();
+  if(!RC.racers.length)return;raceReset();sandboxRace();
   RC.phase='countdown';RC.t0=performance.now();$('raceStart').disabled=true;$('raceStart').textContent='Racing…';
 }
 function raceUpdate(dt,now){
@@ -1795,6 +1819,21 @@ function raceUpdate(dt,now){
   if(RC.phase==='running'){const el=now-RC.t0;let all=true;
     const win=RC.order[0];
     for(const r of RC.order){                         // winner first so the wire-to-wire cap can use its position
+      if(r.brawl&&el>=r.brawl.at){                     // a brawl: both stop there, for good, and nobody waits for them
+        if(!r.brawling){r.brawling=now;r.x=Math.max(r.x,rawX(r,r.brawl.at));r.pounceFrom=r.x;r.setState(r.brawl.attacker?'angry':'sad');}
+        if(r.brawl.attacker){                          // the attacker pounces on its neighbour, wherever it is (ahead or behind), and lands beside it
+          const foe=r.brawl.foe,fx=foe.brawling?foe.x:Math.max(foe.x,rawX(foe,r.brawl.at)),to=fx+(r.pounceFrom<fx?-6:6);
+          const u=Math.min(1,(now-r.brawling)/450);r.x=r.pounceFrom+(to-r.pounceFrom)*(u*u*(3-2*u));r.pounce=u<1?u:0;}
+        continue;}
+      if(r.cele){const C=r.cele;                       // celebrating too soon
+        if(el<C.goAt){r.x=Math.max(r.x,Math.min(rawX(r,el),C.stopX));
+          if(r.x>=C.stopX-.5&&!r.celebrating){r.celebrating=now;r.setState('love');}   // its happy animation, jumping (raceDraw)
+          all=false;continue;}
+        if(!r.crossT){r.crossT=el;r.celebrating=0;r.setState('walk');}               // then over the line, behind the rest
+        const u=Math.min(1,(el-r.crossT)/900);r.x=Math.max(r.x,C.stopX+(RACE.finishX+4-C.stopX)*u);
+        if(u<1){all=false;continue;}
+        r.done=true;if(!r.reacting&&el-r.crossT-900>=RACE.reactMs){r.reacting=now;r.setState('sad');}
+        if(!r.reacting)all=false;continue;}
       if(el<r.T){let x=rawX(r,el);
         if(RC.wire&&r!==win&&!win.done)x=Math.min(x,win.x-7);   // nobody gets past the winner
         r.x=Math.max(r.x,x);all=false;}                          // never step backwards
@@ -1805,16 +1844,20 @@ function raceUpdate(dt,now){
     RC.leader=RC.racers.reduce((a,b)=>b.x>a.x?b:a,RC.racers[0]);
     if(all)raceFinish();}
   for(const r of RC.racers)r.step(dt);
-  // camera follows the leader, keeping it about 60% across the screen
-  const target=RC.phase==='running'||RC.phase==='results'?Math.max(...RC.racers.map(r=>r.x))-RACE.W*.62:0;
+  // camera follows the leader, keeping it about 60% across the screen; when a brawl breaks out, it swings back to
+  // watch it for a moment first
+  const fight=RC.phase==='running'&&RC.racers.find(r=>r.brawling&&r.brawl.attacker&&now-r.brawling<2600);
+  const target=fight?fight.x-RACE.W*.45:RC.phase==='running'||RC.phase==='results'?Math.max(...RC.racers.map(r=>r.x))-RACE.W*.62:0;
   const goal=Math.max(0,Math.min(RACE.MW-RACE.W,target));RC.cam+=(goal-RC.cam)*Math.min(1,dt/250);
 }
 function raceFinish(){
   RC.phase='results';RC.finishedAt=performance.now();
-  $('raceResultsTitle').textContent=RC.wire?'Results — led from start to finish!':RC.comeback?'Results — a late charge from the pack!':'Results';
+  const brawl=RC.order.some(r=>r.brawl),party=RC.order.some(r=>r.cele);
+  $('raceResultsTitle').textContent=brawl&&party?'Results — a brawl, and a celebration too soon!':brawl?'Results — a brawl broke out!':party?'Results — someone celebrated too soon!'
+    :RC.wire?'Results — led from start to finish!':RC.comeback?'Results — a late charge from the pack!':'Results';
   $('raceResults').innerHTML=RC.order.map(r=>{const medal=['🥇','🥈','🥉'][r.place-1]||`<b>${r.place}.</b>`;
-    const mood=r.place===1?'💗 happy':r.place<=RACE.angryUpTo?'💢 angry':'💧 sad';
-    return `<li>${medal} ${r.rarity?rarityDot(r.rarity):''}<span>${esc(r.name)}${raceWho(r)}</span><em>${raceMoney(r)||(LIVE?`<span title="${mood.split(' ')[1]}" aria-label="${mood.split(' ')[1]}">${mood.split(' ')[0]}</span>`:mood)}</em></li>`;}).join('');   // in the game's pop-up: the mood's emoji, so names fit
+    const [icon,word]=r.brawl?['💢','brawled']:r.cele?['🎉','celebrated too soon']:r.place===1?['💗','happy']:r.place<=RACE.angryUpTo?['💢','angry']:['💧','sad'];
+    return `<li>${medal} ${r.rarity?rarityDot(r.rarity):''}<span>${esc(r.name)}${raceWho(r)}</span><em>${raceMoney(r)||(LIVE?`<span title="${word}" aria-label="${word}">${icon}</span>`:`${icon} ${word}`)}</em></li>`;}).join('');   // in the game's pop-up: the mood's emoji, so names fit
   $('raceStart').disabled=false;$('raceStart').textContent='↻ Race again';
   if(LIVE)raceLiveDone();
 }
@@ -1839,9 +1882,18 @@ function raceDraw(now){
     if(A.shake)dx+=Math.round(Math.sin(r.clock/SHAKE_MS*Math.PI*2)*A.shakeAmt);
     if(A.ushake)dy+=Math.round(Math.sin(r.clock/USHAKE_MS*Math.PI*2)*A.ushakeAmt);
     if(r.reacting&&r.place===1)dy-=Math.round(Math.abs(Math.sin((now-r.reacting)/600*Math.PI))*5);
+    if(r.pounce)dy-=Math.round(Math.sin(r.pounce*Math.PI)*8);                                         // the pounce's leap
+    if(r.brawling&&!r.pounce){dx+=Math.round(Math.sin((now-r.brawling)/45)*1.5);                      // scuffling
+      if(r.brawl.attacker)dy+=Math.round((r.brawl.foe.lane-r.lane)*RACE.laneH*.45);}                 // the attacker lunges into its neighbour's lane
+    if(r.celebrating)dy-=Math.round(Math.abs(Math.sin((now-r.celebrating)/280*Math.PI))*7);          // jumping for joy, too soon
     g.fillStyle='rgba(60,30,10,.35)';g.fillRect(Math.round(sx-cr.w*.28),fy,Math.round(cr.w*.56),2);
     g.save();if(r.artFaces()!==1){g.translate(sx*2,0);g.scale(-1,1);}
     g.drawImage(f,cr.x,cr.y,cr.w,cr.h,dx,dy,cr.w,cr.h);g.restore();r._top=dy+topPad(r);}
+  // a brawl's dust cloud, between the two
+  for(const r of RC.racers)if(r.brawling&&r.brawl.attacker){const foe=r.brawl.foe,cx=Math.round((r.x+foe.x)/2)-cam,cy=Math.round((laneFeet(r.lane)+laneFeet(foe.lane))/2)-7;
+    if(cx<-20||cx>RACE.W+20)continue;
+    for(let i=0;i<12;i++){const a=(now/90+i*.53)%(Math.PI*2),rr=5+((i*7+Math.floor(now/110))%6);
+      g.fillStyle=i%3?'rgba(226,214,200,.8)':'rgba(150,140,130,.75)';g.fillRect(cx+Math.round(Math.cos(a)*rr),cy+Math.round(Math.sin(a)*rr*.6),3,2);}}
   weatherStep(RC.dt||16,now,g,cam);   // rain, splashes, lightning on top of the pets
   // progress bar (pixel style): one dot per pet in its own colour, the leader's dot is bigger
   const bx=60,bw=264,by=6;g.fillStyle='rgba(20,10,5,.55)';g.fillRect(bx-3,by-3,bw+6,8);g.fillStyle='#e9dcc3';g.fillRect(bx,by,bw,2);
@@ -1863,6 +1915,13 @@ function raceDraw(now){
     G.fillText(`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`,356*k,6.5*k);
     if(RC.phase==='running'&&RC.leader){G.textAlign='left';G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;const t='LEAD: '+RC.leader.name.toUpperCase();
       const w=G.measureText(t).width;G.fillStyle='rgba(20,10,5,.6)';G.fillRect(2*k,14*k,w+4*k,8*k);G.fillStyle='#ffffff';G.fillText(t,4*k,18*k);}}
+  // 💢 over a brawl; 🎉 over a cat celebrating too soon (and TOO SOON! once the winner's gone past)
+  G.textAlign='center';
+  for(const r of RC.racers){const on=r._sx>-20&&r._sx<RACE.W+20;if(!on)continue;
+    if(r.brawling&&Math.floor((now-r.brawling)/300)%2===0){G.font=`${8*k}px sans-serif`;G.fillText('💢',r._sx*k,(r._top-5)*k);}
+    if(r.celebrating){G.font=`${8*k}px sans-serif`;G.fillText('🎉',r._sx*k,(r._top-12)*k);
+      if(RC.order[0].done){G.font=`700 ${5*k}px 'Pixelify Sans', monospace`;const t='TOO SOON!',w=G.measureText(t).width+4*k;
+        G.fillStyle='rgba(20,10,5,.75)';G.fillRect(r._sx*k-w/2,(r._top-24)*k,w,7*k);G.fillStyle='#ffcf3f';G.fillText(t,r._sx*k,(r._top-20.5)*k);}}}
   if(RC.phase==='countdown'){const left=3-Math.floor((now-RC.t0)/1000);bigText(left>0?String(left):'GO!',k);}
   else if(RC.phase==='running'&&now-RC.t0<700)bigText('GO!',k);
   if(RC.phase==='running'||RC.phase==='results'){G.textAlign='center';
@@ -2426,15 +2485,17 @@ function raceLiveRender(){
   el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>raceLiveAct(`/race/${b.dataset.join}/join`,{bet:KR.bet}));
 }
 // The cats on the line before a race: the open race's, or just yours.
+// A started race on its way in (raceLivePlay loading its cats): the line-up mustn't take its place.
+const raceComing=()=>{const m=KR.races&&KR.races.mine;return !!m&&m.status==='started'&&KR.playing===m.id&&RC.phase==='ready';};
 async function raceLiveLineup(){
-  if(RC.phase==='running'||RC.phase==='countdown')return;
+  if(RC.phase==='running'||RC.phase==='countdown'||raceComing())return;
   const mine=KR.races&&KR.races.mine&&KR.races.mine.status==='open'?KR.races.mine:null,me=PR.id&&petDocs.get(PR.id);
   const want=mine?mine.entries.map(e=>({name:e.name,skinId:e.skinId,owner:e.username})):me?[{name:me.name,skinId:me.skinId,owner:''}]:[];
   const key=JSON.stringify(want);if(KR.lineKey===key&&RC.phase!=='results')return;KR.lineKey=key;
   const list=[];
   for(const [i,x] of want.entries()){const reg=regDocs.get(x.skinId);if(!reg||!baseDocs.has(reg.baseFormId))continue;const f=await getForm(reg.baseFormId);if(!f||!f.firstState())continue;
     list.push(new Racer({id:'line'+i,name:x.name,form:f,map:mapFromChanges(f,reg.changes),guest:false,rarity:reg.rarity,owner:x.owner}));}
-  if(RC.phase==='running'||RC.phase==='countdown'||KR.lineKey!==key)return;
+  if(RC.phase==='running'||RC.phase==='countdown'||raceComing()||KR.lineKey!==key)return;
   RC.racers=list;RC.race=null;raceReset();$('raceEmpty').hidden=true;
 }
 // A started race: its cats in their lanes, scripted from its seed in its order, joined wherever it's got to.
@@ -2444,10 +2505,13 @@ async function raceLivePlay(race){
   for(const [lane,x] of race.racers.entries()){let reg=regDocs.get(x.skinId);if(!reg||!baseDocs.has(reg.baseFormId))reg=fallback;if(!reg)break;
     const f=await getForm(reg.baseFormId);if(!f||!f.firstState())break;
     list.push(new Racer({id:'lane'+lane,name:x.name,form:f,map:mapFromChanges(f,reg.changes),guest:!x.owner,rarity:reg.rarity,owner:x.username||'',ownerId:x.owner,mine:!!me&&x.owner===me}));}
-  if(KR.playing!==race.id||list.length!==race.racers.length)return;
+  if(KR.playing!==race.id)return;
+  if(list.length!==race.racers.length){KR.playing=null;return;}   // the pets' looks aren't here yet: again once they are (raceSync), or on the next poll
   RC.map=race.map;RC.weather=race.weather||'sunny';WX.drops=[];WX.splashes=[];
   [...$('mapSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===RC.map));
-  RC.racers=list;raceReset();planRace(RE.generator(race.seed),race.order.map(i=>list[i]));
+  const M=race.mishaps;   // by lane, from the server
+  const mishaps=M?{brawl:M.brawl?{attacker:list[M.brawl.attacker],victim:list[M.brawl.victim],at:M.brawl.atMs}:null,celebrate:M.celebrate?list[M.celebrate.lane]:null}:null;
+  RC.racers=list;raceReset();planRace(RE.generator(race.seed),race.order.map(i=>list[i]),mishaps);
   RC.race=race;RC.phase='countdown';RC.t0=performance.now()-(serverNow()-Date.parse(race.startAt));
   RC.map=race.map;
   $('raceResultsTitle').textContent='Line-up';raceLiveRender();
@@ -2881,7 +2945,7 @@ function trRender(){
       return `<div class="trrow${x.yourTurn?' turn':''}"><div class="trwho"><span>${what}</span><span class="note">${trLeft(x.expiresAt)}</span></div>
         <div class="trsides">${trSideHtml(theirs,x.mine?'Their answer':'')}<span class="trx" aria-hidden="true">⇄</span>${trSideHtml(yours,'Your answer')}</div>
         <div class="trlabels"><span>${esc(other.username)} gives</span><span></span><span>You give</span></div><div class="tract">${act}</div></div>`;}).join('');
-    box.innerHTML=`<div class="trtop"><p class="note" style="margin:0">Trade a card, and PP if you like, with a friend (someone you follow who follows you back). They have 3 days to answer, then you have 3 days to take it. What you put in is held until it’s done, or comes back if it isn’t.</p>
+    box.innerHTML=`<div class="trtop"><p class="note" style="margin:0">Trade a card, and PP if you like, with a friend (someone you follow who follows you back). They have 3 days to answer, then you have 3 days to take it. What you put in is held until it’s done, or comes back if it isn’t. Points you get in a trade arrive as P-PP.</p>
       <button class="btn acc" data-do="new" ${D.friends.length?'':'disabled'}>＋ New offer</button></div>
       ${D.friends.length?'':'<p class="note">You need a friend to trade with: follow someone who follows you back.</p>'}
       ${rows||'<p class="note">No trades open.</p>'}`;
