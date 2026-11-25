@@ -167,7 +167,8 @@ describe("Ruin Run and Kitty Race", { skip: !uri ? "set MONGO_TEST_URI to run th
 
     test("Ruin Run: a bet, a run played again on the server, +1 confidence, and a cash-out paying 2% for every 1% above 100%", async () => {
         const user = await member({ pp: 60, ppp: 500 });
-        assert.equal((await call(user, "POST", "/run", { bet: 5001 })).status, 400, "5,000 at most");
+        assert.equal((await call(user, "POST", "/run", { bet: 5000 })).status, 400, "1,000 at most");
+        assert.equal((await call(user, "POST", "/run", { bet: 250 })).status, 400, "only the bets on the menu: 1, 10, 30, 50, 100, 500, 1,000");
         assert.equal((await call(user, "POST", "/run", { bet: 0 })).status, 409, "free play only once the cash-outs are used");
 
         const started = await call(user, "POST", "/run", { bet: 100 });

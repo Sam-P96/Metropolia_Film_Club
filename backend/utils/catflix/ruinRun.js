@@ -123,14 +123,14 @@ async function letGo(filter, set = {}) {
     return run;
 }
 
-// Starts a run: `bet` a whole number of points from 1 to the most (taken
-// now, PP first, then P-PP), or 0 for free play, which only opens once the
+// Starts a run: `bet` one of the bets (taken now, PP first, then P-PP),
+// or 0 for free play, which only opens once the
 // day's cash-outs are used. Their pet runs it, so they need one. Any run
 // they had waiting is let go. Resolves to the run, with its seed for the
 // page to play.
 async function startRun(userId, bet) {
     const free = bet === 0;
-    if (!free && (!Number.isInteger(bet) || bet < 1 || bet > RULES.maxBet)) throw new CatflixError(`Bet a whole number of points from 1 to ${RULES.maxBet.toLocaleString("en-US")}.`);
+    if (!free && !RULES.bets.includes(bet)) throw new CatflixError(`Pick one of the bets: ${RULES.bets.map((b) => b.toLocaleString("en-US")).join(", ")} PP.`);
     if (!(await CatflixPet.exists({ owner: userId }))) throw new CatflixError("Hatch your egg first: your pet does the running.", 409);
     const day = playDay();
     const today = await CatflixRunDay.findOne({ user: userId, day }).select("cashOuts").lean();
