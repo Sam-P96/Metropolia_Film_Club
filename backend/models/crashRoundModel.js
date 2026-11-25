@@ -18,6 +18,9 @@ const crashPlayerSchema = new Schema(
         },
         // Their auto-cash-out target, or null.
         autoAt: { type: Number, default: null },
+        // They took their betting cap off (a round of 5 or more): no cap on
+        // the bet, and none of the round's protection for them.
+        uncapped: { type: Boolean, default: false },
         // Where they cashed out (null: they rode it to a crash), on which
         // tick, and whether the server did it for them (a target, the cap or
         // the time limit).

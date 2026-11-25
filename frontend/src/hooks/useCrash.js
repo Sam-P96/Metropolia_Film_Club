@@ -195,6 +195,8 @@ export default function useCrash() {
         live.current = blankLive()
       }),
     setBet: (bet, autoAt) => request('crash:bet', { bet, autoAt }),
+    // Remove Betting Cap (No Bet Protection), or put it back: 5 or more players.
+    uncap: (on) => request('crash:uncap', { on }),
     ready: (on, bet, autoAt) => request('crash:ready', { ready: on, bet, autoAt }),
     // Start Game, without everyone ready; and the answer to its prompt.
     startGame: () => request('crash:start'),

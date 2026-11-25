@@ -31,6 +31,15 @@ export const CRASH_RULES = {
   // points, rounded down).
   protectedPlayers: 5,
   protectShare: 0.5,
+  // In a room of protectedPlayers or more, a player can take their betting
+  // cap off (Remove Betting Cap): they bet anything they have, PP first,
+  // then P-PP, and give up their own protection: nothing back if they lose,
+  // even as the 5th player. They still count towards the 5, so everyone
+  // else keeps theirs. And their cash-outs pay `uncappedPays` of the
+  // multiplier: the game gives back 99% on average (every round starts at
+  // 0.99x and moves fairly from there: backend/games/crash/engine.js), so
+  // 97/99 of it is 97%, 2 points less (the half back left out of it).
+  uncappedPays: 97 / 99,
   // The smallest bet, and the biggest as a share of the member's daily PP
   // (1 PP per review they've written).
   minBet: 1,
@@ -55,6 +64,10 @@ export const roundsFor = (players) => CRASH_RULES.roundsPerDay[Math.min(Math.max
 
 // Whether a round of `players` protects whoever loses in it.
 export const isProtected = (players) => players >= CRASH_RULES.protectedPlayers
+
+// Whether a player can take their betting cap off in a round of `players`:
+// the same 5 or more that protects it.
+export const canUncap = (players) => isProtected(players)
 
 // The kind of round `players` start: "solo" alone, "protected" with 5 or
 // more, else "group".
@@ -92,8 +105,10 @@ export function autoTarget(value) {
 // Why a member can't ready up with `bet` in a room of `players` (counting
 // them; a round played alone is 1), or null if they can. `status`: where
 // they stand today ({ dailyPp, maxBet, used, points, banned }, from the
-// server). The server checks this again as the round starts.
-export function blockedFor(status, bet, players) {
+// server). `uncapped`: they've taken their betting cap off, which only
+// counts in a round of 5 or more. The server checks this again as the
+// round starts.
+export function blockedFor(status, bet, players, { uncapped = false } = {}) {
   if (!status) return 'Checking your points…'
   if (status.banned) return status.banned
   if (status.dailyPp < 1) return 'Write a review to play: your daily PP comes from your reviews.'
@@ -104,7 +119,11 @@ export function blockedFor(status, bet, players) {
     return `A round of ${players} gets ${roundsFor(players)} rounds a day and you've played them: wait for ${needed} players.`
   }
   if (!Number.isInteger(bet) || bet < CRASH_RULES.minBet) return 'Pick a bet first.'
-  if (bet > status.maxBet) return `Bets go up to ${status.maxBet} for you (a quarter of your daily PP).`
+  if (bet > status.maxBet && !(uncapped && canUncap(players))) {
+    return uncapped
+      ? `No betting cap takes ${CRASH_RULES.protectedPlayers} or more players: until then, bets go up to ${status.maxBet} for you.`
+      : `Bets go up to ${status.maxBet} for you (a quarter of your daily PP).`
+  }
   if (status.points < bet) return 'Not enough points for that bet.'
   return null
 }

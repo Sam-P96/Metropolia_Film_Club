@@ -15,6 +15,8 @@ const { createCrashRooms } = require("./rooms");
 //   crash:spectate { on }             sit rounds out, or take a seat again
 //   crash:leave
 //   crash:bet      { bet, autoAt }   (un-readies)
+//   crash:uncap    { on }            Remove Betting Cap (No Bet Protection),
+//                                    or put it back (5 or more; un-readies)
 //   crash:ready    { ready, bet, autoAt }
 //   crash:start                      Start Game, without everyone ready
 //   crash:answer   { join }          join the smaller game, or sit it out
@@ -60,6 +62,7 @@ function startCrashLive(io) {
         handle("crash:spectate", async ({ on }) => rooms.spectate(userId, { on: on !== false }));
         handle("crash:leave", async () => rooms.leave(userId));
         handle("crash:bet", async (payload) => rooms.setBet(userId, payload));
+        handle("crash:uncap", async ({ on }) => rooms.setUncap(userId, { on: on !== false }));
         handle("crash:ready", async (payload) => rooms.ready(userId, payload));
         handle("crash:start", async () => rooms.startGame(userId));
         handle("crash:answer", async ({ join }) => rooms.answer(userId, { join: join === true }));

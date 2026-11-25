@@ -4,19 +4,21 @@ import { useEffect, useRef } from 'react'
 // times the multiplier as shown (`displayRef`, from CrashStage.jsx), in
 // whole points, rounded down, as the server pays. Its label keeps up at the
 // screen's rate without React. Space presses it too (pages/Crash.jsx).
-export default function CashOutButton({ bet, displayRef, onCashOut, busy }) {
+// `pays`: the share of the multiplier a cash-out pays (less than 1 with
+// the betting cap off: shared/crash/rules.js uncappedPays).
+export default function CashOutButton({ bet, displayRef, onCashOut, busy, pays = 1 }) {
   const amountRef = useRef(null)
 
   useEffect(() => {
     let frame
     const update = () => {
       const m = displayRef.current?.m ?? 1
-      if (amountRef.current) amountRef.current.textContent = String(Math.floor(bet * m + 1e-9))
+      if (amountRef.current) amountRef.current.textContent = String(Math.floor(bet * m * pays + 1e-9))
       frame = requestAnimationFrame(update)
     }
     frame = requestAnimationFrame(update)
     return () => cancelAnimationFrame(frame)
-  }, [bet, displayRef])
+  }, [bet, displayRef, pays])
 
   return (
     <button
