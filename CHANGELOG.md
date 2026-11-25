@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Games page): your pet runs through a ruined
     city, 2% faster every second and 25% faster after each enemy pet. Like
     Forrest Bounce, a menu over the game picks the bet: 1, 10, 30, 50, 100
-    or any amount up to 10,000 PP (PP first, then P-PP). Swipe up or down
+    or any amount up to 5,000 PP (PP first, then P-PP). Swipe up or down
     to change lane and tap to jump, or use the buttons under the game: lane
     up over lane down, centred between the left edge and JUMP, on the right
     (held for a bigger jump);

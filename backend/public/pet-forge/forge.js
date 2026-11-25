@@ -2255,7 +2255,7 @@ const endTouch=e=>{if(e.pointerId!==G_.id)return;
 RNc.canvas.addEventListener('pointerup',endTouch);RNc.canvas.addEventListener('pointercancel',endTouch);
 
 /* ---------- Ruin Run, in the game: bets, cash-outs, and the server's replay (backend/utils/catflix/ruinRun.js) ----------
-   Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50 or 100 PP, any amount up to 10,000, or free play
+   Like Forrest Bounce: a menu over the game picks the bet (1, 10, 30, 50 or 100 PP, any amount up to 5,000, or free play
    once the day's 3 cash-outs are used) and starts the run; after it comes the server's result, to cash out or throw away.
    Every 1% of speed above 100% when the run ends pays back 2% of the bet, with no cap. The server plays every run again
    from its seed and what the player did, and pays what it got. The screen holds still while you play (html.fit).
@@ -2294,7 +2294,7 @@ function runHomeRender(){
     <section class="board" aria-labelledby="runBoardTitle"><h3 id="runBoardTitle">Best runs</h3>${board}
       <p class="note">Each member’s fastest run: the speed it ended at, and how far it got. Free runs count too.</p></section></div>`;}
 // How to Play, in a pop-up window over the start screen.
-function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,backPerPercent:2,maxBet:10000,confidence:1,bigWinTimes:5};
+function runHowOpen(){const R=(RL.status&&RL.status.rules)||{cashOutsPerDay:3,backPerPercent:2,maxBet:5000,confidence:1,bigWinTimes:5};
   const box=$('runHowPop').firstChild;
   box.innerHTML=`<div class="head"><h3>How to Play</h3><button class="btn" type="button" id="runHowClose" aria-label="Close">✕</button></div>
     <div class="howto"><p><b>Your pet runs</b> on its own through a ruined city, getting faster all the time. Keep it going for as long as you can.</p>
@@ -2328,7 +2328,7 @@ function runLiveRender(){
       <div class="row"><button class="pri" data-do="cash" ${st.cashOutsLeft<=0||RL.busy?'disabled':''}>Cash out +${fmt(r.worth)} PP</button><button class="sec" data-do="toss" ${RL.busy?'disabled':''}>Throw away</button></div>
       <p class="note">Cash-outs left today: ${st.cashOutsLeft}/${R.cashOutsPerDay}. Throwing a run away keeps your cash-out for a better one.</p>`;
     el.innerHTML=html+msg;}
-  else{const free=runFree(),pts=LV.points,noPet=!PR.id,off=noPet||RL.busy;
+  else{const free=runFree(),pts=LV.points,noPet=!PR.id,off=noPet||RL.busy;if(RL.bet>R.maxBet)RL.bet=R.maxBet;   // a saved custom bet over today's most
     const tiles=R.bets.map(b=>`<button data-bet="${b}" ${off||free||pts<b?'disabled':''}><b>${fmt(b)} PP</b><small>200% pays ${fmt(ruinWorth(b,200))}</small></button>`).join('')
       +`<button data-bet="custom" aria-pressed="${RL.custom}" ${off||free?'disabled':''}><b>Custom</b><small>up to ${fmt(R.maxBet)}</small></button>`
       +`<button data-bet="0" class="free" ${off||!free?'disabled':''}><b>Free</b><small>${free?'nothing paid':`after ${R.cashOutsPerDay} cash-outs`}</small></button>`;
