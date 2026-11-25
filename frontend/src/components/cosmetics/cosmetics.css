@@ -281,6 +281,11 @@
   position: relative;
   display: inline-flex;
   flex: none;
+  /* Never stretched by a flex parent (a column stretches its children to
+     full width, as the Black Market's "You're wearing" box does on phones):
+     stretched, the ring went round a wide box instead of the picture. */
+  width: fit-content;
+  height: fit-content;
   border-radius: 50%;
 }
 .cos-av-pic {

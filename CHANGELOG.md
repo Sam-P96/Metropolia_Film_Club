@@ -980,6 +980,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   washes it lighter, banner and all, wiping in from the right.
 
 ### Fixed
+- Opening a booster pack: no bright rectangle round the pack any more (the
+  browser's focus outline, drawn because the pack is focused when the
+  opening screen comes up). With the keyboard, the pack's glow brightens
+  instead.
+- Profile picture borders on a phone: in the Black Market's "You're
+  wearing" box the border was stretched into a huge oval across the box
+  instead of round the picture. A border now always keeps to the picture's
+  size, wherever it's shown.
 - Catflix No Chill: the Wallet page names its receipts (shop buys, Ruin Run
   and Kitty Race bets and wins), and a member's pet, things, runs and races
   are in their data export and go when they delete their account.
